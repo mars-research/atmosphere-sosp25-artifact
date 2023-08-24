@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+  "aloader",
+  "astd",
+  "atest",
+  "build-tool",
+  "kernel-logger",
+  "ns16550a",
+  "kernel",
+  "verus-shim",
+  "verus-shim-build",
+
+  #"test-cargo-driver",
+  #"atcp",
+  #"build-tool",
+  #"kernel",
+  #"libcap",
+  #"portman",
+  #"verified",
+]
+
+exclude = ["test-pass"]

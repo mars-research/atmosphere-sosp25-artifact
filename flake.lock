@@ -1,0 +1,239 @@
+{
+  "nodes": {
+    "crane": {
+      "inputs": {
+        "flake-compat": [
+          "mars-std",
+          "flake-compat"
+        ],
+        "flake-utils": [
+          "mars-std",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "mars-std",
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1687310026,
+        "narHash": "sha256-20RHFbrnC+hsG4Hyeg/58LvQAK7JWfFItTPFAFamu8E=",
+        "owner": "ipetkov",
+        "repo": "crane",
+        "rev": "116b32c30b5ff28e49f4fcbeeb1bbe3544593204",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ipetkov",
+        "repo": "crane",
+        "type": "github"
+      }
+    },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1673956053,
+        "narHash": "sha256-4gtG9iQuiKITOjNQQeQIpoIB6b16fm+504Ch3sNKLd8=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "35bb57c0c8d8b62bbfd284272c928ceb64ddbde9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1681202837,
+        "narHash": "sha256-H+Rh19JDwRtpVPAWp64F+rlEtxUWBAQW28eAi3SRSzg=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "cfacdce06f30d2b68473a46042957675eebb3401",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "mars-std": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs",
+        "rust-overlay": "rust-overlay_2"
+      },
+      "locked": {
+        "lastModified": 1691324696,
+        "narHash": "sha256-s1DihCYEEB4ekIAWBsd1KQvlJqq/ZRLvBjrtTeSuqfQ=",
+        "owner": "mars-research",
+        "repo": "mars-std",
+        "rev": "14b96352e1b4234f60fd39f9454f86c5310670a3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mars-research",
+        "repo": "mars-std",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1691252436,
+        "narHash": "sha256-SKKPKYOnFcwqECehxoFBMLv29CZXC5qCDuETSuXd82g=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "9607b9149c9d81fdf3dc4f3bcc278da146ffbd77",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-23.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "crane": "crane",
+        "mars-std": "mars-std",
+        "verus": "verus"
+      }
+    },
+    "rust-overlay": {
+      "inputs": {
+        "flake-utils": [
+          "crane",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "crane",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1685759304,
+        "narHash": "sha256-I3YBH6MS3G5kGzNuc1G0f9uYfTcNY9NYoRc3QsykLk4=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "c535b4f3327910c96dcf21851bbdd074d0760290",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_2": {
+      "inputs": {
+        "flake-utils": [
+          "mars-std",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "mars-std",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1691287991,
+        "narHash": "sha256-jAfKjfK1X73Zg/utl2pDdD5nBY53zLSLeTFWQLZM7jo=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "5cf31bca06641e115b9217e682d85d4d23486e61",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_3": {
+      "inputs": {
+        "flake-utils": [
+          "verus",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "verus",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1691691040,
+        "narHash": "sha256-7nt/HqUrbNXP9BzveNSzZG7Tw3k0Ik2WOMD6CX5qlOI=",
+        "owner": "zhaofengli",
+        "repo": "rust-overlay",
+        "rev": "46dff9c200a4cf65447637ca0c6ee62826429924",
+        "type": "github"
+      },
+      "original": {
+        "owner": "zhaofengli",
+        "ref": "fix-sysroot-with-rustc-dev",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "verus": {
+      "inputs": {
+        "crane": [
+          "crane"
+        ],
+        "flake-compat": [
+          "mars-std",
+          "flake-compat"
+        ],
+        "flake-utils": [
+          "mars-std",
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "mars-std",
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay_3"
+      },
+      "locked": {
+        "lastModified": 1691695844,
+        "narHash": "sha256-h5rPOQmNgPa6yvCQQBpyUZvNBJ4yJOul1n9SumYXts4=",
+        "owner": "mars-research",
+        "repo": "verus",
+        "rev": "486aef6d537444db4a053db2e5529165b408b74f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mars-research",
+        "ref": "mars",
+        "repo": "verus",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

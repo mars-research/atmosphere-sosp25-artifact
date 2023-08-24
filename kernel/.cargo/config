@@ -1,0 +1,10 @@
+[build]
+target = "src/x86_64-unknown-aloader.json"
+rustflags = [ "-Z", "emit-stack-sizes" ]
+
+[target.x86_64-unknown-aloader]
+runner = [ "atmo", "run", "--cargo-runner" ]
+
+[unstable]
+build-std = [ "core" ]
+unstable-options = true

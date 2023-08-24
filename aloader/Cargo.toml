@@ -1,0 +1,31 @@
+[package]
+name = "aloader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+astd = { path = "../astd" }
+atest = { path = "../atest" }
+ns16550a = { path = "../ns16550a" }
+kernel-logger = { path = "../kernel-logger" }
+
+bit_field = "0.10.2"
+cfg-match = "0.2.1"
+displaydoc = { version = "0.2.4", default-features = false }
+log = "0.4.19"
+num-derive = "0.3.3"
+num-traits = { version = "0.2.15", default-features = false }
+x86 = "0.52.0"
+
+verus-shim = { path = "../verus-shim" }
+builtin_macros = { git = "https://github.com/mars-research/verus", branch = "mars" }
+plain = "0.2.3"
+
+[dependencies.goblin]
+version = "0.7.1"
+default-features = false
+features = ["elf64"]
+
+[build-dependencies]
+nasm-rs = "0.2.5"
+verus-shim-build = { path = "../verus-shim-build" }

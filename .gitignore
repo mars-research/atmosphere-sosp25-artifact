@@ -1,0 +1,17 @@
+/.direnv
+/.gdb
+
+target
+build
+result
+result-*
+
+*.mb
+*.mb2
+*.iso
+*.mbr
+
+*.sw*
+*.swp
+.gdb_history
+.vscode/**
