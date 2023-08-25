@@ -49,7 +49,7 @@
 
         pkgs.mars-research.mars-tools
 
-        verus.packages.${system}.verus
+        verus.packages.${system}.verus-no-std
       ] ++ (with pkgs; [
         llvmPackages_14.bintools
         llvmPackages_14.llvm
