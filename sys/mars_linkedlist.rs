@@ -3,7 +3,7 @@ use super::*;
 verus! {
 
 pub struct Needle{
-
+    ptr: usize
 }
 
 pub struct MarsLinkedList{
@@ -76,7 +76,7 @@ impl MarsLinkedList {
         ensures  self.needle_valid(&ret),
                  self.needle_resolve(&ret) == self@[0],
     {
-        return Needle{};
+        return Needle{ptr:0};
     }
 
     #[verifier(external_body)]
@@ -95,7 +95,7 @@ impl MarsLinkedList {
             forall| needle: Needle| old(self).needle_valid(&needle) ==> self.needle_valid(&needle),
             forall| needle: Needle| old(self).needle_valid(&needle) ==> self.needle_resolve(&needle) == old(self).needle_resolve(&needle),
     {
-        return Needle{};
+        return Needle{ptr:0};
     }
 
     #[verifier(external_body)]
@@ -115,7 +115,7 @@ impl MarsLinkedList {
             forall| needle: Needle| old(self).needle_valid(&needle) && needle != ret.1 ==> self.needle_valid(&needle),
             forall| needle: Needle| old(self).needle_valid(&needle) && needle != ret.1 ==> self.needle_resolve(&needle) == old(self).needle_resolve(&needle),
     {
-        (0,Needle{})
+        (0,Needle{ptr:0})
     }
 
     #[verifier(external_body)]
