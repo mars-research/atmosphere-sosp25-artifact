@@ -20,6 +20,7 @@ use vstd::ptr::*;
 mod mem;
 mod mars_staticlinkedlist;
 mod mars_array;
+mod mars_linkedlist;
 // mod mars_resizearr;
 // mod mars_array_node;
 use mars_array::MarsArray;
