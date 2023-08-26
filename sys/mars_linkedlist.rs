@@ -6,6 +6,7 @@ pub struct Needle{
     ptr: usize
 }
 
+
 pub struct MarsLinkedList{
     pub spec_seq: Ghost<Seq<usize>>,
     pub len: usize,
@@ -15,7 +16,7 @@ pub struct MarsLinkedList{
 impl MarsLinkedList {
     
     pub open spec fn wf(&self) -> bool{
-        true
+        self.len == self.spec_seq@.len()
     }
 
     pub open spec fn spec_capacity(&self) -> usize{
@@ -79,6 +80,27 @@ impl MarsLinkedList {
         return Needle{ptr:0};
     }
 
+    // #[verifier(inline)]
+    // pub open spec fn push_wf(new: &MarsLinkedList, old: MarsLinkedList, new_value: usize, ret: Needle) -> bool{
+    //     new.wf()
+    //     &&
+    //     new@ == old@.push(new_value)
+    //     &&
+    //     new.len() == old.len() + 1
+    //     &&
+    //     new.needle_valid(&ret)
+    //     &&
+    //     new.needle_resolve(&ret) == new_value
+    //     &&
+    //     forall| ptr: usize| ptr != new_value ==> old@.contains(ptr) == new@.contains(ptr)
+    //     &&
+    //     new@.contains(new_value)
+    //     &&
+    //     forall| needle: Needle| old.needle_valid(&needle) ==> new.needle_valid(&needle)
+    //     &&
+    //     forall| needle: Needle| old.needle_valid(&needle) ==> new.needle_resolve(&needle) == old.needle_resolve(&needle)
+    // }
+
     #[verifier(external_body)]
     pub fn push(&mut self, new_value: usize) -> (ret: Needle)
         requires 
@@ -118,13 +140,15 @@ impl MarsLinkedList {
         (0,Needle{ptr:0})
     }
 
+
     #[verifier(external_body)]
     pub fn remove(&mut self, needle: &Needle) -> (ret: usize)
         requires old(self).wf(),
                  old(self).needle_valid(needle),
                  old(self)@.contains(old(self).needle_resolve(needle)),
                  old(self).is_unique(),
-        ensures self.wf(),
+        ensures 
+                self.wf(),
                 self.len() == old(self).len() - 1,
                 ret == old(self).needle_resolve(needle),
                 self@ == old(self)@.subrange(0,old(self)@.index_of(old(self).needle_resolve(needle))).

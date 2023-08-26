@@ -652,7 +652,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(forall|i:Index| #![auto] 0<= i < N ==> self.free_list@.contains(i) ^ self.value_list@.contains(i));
         assert(self.wf_spec_seq());
         assert(self.spec_seq@ == old(self).spec_seq@.push(new_ptr));
-        assert(old(self).spec_seq@.ext_equal(self.spec_seq@.subrange(0,self.spec_seq@.len() - 1)));
+        assert(old(self).spec_seq@=~=self.spec_seq@.subrange(0,self.spec_seq@.len() - 1));
         assert(forall| ptr: usize| old(self).spec_seq@.contains(ptr) == self.spec_seq@.subrange(0,self.spec_seq@.len() - 1).contains(ptr));
         assert(forall| ptr: usize| ptr != new_ptr ==> old(self).spec_seq@.contains(ptr) == self.spec_seq@.contains(ptr));
         assert(self.spec_seq@[self.spec_seq@.len() as int - 1] == new_ptr);
@@ -1097,9 +1097,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(old(self).value_list@.index_of(index) == 0);
         assert(self.spec_seq@ == old(self).spec_seq@.subrange(1,old(self).value_list@.len() as int));
         assert(Seq::<usize>::empty().len() == 0);
-        assert(self.spec_seq@.ext_equal(Seq::<usize>::empty().add(old(self).spec_seq@.subrange(1,old(self).value_list@.len() as int))));
+        assert(self.spec_seq@=~=Seq::<usize>::empty().add(old(self).spec_seq@.subrange(1,old(self).value_list@.len() as int)));
         assert(old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).len() == 0);
-        assert( old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).ext_equal(Seq::<usize>::empty()));
+        assert( old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index))=~=Seq::<usize>::empty());
         assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)));
         assert(self.wf_spec_seq());      
         assert(0 <= index < N);
@@ -1107,9 +1107,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(old(self).value_list@.index_of(index) == 0);
         assert(self.value_list@ == old(self).value_list@.subrange(1,old(self).value_list@.len() as int));
         assert(Seq::<Index>::empty().len() == 0);
-        assert(self.value_list@.ext_equal(Seq::<Index>::empty().add(old(self).value_list@.subrange(1,old(self).value_list@.len() as int))));
+        assert(self.value_list@=~=Seq::<Index>::empty().add(old(self).value_list@.subrange(1,old(self).value_list@.len() as int)));
         assert(old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).len() == 0);
-        assert( old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).ext_equal(Seq::<Index>::empty()));
+        assert( old(self).value_list@.subrange(0,old(self).value_list@.index_of(index))=~=Seq::<Index>::empty());
         assert(self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)));
         assert(forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> self.arr_seq@[i].value == old(self).arr_seq@[i].value);
     }
@@ -1201,9 +1201,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(old(self).value_list@.index_of(index) == old(self).value_list@.len() - 1);
         assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)));
         assert(Seq::<usize>::empty().len() == 0);
-        assert(self.spec_seq@.ext_equal(old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(Seq::<usize>::empty())));
+        assert(self.spec_seq@=~=old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(Seq::<usize>::empty()));
         assert(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int).len() == 0);
-        assert(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int).ext_equal(Seq::<usize>::empty()));
+        assert(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)=~=Seq::<usize>::empty());
 
         assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)));
         
@@ -1212,9 +1212,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(self.value_list@ == old(self).value_list@.drop_last());
         assert(self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)));
         assert(Seq::<Index>::empty().len() == 0);
-        assert(self.value_list@.ext_equal(old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(Seq::<Index>::empty())));
+        assert(self.value_list@=~~=old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(Seq::<Index>::empty()));
         assert(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int).len() == 0);
-        assert(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int).ext_equal(Seq::<Index>::empty()));
+        assert(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)=~=Seq::<Index>::empty());
         assert(self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)));
         assert(forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> self.arr_seq@[i].value == old(self).arr_seq@[i].value);
     }
