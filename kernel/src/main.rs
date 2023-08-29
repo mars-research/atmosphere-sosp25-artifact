@@ -2,6 +2,8 @@
 #![no_std]
 #![no_main]
 
+mod verified;
+
 #[no_mangle]
 fn main() -> usize {
     42

@@ -42,7 +42,6 @@ dependencies = [
  "astd",
  "atest",
  "bit_field",
- "builtin_macros",
  "cfg-match",
  "displaydoc",
  "goblin",
@@ -53,8 +52,6 @@ dependencies = [
  "num-derive",
  "num-traits",
  "plain",
- "verus-shim",
- "verus-shim-build",
  "x86",
 ]
 
@@ -152,6 +149,11 @@ dependencies = [
 [[package]]
 name = "atmosphere"
 version = "0.1.0"
+dependencies = [
+ "builtin_macros",
+ "verus-shim",
+ "verus-shim-build",
+]
 
 [[package]]
 name = "atomic-polyfill"

@@ -17,8 +17,6 @@ num-derive = "0.3.3"
 num-traits = { version = "0.2.15", default-features = false }
 x86 = "0.52.0"
 
-verus-shim = { path = "../verus-shim" }
-builtin_macros = { git = "https://github.com/mars-research/verus", branch = "mars" }
 plain = "0.2.3"
 
 [dependencies.goblin]
@@ -28,4 +26,3 @@ features = ["elf64"]
 
 [build-dependencies]
 nasm-rs = "0.2.5"
-verus-shim-build = { path = "../verus-shim-build" }

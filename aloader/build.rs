@@ -1,7 +1,5 @@
 #![deny(unused_must_use)]
 
-extern crate nasm_rs;
-
 macro_rules! source {
     ($($arg:tt)*) => {
         println!("cargo:rerun-if-changed={}", format_args!($($arg)*));
@@ -13,8 +11,6 @@ fn main() {
     source!("build.rs");
     //add_x86_64_asm("multiboot_header.asm");
     add_x86_64_asm("crt0.asm");
-
-    verus_shim_build::setup();
 }
 
 /// Adds code from a NASM assembly file to the image.

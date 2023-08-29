@@ -3,6 +3,14 @@ name = "atmosphere"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package.metadata.atmosphere]
+verified_modules = [
+	"src/verified/mod.rs"
+]
 
 [dependencies]
+verus-shim = { path = "../verus-shim" }
+builtin_macros = { git = "https://github.com/mars-research/verus", branch = "mars" }
+
+[build-dependencies]
+verus-shim-build = { path = "../verus-shim-build" }
