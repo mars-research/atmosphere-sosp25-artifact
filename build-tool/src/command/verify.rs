@@ -20,11 +20,9 @@ struct PackageMetadata {
 
 #[derive(Deserialize)]
 struct AtmosphereMetadata {
-    /// List of modules to verify.
-    ///
-    /// Example: src/verified.rs
+    /// Whether to verify the crate.
     #[serde(default)]
-    verified_modules: Vec<PathBuf>,
+    verified: bool,
 }
 
 /// Verify the OS.
@@ -42,7 +40,7 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
         .no_deps()
         .exec()?;
 
-    let mut roots = vec![];
+    let mut source_paths = vec![];
     for package in metadata.packages {
         let package_path = package.manifest_path.parent()
             .ok_or_else(|| anyhow!("manifest_path must have a parent"))?
@@ -52,19 +50,20 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
 
         if let Some(meta) = meta {
             if let Some(atmosphere) = meta.atmosphere {
-                let package_roots = atmosphere.verified_modules
+                let lib = package.targets
                     .iter()
-                    .map(|m| package_path.join(m));
+                    .find(|target| target.kind == &["lib"] && target.crate_types == &["lib"])
+                    .ok_or_else(|| anyhow!("Package {} must have a lib crate", package.name))?;
 
-                roots.extend(package_roots);
+                source_paths.push(lib.src_path.as_std_path().to_owned());
             }
         }
     }
 
-    log::debug!("{:?}", roots);
-    log::info!("Verifying {} modules...", roots.len());
+    log::debug!("{:?}", source_paths);
+    log::info!("Verifying {} crates...", source_paths.len());
 
-    let futures = roots
+    let futures = source_paths
         .iter()
         .map(|root| {
             Command::new("rust_verify")
