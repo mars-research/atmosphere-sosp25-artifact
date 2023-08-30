@@ -1,0 +1,18 @@
+[package]
+name = "verified"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata.atmosphere]
+verified = true
+
+[lib]
+name = "verified"
+path = "lib.rs"
+
+[dependencies.vstd]
+git = "https://github.com/mars-research/verus"
+branch = "mars"
+default-features = false
+
+# Cannot have any other dependencies
