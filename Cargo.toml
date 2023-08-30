@@ -8,8 +8,7 @@ members = [
   "kernel-logger",
   "ns16550a",
   "kernel",
-  "verus-shim",
-  "verus-shim-build",
+  "kernel/verified",
 
   #"test-cargo-driver",
   #"atcp",

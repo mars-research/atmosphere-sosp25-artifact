@@ -3,14 +3,4 @@ name = "kernel"
 version = "0.1.0"
 edition = "2021"
 
-[package.metadata.atmosphere]
-verified_modules = [
-	"src/verified/mod.rs"
-]
-
 [dependencies]
-verus-shim = { path = "../verus-shim" }
-builtin_macros = { git = "https://github.com/mars-research/verus", branch = "mars" }
-
-[build-dependencies]
-verus-shim-build = { path = "../verus-shim-build" }

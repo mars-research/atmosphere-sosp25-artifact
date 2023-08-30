@@ -6,9 +6,12 @@ use vstd::ptr::{
     PAGE_SIZE,
 };
 
-use super::mem::{size_of, spec_size_of};
+use crate::mem::size_of;
 
 verus! {
+
+#[cfg(verus_keep_ghost)]
+use crate::mem::spec_size_of;
 
 // Why 4096 instead of PAGE_SIZE in some places?
 //

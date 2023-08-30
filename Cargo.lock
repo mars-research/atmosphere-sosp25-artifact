@@ -147,15 +147,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atmosphere"
-version = "0.1.0"
-dependencies = [
- "builtin_macros",
- "verus-shim",
- "verus-shim-build",
-]
-
-[[package]]
 name = "atomic-polyfill"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -276,9 +267,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "builtin"
+version = "0.1.0"
+source = "git+https://github.com/mars-research/verus?branch=mars#7c806b3292c9844f5e6ea49019903be7d613acde"
+
+[[package]]
 name = "builtin_macros"
 version = "0.1.0"
-source = "git+https://github.com/mars-research/verus?branch=mars#486aef6d537444db4a053db2e5529165b408b74f"
+source = "git+https://github.com/mars-research/verus?branch=mars#7c806b3292c9844f5e6ea49019903be7d613acde"
 dependencies = [
  "prettyplease_verus",
  "proc-macro2",
@@ -1257,6 +1253,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kernel"
+version = "0.1.0"
+
+[[package]]
 name = "kernel-logger"
 version = "0.1.0"
 dependencies = [
@@ -1622,7 +1622,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "prettyplease_verus"
 version = "0.1.15"
-source = "git+https://github.com/mars-research/verus?branch=mars#486aef6d537444db4a053db2e5529165b408b74f"
+source = "git+https://github.com/mars-research/verus?branch=mars#7c806b3292c9844f5e6ea49019903be7d613acde"
 dependencies = [
  "proc-macro2",
  "syn_verus",
@@ -2088,7 +2088,7 @@ dependencies = [
 [[package]]
 name = "syn_verus"
 version = "1.0.95"
-source = "git+https://github.com/mars-research/verus?branch=mars#486aef6d537444db4a053db2e5529165b408b74f"
+source = "git+https://github.com/mars-research/verus?branch=mars#7c806b3292c9844f5e6ea49019903be7d613acde"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2345,18 +2345,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
+name = "verified"
+version = "0.1.0"
+dependencies = [
+ "vstd",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
-name = "verus-shim"
+name = "vstd"
 version = "0.1.0"
-
-[[package]]
-name = "verus-shim-build"
-version = "0.1.0"
+source = "git+https://github.com/mars-research/verus?branch=mars#7c806b3292c9844f5e6ea49019903be7d613acde"
+dependencies = [
+ "builtin",
+ "builtin_macros",
+]
 
 [[package]]
 name = "vte"
