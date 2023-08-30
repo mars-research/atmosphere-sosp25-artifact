@@ -53,11 +53,11 @@ impl Project {
         let root = workspace.root().to_owned();
 
         // sanity check
-        let kernel_pkg = workspace.members().find(|pkg| pkg.name() == "atmosphere");
+        let kernel_pkg = workspace.members().find(|pkg| pkg.name() == "kernel");
 
         if kernel_pkg.is_none() {
             return Err(anyhow!(
-                "Invalid workspace - The kernel crate (\"atmosphere\") doesn't exist"
+                "Invalid workspace - The kernel crate (\"kernel\") doesn't exist"
             ));
         }
 
@@ -69,9 +69,9 @@ impl Project {
     /// Returns the kernel crate.
     pub fn kernel(self: &Arc<Self>) -> Crate {
         Crate {
-            name: "atmosphere".to_string(),
+            name: "kernel".to_string(),
             crate_dir: self.root.join("kernel"),
-            binary: Some("atmosphere".to_string()),
+            binary: Some("kernel".to_string()),
             max_stack_size: Some(Byte::from_bytes(1024 * 1024 * 16)), // 16 MiB
         }
     }
