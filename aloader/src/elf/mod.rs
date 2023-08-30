@@ -3,6 +3,8 @@
 //! Adapted from <https://github.com/nix-community/nix-ld-rs>.
 //! Copyright (c) 2023 Zhaofeng Li and nix-ld-rs contributors
 
+mod dynamic;
+
 use core::ffi::c_void;
 use core::fmt;
 use core::mem;
@@ -15,14 +17,18 @@ use cfg_match::cfg_match;
 use displaydoc::Display;
 use plain::Plain;
 
+use dynamic::Dynamic;
+
 cfg_match! {
-    target_pointer_width = "64" => {
+    target_arch = "x86_64" => {
         use goblin::elf64 as elf_types;
         const EM_SELF: u16 = elf_types::header::EM_X86_64;
+        const R_RELATIVE: u32 = elf_types::reloc::R_X86_64_RELATIVE;
     }
-    target_pointer_width = "32" => {
+    target_arch = "x86" => {
         use goblin::elf32 as elf_types;
         const EM_SELF: u16 = elf_types::header::EM_386;
+        const R_RELATIVE: u32 = elf_types::reloc::R_386_RELATIVE;
     }
 }
 
@@ -309,6 +315,11 @@ where
                     }
                 }
             }
+        }
+
+        if let Some(dynamic) = Dynamic::from_program_headers(self.program_headers.iter(), load_bias) {
+            log::debug!("Applying relocations");
+            dynamic.fixup();
         }
 
         Ok(ElfMapping {
