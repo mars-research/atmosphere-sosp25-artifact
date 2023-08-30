@@ -87,7 +87,11 @@ pub unsafe fn init() {
 
             log::info!("Usable regions:");
             for region in usable_regions.iter() {
-                log::info!("[mem {:#016x}-{:#016x}]", region.base(), region.end_inclusive())
+                log::info!(
+                    "[mem {:#016x}-{:#016x}]",
+                    region.base(),
+                    region.end_inclusive()
+                )
             }
 
             if let Some(module) = start_info.iter_modlist().next() {
@@ -118,7 +122,10 @@ pub unsafe fn init() {
                 usable_region.base() + reserve_size,
                 usable_region.size() - reserve_size,
             );
-            log::debug!("Reserved region for dynamic allocator: {:x?}", reserved_region);
+            log::debug!(
+                "Reserved region for dynamic allocator: {:x?}",
+                reserved_region
+            );
             break;
         }
     }

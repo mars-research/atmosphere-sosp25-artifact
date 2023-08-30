@@ -77,7 +77,12 @@ unsafe impl GlobalAlloc for BumpAllocator {
 }
 
 impl Memory for BumpAllocator {
-    unsafe fn map_anonymous(&mut self, base: *mut c_void, size: usize, _protection: PageProtection) -> *mut c_void {
+    unsafe fn map_anonymous(
+        &mut self,
+        base: *mut c_void,
+        size: usize,
+        _protection: PageProtection,
+    ) -> *mut c_void {
         if !base.is_null() {
             base
         } else {

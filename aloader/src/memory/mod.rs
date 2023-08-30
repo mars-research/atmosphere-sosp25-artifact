@@ -2,8 +2,8 @@ mod allocator;
 
 use core::num::NonZeroU64;
 
-use astd::heapless::Vec as ArrayVec;
 use crate::elf::Memory;
+use astd::heapless::Vec as ArrayVec;
 
 /// A range of memory, denoted by the base address and size.
 #[derive(Debug, Clone)]
