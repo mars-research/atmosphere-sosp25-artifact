@@ -29,6 +29,8 @@ use core::arch::asm;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 
+use astd::io::Cursor;
+
 /// Loader entry point.
 #[start]
 #[no_mangle]
@@ -46,6 +48,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     }
 
     let kernel_image = boot::get_kernel_image().expect("No kernel image was passed");
+    let kernel_image = Cursor::new(kernel_image);
     let elf = elf::ElfHandle::parse(kernel_image, 4096).unwrap();
 
     let mapping = elf.load(memory::memory()).unwrap();

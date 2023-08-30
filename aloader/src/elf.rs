@@ -9,6 +9,8 @@ use core::mem;
 use core::ptr;
 use core::slice;
 
+use astd::heapless::Vec as ArrayVec;
+use astd::io::{Error as IoError, Read, ReadExactError, Seek, SeekFrom};
 use cfg_match::cfg_match;
 use displaydoc::Display;
 use plain::Plain;
@@ -26,10 +28,11 @@ cfg_match! {
 
 use elf_types::{
     header::{Header, ET_DYN},
-    program_header::{ProgramHeader, PT_LOAD, PF_R, PF_W, PF_X},
+    program_header::{ProgramHeader, PF_R, PF_W, PF_X, PT_LOAD},
 };
 
 const HEADER_SIZE: usize = mem::size_of::<Header>();
+const MAX_PROGRAM_HEADERS: usize = 20;
 
 #[derive(Display, Debug)]
 pub enum Error {
@@ -40,10 +43,7 @@ pub enum Error {
     BadMagic,
 
     /// Binary is for wrong architecture (expected 0x{expected:x}, got 0x{actual:x})
-    WrongArchitecture {
-        expected: u16,
-        actual: u16,
-    },
+    WrongArchitecture { expected: u16, actual: u16 },
 
     /// Binary is not relocatable
     NotRelocatable,
@@ -51,11 +51,17 @@ pub enum Error {
     /// Binary has bad program header size {0}
     BadProgramHeaderSize(usize),
 
+    /// Too many program headers
+    TooManyProgramHeaders,
+
     /// No loadable segments
     NoLoadableSegments,
 
     /// Failed to memory map
     MapFailed,
+
+    /// I/O error: {0}
+    IoError(IoError),
 }
 
 pub trait Memory {
@@ -64,13 +70,18 @@ pub trait Memory {
     /// Maps anonymous memory.
     ///
     /// If base is null, then the mapping can be at an arbitary address.
-    unsafe fn map_anonymous(&mut self, base: *mut c_void, size: usize, protection: PageProtection) -> *mut c_void;
+    unsafe fn map_anonymous(
+        &mut self,
+        base: *mut c_void,
+        size: usize,
+        protection: PageProtection,
+    ) -> *mut c_void;
 }
 
-pub struct ElfHandle {
-    elf: &'static [u8],
+pub struct ElfHandle<F: Read + Seek> {
+    file: F,
     header: Header,
-    ph_size: usize,
+    program_headers: ArrayVec<ProgramHeader, MAX_PROGRAM_HEADERS>,
     page_size: usize,
 }
 
@@ -79,16 +90,6 @@ pub struct ElfMapping {
     pub entry_point: *const c_void,
 }
 
-struct ProgramHeaders<'a> {
-    data: &'a [u8],
-    entry_size: usize,
-    num_entries: usize,
-}
-
-struct ProgramHeadersIter<'ph, 'a> {
-    headers: &'ph ProgramHeaders<'a>,
-    index: usize,
-}
 struct DisplayPFlags<'ph>(&'ph ProgramHeader);
 
 #[derive(Debug, Clone)]
@@ -108,13 +109,34 @@ pub struct PageProtection {
     pub execute: bool,
 }
 
-impl ElfHandle {
-    pub fn parse(elf: &'static [u8], page_size: usize) -> Result<Self, Error> {
-        let header_bytes = elf[..HEADER_SIZE]
-            .try_into()
-            .map_err(|_| Error::TooShort)?;
+impl Into<Error> for IoError {
+    fn into(self) -> Error {
+        Error::IoError(self)
+    }
+}
 
-        let header = Header::from_bytes(header_bytes);
+impl<E> Into<Error> for ReadExactError<E>
+where
+    E: Into<Error>,
+{
+    fn into(self) -> Error {
+        match self {
+            ReadExactError::UnexpectedEof => Error::TooShort,
+            ReadExactError::Other(e) => e.into(),
+        }
+    }
+}
+
+impl<T> ElfHandle<T>
+where
+    T: Read + Seek,
+    T::Error: Into<Error>,
+{
+    pub fn parse(mut file: T, page_size: usize) -> Result<Self, Error> {
+        let mut header_bytes = [0u8; HEADER_SIZE];
+        file.read_exact(&mut header_bytes).map_err(Into::into)?;
+
+        let header = Header::from_bytes(&header_bytes);
         if &header.e_ident[..4] != b"\x7fELF".as_slice() {
             return Err(Error::BadMagic);
         }
@@ -131,29 +153,44 @@ impl ElfHandle {
             return Err(Error::NotRelocatable);
         }
 
-        let ph_size = header.e_phentsize as usize * header.e_phnum as usize;
-        if ph_size == 0 || ph_size > 65536 {
-            return Err(Error::BadProgramHeaderSize(ph_size));
+        if header.e_phentsize as usize != mem::size_of::<ProgramHeader>() {
+            return Err(Error::BadProgramHeaderSize(header.e_phentsize as usize));
+        }
+
+        if header.e_phnum as usize > MAX_PROGRAM_HEADERS {
+            return Err(Error::TooManyProgramHeaders);
+        }
+
+        let mut program_headers = ArrayVec::new();
+
+        for _ in 0..header.e_phnum {
+            let mut ph_bytes = [0u8; mem::size_of::<ProgramHeader>()];
+            file.read_exact(&mut ph_bytes).map_err(Into::into)?;
+
+            let ph = <ProgramHeader as Plain>::from_bytes(&ph_bytes)
+                .unwrap()
+                .clone();
+
+            program_headers.push(ph).unwrap();
         }
 
         Ok(Self {
-            elf,
+            file,
             header: header.clone(),
-            ph_size,
+            program_headers,
             page_size,
         })
     }
 
-    pub fn load(self, memory: &mut impl Memory) -> Result<ElfMapping, Error> {
-        let phs = self.program_headers();
-        let summary = if let Some(summary) = phs.summarize_loadable() {
+    pub fn load(mut self, memory: &mut impl Memory) -> Result<ElfMapping, Error> {
+        let summary = if let Some(summary) = self.summarize_loadable() {
             summary
         } else {
             return Err(Error::NoLoadableSegments);
         };
 
         log::info!("Program headers:");
-        for ph in phs.iter() {
+        for ph in self.program_headers.iter() {
             log::info!("- {:?}", ph);
         }
 
@@ -187,12 +224,9 @@ impl ElfHandle {
         log::debug!("  Entry Point: 0x{:x?}", entry_point);
         log::debug!("    Page Size: {}", self.page_size);
 
-        log::debug!(
-            "GDB: add-symbol-file /path/to/elf 0x{:x}",
-            load_bias
-        );
+        log::debug!("GDB: add-symbol-file /path/to/elf 0x{:x}", load_bias);
 
-        for ph in phs.iter() {
+        for ph in self.program_headers.iter() {
             if ph.p_type != PT_LOAD || ph.p_memsz == 0 {
                 continue;
             }
@@ -227,11 +261,7 @@ impl ElfHandle {
                         ph = DisplayPFlags(ph),
                     );
 
-                    memory.map_anonymous(
-                        addr as *mut c_void,
-                        size,
-                        prot,
-                    )
+                    memory.map_anonymous(addr as *mut c_void, size, prot)
                 };
 
                 if mapping.is_null() {
@@ -241,8 +271,11 @@ impl ElfHandle {
 
                 // FIXME: Unwritable memory
                 let dst = unsafe { slice::from_raw_parts_mut(mapping as *mut u8, file_map_size) };
-                let src = &self.elf[self.page_start(offset)..self.page_start(offset) + file_map_size];
-                dst.copy_from_slice(src);
+
+                self.file
+                    .seek(SeekFrom::Start(self.page_start(offset) as u64))
+                    .map_err(Into::into)?;
+                self.file.read_exact(dst).map_err(Into::into)?;
             }
 
             // Memory beyond memsz is zero-initialized
@@ -251,7 +284,9 @@ impl ElfHandle {
                 let zero_addr = load_bias + vaddr + filesz;
                 let zero_end = self.page_align(zero_addr);
                 if zero_end > zero_addr {
-                    let fractional_page = unsafe { slice::from_raw_parts_mut(zero_addr as *mut u8, zero_end - zero_addr) };
+                    let fractional_page = unsafe {
+                        slice::from_raw_parts_mut(zero_addr as *mut u8, zero_end - zero_addr)
+                    };
                     fractional_page.fill(0);
                 }
 
@@ -282,40 +317,12 @@ impl ElfHandle {
         })
     }
 
-    fn program_headers(&self) -> ProgramHeaders<'static> {
-        let data = &self.elf[HEADER_SIZE..HEADER_SIZE + self.ph_size];
-        ProgramHeaders {
-            data,
-            entry_size: self.header.e_phentsize as usize,
-            num_entries: self.header.e_phnum as usize,
-        }
-    }
-
-    #[inline(always)]
-    fn page_align(&self, v: usize) -> usize {
-        (v + self.page_size - 1) & !(self.page_size - 1)
-    }
-
-    #[inline(always)]
-    fn page_start(&self, v: usize) -> usize {
-        v & !(self.page_size - 1)
-    }
-}
-
-impl<'a> ProgramHeaders<'a> {
-    pub fn iter(&'a self) -> ProgramHeadersIter<'a, 'a> {
-        ProgramHeadersIter {
-            headers: self,
-            index: 0,
-        }
-    }
-
-    pub fn summarize_loadable(&self) -> Option<LoadableSummary> {
+    fn summarize_loadable(&self) -> Option<LoadableSummary> {
         let mut first_vaddr = None;
         let mut addr_min = usize::MAX;
         let mut addr_max = usize::MIN;
 
-        for ph in self.iter() {
+        for ph in self.program_headers.iter() {
             if ph.p_type != PT_LOAD || ph.p_memsz == 0 {
                 continue;
             }
@@ -339,23 +346,15 @@ impl<'a> ProgramHeaders<'a> {
             total_mapping_size: addr_max - addr_min,
         })
     }
-}
 
-impl<'ph, 'a> Iterator for ProgramHeadersIter<'ph, 'a> {
-    type Item = &'ph ProgramHeader;
+    #[inline(always)]
+    fn page_align(&self, v: usize) -> usize {
+        (v + self.page_size - 1) & !(self.page_size - 1)
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.headers.num_entries {
-            return None;
-        }
-
-        let base = self.index * self.headers.entry_size;
-        let bytes = &self.headers.data[base..base + self.headers.entry_size];
-        let entry = <ProgramHeader as Plain>::from_bytes(bytes).unwrap();
-
-        self.index += 1;
-
-        Some(entry)
+    #[inline(always)]
+    fn page_start(&self, v: usize) -> usize {
+        v & !(self.page_size - 1)
     }
 }
 

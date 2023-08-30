@@ -4,12 +4,16 @@ use core::convert::AsRef;
 
 use displaydoc::Display;
 use embedded_io as eio;
-pub use embedded_io::{Read, Seek, SeekFrom, Write};
+pub use embedded_io::{
+    Read, Seek, SeekFrom, Write,
+    ReadExactError, WriteAllError, WriteFmtError,
+    ErrorType, ErrorKind,
+};
 
 /// An I/O error.
 #[derive(Debug, Display)]
 pub struct Error {
-    kind: eio::ErrorKind,
+    kind: ErrorKind,
 }
 
 /// Wrapper of an in-memory buffer tha implements `Read` and `Seek`.
@@ -20,6 +24,13 @@ pub struct Error {
 pub struct Cursor<T> {
     inner: T,
     pos: u64,
+}
+
+impl Error {
+    /// Returns a new Error.
+    pub fn from_kind(kind: eio::ErrorKind) -> Self {
+        Self { kind }
+    }
 }
 
 impl eio::Error for Error {
