@@ -37,10 +37,9 @@ pub ghost struct PageArenaData<T, const N: usize> {
 
 /// A pointer to an element in a page arena.
 pub struct PageElementPtr<T> {
-    ptr: usize,
+    page_pptr: PagePPtr,
+    index: usize,
 
-    page_pptr: Ghost<PagePPtr>,
-    index: Ghost<nat>,
     phantom: Ghost<Option<T>>,
 }
 
@@ -88,33 +87,15 @@ impl<T, const N: usize> PageArena<T, N> {
             page_pptr.id() == arena@@.pptr.id(),
             arena@.wf(),
         ensures
-            ep.wf(),
             ep.index() == i,
             arena@.has_element(&ep),
-
-            ep.ptr() == Self::spec_ptr_at(arena, page_pptr, i),
     {
-        let ep: PageElementPtr<T> = PageElementPtr {
-            ptr: Self::ptr_at(arena, page_pptr, i),
+        PageElementPtr {
+            page_pptr,
+            index: i,
 
-            page_pptr: Ghost(page_pptr),
-            index: Ghost(i as nat),
             phantom: Ghost(None),
-        };
-
-        assert(ep.wf_index());
-        assert(ep.wf_bounds()) by {
-            // Required to prove the second clause ("Ends within the page"):
-            //
-            //     ep.page_offset() + spec_size_of::<T>() <= PAGE_SIZE
-            //
-            Self::lemma_increasing_offset((i + 1) as nat, N as nat);
-            Self::lemma_offset_successor(i as nat);
-        };
-
-        assert(ep.wf());
-
-        ep
+        }
     }
 
     pub const fn capacity() -> usize {
@@ -138,12 +119,6 @@ impl<T, const N: usize> PageArena<T, N> {
             N > 0
         ensures
             fits == Self::spec_fits_one_page(),
-            fits ==> (
-                // Every possible offset fits into the page
-                forall |i: nat|
-                    i < N ==>
-                        #[trigger]((i * spec_size_of::<T>()) as nat) < PAGE_SIZE
-            ),
     {
         // This will be optimized out
         if size_of::<T>() == 0 || size_of::<T>() > 4096 {
@@ -151,25 +126,7 @@ impl<T, const N: usize> PageArena<T, N> {
         }
 
         if let Some(size) = N.checked_mul(size_of::<T>()) {
-            let fits = size > 0 && size <= 4096;
-
-            if fits {
-                proof {
-                    let total_spec_size = (N * spec_size_of::<T>()) as nat;
-
-                    // Every possible offset fits into the page
-                    assert forall |i: nat|
-                        i < N ==>
-                            #[trigger]((i * spec_size_of::<T>()) as nat) < total_spec_size
-                    by {
-                        if 0 < i < N {
-                            Self::lemma_increasing_offset(i, N as nat);
-                        }
-                    };
-                }
-            }
-
-            fits
+            size > 0 && size <= 4096
         } else {
             false
         }
@@ -180,11 +137,8 @@ impl<T, const N: usize> PageArena<T, N> {
         && 0 < (N * spec_size_of::<T>()) as nat <= PAGE_SIZE
     }
 
-    pub open spec fn has_element(&self, element: &PageElementPtr<T>) -> bool
-        recommends
-            element.wf()
-    {
-        element.wf() && self@.pptr.id() == element.page_base()
+    pub open spec fn has_element(&self, element: &PageElementPtr<T>) -> bool {
+        self@.pptr.id() == element.page_base() && element.index() < N
     }
 
     pub open spec fn values(&self) -> &[Option<T>; N] {
@@ -200,27 +154,6 @@ impl<T, const N: usize> PageArena<T, N> {
         self@.pptr.id() == arena@.pptr.id()
     }
 
-    // Lemmas
-
-    proof fn lemma_increasing_offset(i: nat, j: nat)
-        by (nonlinear_arith)
-        requires
-            i <= j,
-            spec_size_of::<T>() > 0,
-        ensures
-            i * spec_size_of::<T>() <= j * spec_size_of::<T>(),
-            i < j ==> i * spec_size_of::<T>() < j * spec_size_of::<T>(),
-    {
-    }
-
-    proof fn lemma_offset_successor(i: nat)
-        by (nonlinear_arith)
-        ensures
-            // Verus really needs a nudge to understand the distributive property
-            (i + 1) * spec_size_of::<T>() == i * spec_size_of::<T>() + spec_size_of::<T>()
-    {
-    }
-
     // Trusted methods
 
     #[verifier(external_body)]
@@ -234,23 +167,6 @@ impl<T, const N: usize> PageArena<T, N> {
             pa@@.init(pptr, perm)
     {
         Tracked::assume_new()
-    }
-
-    // FIXME: Prove absence of overflow with usize
-    #[verifier(external_body)]
-    pub fn ptr_at(arena: &Tracked<Self>, page_pptr: PagePPtr, i: usize) -> (ptr: usize)
-        requires
-            i < N,
-            page_pptr.id() == arena@@.pptr.id(),
-            arena@.wf(),
-        ensures
-            ptr == Self::spec_ptr_at(arena, page_pptr, i),
-    {
-        page_pptr.to_usize() + i * size_of::<T>()
-    }
-
-    pub open spec fn spec_ptr_at(arena: &Tracked<Self>, page_pptr: PagePPtr, i: usize) -> int {
-        page_pptr.id() + i as nat * spec_size_of::<T>()
     }
 }
 
@@ -268,61 +184,29 @@ impl<T, const N: usize> PageArenaData<T, N> {
 
 impl<T> PageElementPtr<T> {
     pub fn clone(&self) -> (ep: Self)
-        requires
-            self.wf(),
         ensures
-            self == ep,
-            ep.wf(),
+            self.same_ptr(&ep),
     {
         Self {
+            page_pptr: self.page_pptr.clone(),
             index: self.index,
 
-            page_pptr: self.page_pptr,
-            ptr: self.ptr,
             phantom: self.phantom,
         }
     }
 
     // Specs
 
-    pub open spec fn wf(&self) -> bool
-        recommends
-            self.wf_bounds(),
-            self.wf_index(),
-    {
-        self.wf_bounds() && self.wf_index()
-    }
-
-    pub open spec fn wf_bounds(&self) -> bool {
-        // Starts within the page
-        self.ptr() >= self.page_base()
-        && 0 <= self.page_offset() < PAGE_SIZE
-
-        // Ends within the page
-        && self.page_offset() + spec_size_of::<T>() <= PAGE_SIZE
-    }
-
-    pub open spec fn wf_index(&self) -> bool {
-        // The index corresponds to the offset
-        self.page_offset() == self.index() * spec_size_of::<T>()
-    }
-
-    // Utilities
-
-    pub closed spec fn ptr(&self) -> usize {
-        self.ptr
+    pub closed spec fn same_ptr(&self, other: &Self) -> bool {
+        self.page_pptr.id() === other.page_pptr.id() && self.index == other.index
     }
 
     pub closed spec fn page_base(&self) -> int {
-        self.page_pptr@.id()
-    }
-
-    pub closed spec fn page_offset(&self) -> int {
-        self.ptr - self.page_base()
+        self.page_pptr.id()
     }
 
     pub closed spec fn index(&self) -> nat {
-        self.index@
+        self.index as nat
     }
 
     pub closed spec fn in_arena<const N: usize>(&self, arena: &Tracked<PageArena<T, N>>) -> bool {
@@ -334,21 +218,21 @@ impl<T> PageElementPtr<T> {
     #[verifier(external_body)]
     pub fn borrow<const N: usize>(&self, arena: &Tracked<PageArena<T, N>>) -> (result: &T)
         requires
-            self.wf(),
+            arena@.wf(),
             arena@.has_element(self),
             arena@.value_at(self.index()).is_Some(),
         ensures
             result == arena@.value_at(self.index()).get_Some_0(),
     {
         unsafe {
-            &*(self.ptr as *const T)
+            let arr = &*(self.page_pptr.to_usize() as *const [T; N]);
+            &arr[self.index]
         }
     }
 
     #[verifier(external_body)]
     pub fn put<const N: usize>(&self, arena: &mut Tracked<PageArena<T, N>>, value: T)
         requires
-            self.wf(),
             old(arena)@.has_element(self),
         ensures
             arena@.same_arena(old(arena)@),
@@ -362,7 +246,8 @@ impl<T> PageElementPtr<T> {
                     #[trigger] old(arena)@.value_at(i) == arena@.value_at(i),
     {
         unsafe {
-            *(self.ptr as *mut T) = value;
+            let arr = &mut *(self.page_pptr.to_usize() as *mut [T; N]);
+            arr[self.index] = value;
         }
     }
 
@@ -378,7 +263,6 @@ impl<T> PageElementPtr<T> {
         f: impl FnOnce(&mut T),
     )
         requires
-            self.wf(),
             old(arena)@.has_element(self),
         ensures
             arena@.same_arena(old(arena)@),
@@ -417,14 +301,11 @@ mod test {
         if usize::MAX - pptr.to_usize() < 4096 { return; }
 
         let first: PageElementPtr<SomeElement> = PageElementPtr {
-            ptr: pptr.to_usize() + 0 * size_of::<SomeElement>(),
+            page_pptr: pptr,
+            index: 0,
 
-            page_pptr: Ghost(pptr),
-            index: Ghost(0),
             phantom: Ghost(None),
         };
-
-        assert(first.wf());
     }
 
     fn test_boot_page(page1: BootPage, page2: BootPage) {
@@ -436,7 +317,7 @@ mod test {
         } else {
             return;
         };
-        let mut arena2 = if let Some(arena) = PageArena::<usize, 5>::from_page(pptr2.clone(), perm2) {
+        let arena2 = if let Some(arena) = PageArena::<usize, 5>::from_page(pptr2.clone(), perm2) {
             arena
         } else {
             return;
