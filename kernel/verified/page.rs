@@ -10,9 +10,6 @@ use crate::mem::size_of;
 
 verus! {
 
-#[cfg(verus_keep_ghost)]
-use crate::mem::spec_size_of;
-
 // Why 4096 instead of PAGE_SIZE in some places?
 //
 // https://github.com/verus-lang/verus/issues/587
@@ -24,15 +21,15 @@ pub type PagePPtr = PPtr<[u8; PAGE_SIZE]>;
 /// It splits a page into multiple Elements.
 #[verifier(external_body)]
 #[verifier::reject_recursive_types_in_ground_variants(T)]
-pub tracked struct PageArena<T, const N: usize> {
+pub tracked struct PageArena<T> {
     phantom: PhantomData<T>,
     no_copy: NoCopy,
 }
 
-pub ghost struct PageArenaData<T, const N: usize> {
+pub ghost struct PageArenaData<T> {
     pub pptr: PagePPtr,
     pub perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
-    pub values: [Option<T>; N],
+    pub values: Seq<Option<T>>,
 }
 
 /// A pointer to an element in a page arena.
@@ -43,36 +40,26 @@ pub struct PageElementPtr<T> {
     phantom: Ghost<Option<T>>,
 }
 
-impl<T, const N: usize> PageArena<T, N> {
-    pub spec fn view(self) -> PageArenaData<T, N>;
+impl<T> PageArena<T> {
+    pub spec fn view(self) -> PageArenaData<T>;
 
     pub fn from_page(
         pptr: PagePPtr,
         perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
     ) -> (pa: Option<Tracked<Self>>)
         requires
-            N > 0,
             pptr.id() === perm@@.pptr
         ensures
             pa.is_Some() ==> (
-                Self::fits_one_page()
-                && pa.get_Some_0()@.wf()
+                pa.get_Some_0()@.wf()
                 && pa.get_Some_0()@@.pptr.id() == pptr.id()
             ),
     {
         // This will be optimized out
-        if !Self::fits_one_page() {
+        if Self::capacity_opt().is_none() {
             return None;
         }
-        assert(Self::spec_fits_one_page());
-
-        // Lightweight runtime check
-        //
-        // TODO: Can probably be guaranteed on the BootPage side
-        if usize::MAX - pptr.to_usize() < 4096 {
-            return None;
-        }
-        assert(pptr.id() + PAGE_SIZE <= usize::MAX);
+        assert(Self::fits_one_page());
 
         Some(Self::wrap_perm(pptr, perm))
     }
@@ -83,7 +70,7 @@ impl<T, const N: usize> PageArena<T, N> {
     /// needs to be specified.
     pub fn get_element_ptr(arena: &Tracked<Self>, page_pptr: PagePPtr, i: usize) -> (ep: PageElementPtr<T>)
         requires
-            0 <= i < N,
+            0 <= i < Self::spec_capacity(),
             page_pptr.id() == arena@@.pptr.id(),
             arena@.wf(),
         ensures
@@ -98,50 +85,25 @@ impl<T, const N: usize> PageArena<T, N> {
         }
     }
 
-    pub const fn capacity() -> usize {
-        N
-    }
-
     // Specs
 
     pub open spec fn wf(&self) -> bool {
-        self.wf_can_address_at_least_a_page() && Self::fits_one_page()
+        Self::fits_one_page()
     }
 
-    pub open spec fn wf_can_address_at_least_a_page(&self) -> bool {
-        // Can address at least a page
-        self@.pptr.id() + PAGE_SIZE <= usize::MAX
+    pub open spec fn fits_one_page() -> bool {
+        Self::spec_capacity_opt().is_Some()
     }
 
-    #[verifier(when_used_as_spec(spec_fits_one_page))]
-    pub const fn fits_one_page() -> (fits: bool)
-        requires
-            N > 0
-        ensures
-            fits == Self::spec_fits_one_page(),
-    {
-        // This will be optimized out
-        if size_of::<T>() == 0 || size_of::<T>() > 4096 {
-            return false;
-        }
+    pub open spec fn spec_capacity() -> usize;
 
-        if let Some(size) = N.checked_mul(size_of::<T>()) {
-            size > 0 && size <= 4096
-        } else {
-            false
-        }
-    }
-
-    pub closed spec fn spec_fits_one_page() -> bool {
-        0 < spec_size_of::<T>() <= PAGE_SIZE
-        && 0 < (N * spec_size_of::<T>()) as nat <= PAGE_SIZE
-    }
+    pub spec fn spec_capacity_opt() -> Option<usize>;
 
     pub open spec fn has_element(&self, element: &PageElementPtr<T>) -> bool {
-        self@.pptr.id() == element.page_base() && element.index() < N
+        self@.pptr.id() == element.page_base() && element.index() < Self::spec_capacity()
     }
 
-    pub open spec fn values(&self) -> &[Option<T>; N] {
+    pub open spec fn values(&self) -> &Seq<Option<T>> {
         &self@.values
     }
 
@@ -168,9 +130,38 @@ impl<T, const N: usize> PageArena<T, N> {
     {
         Tracked::assume_new()
     }
+
+    #[verifier(external_body)]
+    #[verifier(when_used_as_spec(spec_capacity_opt))]
+    pub const fn capacity_opt() -> (ret: Option<usize>)
+        ensures
+            ret == Self::spec_capacity_opt(),
+            ret.is_Some() ==> (
+                Self::fits_one_page()
+                && Self::spec_capacity() == ret.get_Some_0()
+            ),
+    {
+        let type_size = core::mem::size_of::<T>();
+        if type_size == 0 || type_size > PAGE_SIZE {
+            None
+        } else {
+            Some(PAGE_SIZE / type_size)
+        }
+    }
+
+    #[verifier(external_body)]
+    #[verifier(when_used_as_spec(spec_capacity))]
+    pub const fn capacity() -> (ret: usize)
+        requires
+            Self::fits_one_page(),
+        ensures
+            Self::spec_capacity() == ret,
+    {
+        PAGE_SIZE / core::mem::size_of::<T>()
+    }
 }
 
-impl<T, const N: usize> PageArenaData<T, N> {
+impl<T> PageArenaData<T> {
     spec fn init(&self, pptr: PagePPtr, perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>) -> bool {
         self.perm === perm
         && self.pptr === pptr
@@ -178,7 +169,7 @@ impl<T, const N: usize> PageArenaData<T, N> {
     }
 
     spec fn is_empty(&self) -> bool {
-        forall |i: int| i <= N ==> #[trigger] self.values@[i].is_None()
+        forall |i: int| i <= PageArena::<T>::capacity() ==> #[trigger] self.values[i].is_None()
     }
 }
 
@@ -209,14 +200,15 @@ impl<T> PageElementPtr<T> {
         self.index as nat
     }
 
-    pub closed spec fn in_arena<const N: usize>(&self, arena: &Tracked<PageArena<T, N>>) -> bool {
+    pub closed spec fn in_arena(&self, arena: &Tracked<PageArena<T>>) -> bool {
         arena@@.pptr.id() == self.page_base()
     }
 
     // Trusted methods
 
     #[verifier(external_body)]
-    pub fn borrow<const N: usize>(&self, arena: &Tracked<PageArena<T, N>>) -> (result: &T)
+    #[inline(always)]
+    pub fn borrow(&self, arena: &Tracked<PageArena<T>>) -> (result: &T)
         requires
             arena@.wf(),
             arena@.has_element(self),
@@ -225,13 +217,14 @@ impl<T> PageElementPtr<T> {
             result == arena@.value_at(self.index()).get_Some_0(),
     {
         unsafe {
-            let arr = &*(self.page_pptr.to_usize() as *const [T; N]);
-            &arr[self.index]
+            let slice = core::slice::from_raw_parts(self.page_pptr.to_usize() as *const T, PageArena::<T>::capacity());
+            &slice[self.index]
         }
     }
 
     #[verifier(external_body)]
-    pub fn put<const N: usize>(&self, arena: &mut Tracked<PageArena<T, N>>, value: T)
+    #[inline(always)]
+    pub fn put(&self, arena: &mut Tracked<PageArena<T>>, value: T)
         requires
             old(arena)@.has_element(self),
         ensures
@@ -242,12 +235,12 @@ impl<T> PageElementPtr<T> {
 
             // Everything else was unchanged
             forall |i: nat|
-                i < N && i != self.index() ==>
+                i < PageArena::<T>::capacity() && i != self.index() ==>
                     #[trigger] old(arena)@.value_at(i) == arena@.value_at(i),
     {
         unsafe {
-            let arr = &mut *(self.page_pptr.to_usize() as *mut [T; N]);
-            arr[self.index] = value;
+            let slice = core::slice::from_raw_parts_mut(self.page_pptr.to_usize() as *mut T, PageArena::<T>::capacity());
+            slice[self.index] = value;
         }
     }
 
@@ -312,16 +305,20 @@ mod test {
         let (pptr1, perm1) = PPtr::from_boot_page(page1);
         let (pptr2, perm2) = PPtr::from_boot_page(page2);
 
-        let mut arena1 = if let Some(arena) = PageArena::<usize, 5>::from_page(pptr1.clone(), perm1) {
+        let mut arena1 = if let Some(arena) = PageArena::<usize>::from_page(pptr1.clone(), perm1) {
             arena
         } else {
             return;
         };
-        let arena2 = if let Some(arena) = PageArena::<usize, 5>::from_page(pptr2.clone(), perm2) {
+        let arena2 = if let Some(arena) = PageArena::<usize>::from_page(pptr2.clone(), perm2) {
             arena
         } else {
             return;
         };
+
+        if PageArena::<usize>::capacity() < 5 {
+            return;
+        }
 
         let p1 = PageArena::get_element_ptr(&arena1, pptr1.clone(), 0);
         let p2 = PageArena::get_element_ptr(&arena1, pptr1.clone(), 1);
