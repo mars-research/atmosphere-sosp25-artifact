@@ -1,6 +1,5 @@
 //! Verify the OS.
 
-use std::path::PathBuf;
 use std::result::Result as StdResult;
 
 use anyhow::anyhow;
@@ -42,14 +41,14 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
 
     let mut source_paths = vec![];
     for package in metadata.packages {
-        let package_path = package.manifest_path.parent()
-            .ok_or_else(|| anyhow!("manifest_path must have a parent"))?
-            .as_std_path();
-
         let meta: Option<PackageMetadata> = serde_json::value::from_value(package.metadata)?;
 
         if let Some(meta) = meta {
             if let Some(atmosphere) = meta.atmosphere {
+                if !atmosphere.verified {
+                    continue;
+                }
+
                 let lib = package.targets
                     .iter()
                     .find(|target| target.kind == &["lib"] && target.crate_types == &["lib"])
