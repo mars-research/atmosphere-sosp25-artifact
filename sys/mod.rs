@@ -18,6 +18,7 @@ use vstd::prelude::*;
 use vstd::ptr::*;
 mod proc;
 mod mem;
+mod pagetable;
 mod mars_staticlinkedlist;
 mod mars_array;
 mod mars_linkedlist;
