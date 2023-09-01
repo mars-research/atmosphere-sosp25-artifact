@@ -13,6 +13,7 @@ verus! {
 // https://github.com/verus-lang/verus/issues/587
 
 pub type PagePPtr = PPtr<[u8; PAGE_SIZE]>;
+pub type PagePerm = PointsTo<[u8; PAGE_SIZE]>;
 
 /// An arena of the size of a page.
 ///
@@ -20,7 +21,7 @@ pub type PagePPtr = PPtr<[u8; PAGE_SIZE]>;
 pub tracked struct PageArena<T> {
     pptr: PagePPtr,
 
-    perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
+    perm: Tracked<PagePerm>,
     values: Seq<Option<T>>,
 }
 
@@ -36,7 +37,7 @@ pub struct PageElementPtr<T> {
 impl<T> PageArena<T> {
     pub fn from_page(
         pptr: PagePPtr,
-        perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
+        perm: Tracked<PagePerm>,
     ) -> (pa: Option<Tracked<Self>>)
         requires
             pptr.id() === perm@@.pptr
@@ -107,7 +108,7 @@ impl<T> PageArena<T> {
         self.pptr.id()
     }
 
-    spec fn init(&self, pptr: PagePPtr, perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>) -> bool {
+    spec fn init(&self, pptr: PagePPtr, perm: Tracked<PagePerm>) -> bool {
         self.perm === perm
         && self.pptr === pptr
         && self.is_empty()
@@ -122,7 +123,7 @@ impl<T> PageArena<T> {
     #[verifier(external_body)]
     fn init_ghost(
         pptr: PagePPtr,
-        perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
+        perm: Tracked<PagePerm>,
     ) -> (pa: Tracked<Self>)
         requires
             pptr.id() === perm@@.pptr
