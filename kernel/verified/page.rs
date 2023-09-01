@@ -226,8 +226,10 @@ impl<T> PageElementPtr<T> {
     #[inline(always)]
     pub fn put(&self, arena: &mut Tracked<PageArena<T>>, value: T)
         requires
+            old(arena)@.wf(),
             old(arena)@.has_element(self),
         ensures
+            arena@.wf(),
             arena@.same_arena(old(arena)@),
 
             // The element was changed
