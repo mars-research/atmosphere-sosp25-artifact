@@ -4,6 +4,8 @@ use vstd::ptr::{
     PAGE_SIZE,
 };
 
+use crate::mem::size_of;
+
 verus! {
 
 // Why 4096 instead of PAGE_SIZE in some places?
@@ -49,7 +51,6 @@ impl<T> PageArena<T> {
         if Self::capacity_opt().is_none() {
             return None;
         }
-        assert(Self::fits_one_page());
 
         Some(Self::init_ghost(pptr, perm))
     }
@@ -75,19 +76,44 @@ impl<T> PageArena<T> {
         }
     }
 
+    const fn capacity_opt() -> (ret: Option<usize>)
+        ensures
+            ret.is_Some() ==> (
+                Self::type_is_storable()
+                && Self::spec_capacity() == ret.get_Some_0()
+            ),
+    {
+        let type_size = size_of::<T>();
+        if type_size == 0 || type_size > 4096 {
+            None
+        } else {
+            Some(4096 / type_size)
+        }
+    }
+
     // Specs
 
     pub open spec fn wf(&self) -> bool {
-        Self::fits_one_page()
+        Self::type_is_storable()
     }
 
-    pub open spec fn fits_one_page() -> bool {
-        Self::capacity_opt().is_Some()
+    pub open spec fn type_is_storable() -> bool {
+        size_of::<T>() > 0 && size_of::<T>() <= 4096
     }
 
-    pub open spec fn spec_capacity() -> usize;
+    #[verifier(when_used_as_spec(spec_capacity))]
+    pub const fn capacity() -> (ret: usize)
+        requires
+            Self::type_is_storable(),
+        ensures
+            ret == Self::spec_capacity(),
+    {
+        4096usize / size_of::<T>()
+    }
 
-    pub spec fn spec_capacity_opt() -> Option<usize>;
+    pub open spec fn spec_capacity() -> usize {
+        4096usize / size_of::<T>()
+    }
 
     pub open spec fn has_element(&self, element: &PageElementPtr<T>) -> bool {
         self.page_base() == element.page_base() && element.index() < Self::capacity()
@@ -129,35 +155,6 @@ impl<T> PageArena<T> {
             pa@.init(pptr, perm)
     {
         Tracked::assume_new()
-    }
-
-    #[verifier(external_body)]
-    #[verifier(when_used_as_spec(spec_capacity_opt))]
-    pub const fn capacity_opt() -> (ret: Option<usize>)
-        ensures
-            ret == Self::spec_capacity_opt(),
-            ret.is_Some() ==> (
-                Self::fits_one_page()
-                && Self::spec_capacity() == ret.get_Some_0()
-            ),
-    {
-        let type_size = core::mem::size_of::<T>();
-        if type_size == 0 || type_size > PAGE_SIZE {
-            None
-        } else {
-            Some(PAGE_SIZE / type_size)
-        }
-    }
-
-    #[verifier(external_body)]
-    #[verifier(when_used_as_spec(spec_capacity))]
-    pub const fn capacity() -> (ret: usize)
-        requires
-            Self::fits_one_page(),
-        ensures
-            Self::spec_capacity() == ret,
-    {
-        PAGE_SIZE / core::mem::size_of::<T>()
     }
 }
 
