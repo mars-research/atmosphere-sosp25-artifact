@@ -4,8 +4,6 @@ use vstd::ptr::{
     PAGE_SIZE,
 };
 
-use crate::mem::size_of;
-
 verus! {
 
 // Why 4096 instead of PAGE_SIZE in some places?
@@ -62,7 +60,7 @@ impl<T> PageArena<T> {
     /// needs to be specified.
     pub fn get_element_ptr(arena: &Tracked<Self>, page_pptr: PagePPtr, i: usize) -> (ep: PageElementPtr<T>)
         requires
-            0 <= i < Self::spec_capacity(),
+            0 <= i < Self::capacity(),
             page_pptr.id() == arena@.page_base(),
             arena@.wf(),
         ensures
@@ -84,7 +82,7 @@ impl<T> PageArena<T> {
     }
 
     pub open spec fn fits_one_page() -> bool {
-        Self::spec_capacity_opt().is_Some()
+        Self::capacity_opt().is_Some()
     }
 
     pub open spec fn spec_capacity() -> usize;
@@ -92,7 +90,7 @@ impl<T> PageArena<T> {
     pub spec fn spec_capacity_opt() -> Option<usize>;
 
     pub open spec fn has_element(&self, element: &PageElementPtr<T>) -> bool {
-        self.page_base() == element.page_base() && element.index() < Self::spec_capacity()
+        self.page_base() == element.page_base() && element.index() < Self::capacity()
     }
 
     pub open spec fn same_arena(&self, arena: Self) -> bool {
@@ -287,7 +285,6 @@ mod test {
 
     fn test_element_ptr(pptr: PagePPtr) {
         // assumptions
-        if size_of::<SomeElement>() != 8 { return; }
         if usize::MAX - pptr.to_usize() < 4096 { return; }
 
         let first: PageElementPtr<SomeElement> = PageElementPtr {
