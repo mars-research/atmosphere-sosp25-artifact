@@ -235,28 +235,6 @@ impl<T> PageElementPtr<T> {
             slice[self.index] = value;
         }
     }
-
-    /*
-    // Fn arguments with reference arguments require this patch:
-    //
-    // https://github.com/verus-lang/verus/pull/761
-    // https://github.com/verus-lang/verus/issues/576
-    #[verifier(external_body)]
-    pub fn do_mut<const N: usize>(
-        &self,
-        arena: &mut Tracked<PageArena<T, N>>,
-        f: impl FnOnce(&mut T),
-    )
-        requires
-            old(arena)@.has_element(self),
-        ensures
-            arena@.same_arena(old(arena)@),
-            arena@.has_element(self),
-            // no way to refer to new value of &mut T from closure :/
-    {
-        todo!()
-    }
-    */
 }
 
 #[verifier::external_fn_specification]
