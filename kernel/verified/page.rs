@@ -1,5 +1,3 @@
-use core::marker::PhantomData;
-
 use vstd::prelude::*;
 use vstd::ptr::{
     PPtr, PointsTo,
@@ -19,17 +17,11 @@ pub type PagePPtr = PPtr<[u8; PAGE_SIZE]>;
 /// An arena of the size of a page.
 ///
 /// It splits a page into multiple Elements.
-#[verifier(external_body)]
-#[verifier::reject_recursive_types_in_ground_variants(T)]
 pub tracked struct PageArena<T> {
-    phantom: PhantomData<T>,
-    no_copy: NoCopy,
-}
+    pptr: PagePPtr,
 
-pub ghost struct PageArenaData<T> {
-    pub pptr: PagePPtr,
-    pub perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
-    pub values: Seq<Option<T>>,
+    perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
+    values: Seq<Option<T>>,
 }
 
 /// A pointer to an element in a page arena.
@@ -37,12 +29,11 @@ pub struct PageElementPtr<T> {
     page_pptr: PagePPtr,
     index: usize,
 
+    // PhantomData makes the type opaque
     phantom: Ghost<Option<T>>,
 }
 
 impl<T> PageArena<T> {
-    pub spec fn view(self) -> PageArenaData<T>;
-
     pub fn from_page(
         pptr: PagePPtr,
         perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
@@ -52,7 +43,7 @@ impl<T> PageArena<T> {
         ensures
             pa.is_Some() ==> (
                 pa.get_Some_0()@.wf()
-                && pa.get_Some_0()@@.pptr.id() == pptr.id()
+                && pa.get_Some_0()@.page_base() == pptr.id()
             ),
     {
         // This will be optimized out
@@ -61,7 +52,7 @@ impl<T> PageArena<T> {
         }
         assert(Self::fits_one_page());
 
-        Some(Self::wrap_perm(pptr, perm))
+        Some(Self::init_ghost(pptr, perm))
     }
 
     /// Returns the PageElementPtr associated with an index.
@@ -71,7 +62,7 @@ impl<T> PageArena<T> {
     pub fn get_element_ptr(arena: &Tracked<Self>, page_pptr: PagePPtr, i: usize) -> (ep: PageElementPtr<T>)
         requires
             0 <= i < Self::spec_capacity(),
-            page_pptr.id() == arena@@.pptr.id(),
+            page_pptr.id() == arena@.page_base(),
             arena@.wf(),
         ensures
             ep.index() == i,
@@ -100,33 +91,43 @@ impl<T> PageArena<T> {
     pub spec fn spec_capacity_opt() -> Option<usize>;
 
     pub open spec fn has_element(&self, element: &PageElementPtr<T>) -> bool {
-        self@.pptr.id() == element.page_base() && element.index() < Self::spec_capacity()
+        self.page_base() == element.page_base() && element.index() < Self::spec_capacity()
     }
 
-    pub open spec fn values(&self) -> &Seq<Option<T>> {
-        &self@.values
-    }
-
-    pub open spec fn value_at(&self, index: nat) -> &Option<T> {
-        &self@.values[index as int]
-    }
-
-    // TODO: Strengthen
     pub open spec fn same_arena(&self, arena: Self) -> bool {
-        self@.pptr.id() == arena@.pptr.id()
+        // Type system ensures identical element types and therefore capacity
+        self.page_base() == arena.page_base()
+    }
+
+    pub closed spec fn value_at(&self, index: nat) -> &Option<T> {
+        &self.values[index as int]
+    }
+
+    pub closed spec fn page_base(&self) -> int {
+        self.pptr.id()
+    }
+
+    spec fn init(&self, pptr: PagePPtr, perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>) -> bool {
+        self.perm === perm
+        && self.pptr === pptr
+        && self.is_empty()
+    }
+
+    spec fn is_empty(&self) -> bool {
+        forall |i: int| i <= PageArena::<T>::capacity() ==> #[trigger] self.values[i].is_None()
     }
 
     // Trusted methods
 
     #[verifier(external_body)]
-    fn wrap_perm(
+    fn init_ghost(
         pptr: PagePPtr,
         perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>,
     ) -> (pa: Tracked<Self>)
         requires
             pptr.id() === perm@@.pptr
         ensures
-            pa@@.init(pptr, perm)
+            pa@.init(pptr, perm)
     {
         Tracked::assume_new()
     }
@@ -161,17 +162,6 @@ impl<T> PageArena<T> {
     }
 }
 
-impl<T> PageArenaData<T> {
-    spec fn init(&self, pptr: PagePPtr, perm: Tracked<PointsTo<[u8; PAGE_SIZE]>>) -> bool {
-        self.perm === perm
-        && self.pptr === pptr
-        && self.is_empty()
-    }
-
-    spec fn is_empty(&self) -> bool {
-        forall |i: int| i <= PageArena::<T>::capacity() ==> #[trigger] self.values[i].is_None()
-    }
-}
 
 impl<T> PageElementPtr<T> {
     pub fn clone(&self) -> (ep: Self)
@@ -192,6 +182,10 @@ impl<T> PageElementPtr<T> {
         self.page_pptr.id() === other.page_pptr.id() && self.index == other.index
     }
 
+    pub closed spec fn page_pptr(&self) -> PagePPtr {
+        self.page_pptr
+    }
+
     pub closed spec fn page_base(&self) -> int {
         self.page_pptr.id()
     }
@@ -201,7 +195,7 @@ impl<T> PageElementPtr<T> {
     }
 
     pub closed spec fn in_arena(&self, arena: &Tracked<PageArena<T>>) -> bool {
-        arena@@.pptr.id() == self.page_base()
+        arena@.pptr.id() == self.page_base()
     }
 
     // Trusted methods
