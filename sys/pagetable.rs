@@ -279,6 +279,8 @@ impl PageTable {
         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> 
             forall|j:usize| #![auto] self.perms@.dom().contains(j) && self.perms@[i]@.value.get_Some_0().parent@ != j ==> 
                 self.perms@[j]@.value.get_Some_0().table@.contains(i) == false
+        &&
+        forall|i:usize| #![auto]  self.perms@.dom().contains(i) && self.perms@[i]@.value.get_Some_0().level@ == 1 ==>  self.perms@[i]@.value.get_Some_0().table@.to_set().disjoint(self.perms@.dom())
     }
 
     pub open spec fn wf_l4(&self) -> bool{
