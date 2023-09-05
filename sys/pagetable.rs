@@ -163,10 +163,23 @@ impl PageTable {
     pub open spec fn wf_l2(&self) -> bool{
       //all l3 mappings exist in l2
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> (
                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) && j != 0 ==>
-                     self.l2_tables@.dom().contains((j))
+                     self.l2_tables@.dom().contains(j)
+            )
         )
+        // &&
+        // (
+        //     forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.pptr == i
+        // )
+        // &&
+        // (
+        //     forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.is_Some()
+        // )
+        // &&
+        // (
+        //     forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.get_Some_0().table.wf()
+        // )
         &&
         (
             forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
@@ -183,7 +196,7 @@ impl PageTable {
         (
             forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-                    self.l2_tables@[i]@.value.get_Some_0().table.wf()
+                    self.l2_tables@[j]@.value.get_Some_0().table.wf()
         )
     }
 
@@ -191,14 +204,16 @@ impl PageTable {
         //all l2 mappings exist in l1
         (
             forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] self.l2_tables@[i]@.value.get_Some_0().table@.contains(j) && j != 0==>
-                     self.l1_tables@.dom().contains((j))
+                (forall|j: usize| #![auto] self.l2_tables@[i]@.value.get_Some_0().table@.contains(j) && j != 0==>
+                     self.l1_tables@.dom().contains(j)
+                )
         )
         &&
         (
             forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] self.l2_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
+                (forall|j: usize| #![auto] self.l2_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
                     self.l1_tables@[j]@.pptr == j
+                )
         )
         &&
         (
@@ -338,11 +353,39 @@ impl PageTable {
                     old(self).l4_table@@.value.get_Some_0().table@[l4i as int]
                         ]@.value.get_Some_0().table@[l3i as int]
                     ]@.value.get_Some_0().table@[l2i as int] != 0,
+            old(self).l1_tables@[
+                old(self).l2_tables@[
+                    old(self).l3_tables@[
+                        old(self).l4_table@@.value.get_Some_0().table@[l4i as int]
+                        ]@.value.get_Some_0().table@[l3i as int]
+                    ]@.value.get_Some_0().table@[l2i as int]
+                ]@.value.get_Some_0().table@[l1i as int] == 0,
     {
         assert(self.cr3 == self.l4_table@@.pptr);
         let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(&self.l4_table.borrow()));
-        let l3_ptr = l4_tbl.table.get(l4i);
+        let l3_ptr = *l4_tbl.table.get(l4i);
         assert(l3_ptr != 0);
+        assert(self.l4_table@@.value.get_Some_0().table@.contains(l3_ptr));
+        let tracked l3_perm = self.l3_tables.borrow().tracked_borrow(l3_ptr);
+        assert(l3_ptr == l3_perm@.pptr);
+        let l3_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
+        let l2_ptr = *l3_tbl.table.get(l3i);
+
+        assert(self.l3_tables@.dom().contains(l3_ptr));
+        assert(self.l3_tables@[l3_ptr]@.value.get_Some_0().table@.contains(l2_ptr));
+        assert(l2_ptr != 0);
+        assert(self.l2_tables@.dom().contains(l2_ptr));
+        let tracked l2_perm = self.l2_tables.borrow().tracked_borrow(l2_ptr);
+        assert(l2_ptr == l2_perm@.pptr);
+        let l2_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
+        let l1_ptr = *l2_tbl.table.get(l2i);
+
+        assert(self.l2_tables@.dom().contains(l2_ptr));
+        assert(self.l2_tables@[l2_ptr]@.value.get_Some_0().table@.contains(l1_ptr));
+        assert(l1_ptr != 0);
+        assert(self.l1_tables@.dom().contains(l1_ptr));
+        let tracked l1_perm = self.l1_tables.borrow_mut().tracked_remove(l1_ptr);
+        assert(l1_ptr == l1_perm@.pptr);
     }
 }
 
