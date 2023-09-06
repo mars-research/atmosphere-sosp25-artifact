@@ -117,6 +117,26 @@ verus! {
     // }
 
 // }
+
+#[verifier(external_body)]
+pub fn LookUpTable_set(pptr:&PPtr<LookUpTable>, Tracked(perm): Tracked<&mut PointsTo<LookUpTable>>, i: usize, value:usize) 
+    requires 
+        pptr.id() == old(perm)@.pptr,
+        old(perm)@.value.is_Some(),
+        old(perm)@.value.get_Some_0().table.wf(),
+        0<=i<512,
+    ensures
+        pptr.id() == perm@.pptr,
+        perm@.value.is_Some(),
+        perm@.value.get_Some_0().table.wf(),
+        perm@.value.get_Some_0().table@ =~= old(perm)@.value.get_Some_0().table@.update(i as int,value),
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<LookUpTable>;
+        (*uptr).assume_init_mut().table.set(i,value);
+    }
+}
+
 pub struct LookUpTable{
     pub table : MarsArray<usize,512>,
 }
@@ -386,6 +406,26 @@ impl PageTable {
         assert(self.l1_tables@.dom().contains(l1_ptr));
         let tracked l1_perm = self.l1_tables.borrow_mut().tracked_remove(l1_ptr);
         assert(l1_ptr == l1_perm@.pptr);
+
+        proof {
+            self.l1_tables.borrow_mut().tracked_insert(l1_ptr, l1_perm);
+    
+        }
+
+        assert(self.l1_tables =~= old(self).l1_tables);
+
+        assert(self.wf_l4());
+        
+        assert(self.wf_l3());
+        
+        assert(self.wf_l2());
+        
+        assert(self.wf_l1());
+        
+        assert(self.no_self_mapping());
+        
+        assert(self.wf_mapping());
+
     }
 }
 

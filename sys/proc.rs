@@ -10,8 +10,6 @@ pub type ThreadID = usize;
 pub type ProcPtr = usize;
 pub type ThreadPtr = usize;
 
-use core::mem::MaybeUninit;
-
 
 verus! {
     #[verifier(external_body)]

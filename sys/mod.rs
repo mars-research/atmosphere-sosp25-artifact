@@ -16,6 +16,10 @@ use builtin::*;
 use vstd::pervasive::*;
 use vstd::prelude::*;
 use vstd::ptr::*;
+
+use core::mem::MaybeUninit;
+
+
 mod proc;
 mod mem;
 mod pagetable;
