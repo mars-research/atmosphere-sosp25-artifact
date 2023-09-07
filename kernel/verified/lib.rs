@@ -7,3 +7,5 @@ pub mod mem;
 pub mod page;
 pub mod page_arena;
 pub mod paging;
+pub mod kernel;
+pub mod proc;

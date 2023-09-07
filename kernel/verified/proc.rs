@@ -1,0 +1,148 @@
+use vstd::prelude::*;
+use vstd::ptr::PointsTo;
+
+use crate::linked_list::*;
+use crate::page::{PagePPtr, PagePerm};
+
+pub type ThreadPtr = usize;
+pub type ProcPtr = usize;
+
+pub struct Process{
+    pub owned_threads: LinkedList<ThreadPtr>,
+
+    pub page_closure:  Ghost<Set<PagePPtr>>, //all the pages used by maintaining the struct of this process, including its threads'
+    pub data_page_closure: Ghost<Set<PagePPtr>>, // all the data page this process has access to. 
+}
+
+pub struct Thread{
+    pub parent: ProcPtr,
+    pub parent_linkedlist_ptr: NodeRef<ThreadPtr>,
+}
+
+pub struct ProcessManager{
+    pub proc_ptrs: LinkedList<ProcPtr>,
+    pub proc_perms: Tracked<Map<ProcPtr, PointsTo<Process>>>,
+
+    pub thread_ptrs: LinkedList<ThreadPtr>,
+    pub thread_perms: Tracked<Map<ThreadPtr, PointsTo<Thread>>>,
+    
+    pub scheduler: LinkedList<ThreadPtr>,
+
+    pub page_closure_local:  Ghost<Set<PagePPtr>>, //all the pages that this PM has
+
+    //pub page_closure:  Ghost<Set<PagePPtr>>, //all the pages of proc, thread, scheduler, endpoints
+    // pub data_page_closure: Ghost<Set<PagePPtr>>, // all the data page of all the processes
+}
+verus! {
+impl ProcessManager {
+
+    ///spec helper for processes
+    ///specs: 
+    ///Process list (PL) contains no duplicate process pointers
+    ///PM contains and only contains process perms of its process pointers
+    ///Each process owns contains no duplicate thread pointers
+    ///Each process owns a valid reverse pointer to free it from PL
+    pub closed spec fn wf_procs(&self) -> bool{
+        (self.proc_ptrs.wf())
+        &&            
+        (self.proc_ptrs.unique())
+        &&
+        (self.proc_ptrs@.to_set() =~= self.proc_perms@.dom())
+        &&
+        (forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) ==>  self.proc_perms@[proc_ptr].view().value.is_Some())
+        &&
+        (forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) ==>  self.proc_perms@[proc_ptr].view().pptr == proc_ptr)
+        &&
+        (forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) ==>  self.proc_perms@[proc_ptr].view().value.get_Some_0().owned_threads.wf())
+        &&
+        (forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) ==>  self.proc_perms@[proc_ptr].view().value.get_Some_0().owned_threads.unique())
+        // &&
+        // (forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(i) ==>  self.proc_ptrs.needle_valid(&self.proc_perms@[i].view().value.get_Some_0().needle))
+        // &&
+        // (forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(i) ==>  self.proc_ptrs.needle_resolve(&self.proc_perms@[i].view().value.get_Some_0().needle) == i)
+    }
+
+    ///spec helper for threads
+    ///specs: 
+    ///Thread list (TL) contains no duplicate thread pointers
+    ///PM contains and only contains thread perms of its thread pointers
+    ///Each thread has a parent which owns this thread in its owned_threads list
+    ///Each process owns a valid reverse pointer to free it from its parent process's owned_threads list
+    ///Each process owns a valid reverse pointer to free it from the scheduler
+    ///Each process owns a valid reverse pointer to free it from the endpoints
+    pub closed spec fn wf_threads(&self) -> bool{
+        (self.thread_ptrs.wf())
+        &&   
+        (self.thread_ptrs.unique())
+        &&
+        (self.thread_ptrs@.to_set() =~= self.thread_perms@.dom())
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().value.is_Some())
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().pptr == thread_ptr)
+        && 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.proc_ptrs@.contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().parent))
+        && 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.proc_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().parent].view().value.get_Some_0().owned_threads@.contains(thread_ptr))
+        && 
+        (forall|proc_ptr: ProcPtr, thread_ptr: ThreadPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) && self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads@.contains(thread_ptr)
+            ==>  self.thread_perms@.dom().contains(thread_ptr))
+        && 
+        (forall|proc_ptr: usize, thread_ptr: usize| #![auto] self.proc_perms@.dom().contains(proc_ptr) && self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads@.contains(thread_ptr)
+                ==>  self.thread_perms@[thread_ptr]@.value.get_Some_0().parent == proc_ptr)
+        // && 
+        // (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>
+        //   self.proc_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().parent].view().value.get_Some_0().owned_threads.needle_valid(&self.thread_perms@[thread_ptr].view().value.get_Some_0().parent_needle)  == true)
+        // && 
+        // (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>
+        //     self.proc_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().parent].view().value.get_Some_0().owned_threads.needle_resolve(&self.thread_perms@[thread_ptr].view().value.get_Some_0().parent_needle) == thread_ptr)            && 
+        // (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>
+        //     self.thread_ptrs.needle_valid(&self.thread_perms@[thread_ptr].view().value.get_Some_0().needle) == true)
+        // && 
+        // (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>
+        //     self.thread_ptrs.needle_resolve(&self.thread_perms@[thread_ptr].view().value.get_Some_0().needle) == thread_ptr)
+        // && 
+        // (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().scheduled == true ==>
+        //     self.scheduler.needle_valid(&self.thread_perms@[thread_ptr].view().value.get_Some_0().scheduler_needle) == true)
+        // && 
+        // (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().scheduled == true ==>
+        //     self.scheduler.needle_resolve(&self.thread_perms@[thread_ptr].view().value.get_Some_0().scheduler_needle) == thread_ptr)
+    }
+
+    pub closed spec fn page_closure(&self) -> Set<PagePPtr>
+    {
+        self.page_closure_local@
+        +
+        self.proc_ptrs@.fold_left(Set::<PagePPtr>::empty(), |acc: Set::<PagePPtr>, e: ProcPtr| -> Set::<PagePPtr> {
+                acc + self.proc_perms@[e]@.value.get_Some_0().page_closure@
+        })
+    }
+
+    ///Memory spec helper
+    ///specs:
+    ///For two different Processes, their page closures are disjoint.
+    ///For any process, its data closure is disjoint with any page closure of the system.
+    pub closed spec fn wf_closure(&self) -> bool{
+
+        (
+            forall|proc_ptr_i: ProcPtr,proc_ptr_j: ProcPtr| #![auto] proc_ptr_i != proc_ptr_j && self.proc_perms@.dom().contains(proc_ptr_i) && self.proc_perms@.dom().contains(proc_ptr_j)
+                ==>  self.proc_perms@[proc_ptr_i].view().value.get_Some_0().page_closure@.disjoint(self.proc_perms@[proc_ptr_j].view().value.get_Some_0().page_closure@)
+        )
+        &&
+        (
+            forall|proc_ptr_i: ProcPtr,proc_ptr_j: ProcPtr| #![auto]  && self.proc_perms@.dom().contains(proc_ptr_i) && self.proc_perms@.dom().contains(proc_ptr_j)
+                ==>  self.proc_perms@[proc_ptr_i].view().value.get_Some_0().data_page_closure@.disjoint(self.proc_perms@[proc_ptr_j].view().value.get_Some_0().page_closure@)
+        )
+
+    }
+
+    pub closed spec fn wf(&self) -> bool{
+        self.wf_threads()
+        &&
+        self.wf_procs()
+        &&
+        self.wf_closure()
+    }
+
+}
+}
