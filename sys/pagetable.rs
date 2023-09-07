@@ -3,121 +3,6 @@ use super::*;
 verus! {
 
 
-
-// pub struct LookUpTable{
-//     pub table : MarsArray<usize,512>,
-// }
-
-// pub struct PageTable{
-//     pub cr3: usize,
-    
-//     pub l4_table: Ghost<PointsTo<LookUpTable>>,
-//     pub l3_tables: Ghost<Map<usize,PointsTo<LookUpTable>>>,
-//     pub l2_tables: Ghost<Map<(usize,usize),PointsTo<LookUpTable>>>,
-//     pub l1_tables: Ghost<Map<(usize,usize,usize),PointsTo<LookUpTable>>>,
-
-//     pub mapping: Ghost<Map<(usize,usize,usize,usize,usize),usize>>,
-// }
-
-// impl PageTable {
-
-//     pub open spec fn wf_l4(&self) -> bool{
-//         self.cr3 == self.l4_table@@.pptr
-//         &&
-//         self.l4_table@@.value.is_Some()
-//         &&
-//         self.l4_table@@.value.get_Some_0().table.wf()
-//     }
-
-//     pub open spec fn wf_l3(&self) -> bool{
-//         self.wf_l4()
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==> self.l3_tables@.dom().contains(i)
-//         )        
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==> self.l3_tables@[i]@.pptr == i
-//         )
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==> self.l3_tables@[i]@.value.is_Some()
-//         )
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==> self.l3_tables@[i]@.value.get_Some_0().table.wf()
-//         )
-//     }
-
-//     pub open spec fn wf_l2(&self) -> bool{
-//         self.wf_l3()
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     self.l2_tables@.dom().contains((i,j))
-//         )  
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     self.l2_tables@[(i,j)]@.pptr == j
-//         )
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     self.l2_tables@[(i,j)]@.value.is_Some()
-//         )   
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     self.l2_tables@[(i,j)]@.value.get_Some_0().table.wf()
-//         )  
-//     }
-
-
-//     pub open spec fn wf_l1(&self) -> bool{
-//         self.wf_l2()
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     forall|k: usize| #![auto] self.l2_tables@[(i,j)]@.value.get_Some_0().table@.contains(k) ==>
-//                         self.l1_tables@.dom().contains((i,j,k))
-//         )        
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     forall|k: usize| #![auto] self.l2_tables@[(i,j)]@.value.get_Some_0().table@.contains(k) ==>
-//                         self.l1_tables@[(i,j,k)]@.pptr == k
-//         )    
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     forall|k: usize| #![auto] self.l2_tables@[(i,j)]@.value.get_Some_0().table@.contains(k) ==>
-//                         self.l1_tables@[(i,j,k)]@.value.is_Some()
-//         )    
-//         &&
-//         (
-//             forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==>
-//                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
-//                     forall|k: usize| #![auto] self.l2_tables@[(i,j)]@.value.get_Some_0().table@.contains(k) ==>
-//                         self.l1_tables@[(i,j,k)]@.value.get_Some_0().table.wf()
-//         )    
-//     }
-
-    // pub open spec fn wf(&self) -> bool{
-
-    //     forall|l4i: usize,l3i: usize,l2i: usize,l1i: usize, offset: usize| #![auto] self.mapping@.dom().contains((l4i,l3i,l2i,l1i,offset))
-
-    // }
-
-// }
-
 pub type L4Index = usize;
 pub type L3Index = usize;
 pub type L2Index = usize;
@@ -175,24 +60,76 @@ impl PageTable {
         self.l4_table@@.value.is_Some()
         &&
         self.l4_table@@.value.get_Some_0().table.wf()
+        //L4 table only maps to L3
+        &&
+        (forall|i: L4Index, j: L4Index| #![auto] i != j && 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 && 0 <= j < 512 && self.l4_table@@.value.get_Some_0().table@[j as int] != 0 ==> 
+            self.l4_table@@.value.get_Some_0().table@[i as int] != self.l4_table@@.value.get_Some_0().table@[j as int])
+        &&
+        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 ==> self.l2_tables@.dom().contains(self.l4_table@@.value.get_Some_0().table@[i as int]) == false)
+        &&
+        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 ==> self.l1_tables@.dom().contains(self.l4_table@@.value.get_Some_0().table@[i as int]) == false)
+        &&
+        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0  ==> self.cr3 != self.l4_table@@.value.get_Some_0().table@[i as int])
     }
 
     pub open spec fn wf_l3(&self) -> bool{
-        //all l4 mappings exist in l2
+        //all l4 mappings exist in l3
         (
-            self.l4_table@@.value.get_Some_0().table@.to_set().remove(0) =~= self.l3_tables@.dom()
-        )        
-        &&
-        (
-            forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==> self.l3_tables@[i]@.pptr == i
+            forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 ==> 
+                self.l3_tables@.dom().contains(self.l4_table@@.value.get_Some_0().table@[i as int])
         )
         &&
         (
-            forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==> self.l3_tables@[i]@.value.is_Some()
+            self.l3_tables@.dom().contains(0) == false
+        )       
+        &&
+        (
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.pptr == i
         )
         &&
         (
-            forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) ==> self.l3_tables@[i]@.value.get_Some_0().table.wf()
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.value.is_Some()
+        )
+        &&
+        (
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.value.get_Some_0().table.wf()
+        )
+        &&
+        (
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                (
+                    forall|l3i: L3Index| #![auto] 0 <= l3i < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[l3i as int] != 0 ==>
+                        self.l4_table@@.value.get_Some_0().table@.contains(self.l3_tables@[i]@.value.get_Some_0().table@[l3i as int])
+                )
+        )
+
+        //L3 table only maps to L2
+        //L3 tables are disjoint
+        &&
+        (
+            forall|i: usize,j: usize| #![auto] i != j && self.l3_tables@.dom().contains(i) && self.l3_tables@.dom().contains(j)
+                ==> 
+                (
+                    forall|l3i: L3Index, l3j: L3Index| #![auto] 0 <= l3i < 512 && 0 <= l3j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[l3i as int] != 0 && self.l3_tables@[j]@.value.get_Some_0().table@[l3j as int] != 0 ==>
+                        self.l3_tables@[i]@.value.get_Some_0().table@[l3i as int] != self.l3_tables@[j]@.value.get_Some_0().table@[l3j as int]
+                )
+        )
+        &&
+        (
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                    self.l3_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
+        )
+        &&
+        (   forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                    self.l1_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
+        )
+        &&
+        (
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                    self.cr3 !=self.l3_tables@[i]@.value.get_Some_0().table@[j as int]
         )
     }
     
@@ -204,18 +141,6 @@ impl PageTable {
                      self.l2_tables@.dom().contains(j)
             )
         )
-        // &&
-        // (
-        //     forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.pptr == i
-        // )
-        // &&
-        // (
-        //     forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.is_Some()
-        // )
-        // &&
-        // (
-        //     forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.get_Some_0().table.wf()
-        // )
         &&
         (
             forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
@@ -233,6 +158,32 @@ impl PageTable {
             forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
                 forall|j: usize| #![auto] self.l3_tables@[i]@.value.get_Some_0().table@.contains(j) ==>
                     self.l2_tables@[j]@.value.get_Some_0().table.wf()
+        )
+
+                
+        //L2 table only maps to L1
+        //L2 tables are disjoint
+        &&
+        (
+            forall|i: usize,j: usize| #![auto] i != j && self.l2_tables@.dom().contains(i) && self.l2_tables@.dom().contains(j)
+                ==> self.l2_tables@[i]@.value.get_Some_0().table@.to_set().remove(0).disjoint(self.l2_tables@[j]@.value.get_Some_0().table@.to_set().remove(0))
+        )
+        &&
+        (forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
+            forall|j: usize| #![auto]  0 <= j < 512 ==>
+                self.l2_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
+        )
+        &&
+        (
+            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
+                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                    self.l3_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
+        )
+        &&
+        (
+            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
+                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                    self.cr3 != self.l2_tables@[i]@.value.get_Some_0().table@[j as int]
         )
     }
 
@@ -260,69 +211,9 @@ impl PageTable {
     }
 
     pub open spec fn no_self_mapping(&self) -> bool
-    {
-        //L4 table only maps to L3
-        (forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) && i != 0 ==> self.l2_tables@.dom().contains(i) == false)
-        &&
-        (forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) && i != 0 ==> self.l1_tables@.dom().contains(i) == false)
-        &&
-        (forall|i: usize| #![auto] self.l4_table@@.value.get_Some_0().table@.contains(i) && i != 0 ==> self.cr3 != i)
-        
-
-        //L3 table only maps to L2
-        //L3 tables are disjoint
-        &&
-        (
-            forall|i: usize,j: usize| #![auto] i != j && self.l3_tables@.dom().contains(i) && self.l3_tables@.dom().contains(j)
-                ==> self.l3_tables@[i]@.value.get_Some_0().table@.to_set().remove(0).disjoint(self.l3_tables@[j]@.value.get_Some_0().table@.to_set().remove(0))
-        )
-        &&
-        (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
-                    self.l3_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
-        )
-        &&
-        (   forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
-                    self.l1_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
-        )
-        &&
-        (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
-                    self.cr3 !=self.l3_tables@[i]@.value.get_Some_0().table@[j as int]
-        )
-        
-
-        //L2 table only maps to L1
-        //L2 tables are disjoint
-        &&
-        (
-            forall|i: usize,j: usize| #![auto] i != j && self.l2_tables@.dom().contains(i) && self.l2_tables@.dom().contains(j)
-                ==> self.l2_tables@[i]@.value.get_Some_0().table@.to_set().remove(0).disjoint(self.l2_tables@[j]@.value.get_Some_0().table@.to_set().remove(0))
-        )
-        &&
-        (forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-            forall|j: usize| #![auto]  0 <= j < 512 ==>
-                self.l2_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
-        )
-        &&
-        (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
-                    self.l3_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
-        )
-        &&
-        (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
-                    self.cr3 != self.l2_tables@[i]@.value.get_Some_0().table@[j as int]
-        )
-        
+    {   
         //L1 table only maps to outside of this pagetable
         //L1 tables do not have to be disjoint
-        &&
         (
             forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
                 forall|j: usize| #![auto] self.l1_tables@[i]@.value.get_Some_0().table@.contains(j) && j != 0==>
@@ -391,36 +282,30 @@ impl PageTable {
         }else{
             self.l1_tables@[self.resolve_mapping_l2(l4i,l3i,l2i)]@.value.get_Some_0().table@[l1i as int]
         }
+    
     }
 
-    // pub open spec fn resolve_mapping(&self, l4i: usize,l3i: usize,l2i: usize,l1i: usize) -> usize
-    //     recommends 
-    //         0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512,
-    // {
-    //     if self.l4_table@@.value.get_Some_0().table@[l4i as int] == 0{
-    //         0
-    //     }
-    //     else if self.l3_tables@[
-    //                 self.l4_table@@.value.get_Some_0().table@[l4i as int]
-    //             ]@.value.get_Some_0().table@[l3i as int] == 0{
-    //         0
-    //     }
-    //     else if self.l2_tables@[
-    //                 self.l3_tables@[
-    //                     self.l4_table@@.value.get_Some_0().table@[l4i as int]
-    //                 ]@.value.get_Some_0().table@[l3i as int]
-    //             ]@.value.get_Some_0().table@[l2i as int] == 0{
-    //         0
-    //     }else{
-    //         self.l1_tables@[
-    //             self.l2_tables@[
-    //                 self.l3_tables@[
-    //                         self.l4_table@@.value.get_Some_0().table@[l4i as int]
-    //                     ]@.value.get_Some_0().table@[l3i as int]
-    //                 ]@.value.get_Some_0().table@[l2i as int]
-    //             ]@.value.get_Some_0().table@[l1i as int]
-    //     }
-    // }
+    pub proof fn wf_to_wf_mapping(&self)
+        requires self.wf_l4(),
+                 self.wf_l3()
+    {
+        assert(self.wf_l4_mapping());
+        assert(self.wf_l3_mapping());
+    }
+
+    
+    pub open spec fn wf_l4_mapping(&self) -> bool{
+        forall|l4i: L4Index, l4j: L4Index| #![auto] (0<= l4i < 512) && (0<= l4j < 512) && !(l4i == l4j) ==> 
+        (self.resolve_mapping_l4(l4i) == 0 || self.resolve_mapping_l4(l4j) == 0 || self.resolve_mapping_l4(l4i) != self.resolve_mapping_l4(l4j))
+    }
+
+    pub open spec fn wf_l3_mapping(&self) -> bool{
+        forall|l4i: L4Index, l3i: L3Index, l4j: L4Index,l3j: L3Index| #![auto] (0<= l4i < 512 && 0<= l3i < 512) 
+            && (0<= l4j < 512 && 0<= l3j < 512) 
+            && !(l4i == l4j && l3i == l3j) ==> 
+                (self.resolve_mapping_l3(l4i,l3i) == 0 || self.resolve_mapping_l3(l4j,l3j) == 0 || self.resolve_mapping_l3(l4i,l3i) != self.resolve_mapping_l3(l4j,l3j))
+    }
+
 
     pub open spec fn wf_l2_mapping(&self) -> bool{
         forall|l4i: usize,l3i: usize,l2i: usize,l4j: usize,l3j: usize,l2j: usize| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512) 
@@ -460,7 +345,6 @@ impl PageTable {
             old(self).wf_l1(),
             old(self).no_self_mapping(),
             old(self).wf_mapping(),
-            old(self).wf_l2_mapping(),
             0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512 ,
             old(self).mapping@.contains_key((l4i,l3i,l2i,l1i)) == false,
             old(self).l4_table@@.value.get_Some_0().table@[l4i as int] != 0,
@@ -539,32 +423,32 @@ impl PageTable {
         assert(self.no_self_mapping());
 
 
-        assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i) == dst);
+        // assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i) == dst);
 
-        assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !(l4i == _l4i && l3i == _l3i && l2i == _l2i && l1i == _l1i )==> 
-                self.mapping@[(_l4i,_l3i,_l2i,_l1i)] == old(self).mapping@[(_l4i,_l3i,_l2i,_l1i)]);
+        // assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !(l4i == _l4i && l3i == _l3i && l2i == _l2i && l1i == _l1i )==> 
+        //         self.mapping@[(_l4i,_l3i,_l2i,_l1i)] == old(self).mapping@[(_l4i,_l3i,_l2i,_l1i)]);
 
-        assert(forall|_l4i: usize| #![auto] 0<= _l4i < 512 ==>
-                self.resolve_mapping_l4(_l4i) == old(self).resolve_mapping_l4(_l4i) );
-        assert(forall|_l4i: usize,_l3i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512==>
-            self.resolve_mapping_l3(_l4i,_l3i) == old(self).resolve_mapping_l3(_l4i,_l3i));
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512==>
-            self.resolve_mapping_l2(_l4i,_l3i,_l2i) == old(self).resolve_mapping_l2(_l4i,_l3i,_l2i));
+        // assert(forall|_l4i: usize| #![auto] 0<= _l4i < 512 ==>
+        //         self.resolve_mapping_l4(_l4i) == old(self).resolve_mapping_l4(_l4i) );
+        // assert(forall|_l4i: usize,_l3i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512==>
+        //     self.resolve_mapping_l3(_l4i,_l3i) == old(self).resolve_mapping_l3(_l4i,_l3i));
+        // assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512==>
+        //     self.resolve_mapping_l2(_l4i,_l3i,_l2i) == old(self).resolve_mapping_l2(_l4i,_l3i,_l2i));
         
-        assert(self.resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr);
+        // assert(self.resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr);
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && !(l4i == _l4i && l3i == _l3i && l2i == _l2i )==>
-            self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr);
+        // assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && !(l4i == _l4i && l3i == _l3i && l2i == _l2i )==>
+        //     self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr);
 
-        assert(forall|ptr:usize|#![auto] self.l1_tables@.dom().contains(ptr) && ptr != l1_ptr ==>
-                self.l1_tables@[ptr]@ == old(self).l1_tables@[ptr]@
-        );
+        // assert(forall|ptr:usize|#![auto] self.l1_tables@.dom().contains(ptr) && ptr != l1_ptr ==>
+        //         self.l1_tables@[ptr]@ == old(self).l1_tables@[ptr]@
+        // );
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr ==> (
-            self.resolve_mapping_l2(_l4i,_l3i,_l2i) == 0 ||
-            self.l1_tables@[self.resolve_mapping_l2(_l4i,_l3i,_l2i)]@ == old(self).l1_tables@[old(self).resolve_mapping_l2(_l4i,_l3i,_l2i)]@)
+        // assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr ==> (
+        //     self.resolve_mapping_l2(_l4i,_l3i,_l2i) == 0 ||
+        //     self.l1_tables@[self.resolve_mapping_l2(_l4i,_l3i,_l2i)]@ == old(self).l1_tables@[old(self).resolve_mapping_l2(_l4i,_l3i,_l2i)]@)
         
-        );
+        // );
         
         //assert(self.wf_mapping());
 
@@ -573,77 +457,5 @@ impl PageTable {
     }
 }
 
-// pub struct LookUpTable{
-//     pub table : MarsArray<usize,512>,
-    
-//     pub level: Ghost<u8>,
-//     pub parent: Ghost<usize>, 
-// }
-
-// pub struct PageTable{
-//     pub cr3: usize,
-    
-//     pub perms: Ghost<Map<usize,PointsTo<LookUpTable>>>,
-
-//     pub mapping: Ghost<Map<(usize,usize,usize,usize),usize>>,
-// }
-// impl PageTable {
-
-//     pub open spec fn wf_perms(&self) -> bool{
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> self.perms@[i]@.pptr == i
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> self.perms@[i]@.value.is_Some()
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> 1 <= self.perms@[i]@.value.get_Some_0().level@ <= 4
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> self.perms@[i]@.value.get_Some_0().table.wf()
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) && self.perms@[i]@.value.get_Some_0().level@ != 1 ==> self.perms@[i]@.value.get_Some_0().table.is_unique()
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> self.perms@[self.perms@[i]@.value.get_Some_0().parent@]@.value.get_Some_0().level@ == self.perms@[i]@.value.get_Some_0().level@ + 1
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> self.perms@[self.perms@[i]@.value.get_Some_0().parent@]@.value.get_Some_0().table@.contains(i)
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) && self.perms@[i]@.value.get_Some_0().level@ != 1 ==> 
-//             forall|j:usize| #![auto] self.perms@[i]@.value.get_Some_0().table@.contains(j) && j != 0 ==>
-//                 self.perms@.dom().contains(j)
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) && self.perms@[i]@.value.get_Some_0().level@ != 1 ==> 
-//             forall|j:usize| #![auto] self.perms@[i]@.value.get_Some_0().table@.contains(j) ==> 
-//                 self.perms@[j]@.value.get_Some_0().level@ == self.perms@[i]@.value.get_Some_0().level@ - 1
-//         &&
-//         forall|i:usize,j:usize| #![auto]  self.perms@.dom().contains(i) && self.perms@.dom().contains(j) && self.perms@[i]@.value.get_Some_0().level@ != 1 && self.perms@[j]@.value.get_Some_0().level@ != 1 ==> 
-//             self.perms@[i]@.value.get_Some_0().table@.to_set().disjoint(self.perms@[j]@.value.get_Some_0().table@.to_set())
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) ==> 
-//             forall|j:usize| #![auto] self.perms@.dom().contains(j) && self.perms@[i]@.value.get_Some_0().parent@ != j ==> 
-//                 self.perms@[j]@.value.get_Some_0().table@.contains(i) == false
-//         &&
-//         forall|i:usize| #![auto]  self.perms@.dom().contains(i) && self.perms@[i]@.value.get_Some_0().level@ == 1 ==>  self.perms@[i]@.value.get_Some_0().table@.to_set().disjoint(self.perms@.dom())
-//     }
-
-//     pub open spec fn wf_l4(&self) -> bool{
-//         self.perms@.dom().contains(self.cr3)
-//         &&
-//         self.perms@[self.cr3]@.value.get_Some_0().level@ == 4
-//         &&
-//         self.perms@[self.cr3]@.value.get_Some_0().parent@ == self.cr3
-//     }
-
-    
-//     pub open spec fn wf_mapping(&self) -> bool{
-//         forall|l4:usize,l3:usize,l2:usize,l1:usize| #![auto]  self.mapping@.dom().contains((l4,l3,l2,l1))
-//             ==> (0<=l4<512 && 0<=l3<512 && 0<=l2<512 && 0<=l1<512) 
-//                 &&
-//                 self.perms@[self.cr3]@.value.get_Some_0().table@[l4 as int] != 0
-//                 &&
-//                 self.perms@[self.perms@[self.cr3]@.value.get_Some_0().table@[l4 as int]]@.value.get_Some_0().table@[l3 as int] != 0
-//                 &&
-//                 self.perms@[self.perms@[self.perms@[self.cr3]@.value.get_Some_0().table@[l4 as int]]@.value.get_Some_0().table@[l3 as int]]@.value.get_Some_0().table@[l2 as int] != 0
-//                 &&
-//                 self.perms@[self.perms@[self.perms@[self.perms@[self.cr3]@.value.get_Some_0().table@[l4 as int]]@.value.get_Some_0().table@[l3 as int]]@.value.get_Some_0().table@[l2 as int]]@.value.get_Some_0().table@[l1 as int] != 0
-//     } 
-
-// }
 
 }
