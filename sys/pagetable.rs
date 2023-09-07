@@ -212,6 +212,17 @@ impl PageTable {
         (self.l3_tables@.dom() + self.l2_tables@.dom() + self.l1_tables@.dom()).insert(self.cr3)
     }
 
+    pub open spec fn all_mapped_pages(&self) -> Set<usize>{
+        Set::<usize>::new(|pa: usize| self.pa_mapped(pa))
+    }
+
+    pub open spec fn pa_mapped(&self, pa:usize) -> bool
+    {
+        pa != 0
+        &&
+        exists|va:usize|#![auto] spec_va_valid(va) && self.mapping@[va] == pa 
+    }
+
     pub open spec fn wf_l4(&self) -> bool{
         self.cr3 != 0
         &&
@@ -506,8 +517,12 @@ impl PageTable {
         (
             forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@.dom().contains(va) 
         )
+        // &&
+        // (forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@[va] == self.resolve_mapping_l1(spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va)))
         &&
-        (forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@[va] == self.resolve_mapping_l1(spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va)))
+        (forall|l4i: usize,l3i: usize,l2i: usize, l1i: usize| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512) 
+        ==> self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))] == self.resolve_mapping_l1(l4i,l3i,l2i,l1i))
+        
     }
     pub open spec fn wf(&self) -> bool
     {
@@ -563,17 +578,11 @@ impl PageTable {
         self.l2_entry_exists(l4i,l3i,l2i)
     }
 
-    pub open spec fn pa_mapped(&self, pa:usize) -> bool
-        recommends self.wf()
-    {
-        exists|l1_ptr:usize, l1i:usize| self.l1_tables@.dom().contains(l1_ptr) && 0<=l1i<512 && self.l1_tables@[l1_ptr]@.value.get_Some_0().table@[l1i as int] == pa
-    }
-
     pub fn add_l4_mapping(&mut self, va: usize, pptr: PPtr<LookUpTable>, Tracked(perm): Tracked<PointsTo<LookUpTable>>)
         requires
             old(self).wf(),
             spec_va_valid(va),
-            old(self).pa_mapped((#[verifier(truncate)] (pptr.id() as usize))) == false,
+            old(self).all_mapped_pages().contains((#[verifier(truncate)] (pptr.id() as usize))) == false,
             old(self).all_pages().contains(#[verifier(truncate)] (pptr.id() as usize)) == false,
             old(self).l4_entry_exists(spec_v2l4index(va)) == false,
             pptr.id() != 0,
@@ -588,10 +597,10 @@ impl PageTable {
             self.all_pages() =~= old(self).all_pages().insert(#[verifier(truncate)] (pptr.id() as usize)),
     {
         let tracked mut perm = perm;
-        let mut i = 0;
-        while i < 512
+        let mut _i = 0;
+        while _i < 512
             invariant
-                0<= i <= 512,
+                0<= _i <= 512,
                 old(self).wf(),
                 spec_va_valid(va),
                 old(self).pa_mapped((#[verifier(truncate)] (pptr.id() as usize))) == false,
@@ -601,7 +610,7 @@ impl PageTable {
                 perm@.pptr == pptr.id(),
                 perm@.value.is_Some(),
                 perm@.value.get_Some_0().table.wf(),
-                forall|j:usize| #![auto] 0<=j<i ==> perm@.value.get_Some_0().table@[j as int] == 0,
+                forall|j:usize| #![auto] 0<=j<_i ==> perm@.value.get_Some_0().table@[j as int] == 0,
             ensures
                 old(self).wf(),
                 spec_va_valid(va),
@@ -612,13 +621,14 @@ impl PageTable {
                 perm@.pptr == pptr.id(),
                 perm@.value.is_Some(),
                 perm@.value.get_Some_0().table.wf(),
-                i == 512,
+                _i == 512,
                 forall|j:usize| #![auto] 0<=j<512 ==> perm@.value.get_Some_0().table@[j as int] == 0,
         {
-            LookUpTable_set(&pptr, Tracked(&mut perm),i,0);
-            i = i + 1;
+            LookUpTable_set(&pptr, Tracked(&mut perm),_i,0);
+            _i = _i + 1;
         }
 
+        
         proof{lemma_1();}
         let l4i = v2l4index(va);
 
@@ -645,7 +655,39 @@ impl PageTable {
         proof{
             self.wf_to_wf_mapping();
         }
-        assert(self.no_self_mapping());
+
+        // assert(self.l3_tables@.dom().contains(0) == false);
+
+        // assert(
+        //     forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
+        //         forall|j: usize| #![auto] 0 <= j < 512 ==>
+        //             self.l3_tables@.dom().contains((self.l1_tables@[i]@.value.get_Some_0().table@[j as int])) == false  
+        // );
+        
+        // assert(
+        //     forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
+        //         forall|j: usize| #![auto] 0 <= j < 512 ==>
+        //             self.l2_tables@.dom().contains(self.l1_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
+        // );
+        
+        // assert(
+        //     forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
+        //         forall|j: usize|  #![auto] 0 <= j < 512 ==>
+        //             self.l1_tables@.dom().contains(self.l1_tables@[i]@.value.get_Some_0().table@[j as int]) == false 
+        // );
+         
+        // assert(forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
+        //     forall|j: usize|  #![auto] 0 <= j < 512 ==>
+        //         self.cr3 != self.l1_tables@[i]@.value.get_Some_0().table@[j as int]
+        // );
+
+        //assert(self.no_self_mapping());
+
+        assert((forall|_l4i: usize,_l3i: usize,_l2i: usize, _l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512)  && _l4i != l4i
+            ==> old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i)));
+
+        // assert((forall|_l4i: usize,_l3i: usize,_l2i: usize, _l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512)  && l4i != l4i
+        //     ==> self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i)));
 
         assert(self.wf_mapping());
 
@@ -662,7 +704,7 @@ impl PageTable {
             spec_va_valid(va),
             //old(self).va_exists(va),
             old(self).all_pages().contains(dst) == false,
-            //old(self).mapping@[va] == 0,
+            old(self).mapping@[va] == 0,
         ensures
             self.wf(),
             old(self).va_exists(va) == ret ,
@@ -752,27 +794,6 @@ impl PageTable {
 
         assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
                 self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))]);
-
-        // assert(forall|_l4i: usize| #![auto] 0<= _l4i < 512 ==>
-        //         self.resolve_mapping_l4(_l4i) == old(self).resolve_mapping_l4(_l4i) );
-        // assert(forall|_l4i: usize,_l3i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512==>
-        //     self.resolve_mapping_l3(_l4i,_l3i) == old(self).resolve_mapping_l3(_l4i,_l3i));
-        // assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512==>
-        //     self.resolve_mapping_l2(_l4i,_l3i,_l2i) == old(self).resolve_mapping_l2(_l4i,_l3i,_l2i));
-        
-        // assert(self.resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr);
-
-        // assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && !(l4i == _l4i && l3i == _l3i && l2i == _l2i )==>
-        //     self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr);
-
-        // assert(forall|ptr:usize|#![auto] self.l1_tables@.dom().contains(ptr) && ptr != l1_ptr ==>
-        //         self.l1_tables@[ptr]@ == old(self).l1_tables@[ptr]@
-        // );
-
-        // assert(forall|_l4i: usize,_l3i: usize,_l2i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr ==> (
-        //     self.resolve_mapping_l2(_l4i,_l3i,_l2i) == 0 ||
-        //     self.l1_tables@[self.resolve_mapping_l2(_l4i,_l3i,_l2i)]@ == old(self).l1_tables@[old(self).resolve_mapping_l2(_l4i,_l3i,_l2i)]@)
-        // );
 
         assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr ==> (
             self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i))
