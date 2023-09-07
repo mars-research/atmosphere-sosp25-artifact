@@ -45,6 +45,19 @@ pub struct LinkedList<T: Default> {
 
 impl<T: Default> LinkedList<T> {
 
+    //start of tmp
+    pub closed spec fn view(&self) -> Seq<T>
+    {
+        Seq::new(self.ptrs@.len(), |i: int| self.perms@[self.ptrs@[i].page_pptr()]@.value_at(self.ptrs@[i].index()).unwrap().value)
+    }
+
+    pub closed spec fn unique(&self) -> bool
+    {
+        forall|i:int, j:int| i != j && 0<=i<self@.len() && 0<=j<self@.len() ==> self@[i] != self@[j]
+    }
+    //end of tmp
+    //@Lukas: just change to whatever you want
+
     pub fn new() -> (ret: Self)
         ensures ret.wf()
     {
