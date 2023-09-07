@@ -37,7 +37,7 @@ pub struct LookUpTable{
 pub struct PageTable{
     pub cr3: usize,
     
-    pub l4_table: Tracked<PointsTo<LookUpTable>>,
+    pub l4_table: Tracked<Map<usize,PointsTo<LookUpTable>>>,
     pub l3_tables: Tracked<Map<usize,PointsTo<LookUpTable>>>,
     pub l2_tables: Tracked<Map<usize,PointsTo<LookUpTable>>>,
     pub l1_tables: Tracked<Map<usize,PointsTo<LookUpTable>>>,
@@ -213,28 +213,32 @@ impl PageTable {
     }
 
     pub open spec fn wf_l4(&self) -> bool{
-        self.cr3 == self.l4_table@@.pptr
+        self.cr3 != 0
         &&
-        self.l4_table@@.value.is_Some()
+        self.l4_table@.dom() =~=  Set::<usize>::empty().insert(self.cr3)
         &&
-        self.l4_table@@.value.get_Some_0().table.wf()
+        self.cr3 == self.l4_table@[self.cr3]@.pptr
+        &&
+        self.l4_table@[self.cr3]@.value.is_Some()
+        &&
+        self.l4_table@[self.cr3]@.value.get_Some_0().table.wf()
         //L4 table only maps to L3
         &&
-        (forall|i: L4Index, j: L4Index| #![auto] i != j && 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 && 0 <= j < 512 && self.l4_table@@.value.get_Some_0().table@[j as int] != 0 ==> 
-            self.l4_table@@.value.get_Some_0().table@[i as int] != self.l4_table@@.value.get_Some_0().table@[j as int])
+        (forall|i: L4Index, j: L4Index| #![auto] i != j && 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 && 0 <= j < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[j as int] != 0 ==> 
+            self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != self.l4_table@[self.cr3]@.value.get_Some_0().table@[j as int])
         &&
-        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 ==> self.l2_tables@.dom().contains(self.l4_table@@.value.get_Some_0().table@[i as int]) == false)
+        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> self.l2_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int]) == false)
         &&
-        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 ==> self.l1_tables@.dom().contains(self.l4_table@@.value.get_Some_0().table@[i as int]) == false)
+        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> self.l1_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int]) == false)
         &&
-        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0  ==> self.cr3 != self.l4_table@@.value.get_Some_0().table@[i as int])
+        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0  ==> self.cr3 != self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int])
     }
 
     pub open spec fn wf_l3(&self) -> bool{
         //all l4 mappings exist in l3
         (
-            forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@@.value.get_Some_0().table@[i as int] != 0 ==> 
-                self.l3_tables@.dom().contains(self.l4_table@@.value.get_Some_0().table@[i as int])
+            forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> 
+                self.l3_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int])
         )
         &&
         (
@@ -254,7 +258,7 @@ impl PageTable {
         )
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l4_table@@.value.get_Some_0().table@.contains(i)
+            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l4_table@[self.cr3]@.value.get_Some_0().table@.contains(i)
         )
 
         //L3 table only maps to L2
@@ -280,19 +284,19 @@ impl PageTable {
         &&
         (
             forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                forall|j: usize| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[j as int] != 0 ==>
                     self.l3_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
         (   forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                forall|j: usize| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[j as int] != 0 ==>
                     self.l1_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
         (
             forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
                 forall|j: usize| #![auto] 0 <= j < 512 ==>
-                    self.cr3 !=self.l3_tables@[i]@.value.get_Some_0().table@[j as int]
+                    self.cr3 != self.l3_tables@[i]@.value.get_Some_0().table@[j as int]
         )
     }
     
@@ -422,7 +426,7 @@ impl PageTable {
         recommends
             0<= l4i < 512, 
     {
-        self.l4_table@@.value.get_Some_0().table@[l4i as int]
+        self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int]
     }
 
     pub open spec fn resolve_mapping_l3(&self, l4i: usize, l3i: usize) -> usize
@@ -523,7 +527,7 @@ impl PageTable {
     pub open spec fn l4_entry_exists(&self, l4i: usize) -> bool
         recommends self.wf(),
     {
-        self.l4_table@@.value.get_Some_0().table@[l4i as int] != 0
+        self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int] != 0
     }
 
     pub open spec fn l3_entry_exists(&self, l4i: usize, l3i :usize) -> bool
@@ -531,7 +535,7 @@ impl PageTable {
                     self.l4_entry_exists(l4i)
     {
         self.l3_tables@[
-            self.l4_table@@.value.get_Some_0().table@[l4i as int]
+            self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int]
         ]@.value.get_Some_0().table@[l3i as int] != 0
     }
 
@@ -542,7 +546,7 @@ impl PageTable {
     {
         self.l2_tables@[
             self.l3_tables@[
-                self.l4_table@@.value.get_Some_0().table@[l4i as int]
+                self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int]
                     ]@.value.get_Some_0().table@[l3i as int]
                 ]@.value.get_Some_0().table@[l2i as int] != 0
     }
@@ -557,6 +561,66 @@ impl PageTable {
         self.l3_entry_exists(l4i,l3i)
         &&
         self.l2_entry_exists(l4i,l3i,l2i)
+    }
+
+    pub open spec fn pa_mapped(&self, pa:usize) -> bool
+        recommends self.wf()
+    {
+        exists|l1_ptr:usize, l1i:usize| self.l1_tables@.dom().contains(l1_ptr) && 0<=l1i<512 && self.l1_tables@[l1_ptr]@.value.get_Some_0().table@[l1i as int] == pa
+    }
+
+    pub fn add_l4_mapping(&mut self, va: usize, pptr: PPtr<LookUpTable>, Tracked(perm): Tracked<PointsTo<LookUpTable>>)
+        requires
+            old(self).wf(),
+            spec_va_valid(va),
+            old(self).pa_mapped((#[verifier(truncate)] (pptr.id() as usize))) == false,
+            old(self).all_pages().contains(#[verifier(truncate)] (pptr.id() as usize)) == false,
+            old(self).l4_entry_exists(spec_v2l4index(va)) == false,
+            pptr.id() != 0,
+            perm@.pptr == pptr.id(),
+            perm@.value.is_Some(),
+            perm@.value.get_Some_0().table.wf(),
+            forall|i:usize| #![auto] 0<=i<512 ==> perm@.value.get_Some_0().table@[i as int] == 0,
+        ensures
+            self.wf(),
+            self.l4_entry_exists(spec_v2l4index(va)),
+            self.mapping@ =~= old(self).mapping@,
+            self.all_pages() =~= old(self).all_pages().insert(#[verifier(truncate)] (pptr.id() as usize)),
+    {
+        proof{lemma_1();}
+        let l4i = v2l4index(va);
+
+        let tracked mut l4_perm = self.l4_table.borrow_mut().tracked_remove(self.cr3);
+        assert(self.cr3 == l4_perm@.pptr);
+        let l4_pptr = PPtr::<LookUpTable>::from_usize(self.cr3);
+
+        let ptr = pptr.to_usize();
+
+        LookUpTable_set(&l4_pptr, Tracked(&mut l4_perm),l4i,pptr.to_usize());
+        proof {
+            self.l4_table.borrow_mut().tracked_insert(self.cr3, l4_perm);
+            assert(self.l3_tables@.dom().contains(ptr) == false);
+            self.l3_tables.borrow_mut().tracked_insert(ptr, perm);
+        }
+        assert(self.wf_l4());
+
+        assert(self.wf_l3());
+        
+        assert(self.wf_l2());
+
+        assert(self.wf_l1());
+
+        proof{
+            self.wf_to_wf_mapping();
+        }
+        assert(self.no_self_mapping());
+
+        assert(self.wf_mapping());
+
+        assert(self.wf());
+
+        //assert(false);
+
     }
 
 
@@ -576,14 +640,15 @@ impl PageTable {
                 self.mapping@ =~= old(self).mapping@,
     {
         let (l4i,l3i,l2i,l1i) = va2index(va);
-        assert(self.cr3 == self.l4_table@@.pptr);
-        let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(&self.l4_table.borrow()));
+        assert(self.cr3 == self.l4_table@[self.cr3]@.pptr);
+        let tracked l4_perm = self.l4_table.borrow().tracked_borrow(self.cr3);
+        let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let l3_ptr = *l4_tbl.table.get(l4i);
         if(l3_ptr == 0){
             assert(!old(self).va_exists(va));
             return false;
         }
-        assert(self.l4_table@@.value.get_Some_0().table@.contains(l3_ptr));
+        assert(self.l4_table@[self.cr3]@.value.get_Some_0().table@.contains(l3_ptr));
         let tracked l3_perm = self.l3_tables.borrow().tracked_borrow(l3_ptr);
         assert(l3_ptr == l3_perm@.pptr);
         let l3_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
@@ -639,8 +704,9 @@ impl PageTable {
 
         assert(self.wf_l1());
 
-        proof{self.wf_to_wf_mapping();
-              lemma_1();    
+        proof{
+            self.wf_to_wf_mapping();
+            lemma_1();    
         }
 
         assert(self.no_self_mapping());
