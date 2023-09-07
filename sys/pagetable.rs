@@ -45,37 +45,37 @@ pub struct PageTable{
     pub mapping: Ghost<Map<usize,usize>>,
 }
 
-pub open spec fn va_valid(va: usize) -> bool
+pub open spec fn spec_va_valid(va: usize) -> bool
 {
     va & VA_MASK as usize == 0
 }
 
-pub open spec fn v2l1index(va: usize) -> L1Index
+pub open spec fn spec_v2l1index(va: usize) -> L1Index
 {
     (va >> 12 & 0x1ff) as usize
 }
 
-pub open spec fn v2l2index(va: usize) -> L2Index
+pub open spec fn spec_v2l2index(va: usize) -> L2Index
 {
     (va >> 21 & 0x1ff) as usize
 }
 
-pub open spec fn v2l3index(va: usize) -> L3Index
+pub open spec fn spec_v2l3index(va: usize) -> L3Index
 {
     (va >> 30 & 0x1ff) as usize
 }
 
-pub open spec fn v2l4index(va: usize) -> L4Index
+pub open spec fn spec_v2l4index(va: usize) -> L4Index
 {
     (va >> 39 & 0x1ff) as usize
 }
 
-pub open spec fn va2index(va: usize) -> (L4Index,L3Index,L2Index,L1Index)
+pub open spec fn spec_va2index(va: usize) -> (L4Index,L3Index,L2Index,L1Index)
 {
-    (v2l4index(va),v2l3index(va),v2l2index(va),v2l1index(va))
+    (spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va))
 }
 
-pub open spec fn index2va(i:(L4Index,L3Index,L2Index,L1Index)) -> usize
+pub open spec fn spec_index2va(i:(L4Index,L3Index,L2Index,L1Index)) -> usize
     recommends 
     i.0 <= 0x1ff,
     i.1 <= 0x1ff, 
@@ -85,62 +85,119 @@ pub open spec fn index2va(i:(L4Index,L3Index,L2Index,L1Index)) -> usize
     (i.0 as usize)<<39 & (i.1 as usize)<<30 & (i.2 as usize)<<21 & (i.3 as usize)<<12 
 } 
 
+
+pub fn va_valid(va: usize) -> (ret: bool)
+    ensures ret == spec_va_valid(va),
+{
+    va & VA_MASK as usize == 0
+}
+
+#[verifier(external_body)]
+pub fn v2l1index(va: usize) -> (ret: L1Index)
+    requires spec_va_valid(va),
+    ensures  ret == spec_v2l1index(va),
+             ret <= 0x1ff,
+{
+    (va as u64 >> 12u64 & 0x1ffu64) as usize
+}
+
+#[verifier(external_body)]
+pub fn v2l2index(va: usize) -> (ret: L2Index)
+    requires spec_va_valid(va),
+    ensures  ret == spec_v2l2index(va),
+            ret <= 0x1ff,
+{
+    (va as u64 >> 21u64 & 0x1ffu64) as usize
+}
+
+#[verifier(external_body)]
+pub fn v2l3index(va: usize) -> (ret: L3Index)
+    requires spec_va_valid(va),
+    ensures  ret == spec_v2l3index(va),
+            ret <= 0x1ff,
+{
+    (va as u64 >> 30u64 & 0x1ffu64) as usize
+}
+
+#[verifier(external_body)]
+pub fn v2l4index(va: usize) -> (ret: L4Index)
+    requires spec_va_valid(va),
+    ensures  ret == spec_v2l4index(va),
+                ret <= 0x1ff,
+{
+    (va as u64 >> 39u64 & 0x1ffu64) as usize
+}
+
+
+pub fn va2index(va: usize) -> (ret : (L4Index,L3Index,L2Index,L1Index))
+    requires
+        spec_va_valid(va),
+    ensures
+        ret.0 == spec_v2l4index(va) && ret.0 <= 0x1ff,
+        ret.1 == spec_v2l3index(va) && ret.1 <= 0x1ff,
+        ret.2 == spec_v2l2index(va) && ret.2 <= 0x1ff,
+        ret.3 == spec_v2l1index(va) && ret.3 <= 0x1ff,
+{
+    (v2l4index(va),v2l3index(va),v2l2index(va),v2l1index(va))
+}
+
+
 #[verifier(external_body)]
 pub proof fn lemma_1()
     ensures
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize|  #![auto] (
             l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff 
             ) ==>
-                va_valid(index2va((l4i,l3i,l2i,l1i)))
+                spec_va_valid(spec_index2va((l4i,l3i,l2i,l1i)))
                 &&
-                va2index(index2va((l4i,l3i,l2i,l1i))).0 == l4i
+                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).0 == l4i
                 &&
-                va2index(index2va((l4i,l3i,l2i,l1i))).1 == l3i
+                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).1 == l3i
                 &&
-                va2index(index2va((l4i,l3i,l2i,l1i))).2 == l2i
+                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).2 == l2i
                 &&
-                va2index(index2va((l4i,l3i,l2i,l1i))).3 == l1i
+                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).3 == l1i
         ),
-        (forall|va_1:usize| #![auto] va_valid(va_1) ==> (
-            va2index(va_1).0 <= 0x1ff
+        (forall|va_1:usize| #![auto] spec_va_valid(va_1) ==> (
+            spec_va2index(va_1).0 <= 0x1ff
             &&
-            va2index(va_1).1 <= 0x1ff
+            spec_va2index(va_1).1 <= 0x1ff
             &&
-            va2index(va_1).2 <= 0x1ff
+            spec_va2index(va_1).2 <= 0x1ff
             &&
-            va2index(va_1).3 <= 0x1ff
+            spec_va2index(va_1).3 <= 0x1ff
             &&
-            index2va(va2index(va_1)) == va_1
+            spec_index2va(spec_va2index(va_1)) == va_1
         )),
-        (forall|va_1:usize, va_2:usize| #![auto] va_valid(va_1) && va_valid(va_2) && va_1 == va_2 ==> (
-            va2index(va_1).0 == va2index(va_2).0 
+        (forall|va_1:usize, va_2:usize| #![auto] spec_va_valid(va_1) && spec_va_valid(va_2) && va_1 == va_2 ==> (
+            spec_va2index(va_1).0 == spec_va2index(va_2).0 
             &&
-            va2index(va_1).1 == va2index(va_2).1  
+            spec_va2index(va_1).1 == spec_va2index(va_2).1  
             &&
-            va2index(va_1).2 == va2index(va_2).2 
+            spec_va2index(va_1).2 == spec_va2index(va_2).2 
             &&
-            va2index(va_1).3 == va2index(va_2).3
+            spec_va2index(va_1).3 == spec_va2index(va_2).3
         )),
-        (forall|va_1:usize, va_2:usize| #![auto] va_valid(va_1) && va_valid(va_2) && va_1 != va_2 ==> (
-            va2index(va_1).0 != va2index(va_2).0 
+        (forall|va_1:usize, va_2:usize| #![auto] spec_va_valid(va_1) && spec_va_valid(va_2) && va_1 != va_2 ==> (
+            spec_va2index(va_1).0 != spec_va2index(va_2).0 
             ||
-            va2index(va_1).1 != va2index(va_2).1  
+            spec_va2index(va_1).1 != spec_va2index(va_2).1  
             ||
-            va2index(va_1).2 != va2index(va_2).2 
+            spec_va2index(va_1).2 != spec_va2index(va_2).2 
             ||
-            va2index(va_1).3 != va2index(va_2).3
+            spec_va2index(va_1).3 != spec_va2index(va_2).3
         )),
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
             l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
             l4i == l4j && l3i == l3j && l2i == l2j && l1i == l1j  
         ) ==>
-            index2va((l4i,l3i,l2i,l1i)) == index2va((l4j,l3j,l2j,l1j))
+            spec_index2va((l4i,l3i,l2i,l1i)) == spec_index2va((l4j,l3j,l2j,l1j))
         ),
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
             l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
             l4i != l4j || l3i != l3j || l2i != l2j || l1i != l1j  
         ) ==>
-            index2va((l4i,l3i,l2i,l1i)) != index2va((l4j,l3j,l2j,l1j))
+            spec_index2va((l4i,l3i,l2i,l1i)) != spec_index2va((l4j,l3j,l2j,l1j))
         )
         
 {
@@ -149,6 +206,11 @@ pub proof fn lemma_1()
 
 
 impl PageTable {
+
+    
+    pub open spec fn all_pages(&self) -> Set<usize>{
+        (self.l3_tables@.dom() + self.l2_tables@.dom() + self.l1_tables@.dom()).insert(self.cr3)
+    }
 
     pub open spec fn wf_l4(&self) -> bool{
         self.cr3 == self.l4_table@@.pptr
@@ -438,10 +500,10 @@ impl PageTable {
 
     pub open spec fn wf_mapping(&self) -> bool{
         (
-            forall|va: usize| #![auto] va_valid(va) ==> self.mapping@.dom().contains(va) 
+            forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@.dom().contains(va) 
         )
         &&
-        (forall|va: usize| #![auto] va_valid(va) ==> self.mapping@[va] == self.resolve_mapping_l1(v2l4index(va),v2l3index(va),v2l2index(va),v2l1index(va)))
+        (forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@[va] == self.resolve_mapping_l1(spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va)))
     }
     pub open spec fn wf(&self) -> bool
     {
@@ -458,48 +520,78 @@ impl PageTable {
         self.wf_mapping()
     }
 
-    pub fn add_mapping(&mut self,l4i: usize,l3i: usize,l2i: usize,l1i: usize, dst:usize)
-        requires 
-            //old(self).wf(),
-            old(self).wf_l4(),
-            old(self).wf_l3(),
-            old(self).wf_l2(),
-            old(self).wf_l1(),
-            old(self).no_self_mapping(),
-            old(self).wf_mapping(),
-            0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512 ,
-            // old(self).mapping@.contains_key((l4i,l3i,l2i,l1i)) == false,
-            old(self).l4_table@@.value.get_Some_0().table@[l4i as int] != 0,
-            old(self).l3_tables@[
-                    old(self).l4_table@@.value.get_Some_0().table@[l4i as int]
-                ]@.value.get_Some_0().table@[l3i as int] != 0,
-            old(self).l2_tables@[
-                old(self).l3_tables@[
-                    old(self).l4_table@@.value.get_Some_0().table@[l4i as int]
-                        ]@.value.get_Some_0().table@[l3i as int]
-                    ]@.value.get_Some_0().table@[l2i as int] != 0,
-            old(self).l1_tables@[
-                old(self).l2_tables@[
-                    old(self).l3_tables@[
-                        old(self).l4_table@@.value.get_Some_0().table@[l4i as int]
-                        ]@.value.get_Some_0().table@[l3i as int]
-                    ]@.value.get_Some_0().table@[l2i as int]
-                ]@.value.get_Some_0().table@[l1i as int] == 0,
-            old(self).cr3 != dst,
-            old(self).l3_tables@.dom().contains(dst) == false,
-            old(self).l2_tables@.dom().contains(dst) == false,
-            old(self).l1_tables@.dom().contains(dst) == false,
-            old(self).resolve_mapping_l1(l4i,l3i,l2i,l1i) == 0,
+    pub open spec fn l4_entry_exists(&self, l4i: usize) -> bool
+        recommends self.wf(),
     {
+        self.l4_table@@.value.get_Some_0().table@[l4i as int] != 0
+    }
+
+    pub open spec fn l3_entry_exists(&self, l4i: usize, l3i :usize) -> bool
+        recommends self.wf(),
+                    self.l4_entry_exists(l4i)
+    {
+        self.l3_tables@[
+            self.l4_table@@.value.get_Some_0().table@[l4i as int]
+        ]@.value.get_Some_0().table@[l3i as int] != 0
+    }
+
+    pub open spec fn l2_entry_exists(&self, l4i: usize, l3i: usize, l2i: usize) -> bool
+    recommends self.wf(),
+                self.l4_entry_exists(l4i),
+                self.l3_entry_exists(l4i,l3i)
+    {
+        self.l2_tables@[
+            self.l3_tables@[
+                self.l4_table@@.value.get_Some_0().table@[l4i as int]
+                    ]@.value.get_Some_0().table@[l3i as int]
+                ]@.value.get_Some_0().table@[l2i as int] != 0
+    }
+
+    pub open spec fn va_exists(&self, va:usize) -> bool
+        recommends spec_va_valid(va),    
+    {
+        let (l4i,l3i,l2i,_) = spec_va2index(va);
+
+        self.l4_entry_exists(l4i)
+        &&
+        self.l3_entry_exists(l4i,l3i)
+        &&
+        self.l2_entry_exists(l4i,l3i,l2i)
+    }
+
+
+    pub fn add_mapping(&mut self, va:usize, dst:usize) -> (ret: bool)
+        requires 
+            old(self).wf(),
+            spec_va_valid(va),
+            //old(self).va_exists(va),
+            old(self).all_pages().contains(dst) == false,
+            //old(self).mapping@[va] == 0,
+        ensures
+            self.wf(),
+            old(self).va_exists(va) == ret ,
+            old(self).va_exists(va) ==> 
+                self.mapping@ =~= old(self).mapping@.insert(va,dst),
+            !old(self).va_exists(va) ==> 
+                self.mapping@ =~= old(self).mapping@,
+    {
+        let (l4i,l3i,l2i,l1i) = va2index(va);
         assert(self.cr3 == self.l4_table@@.pptr);
         let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(&self.l4_table.borrow()));
         let l3_ptr = *l4_tbl.table.get(l4i);
-        assert(l3_ptr != 0);
+        if(l3_ptr == 0){
+            assert(!old(self).va_exists(va));
+            return false;
+        }
         assert(self.l4_table@@.value.get_Some_0().table@.contains(l3_ptr));
         let tracked l3_perm = self.l3_tables.borrow().tracked_borrow(l3_ptr);
         assert(l3_ptr == l3_perm@.pptr);
         let l3_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let l2_ptr = *l3_tbl.table.get(l3i);
+        if(l2_ptr == 0){
+            assert(!old(self).va_exists(va));
+            return false;
+        }
 
         assert(self.l3_tables@.dom().contains(l3_ptr));
         assert(self.l3_tables@[l3_ptr]@.value.get_Some_0().table@.contains(l2_ptr));
@@ -509,6 +601,12 @@ impl PageTable {
         assert(l2_ptr == l2_perm@.pptr);
         let l2_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let l1_ptr = *l2_tbl.table.get(l2i);
+        if(l1_ptr == 0){
+            assert(!old(self).va_exists(va));
+            return false;
+        }
+        assert(self.va_exists(va));
+        assert(old(self).va_exists(va));
 
         assert(self.l2_tables@.dom().contains(l2_ptr));
         assert(self.l2_tables@[l2_ptr]@.value.get_Some_0().table@.contains(l1_ptr));
@@ -519,14 +617,14 @@ impl PageTable {
         let l1_pptr = PPtr::<LookUpTable>::from_usize(l1_ptr);
 
         assert(l1_perm@.value.get_Some_0().table.wf());
-        assert(l1_perm@.value.get_Some_0().table@[l1i as int] == 0);
+        //assert(l1_perm@.value.get_Some_0().table@[l1i as int] == 0);
 
         LookUpTable_set(&l1_pptr,Tracked(&mut l1_perm),l1i,dst);
         assert(l1_perm@.value.get_Some_0().table@[l1i as int] == dst);
         assert(l1_perm@.pptr == l1_ptr);
         proof {
-            self.mapping@ = self.mapping@.insert(index2va((l4i,l3i,l2i,l1i)),dst);}
-        assert(self.mapping@[index2va((l4i,l3i,l2i,l1i))]==dst);
+            self.mapping@ = self.mapping@.insert(spec_index2va((l4i,l3i,l2i,l1i)),dst);}
+        assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==dst);
 
         proof {
             self.l1_tables.borrow_mut().tracked_insert(l1_ptr, l1_perm);
@@ -550,12 +648,12 @@ impl PageTable {
 
         assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i) == dst);
 
-        let g_va:Ghost<usize> = Ghost(index2va((l4i,l3i,l2i,l1i)));
-        assert(forall|va:usize| #![auto] va_valid(va) && va != g_va ==> 
+        let g_va:Ghost<usize> = Ghost(spec_index2va((l4i,l3i,l2i,l1i)));
+        assert(forall|va:usize| #![auto] spec_va_valid(va) && va != g_va ==> 
             self.mapping@[va] == old(self).mapping@[va]);
 
         assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
-                self.mapping@[index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[index2va((_l4i,_l3i,_l2i,_l1i))]);
+                self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))]);
 
         // assert(forall|_l4i: usize| #![auto] 0<= _l4i < 512 ==>
         //         self.resolve_mapping_l4(_l4i) == old(self).resolve_mapping_l4(_l4i) );
@@ -591,17 +689,19 @@ impl PageTable {
         );
 
         assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i)) ==> (
-            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[index2va((_l4i,_l3i,_l2i,_l1i))])
+            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))])
         );
 
         assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && ((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i)) ==> (
-            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[index2va((_l4i,_l3i,_l2i,_l1i))])
+            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))])
         );
         assert(self.wf_mapping());
 
         assert(self.wf());
 
         //  assert(false);
+
+        return true;
 
     }
 }
