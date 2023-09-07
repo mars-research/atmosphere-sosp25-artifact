@@ -580,13 +580,45 @@ impl PageTable {
             perm@.pptr == pptr.id(),
             perm@.value.is_Some(),
             perm@.value.get_Some_0().table.wf(),
-            forall|i:usize| #![auto] 0<=i<512 ==> perm@.value.get_Some_0().table@[i as int] == 0,
+            //forall|i:usize| #![auto] 0<=i<512 ==> perm@.value.get_Some_0().table@[i as int] == 0,
         ensures
             self.wf(),
             self.l4_entry_exists(spec_v2l4index(va)),
             self.mapping@ =~= old(self).mapping@,
             self.all_pages() =~= old(self).all_pages().insert(#[verifier(truncate)] (pptr.id() as usize)),
     {
+        let tracked mut perm = perm;
+        let mut i = 0;
+        while i < 512
+            invariant
+                0<= i <= 512,
+                old(self).wf(),
+                spec_va_valid(va),
+                old(self).pa_mapped((#[verifier(truncate)] (pptr.id() as usize))) == false,
+                old(self).all_pages().contains(#[verifier(truncate)] (pptr.id() as usize)) == false,
+                old(self).l4_entry_exists(spec_v2l4index(va)) == false,
+                pptr.id() != 0,
+                perm@.pptr == pptr.id(),
+                perm@.value.is_Some(),
+                perm@.value.get_Some_0().table.wf(),
+                forall|j:usize| #![auto] 0<=j<i ==> perm@.value.get_Some_0().table@[j as int] == 0,
+            ensures
+                old(self).wf(),
+                spec_va_valid(va),
+                old(self).pa_mapped((#[verifier(truncate)] (pptr.id() as usize))) == false,
+                old(self).all_pages().contains(#[verifier(truncate)] (pptr.id() as usize)) == false,
+                old(self).l4_entry_exists(spec_v2l4index(va)) == false,
+                pptr.id() != 0,
+                perm@.pptr == pptr.id(),
+                perm@.value.is_Some(),
+                perm@.value.get_Some_0().table.wf(),
+                i == 512,
+                forall|j:usize| #![auto] 0<=j<512 ==> perm@.value.get_Some_0().table@[j as int] == 0,
+        {
+            LookUpTable_set(&pptr, Tracked(&mut perm),i,0);
+            i = i + 1;
+        }
+
         proof{lemma_1();}
         let l4i = v2l4index(va);
 
