@@ -384,7 +384,6 @@ impl<MT> PageMetadataPtr<MT> {
         requires
             old(arena)@.wf(),
         ensures
-            arena@.wf(),
             arena@.same_arena(old(arena)@),
 
             // The metadata was changed
@@ -470,6 +469,7 @@ mod test {
 
         p1.put(&mut arena1, 123);
         p2.put(&mut arena1, 233);
+        assert(arena1@.wf());
         let p2_clone = p2.clone();
 
         let v1 = p1.borrow(&arena1);
