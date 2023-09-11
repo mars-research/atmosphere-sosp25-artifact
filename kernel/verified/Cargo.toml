@@ -16,3 +16,6 @@ branch = "mars"
 default-features = false
 
 # Cannot have any other dependencies
+
+[features]
+std = []
