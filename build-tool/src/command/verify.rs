@@ -26,11 +26,14 @@ struct AtmosphereMetadata {
 
 /// Verify the OS.
 #[derive(Debug, Parser)]
+#[clap(trailing_var_arg = true)]
 pub struct Opts {
+    /// Extra arguments for Verus.
+    extra_args: Vec<String>,
 }
 
 pub(super) async fn run(global: GlobalOpts) -> Result<()> {
-    let _local = unwrap_command!(global, SubCommand::Verify);
+    let local = unwrap_command!(global, SubCommand::Verify);
 
     let project = Project::discover()?;
 
@@ -69,6 +72,7 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
                 .arg("--crate-type")
                 .arg("lib")
                 .arg(root)
+                .args(&local.extra_args)
                 .status()
         });
 
