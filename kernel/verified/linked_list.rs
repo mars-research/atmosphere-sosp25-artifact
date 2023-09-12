@@ -112,7 +112,11 @@ impl<T: Default> LinkedList<T> {
     // ********************
 
     pub closed spec fn wf(&self) -> bool {
-        self.wf_ptrs() && self.wf_free_ptrs() && self.wf_page_ptrs()
+        self.wf_perms() && self.wf_ptrs() && self.wf_free_ptrs() && self.wf_page_ptrs()
+    }
+
+    spec fn wf_perms(&self) -> bool {
+        true // TODO
     }
 
     spec fn wf_ptrs(&self) -> bool {
@@ -120,8 +124,13 @@ impl<T: Default> LinkedList<T> {
     }
 
     spec fn wf_ptr(&self, i: nat) -> bool {
-        // TODO
-        true
+        let ptr: &NodePtr<T> = &self.ptrs@[i as int];
+        let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
+        
+        match arena.value_at(ptr.index()) {
+            Some(node) => node.prev == self.prev_of(i) && node.next == self.next_of(i),
+            None => false,
+        }        
     }
 
     spec fn wf_head(&self) -> bool {
@@ -141,7 +150,17 @@ impl<T: Default> LinkedList<T> {
     }
 
     spec fn wf_free_ptrs(&self) -> bool {
-        self.wf_free_head() && self.wf_free_tail()
+        self.wf_free_head() && self.wf_free_tail() && forall|i: nat| 0 <= i < self.free_ptrs@.len() ==> self.wf_free_ptr(i) 
+    }
+
+    spec fn wf_free_ptr(&self, i: nat) -> bool {
+        let ptr: &NodePtr<T> = &self.free_ptrs@[i as int];
+        let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
+        
+        match arena.value_at(ptr.index()) {
+            Some(node) => node.prev == self.free_prev_of(i) && node.next == self.free_next_of(i),
+            None => false,
+        }        
     }
 
     spec fn wf_free_head(&self) -> bool {
@@ -161,7 +180,13 @@ impl<T: Default> LinkedList<T> {
     }
 
     spec fn wf_page_ptrs(&self) -> bool {
-        self.wf_page_head()
+        self.wf_page_head() && forall |i: nat| 0 <= i < self.page_ptrs@.len() ==> self.wf_page_ptr(i)
+    }
+
+    spec fn wf_page_ptr(&self, i: nat) -> bool {
+        let ptr: &PageNodePtr = &self.page_ptrs@[i as int];
+        let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
+        arena.metadata().next == self.page_next_of(i)     
     }
 
     spec fn wf_page_head(&self) -> bool {
