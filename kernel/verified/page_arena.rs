@@ -97,14 +97,14 @@ impl<T, MT> PageArena<T, MT> {
     ///
     /// Since PageArena is entirely ghost, the real page PPtr
     /// needs to be specified.
-    pub fn get_element_ptr(arena: &Tracked<Self>, page_pptr: PagePPtr, i: usize) -> (ep: PageElementPtr<T>)
+    pub fn get_element_ptr(Tracked(arena): Tracked<&Self>, page_pptr: PagePPtr, i: usize) -> (ep: PageElementPtr<T>)
         requires
-            arena@.wf(),
+            arena.wf(),
             0 <= i < Self::capacity(),
-            page_pptr.id() == arena@.page_base(),
+            page_pptr.id() == arena.page_base(),
         ensures
             ep.index() == i,
-            arena@.has_element(&ep),
+            arena.has_element(&ep),
     {
         PageElementPtr {
             page_pptr,
@@ -115,9 +115,9 @@ impl<T, MT> PageArena<T, MT> {
     }
 
     /// Returns the PageMetadataPtr associated with this page.
-    pub fn get_metadata_ptr(arena: &Tracked<Self>, page_pptr: PagePPtr) -> (mp: PageMetadataPtr<MT>)
+    pub fn get_metadata_ptr(Tracked(arena): Tracked<&Self>, page_pptr: PagePPtr) -> (mp: PageMetadataPtr<MT>)
         requires
-            arena@.wf(),
+            arena.wf(),
     {
         PageMetadataPtr {
             page_pptr,
@@ -213,7 +213,7 @@ impl<T, MT> PageArena<T, MT> {
         self.page_base() == element.page_base() && element.index() < Self::capacity()
     }
 
-    pub open spec fn same_arena(&self, arena: Self) -> bool {
+    pub open spec fn same_arena(&self, arena: &Self) -> bool {
         // Type system ensures identical element types and therefore capacity
         self.page_base() == arena.page_base()
     }
@@ -291,13 +291,13 @@ impl<T> PageElementPtr<T> {
 
     #[verifier(external_body)]
     #[inline(always)]
-    pub fn borrow<MT>(&self, arena: &Tracked<PageArena<T, MT>>) -> (result: &T)
+    pub fn borrow<'a, MT>(&self, Tracked(arena): Tracked<&'a PageArena<T, MT>>) -> (result: &'a T)
         requires
-            arena@.wf(),
-            arena@.has_element(self),
-            arena@.value_at(self.index()).is_Some(),
+            arena.wf(),
+            arena.has_element(self),
+            arena.value_at(self.index()).is_Some(),
         ensures
-            result == arena@.value_at(self.index()).get_Some_0(),
+            result == arena.value_at(self.index()).get_Some_0(),
     {
         unsafe {
             let slice = core::slice::from_raw_parts(self.page_pptr.to_usize() as *const T, PageArena::<T, MT>::capacity());
@@ -307,21 +307,21 @@ impl<T> PageElementPtr<T> {
 
     #[verifier(external_body)]
     #[inline(always)]
-    pub fn put<MT>(&self, arena: &mut Tracked<PageArena<T, MT>>, value: T)
+    pub fn put<MT>(&self, Tracked(arena): Tracked<&mut PageArena<T, MT>>, value: T)
         requires
-            old(arena)@.wf(),
-            old(arena)@.has_element(self),
+            old(arena).wf(),
+            old(arena).has_element(self),
         ensures
-            arena@.wf(),
-            arena@.same_arena(old(arena)@),
+            arena.wf(),
+            arena.same_arena(&*old(arena)),
 
             // The element was changed
-            arena@.value_at(self.index()) == Some(value),
+            arena.value_at(self.index()) == Some(value),
 
             // Everything else was unchanged
             forall |i: nat|
                 i < PageArena::<T, MT>::capacity() && i != self.index() ==>
-                    #[trigger] old(arena)@.value_at(i) == arena@.value_at(i),
+                    #[trigger] old(arena).value_at(i) == arena.value_at(i),
     {
         unsafe {
             let slice = core::slice::from_raw_parts_mut(self.page_pptr.to_usize() as *mut T, PageArena::<T, MT>::capacity());
@@ -360,11 +360,11 @@ impl<MT> PageMetadataPtr<MT> {
 
     #[verifier(external_body)]
     #[inline(always)]
-    pub fn borrow<T>(&self, arena: &Tracked<PageArena<T, MT>>) -> (result: &MT)
+    pub fn borrow<'a, T>(&self, Tracked(arena): Tracked<&'a PageArena<T, MT>>) -> (result: &'a MT)
         requires
-            arena@.wf(),
+            arena.wf(),
         ensures
-            result == arena@.metadata(),
+            result == arena.metadata(),
     {
         // FIXME: Might overflow?
         let ptr = self.page_pptr.to_usize() + PageArena::<T, MT>::metadata_offset();
@@ -375,19 +375,19 @@ impl<MT> PageMetadataPtr<MT> {
 
     #[verifier(external_body)]
     #[inline(always)]
-    pub fn put<T>(&self, arena: &mut Tracked<PageArena<T, MT>>, value: MT)
+    pub fn put<T>(&self, Tracked(arena): Tracked<&mut PageArena<T, MT>>, value: MT)
         requires
-            old(arena)@.wf(),
+            old(arena).wf(),
         ensures
-            arena@.same_arena(old(arena)@),
+            arena.same_arena(&*old(arena)),
 
             // The metadata was changed
-            arena@.metadata() == value,
+            arena.metadata() == value,
 
             // Everything else was unchanged
             forall |i: nat|
                 i < PageArena::<T, MT>::capacity() ==>
-                    #[trigger] old(arena)@.value_at(i) == arena@.value_at(i),
+                    #[trigger] old(arena).value_at(i) == arena.value_at(i),
     {
         // FIXME: Might overflow?
         let ptr = self.page_pptr.to_usize() + PageArena::<T, MT>::metadata_offset();
@@ -445,35 +445,38 @@ mod test {
         } else {
             return;
         };
+        let tracked mut arena1 = arena1.get();
+
         let arena2 = if let Some(arena) = UsizeArena::from_page(pptr2.clone(), perm2) {
             arena
         } else {
             return;
         };
+        let tracked mut arena2 = arena2.get();
 
         if UsizeArena::capacity() < 5 {
             return;
         }
 
-        let p1 = UsizeArena::get_element_ptr(&arena1, pptr1.clone(), 0);
-        let p2 = UsizeArena::get_element_ptr(&arena1, pptr1.clone(), 1);
+        let p1 = UsizeArena::get_element_ptr(Tracked(&arena1), pptr1.clone(), 0);
+        let p2 = UsizeArena::get_element_ptr(Tracked(&arena1), pptr1.clone(), 1);
 
-        let p3 = UsizeArena::get_element_ptr(&arena2, pptr2.clone(), 0);
-        let p4 = UsizeArena::get_element_ptr(&arena2, pptr2.clone(), 1);
+        let p3 = UsizeArena::get_element_ptr(Tracked(&arena2), pptr2.clone(), 0);
+        let p4 = UsizeArena::get_element_ptr(Tracked(&arena2), pptr2.clone(), 1);
         //let bad = UsizeArena::get_element_ptr(&arena2, pptr1.clone(), 3);
 
-        p1.put(&mut arena1, 123);
-        p2.put(&mut arena1, 233);
-        assert(arena1@.wf());
+        p1.put::<()>(Tracked(&mut arena1), 123);
+        p2.put::<()>(Tracked(&mut arena1), 233);
+        assert(arena1.wf());
         let p2_clone = p2.clone();
 
-        let v1 = p1.borrow(&arena1);
-        let v2 = p2.borrow(&arena1);
+        let v1 = p1.borrow::<()>(Tracked(&arena1));
+        let v2 = p2.borrow::<()>(Tracked(&arena1));
         assert(v1 == 123);
         assert(v2 == 233);
 
-        p2_clone.put(&mut arena1, 666);
-        let v2 = p2.borrow(&arena1);
+        p2_clone.put::<()>(Tracked(&mut arena1), 666);
+        let v2 = p2.borrow::<()>(Tracked(&arena1));
         assert(v2 == 666);
     }
 
@@ -485,14 +488,15 @@ mod test {
         } else {
             return;
         };
+        let tracked mut arena: MetaArena = arena.get();
 
-        let mp = MetaArena::get_metadata_ptr(&arena, pptr.clone());
-        let mp_clone = MetaArena::get_metadata_ptr(&arena, pptr);
-        let meta = mp.borrow(&arena);
+        let mp = MetaArena::get_metadata_ptr(Tracked(&arena), pptr.clone());
+        let mp_clone = MetaArena::get_metadata_ptr(Tracked(&arena), pptr);
+        let meta = mp.borrow::<usize>(Tracked(&arena));
         assert(meta.0 == 123);
 
-        mp_clone.put(&mut arena, SomeStruct(233));
-        let meta = mp.borrow(&arena);
+        mp_clone.put::<usize>(Tracked(&mut arena), SomeStruct(233));
+        let meta = mp.borrow::<usize>(Tracked(&arena));
         assert(meta.0 == 233);
     }
 }
