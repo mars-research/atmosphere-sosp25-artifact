@@ -103,19 +103,31 @@ const PHYSICAL_MASK: u64 = (1u64 << MAXPHYADDR) - 1u64;
 /// Bitmask to get the physical page address.
 const PHYSICAL_PAGE_MASK: u64 = PAGE_MASK & PHYSICAL_MASK;
 
-/// A level in the x86-64 paging structure.
+/// A level in the x86-64 paging structure, with linearity enforced for each target.
 ///
 /// Each level is represented as a mapping from an index to either
 /// the next level of the structure or a data page. Currently
-/// there are two valid forms:
+/// there are three valid forms:
 ///
-/// - PagingLevel<E, PagingLevel<EE, ET>>
-/// - PagingLevel<E, [u8; 4096]>
-pub struct PagingLevel<E: Entry, T: MapTarget> {
-    pub entries: [E; TABLE_SIZE],
+/// - `PagingLevel<E, PagingLevel<EE, ET>>`
+///     - Example: `type PD = PagingLevel<PDE, PT>`
+/// - `PagingLevel<E, [u8; 4096]>`
+///     - Example: `type PT = PagingLevel<PTE, [u8; 4096]>`
+/// - PagingLevel<E, UntypedPagingLevel<EE>>
+///     - `type PD = PagingLevel<PDE, PT>`
+///     - `type PT = UntypedPagingLevel<PTE>`
+pub struct PagingLevel<E: Entry, T: TableTarget> {
+    pub entries: UntypedPagingLevel<E>,
 
     // maybe a Seq<Option<PagePerm>>?
     pub perms: Ghost<Map<nat, PointsTo<T>>>,
+}
+
+/// A level in the x86-64 paging structure.
+///
+/// This doesn't enforce uniqueness of targets.
+pub struct UntypedPagingLevel<E: Entry> {
+    pub entries: [E; TABLE_SIZE],
 }
 
 /// A PML4.
@@ -137,6 +149,8 @@ pub type PD = PagingLevel<PDE, PT>;
 ///
 /// In our case, each entry always points a 4 KiB page.
 pub type PT = PagingLevel<PTE, [u8; 4096]>;
+
+//pub type PT = UntypedPagingLevel<PTE>;
 
 /// A PML4 entry controlling a 512 GiB region.
 ///
@@ -219,43 +233,89 @@ pub trait Entry: Sized {
 ///
 /// This can be either the next level of the paging structure or
 /// a data page.
-pub trait MapTarget: Sized {
-    /// Returns the set of reachable pages given a typed permission.
-    spec fn page_closure_perm(perm: PointsTo<Self>) -> Set<int>;
+pub trait TableTarget: Sized {
+    /// Returns whether the target is well-formed given a typed permission.
+    spec fn wf_perm(perm: PointsTo<Self>) -> bool;
+
+    /// Returns the set of reachable table pages given a typed permission.
+    spec fn table_page_closure_perm(perm: PointsTo<Self>) -> Set<int>;
+
+    /// Returns the set of reachable data pages given a typed permission.
+    spec fn data_page_closure_perm(perm: PointsTo<Self>) -> Set<int>;
 }
 
-impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
-    pub open spec fn wf(&self) -> bool {
-        &&& self.wf_perms()
+impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
+    pub closed spec fn wf(&self) -> bool {
+        &&& self.wf_entries()
+        &&& self.wf_recursive()
     }
 
-    pub open spec fn wf_perms(&self) -> bool {
+    pub closed spec fn wf_entries(&self) -> bool {
         // Each entry being present is equivalent to the permission existing
         forall |i: int| 0 <= i < 512 ==>
             #[trigger] self.entries[i].present() == self.perms@.dom().contains(i as nat)
 
         // Each permission is associated with the physical address
         && forall |i: int| 0 <= i < 512 ==>
-            #[trigger] self.entries[i].present() ==> (self.entries[i].address() == self.perms@[i as nat]@.pptr)
+            #[trigger] self.entries[i].present() ==>
+                (self.entries[i].address() == self.perms@[i as nat]@.pptr)
     }
 
-    pub closed spec fn page_closure(&self) -> Set<int> {
-        self.perms@.dom().fold(Set::<int>::empty(), |acc: Set::<int>, i: nat| -> Set::<int> {
-            acc + MapTarget::page_closure_perm(self.perms@[i])
+    pub closed spec fn wf_recursive(&self) -> bool {
+        // Each target is well-formed
+        forall |i: int| 0 <= i < 512 ==>
+            #[trigger] self.entries[i].present() ==> TableTarget::wf_perm(self.perms@[i as nat])
+    }
+
+    /// Returns the set of data pages.
+    pub closed spec fn data_page_closure(&self) -> Set<int> {
+        Set::new(|pptr: int| {
+            exists |i: int| 0 <= i < 512 && {
+                &&& #[trigger] self.entries[i].present()
+                &&& TableTarget::data_page_closure_perm(self.perms@[i as nat]).contains(pptr)
+            }
         })
     }
 
+    /// Returns the set of pages that make up the paging structure.
+    pub closed spec fn table_page_closure(&self) -> Set<int> {
+        Set::new(|pptr: int| {
+            exists |i: int| 0 <= i < 512 && {
+                &&& #[trigger] self.entries[i].present()
+                &&& TableTarget::table_page_closure_perm(self.perms@[i as nat]).contains(pptr)
+            }
+        })
+    }
+
+    /// Returns whether the mapping is at the initial state.
+    pub closed spec fn spec_init(&self) -> bool {
+        self.perms@ == Map::<nat, PointsTo<T>>::empty()
+    }
+
     /// Inserts a present entry.
-    pub fn insert(&mut self, index: u16, entry: E, perm: PointsTo<T>)
+    pub fn insert(
+        &mut self, // <-- Not possible when nested! Solve inside Untyped
+        index: u16,
+        entry: E,
+        perm: PointsTo<T>,
+    )
         requires
             old(self).wf(),
-            !old(self).perms@.dom().contains(index as nat),
-            !old(self).entries[index as int].present(),
 
             index < 512,
 
+            // The existing entry must not be present
+            !old(self).perms@.dom().contains(index as nat),
+            !old(self).entries[index as int].present(),
+
+            // The entry must be present and well-formed
             entry.present(),
             entry.wf(),
+
+            // The typed target must be well-formed
+            TableTarget::wf_perm(perm),
+
+            // The entry and the permission must be associated
             entry.address() == perm@.pptr,
         ensures
             self.wf(),
@@ -263,7 +323,7 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
             self.entries[index as int] == entry,
             self.entries[index as int].present(),
     {
-        self.set_entry(index, entry);
+        self.entries.set_entry(index, entry);
 
         proof {
             assert(self.perms@ == old(self).perms@);
@@ -286,11 +346,41 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
     // Trusted methods
 
     /// Creates a new mapping level.
+    pub fn new() -> (ret: Self)
+        ensures
+            ret.wf(),
+            ret.spec_init(),
+    {
+        let mut ret = Self::init_ghost();
+
+        // ...
+        ret.entries = UntypedPagingLevel::new();
+
+        ret
+    }
+
+    #[verifier(external_body)]
+    fn init_ghost() -> (ret: Self)
+        ensures
+            ret.perms@ == Map::<nat, PointsTo<T>>::empty(),
+
+            //ret.entries@ == Seq::new(512, |i: int| E::new()),
+            //
+    {
+        Self {
+            //entries: [(); 512].map(|_| E::new()),
+            entries: UntypedPagingLevel::new(),
+            perms: Ghost::assume_new(),
+        }
+    }
+}
+
+impl<E: Entry> UntypedPagingLevel<E> {
+    /// Creates a new unchecked mapping level.
     #[verifier(external_body)]
     pub fn new() -> (ret: Self)
         ensures
             ret.entries@ == Seq::new(512, |i: int| E::new()),
-            ret.perms@ == Map::<nat, PointsTo<T>>::empty(),
 
             // TODO
             forall |i: int| 0 <= i < 512 ==>
@@ -300,14 +390,15 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
             entries: [(); 512].map(|_| {
                 E::new()
             }),
-            perms: Ghost::assume_new(),
         }
     }
 
+    #[verifier(inline)]
+    pub open spec fn spec_index(&self, i: int) -> E {
+        self.entries[i]
+    }
+
     /// Sets a present entry in the array.
-    ///
-    /// This neither requires nor bestows well-formedness of the entire
-    /// paging level.
     #[verifier(external_body)]
     fn set_entry(&mut self, index: u16, entry: E)
         requires
@@ -322,16 +413,11 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
             // Everything else was unchanged
             forall |i: int|
                 0 <= i < 512 && i != index as nat ==> self.entries[i] == old(self).entries[i],
-
-            self.perms@ == old(self).perms@,
     {
         self.entries[index as usize] = entry;
     }
 
     /// Clears an entry from the array.
-    ///
-    /// This neither requires nor bestows well-formedness of the entire
-    /// paging level.
     #[verifier(external_body)]
     fn clear_entry(&mut self, index: u16)
         requires
@@ -343,8 +429,6 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
             // Everything else was unchanged
             forall |i: int|
                 0 <= i < 512 && i != index as nat ==> self.entries[i] == old(self).entries[i],
-
-            self.perms@ == old(self).perms@,
     {
         self.entries[index as usize] = E::new();
     }
@@ -355,8 +439,6 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
     #[verifier(external_body)] // TODO: wrap array
     pub fn get_entry(&self, index: u16) -> (ret: Option<&E>)
         requires
-            self.wf(),
-
             index < 512,
         ensures
             ret.is_Some() ==> {
@@ -381,18 +463,67 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
     }
 }
 
-impl MapTarget for [u8; 4096] {
-    closed spec fn page_closure_perm(perm: PointsTo<Self>) -> Set<int> {
+// TableTarget implementations
+
+impl TableTarget for [u8; 4096] {
+    closed spec fn wf_perm(perm: PointsTo<Self>) -> bool {
+        true
+    }
+
+    closed spec fn table_page_closure_perm(perm: PointsTo<Self>) -> Set<int> {
+        Set::empty()
+    }
+
+    closed spec fn data_page_closure_perm(perm: PointsTo<Self>) -> Set<int> {
         Set::empty().insert(perm@.pptr)
     }
 }
 
-impl<E: Entry, T: MapTarget> MapTarget for PagingLevel<E, T> {
-    closed spec fn page_closure_perm(perm: PointsTo<Self>) -> Set<int>
+impl<E: Entry, T: TableTarget> TableTarget for PagingLevel<E, T> {
+    closed spec fn wf_perm(perm: PointsTo<Self>) -> bool {
+        let level = perm@.value.get_Some_0();
+        level.wf()
+    }
+
+    closed spec fn table_page_closure_perm(perm: PointsTo<Self>) -> Set<int>
         // recommends perm@.value.is_Some()
     {
         let level = perm@.value.get_Some_0();
-        level.page_closure()
+        Set::empty().insert(perm@.pptr) + level.table_page_closure()
+    }
+
+    closed spec fn data_page_closure_perm(perm: PointsTo<Self>) -> Set<int>
+        // recommends perm@.value.is_Some()
+    {
+        let level = perm@.value.get_Some_0();
+        level.data_page_closure()
+    }
+}
+
+impl<E: Entry> TableTarget for UntypedPagingLevel<E> {
+    closed spec fn wf_perm(perm: PointsTo<Self>) -> bool {
+        true
+    }
+
+    closed spec fn table_page_closure_perm(perm: PointsTo<Self>) -> Set<int>
+        // recommends perm@.value.is_Some()
+    {
+        Set::empty().insert(perm@.pptr)
+    }
+
+    closed spec fn data_page_closure_perm(perm: PointsTo<Self>) -> Set<int>
+        // recommends perm@.value.is_Some()
+    {
+        let level = perm@.value.get_Some_0();
+
+        // Can't look deeper - Just tally up the addresses
+        level.entries@.fold_left(Set::<int>::empty(), |acc: Set::<int>, e: E| -> Set::<int> {
+            if e.present() {
+                acc.insert(e.address() as int)
+            } else {
+                acc
+            }
+        })
     }
 }
 
@@ -514,27 +645,59 @@ impl PTE {
             ret.present(),
             ret.address() == page.id(),
     {
-        todo!();
+        Self(page.to_usize() as u64 & 0b1)
     }
 }
 
 mod spec_tests {
     use super::*;
+    use vstd::ptr::PPtr;
 
-    fn test_page_closure(a: PagePPtr, ap: PagePerm, b: PagePPtr, bp: PagePerm)
+    fn test_page_closure(
+        a: PagePPtr,
+        ap: PagePerm,
+
+        b: PagePPtr,
+        bp: PagePerm,
+
+        pd: PPtr<PD>,
+        pdp: PointsTo<PD>,
+    )
         requires
             a.id() == ap@.pptr,
             b.id() == bp@.pptr,
-    {
-        let mut map = PT::new();
 
-        // The page is page-aligned and does not have extra high bits
+            pd.id() == pdp@.pptr,
+    {
+        // All pages are page-aligned and do not have extra high bits
         // TODO: This should be guaranteed on the allocator side
         assume(a.id() as u64 & PHYSICAL_PAGE_MASK == a.id() as u64);
+        assume(b.id() as u64 & PHYSICAL_PAGE_MASK == b.id() as u64);
+        assume(pd.id() as u64 & PHYSICAL_PAGE_MASK == pd.id() as u64);
+
+        let mut pt = PT::new();
 
         let pte = PTE::map(a);
 
-        map.insert(0, pte, ap);
+        pt.insert(0, pte, ap);
+
+        assert(pt.data_page_closure().contains(ap@.pptr));
+        assert(!pt.table_page_closure().contains(ap@.pptr));
+    }
+
+    fn test_state_uncovering() {
+    }
+
+    fn test_table_index(a: PagePPtr, b: PagePPtr) {
+        assume(a.id() == b.id());
+
+        let ai: u16 = PTE::table_index(a.to_usize() as u64);
+        let bi: u16 = PTE::table_index(b.to_usize() as u64);
+        assert(ai == bi);
+    }
+
+    fn test_bitvector_proofs() {
+        assert(extract_9_bits_from!(0xffff_1234_5678_9abcu64, 39u64) == 36u16) by (bit_vector);
     }
 }
 
