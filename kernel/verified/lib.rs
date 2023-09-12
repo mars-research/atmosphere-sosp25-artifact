@@ -5,4 +5,5 @@ pub mod array_vec;
 pub mod linked_list;
 pub mod mem;
 pub mod page;
+pub mod page_arena;
 pub mod paging;

@@ -35,6 +35,7 @@ macro_rules! common_entry_impl {
 
         #[cfg(verus_keep_ghost)]
         #[verifier::spec]
+        #[verus::internal(closed)]
         fn spec_new() -> Self {
             Self(0)
         }
@@ -45,6 +46,7 @@ macro_rules! common_entry_impl {
 
         #[cfg(verus_keep_ghost)]
         #[verifier::spec]
+        #[verus::internal(closed)]
         fn spec_present(&self) -> bool {
             (self.0 & 0b1) == 1
         }
@@ -380,13 +382,13 @@ impl<E: Entry, T: MapTarget> PagingLevel<E, T> {
 }
 
 impl MapTarget for [u8; 4096] {
-    spec fn page_closure_perm(perm: PointsTo<Self>) -> Set<int> {
+    closed spec fn page_closure_perm(perm: PointsTo<Self>) -> Set<int> {
         Set::empty().insert(perm@.pptr)
     }
 }
 
 impl<E: Entry, T: MapTarget> MapTarget for PagingLevel<E, T> {
-    spec fn page_closure_perm(perm: PointsTo<Self>) -> Set<int>
+    closed spec fn page_closure_perm(perm: PointsTo<Self>) -> Set<int>
         // recommends perm@.value.is_Some()
     {
         let level = perm@.value.get_Some_0();
@@ -399,11 +401,11 @@ impl Entry for PML4E {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn spec_address(&self) -> usize {
+    closed spec fn spec_address(&self) -> usize {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn wf(&self) -> bool {
+    closed spec fn wf(&self) -> bool {
         true
     }
 
@@ -413,7 +415,7 @@ impl Entry for PML4E {
         index
     }
 
-    spec fn spec_table_index(address: u64) -> (ret: u16) {
+    closed spec fn spec_table_index(address: u64) -> (ret: u16) {
         // Bits 47:39 inclusive
         extract_9_bits_from!(address, 39u64)
     }
@@ -426,11 +428,11 @@ impl Entry for PDPTE {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn spec_address(&self) -> usize {
+    closed spec fn spec_address(&self) -> usize {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn wf(&self) -> bool {
+    closed spec fn wf(&self) -> bool {
         true
     }
 
@@ -440,7 +442,7 @@ impl Entry for PDPTE {
         index
     }
 
-    spec fn spec_table_index(address: u64) -> (ret: u16) {
+    closed spec fn spec_table_index(address: u64) -> (ret: u16) {
         // Bits 38:30 inclusive
         extract_9_bits_from!(address, 30u64)
     }
@@ -453,11 +455,11 @@ impl Entry for PDE {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn spec_address(&self) -> usize {
+    closed spec fn spec_address(&self) -> usize {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn wf(&self) -> bool {
+    closed spec fn wf(&self) -> bool {
         true
     }
 
@@ -467,7 +469,7 @@ impl Entry for PDE {
         index
     }
 
-    spec fn spec_table_index(address: u64) -> (ret: u16) {
+    closed spec fn spec_table_index(address: u64) -> (ret: u16) {
         // Bits 29:21 inclusive
         extract_9_bits_from!(address, 21u64)
     }
@@ -480,11 +482,11 @@ impl Entry for PTE {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn spec_address(&self) -> usize {
+    closed spec fn spec_address(&self) -> usize {
         (self.0 & PHYSICAL_PAGE_MASK) as usize
     }
 
-    spec fn wf(&self) -> bool {
+    closed spec fn wf(&self) -> bool {
         true
     }
 
@@ -494,7 +496,7 @@ impl Entry for PTE {
         index
     }
 
-    spec fn spec_table_index(address: u64) -> (ret: u16) {
+    closed spec fn spec_table_index(address: u64) -> (ret: u16) {
         // Bits 12:20 inclusive
         extract_9_bits_from!(address, 12u64)
     }
