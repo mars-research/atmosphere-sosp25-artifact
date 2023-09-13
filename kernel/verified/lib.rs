@@ -10,3 +10,4 @@ pub mod page_arena;
 pub mod paging;
 pub mod kernel;
 pub mod proc;
+pub mod page_alloc;

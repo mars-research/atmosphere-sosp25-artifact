@@ -6,7 +6,7 @@
 use vstd::prelude::*;
 use vstd::ptr::PointsTo;
 
-use crate::page::{PagePPtr, PagePerm};
+use crate::page::{PagePPtr, PagePerm, VAddr, PAddr};
 
 verus! {
 
@@ -286,6 +286,12 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
             }
         })
     }
+
+    ///Tmp function for other specs @Zhaofeng change whenever your want
+    pub closed spec fn va2pa_mapping(&self) -> Map<VAddr,PAddr> {
+        Map::empty()
+    }
+
 
     /// Returns whether the mapping is at the initial state.
     pub closed spec fn spec_init(&self) -> bool {
