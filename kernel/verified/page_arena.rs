@@ -25,7 +25,7 @@ pub tracked struct PageArena<T, MT> {
     pptr: PagePPtr,
 
     perm: Tracked<PagePerm>,
-    values: Seq<Option<T>>,
+    values: Seq<T>,
     metadata: MT,
 }
 
@@ -51,21 +51,31 @@ impl<T> PageArena<T, ()> {
     pub fn from_page(
         pptr: PagePPtr,
         perm: Tracked<PagePerm>,
+        f: impl FnMut() -> T,
     ) -> (pa: Option<Tracked<Self>>)
         requires
-            pptr.id() === perm@@.pptr
+            pptr.id() === perm@@.pptr,
+            f.requires(()),
         ensures
             pa.is_Some() ==> (
                 pa.get_Some_0()@.wf()
                 && pa.get_Some_0()@.page_base() == pptr.id()
+                && pa.get_Some_0()@.spec_init(&f)
             ),
     {
         // This will be optimized out
-        if Self::capacity_opt().is_none() {
+        let capacity = if let Some(capacity) = Self::capacity_opt() {
+            capacity
+        } else {
             return None;
-        }
+        };
 
-        Some(Self::init_ghost(pptr, perm, ()))
+        let arena = Self::init_ghost(pptr.clone(), perm, ());
+        let tracked mut arena = arena.get();
+
+        Self::init_array(Tracked(&mut arena.values), pptr, f);
+
+        Some(Tracked(arena))
     }
 }
 
@@ -75,6 +85,7 @@ impl<T, MT> PageArena<T, MT> {
         pptr: PagePPtr,
         perm: Tracked<PagePerm>,
         metadata: MT,
+        f: impl FnMut() -> T,
     ) -> (pa: Option<Tracked<Self>>)
         requires
             pptr.id() === perm@@.pptr
@@ -83,6 +94,7 @@ impl<T, MT> PageArena<T, MT> {
                 pa.get_Some_0()@.wf()
                 && pa.get_Some_0()@.page_base() == pptr.id()
                 && pa.get_Some_0()@.metadata() == metadata
+                && pa.get_Some_0()@.spec_init(&f)
             ),
     {
         // This will be optimized out
@@ -90,7 +102,12 @@ impl<T, MT> PageArena<T, MT> {
             return None;
         }
 
-        Some(Self::init_ghost(pptr, perm, metadata))
+        let arena = Self::init_ghost(pptr.clone(), perm, metadata);
+        let tracked mut arena = arena.get();
+
+        Self::init_array(Tracked(&mut arena.values), pptr, f);
+
+        Some(Tracked(arena))
     }
 
     /// Returns the PageElementPtr associated with an index.
@@ -218,8 +235,18 @@ impl<T, MT> PageArena<T, MT> {
         self.page_base() == arena.page_base()
     }
 
-    pub closed spec fn value_at(&self, index: nat) -> &Option<T> {
-        &self.values[index as int]
+    pub closed spec fn values(&self) -> Seq<T> {
+        self.values
+    }
+
+    // maybe remove?
+    pub open spec fn value_at(&self, index: nat) -> &T {
+        &self.values()[index as int]
+    }
+
+    // maybe remove?
+    pub open spec fn value_at_opt(&self, index: nat) -> Option<&T> {
+        Some(self.value_at(index))
     }
 
     pub closed spec fn metadata(&self) -> &MT {
@@ -228,10 +255,6 @@ impl<T, MT> PageArena<T, MT> {
 
     pub closed spec fn page_base(&self) -> int {
         self.pptr.id()
-    }
-
-    spec fn is_empty(&self) -> bool {
-        forall |i: int| i <= PageArena::<T, MT>::capacity() ==> #[trigger] self.values[i].is_None()
     }
 
     // Trusted methods
@@ -249,9 +272,27 @@ impl<T, MT> PageArena<T, MT> {
             ret@.pptr === pptr,
             ret@.page_base() === pptr.id(),
             ret@.metadata === metadata,
-            ret@.is_empty(),
     {
         Tracked::assume_new()
+    }
+
+    #[verifier(external_body)]
+    fn init_array(Tracked(values): Tracked<&mut Seq<T>>, pptr: PagePPtr, f: impl FnMut() -> T)
+        ensures
+            values.len() == Self::capacity(),
+            forall |i: int| 0 <= i < Self::capacity() ==>
+                f.ensures((), #[trigger] values[i]),
+    {
+        let slice = unsafe {
+            core::slice::from_raw_parts_mut(pptr.to_usize() as *mut T, Self::capacity())
+        };
+
+        slice.fill_with(f);
+    }
+
+    pub open spec fn spec_init(&self, f: &impl FnMut() -> T) -> bool {
+        forall |i: int| 0 <= i < Self::capacity() ==>
+            f.ensures((), #[trigger] self.values()[i])
     }
 }
 
@@ -295,9 +336,8 @@ impl<T> PageElementPtr<T> {
         requires
             arena.wf(),
             arena.has_element(self),
-            arena.value_at(self.index()).is_Some(),
         ensures
-            result == arena.value_at(self.index()).get_Some_0(),
+            result == arena.value_at(self.index()),
     {
         unsafe {
             let slice = core::slice::from_raw_parts(self.page_pptr.to_usize() as *const T, PageArena::<T, MT>::capacity());
@@ -316,7 +356,7 @@ impl<T> PageElementPtr<T> {
             arena.same_arena(&*old(arena)),
 
             // The element was changed
-            arena.value_at(self.index()) == Some(value),
+            arena.value_at(self.index()) == value,
 
             // Everything else was unchanged
             forall |i: nat|
@@ -410,7 +450,7 @@ pub fn ex_usize_checked_mul(lhs: usize, rhs: usize) -> (result: Option<usize>)
     lhs.checked_mul(rhs)
 }
 
-mod test {
+mod spec_tests {
     use super::*;
 
     use vstd::ptr::BootPage;
@@ -440,14 +480,20 @@ mod test {
         let (pptr1, perm1) = PPtr::from_boot_page(page1);
         let (pptr2, perm2) = PPtr::from_boot_page(page2);
 
-        let mut arena1 = if let Some(arena) = UsizeArena::from_page(pptr1.clone(), perm1) {
+        let initializer = || -> (ret: usize)
+            ensures ret == 0
+        {
+            0
+        };
+
+        let mut arena1 = if let Some(arena) = UsizeArena::from_page(pptr1.clone(), perm1, initializer) {
             arena
         } else {
             return;
         };
         let tracked mut arena1 = arena1.get();
 
-        let arena2 = if let Some(arena) = UsizeArena::from_page(pptr2.clone(), perm2) {
+        let arena2 = if let Some(arena) = UsizeArena::from_page(pptr2.clone(), perm2, initializer) {
             arena
         } else {
             return;
@@ -457,6 +503,9 @@ mod test {
         if UsizeArena::capacity() < 5 {
             return;
         }
+
+        assert(arena1.values()[0] == 0);
+        assert(initializer.ensures((), arena1.values()[0]));
 
         let p1 = UsizeArena::get_element_ptr(Tracked(&arena1), pptr1.clone(), 0);
         let p2 = UsizeArena::get_element_ptr(Tracked(&arena1), pptr1.clone(), 1);
@@ -483,7 +532,7 @@ mod test {
     fn test_metadata(page: BootPage) {
         let (pptr, perm) = PPtr::from_boot_page(page);
 
-        let mut arena = if let Some(arena) = MetaArena::from_page_with_metadata(pptr.clone(), perm, SomeStruct(123)) {
+        let mut arena = if let Some(arena) = MetaArena::from_page_with_metadata(pptr.clone(), perm, SomeStruct(123), || 0) {
             arena
         } else {
             return;

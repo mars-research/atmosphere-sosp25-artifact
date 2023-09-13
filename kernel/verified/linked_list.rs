@@ -48,7 +48,7 @@ impl<T: Default> LinkedList<T> {
     //start of tmp
     pub closed spec fn view(&self) -> Seq<T>
     {
-        Seq::new(self.ptrs@.len(), |i: int| self.perms@[self.ptrs@[i].page_pptr()]@.value_at(self.ptrs@[i].index()).unwrap().value)
+        Seq::new(self.ptrs@.len(), |i: int| self.perms@[self.ptrs@[i].page_pptr()]@.value_at_opt(self.ptrs@[i].index()).unwrap().value)
     }
 
     pub closed spec fn unique(&self) -> bool
@@ -141,7 +141,7 @@ impl<T: Default> LinkedList<T> {
         let ptr: &NodePtr<T> = &self.ptrs@[i as int];
         let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
         
-        match arena.value_at(ptr.index()) {
+        match arena.value_at_opt(ptr.index()) {
             Some(node) => node.prev == self.prev_of(i) && node.next == self.next_of(i),
             None => false,
         }        
@@ -171,7 +171,7 @@ impl<T: Default> LinkedList<T> {
         let ptr: &NodePtr<T> = &self.free_ptrs@[i as int];
         let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
         
-        match arena.value_at(ptr.index()) {
+        match arena.value_at_opt(ptr.index()) {
             Some(node) => node.prev == self.free_prev_of(i) && node.next == self.free_next_of(i),
             None => false,
         }        
