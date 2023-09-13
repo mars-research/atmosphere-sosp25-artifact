@@ -8,6 +8,8 @@ use vstd::ptr::PointsTo;
 
 use crate::page::{PagePPtr, PagePerm, VAddr, PAddr};
 
+pub struct AddressSpace(pub PML4);
+
 verus! {
 
 macro_rules! common_entry_impl {
@@ -267,6 +269,20 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
             #[trigger] self.entries[i].present() ==> TableTarget::wf_perm(self.perms@[i as nat])
     }
 
+    ///Tmp change @zhaofeng delete this 
+    pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePPtr> {
+        Set::empty()
+    }
+    
+    pub closed spec fn tmp_table_page_closure(&self) -> Set<PagePPtr> {
+        Set::empty()
+    }
+
+    pub closed spec fn tmp_va2pa_mapping(&self) -> Map<VAddr,PAddr> {
+        Map::empty()
+    }
+    ///end tmp
+    
     /// Returns the set of data pages.
     pub closed spec fn data_page_closure(&self) -> Set<int> {
         Set::new(|pptr: int| {
@@ -285,11 +301,6 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
                 &&& TableTarget::table_page_closure_perm(self.perms@[i as nat]).contains(pptr)
             }
         })
-    }
-
-    ///Tmp function for other specs @Zhaofeng change whenever your want
-    pub closed spec fn va2pa_mapping(&self) -> Map<VAddr,PAddr> {
-        Map::empty()
     }
 
 

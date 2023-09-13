@@ -1,8 +1,10 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
-use crate::page::PagePPtr;
+use crate::page::{PagePPtr,VAddr,Cr3};
+
 pub struct PageAllocator{
 }
+
 verus! {
 impl PageAllocator {
 
@@ -47,7 +49,23 @@ impl PageAllocator {
         ((self.allocated_pages() + self.mapped_pages() + self.free_pages()) =~= self.all_pages()) 
     }
 
-    //pub closed spec fn get_mapping(&self, page_pptr: PagePPtr) -> Set<(usize,)>
+    pub closed spec fn page_mappings(&self, page_pptr: PagePPtr) -> Set<(Cr3,VAddr)>
+        recommends
+            self.mapped_pages().contains(page_pptr),
+    {
+        arbitrary()
+    }
+
+    pub closed spec fn page_rf_counter(&self, page_pptr: PagePPtr) -> usize{
+        arbitrary()
+    }
+
+    pub closed spec fn rf_wf(&self) -> bool{
+        forall|page_pptr:PagePPtr| #![auto] self.mapped_pages().contains(page_pptr) ==>
+            (
+                self.page_rf_counter(page_pptr) == self.page_mappings(page_pptr).len()
+            )
+    }
 
 }
 

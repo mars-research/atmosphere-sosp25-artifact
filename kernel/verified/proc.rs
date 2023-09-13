@@ -1,8 +1,10 @@
 use vstd::prelude::*;
 use vstd::ptr::PointsTo;
+use vstd::ptr::PPtr;
 
 use crate::linked_list::*;
-use crate::page::{PagePPtr};
+use crate::page::{PagePPtr,VAddr,PAddr};
+use crate::paging::AddressSpace;
 
 pub type ThreadPtr = usize;
 pub type ProcPtr = usize;
@@ -10,6 +12,8 @@ pub type ProcPtr = usize;
 pub struct Process{
     pub owned_threads: LinkedList<ThreadPtr>,
 
+    pub page_table_pptr: PPtr<AddressSpace>,
+    pub page_table_perm: Option<PointsTo<AddressSpace>>,
     //pub page_closure:  Ghost<Set<PagePPtr>>, //all the pages used by maintaining the struct of this process, including its threads'
     //pub data_page_closure: Ghost<Set<PagePPtr>>, // all the data page this process has access to. 
 }
@@ -39,12 +43,21 @@ verus! {
 impl Process {
     pub closed spec fn page_closure(&self) -> Set<PagePPtr>
     {
-        Set::empty()
+        self.page_table_perm.unwrap()@.value.get_Some_0().0.tmp_table_page_closure()
     }
 
     pub closed spec fn data_page_closure(&self) -> Set<PagePPtr>
     {
-        Set::empty()
+        self.page_table_perm.unwrap()@.value.get_Some_0().0.tmp_data_page_closure()
+    }
+
+    pub closed spec fn va2pa_mapping(&self) -> Map<VAddr,PAddr>
+    {
+        self.page_table_perm.unwrap()@.value.get_Some_0().0.tmp_va2pa_mapping()
+    }
+
+    pub closed spec fn get_cr3(&self) -> usize{
+        self.page_table_pptr.id() as usize
     }
 }
 
@@ -61,6 +74,11 @@ impl Thread {
 }
 
 impl ProcessManager {
+
+    pub closed spec fn procs(&self) -> Seq<Process>
+    {
+        Seq::new(self.proc_ptrs@.len(), |i: int| self.proc_perms@[self.proc_ptrs@[i]]@.value.get_Some_0())
+    }
 
     ///spec helper for processes
     ///specs: 

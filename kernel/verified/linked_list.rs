@@ -55,6 +55,11 @@ impl<T: Default> LinkedList<T> {
     {
         forall|i:int, j:int| i != j && 0<=i<self@.len() && 0<=j<self@.len() ==> self@[i] != self@[j]
     }
+
+    pub closed spec fn len(&self) -> int
+    {
+        233
+    }
     //end of tmp
     //@Lukas: just change to whatever you want
 

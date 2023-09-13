@@ -1,9 +1,9 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
 
-use crate::proc::ProcessManager;
+use crate::proc::*;
 use crate::page_alloc::PageAllocator;
-use crate::page::PagePPtr;
+use crate::page::*;
 
 pub struct Kernel{
     pm : ProcessManager,
@@ -50,7 +50,17 @@ impl Kernel {
     ///If pa.rf_count drops to zero, we can infer that no process maps pa anymore without even looking these processes' pagetable
     ///Therefore, pa.mappings() cannot be generated on the fly. (or maybe we can)
     pub closed spec fn kernel_page_mapping_wf(&self) -> bool{
-        true
+        forall |page_pptr:PagePPtr| #![auto] self.pa.mapped_pages().contains(page_pptr) ==>
+            (
+                forall|proc: Process| #![auto] self.pm.procs().contains(proc) ==>
+                    (
+                        forall|va:VAddr,pa:PAddr| #![auto] proc.va2pa_mapping().contains_pair(va,pa) && pa == page_pptr.id() ==>
+                            (
+                                self.pa.page_mappings(page_pptr).contains((proc.get_cr3(),va))
+                            )
+                    )
+            )
+        //true
     }
 
     pub closed spec fn kernel_wf(&self) -> bool
