@@ -1,31 +1,70 @@
-use core::mem::MaybeUninit;
-
 use vstd::prelude::*;
+use crate::array::Array;
 
 verus! {
 
 /// A preallocated vector.
 pub struct ArrayVec<T, const N: usize> {
-    data: MaybeUninitArray<T, N>,
+    data: Array<T, N>,
     len: usize,
 }
 
 impl<T, const N: usize> ArrayVec<T, N> {
-    pub spec fn view(self) -> Seq<T>;
-
-    #[verifier(external_body)]
-    pub fn new() -> (vec: Self)
+    pub fn new() -> (ret: Self)
+        requires
+            0 <= N <= usize::MAX, // Verus doesn't know
         ensures
-            vec@ == Seq::<T>::empty(),
-            vec.wf(),
+            ret.wf(),
+            ret.len() == 0,
+            ret.capacity() == N,
     {
-        Self {
-            data: MaybeUninitArray::new(),
+        let ret = Self {
+            data: Array::new(),
             len: 0,
-        }
+        };
+
+        ret
     }
 
-    #[verifier(external_body)]
+    pub closed spec fn view(&self) -> Seq<T>
+        recommends self.wf(),
+    {
+        self.view_until(self.len() as nat)
+    }
+
+    spec fn view_until(&self, len: nat) -> Seq<T>
+        recommends
+            0 <= len <= self.len() as nat,
+        decreases len
+    {
+        Seq::<T>::new(len, |i: int| self.data.map()[i as nat])
+        /*
+        if len <= 0 {
+            Seq::<T>::empty()
+        } else {
+            let prev = len - 1;
+            self.view_until(prev as nat)
+                .push(self.data.map()[prev as nat])
+        }
+        */
+    }
+
+    pub closed spec fn wf(&self) -> bool {
+        &&& 0 <= N <= usize::MAX
+        &&& self.len() <= self.capacity()
+
+        // The element is set if and only if the index is in range
+        //
+        // The `i >= self.len()` case is important because we want all
+        // popped elements to be dropped
+        &&& forall |i: nat| (0 <= i < self.len()) == self.data.has_index(i)
+    }
+
+    #[verifier(inline)]
+    pub open spec fn spec_index(&self, index: int) -> (ret: &T) {
+        &self@[index]
+    }
+
     pub fn index(&self, index: usize) -> (ret: &T)
         requires
             self.wf(),
@@ -33,167 +72,120 @@ impl<T, const N: usize> ArrayVec<T, N> {
         ensures
             ret == self@[index as int],
     {
-        unsafe {
-            self.data.borrow(index)
-        }
+        self.data.borrow(index)
     }
 
-    #[verifier(external_body)]
-    pub fn set(&mut self, index: usize, value: T) -> (ret: &T)
-        requires
-            old(self).wf(),
-            index < old(self).len(),
-        ensures
-            self@ == old(self)@.update(index as int, value),
-            ret == value,
-    {
-        unsafe {
-            self.data.set(index, value)
-        }
-    }
-
-    #[verifier(external_body)]
     pub fn push(&mut self, value: T) -> (ret: &T)
         requires
             old(self).wf(),
-            old(self).len() < N,
+            old(self).len() < old(self).capacity(),
         ensures
-            self@ == old(self)@.push(value),
+            self.wf(),
+            self@ =~= old(self)@.push(value),
+            self.len() == old(self).len() + 1,
             ret == value,
     {
-        let ret = unsafe {
-            self.data.set(self.len, value)
-        };
+        let index = self.len;
+        let ret = self.data.insert(index, value);
 
-        self.len += 1; // TODO: this operation is invisible to the verifier
+        self.len = self.len + 1;
 
         ret
     }
 
-    #[must_use]
-    pub fn try_push(&mut self, value: T) -> (ret: Option<&T>)
-        requires
-            old(self).wf(),
-        ensures
-            self.wf(),
-
-            // The push succeeds iff there is space
-            ret.is_Some() == (old(self).len() < N),
-            ret.is_Some() ==> (
-                self@ == old(self)@.push(value)
-                && ret.get_Some_0() == value
-            ),
-
-            // Otherwise, the seq is unchanged
-            ret.is_None() ==> self@ == old(self)@,
-    {
-        if self.len() < N {
-            Some(self.push(value))
-        } else {
-            None
-        }
-    }
-
-    #[verifier(external_body)]
     pub fn pop(&mut self) -> (ret: T)
         requires
             old(self).wf(),
             old(self).len() > 0,
         ensures
+            self.wf(),
             ret == old(self)@[old(self).len() - 1],
-            self@ == old(self)@.subrange(0, old(self).len() - 1),
-
-            // This doesn't seem to work to re-establish len
-            //self@ == old(self)@.drop_last(),
+            self@ =~= old(self)@.drop_last(),
     {
-        let ret = unsafe {
-            self.data.copy(self.len)
-        };
+        let index = self.len() - 1;
+        let ret = self.data.take(index);
 
-        self.len -= 1; // TODO: this operation is invisible to the verifier
+        self.len = self.len - 1;
 
         ret
     }
 
-    pub fn try_pop(&mut self) -> (ret: Option<T>)
+    pub fn set(&mut self, index: usize, value: T)
         requires
             old(self).wf(),
+            index < old(self).len(),
         ensures
             self.wf(),
-
-            // The pop succeeds iff there is any element
-            ret.is_Some() == (old(self).len() > 0),
-            ret.is_Some() ==> (
-                ret.get_Some_0() == old(self)@[old(self).len() - 1]
-                && self@ == old(self)@.subrange(0, old(self).len() - 1)
-            ),
-
-            // Otherwise, the seq is unchanged
-            ret.is_None() ==> self@ == old(self)@,
+            self@ =~= old(self)@.update(index as int, value),
     {
-        if self.len() > 0 {
-            Some(self.pop())
-        } else {
-            None
-        }
+        self.data.take(index); // drops the old one
+        self.data.insert(index, value);
     }
 
-    #[verifier(external_body)] // TODO: Verify consistency between exec len and seq len
     #[verifier(when_used_as_spec(spec_len))]
     pub fn len(&self) -> (ret: usize)
         requires
             self.wf(),
         ensures
             ret == self.spec_len(),
-            ret == self@.len(),
     {
         self.len
     }
 
-    pub open spec fn spec_len(&self) -> usize {
-        self@.len() as usize
+    pub closed spec fn spec_len(&self) -> usize {
+        self.len
     }
 
-    pub open spec fn wf(&self) -> bool {
-        self.len() <= N
-    }
-}
-
-/// An unsafe wrapper of `[MaybeUninit<T>; N]`.
-///
-/// Sadly we can't directly make an external_type_specification because
-/// it's a union and not a struct or enum.
-#[repr(transparent)]
-#[verifier(external_body)]
-#[verifier::reject_recursive_types_in_ground_variants(T)]
-struct MaybeUninitArray<T, const N: usize>([MaybeUninit<T>; N]);
-
-impl<T, const N: usize> MaybeUninitArray<T, N> {
-    #[verifier(external_body)]
-    fn new() -> Self {
-        Self([(); N].map(|_| {
-            MaybeUninit::<T>::uninit()
-        }))
-    }
-}
-
-impl<T, const N: usize> MaybeUninitArray<T, N> {
-    #[verifier(external)]
-    unsafe fn borrow(&self, index: usize) -> &T {
-        self.0[index].assume_init_ref()
+    #[verifier(when_used_as_spec(spec_capacity))]
+    pub const fn capacity(&self) -> (ret: usize)
+        ensures
+            ret == self.spec_capacity(),
+    {
+        N
     }
 
-    #[verifier(external)]
-    unsafe fn copy(&self, index: usize) -> T {
-        self.0[index].assume_init_read()
+    pub open spec fn spec_capacity(&self) -> usize {
+        N
     }
 
-    #[verifier(external)]
-    unsafe fn set(&mut self, index: usize, value: T) -> &T {
-        let element = self.0[index].assume_init_mut();
-        *element = value;
-        element
+    /*
+    proof fn prove_view_consistency(&self, len: nat)
+        requires
+            self.wf(),
+            len <= self.len(),
+
+            len > 0 ==> (
+                forall |i: nat| 0 <= i < len - 1 ==>
+                    #[trigger] self@[i as int] == #[trigger] self.data.map()[i]
+            ),
+        ensures
+            forall |i: nat| 0 <= i < len ==>
+                #[trigger] self@[i as int] == #[trigger] self.data.map()[i],
+        decreases len
+    {
+        if len > 0 {
+            let prev = len - 1;
+            self.prove_view_consistency(prev as nat);
+        }
     }
+
+    proof fn prove_view_equivalence(&self, other: &Self, len: nat)
+        requires
+            len <= self.len(),
+            len <= other.len(),
+
+            forall |i: nat| 0 <= i < len ==>
+                self.data.map()[i] == other.data.map()[i],
+        ensures
+            self.view_until(len) =~= other.view_until(len),
+        decreases len
+    {
+        if len > 0 {
+            let prev = len - 1;
+            self.prove_view_equivalence(other, prev as nat);
+        }
+    }
+    */
 }
 
 mod spec_tests {
@@ -201,12 +193,16 @@ mod spec_tests {
 
     fn test() {
         let mut vec = ArrayVec::<usize, 5>::new();
+
+        assert(vec.len() == 0);
         vec.push(1);
+        assert(vec.len() == 1);
         vec.push(2);
         vec.push(3);
         vec.push(4);
         vec.push(5);
-        //vec.push(6);
+
+        assert(vec.len() == vec.capacity());
     }
 
     fn test2() {
@@ -226,13 +222,9 @@ mod spec_tests {
         assert(x == 2);
         assert(vec.wf()); // 1 remaining
 
-        let x = vec.try_pop();
-        assert(x == Some(1usize));
+        let x = vec.pop();
+        assert(x == 1);
         assert(vec.wf()); // None remaining
-
-        let x = vec.try_pop();
-        assert(x == None::<usize>);
-        assert(vec.wf()); // Still wrll-formed
     }
 }
 
