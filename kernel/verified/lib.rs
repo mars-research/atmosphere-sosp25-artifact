@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(verus_keep_ghost), allow(unused_variables, dead_code))]
 
+pub mod array;
 pub mod array_vec;
 pub mod linked_list;
 pub mod mem;
