@@ -3,7 +3,7 @@ use vstd::ptr::PointsTo;
 use vstd::ptr::PPtr;
 
 use crate::linked_list::*;
-use crate::page::{PagePPtr,VAddr,PAddr};
+use crate::page::{PagePPtr,VAddr,PAddr,Pcid};
 use crate::paging::AddressSpace;
 
 pub type ThreadPtr = usize;
@@ -12,6 +12,7 @@ pub type ProcPtr = usize;
 pub struct Process{
     pub owned_threads: LinkedList<ThreadPtr>,
 
+    pub pcid: Pcid,
     pub page_table_pptr: PPtr<AddressSpace>,
     pub page_table_perm: Option<PointsTo<AddressSpace>>,
     //pub page_closure:  Ghost<Set<PagePPtr>>, //all the pages used by maintaining the struct of this process, including its threads'
@@ -56,8 +57,8 @@ impl Process {
         self.page_table_perm.unwrap()@.value.get_Some_0().0.tmp_va2pa_mapping()
     }
 
-    pub closed spec fn get_cr3(&self) -> usize{
-        self.page_table_pptr.id() as usize
+    pub closed spec fn get_pcid(&self) -> Pcid {
+        self.pcid
     }
 }
 
@@ -75,9 +76,21 @@ impl Thread {
 
 impl ProcessManager {
 
-    pub closed spec fn procs(&self) -> Seq<Process>
+    pub closed spec fn get_procs(&self) -> Seq<Process>
     {
         Seq::new(self.proc_ptrs@.len(), |i: int| self.proc_perms@[self.proc_ptrs@[i]]@.value.get_Some_0())
+    }
+
+    pub closed spec fn get_proc_ptrs(&self) -> Seq<ProcPtr>
+    {
+        Seq::new(self.proc_ptrs@.len(), |i: int| self.proc_ptrs@[i])
+    }
+
+    pub closed spec fn get_proc(&self, proc_ptr: ProcPtr) -> Process
+        recommends
+            self.get_proc_ptrs().contains(proc_ptr),
+    {
+        self.proc_perms@[proc_ptr]@.value.get_Some_0()
     }
 
     ///spec helper for processes
@@ -181,11 +194,16 @@ impl ProcessManager {
         })
     }
 
+    pub closed spec fn pcid_closure(&self) -> Set<Pcid>
+    {
+        Seq::new(self.proc_ptrs@.len(), |i: int| self.proc_perms@[self.proc_ptrs@[i]]@.value.get_Some_0().get_pcid()).to_set()
+    }
+
     ///Memory spec helper
     ///specs:
     ///For two different Processes, their page closures are disjoint.
     ///For any process, its data closure is disjoint with any page closure of the system.
-    pub closed spec fn wf_closure(&self) -> bool{
+    pub closed spec fn wf_mem_closure(&self) -> bool{
         true
 
         // (
@@ -200,12 +218,21 @@ impl ProcessManager {
 
     }
 
+    pub closed spec fn wf_pcid_closure(&self) -> bool{
+        (
+            forall|proc_ptr_i: ProcPtr,proc_ptr_j: ProcPtr| #![auto] proc_ptr_i != proc_ptr_j && self.proc_perms@.dom().contains(proc_ptr_i) && self.proc_perms@.dom().contains(proc_ptr_j)
+                ==>  self.proc_perms@[proc_ptr_i].view().value.get_Some_0().get_pcid() != self.proc_perms@[proc_ptr_j].view().value.get_Some_0().get_pcid()
+        )
+    }
+
     pub closed spec fn wf(&self) -> bool{
         self.wf_threads()
         &&
         self.wf_procs()
         &&
-        self.wf_closure()
+        self.wf_mem_closure()
+        &&
+        self.wf_pcid_closure()
     }
 
 }
