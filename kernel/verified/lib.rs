@@ -12,3 +12,5 @@ pub mod kernel;
 pub mod proc;
 pub mod page_alloc;
 pub mod pcid_alloc;
+pub mod cpu;
+pub mod mars_array;

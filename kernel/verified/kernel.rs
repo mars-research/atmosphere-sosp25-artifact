@@ -4,12 +4,14 @@ use vstd::prelude::*;
 use crate::proc::*;
 use crate::page_alloc::PageAllocator;
 use crate::page::*;
-use crate::pcid_alloc::PcidAllocator;
+use crate::pcid_alloc::{PcidAllocator,PCID_MAX};
+use crate::cpu::{CpuList,NUM_CPUS};
 
 pub struct Kernel{
     proc_man : ProcessManager,
     page_alloc: PageAllocator,
     pcid_alloc: PcidAllocator,
+    cpu_list: CpuList,
 }
 verus! {
 
@@ -18,6 +20,8 @@ impl Kernel {
     pub closed spec fn kernel_page_closure(&self) -> Set<PagePPtr>
     {
         self.proc_man.page_closure()
+        +
+        self.pcid_alloc.page_closure()
         // + 
         // ... add page_closure of other kernel component
     }
@@ -25,7 +29,7 @@ impl Kernel {
     pub closed spec fn system_data_page_closure(&self) -> Set<PagePPtr>
     {
         //system_data_page_closure() equals to data page closures of all the processes
-        self.proc_man.data_page_closure()
+        self.pcid_alloc.data_page_closure()
     }
 
     pub closed spec fn kernel_mem_wf(&self) -> bool
@@ -62,17 +66,36 @@ impl Kernel {
     pub closed spec fn kernel_page_mapping_wf(&self) -> bool{
         forall |page_pptr:PagePPtr| #![auto] self.page_alloc.mapped_pages().contains(page_pptr) ==>
             (
-                forall|proc_ptr: ProcPtr| #![auto] self.proc_man.get_proc_ptrs().contains(proc_ptr) ==>
+                forall|pcid: Pcid| #![auto] 0<=pcid<PCID_MAX && self.pcid_alloc.all_pcids().contains(pcid) ==>
                     (
-                        forall|va:VAddr,pa:PAddr| #![auto] self.proc_man.get_proc(proc_ptr).va2pa_mapping().contains_pair(va,pa) && pa == page_pptr.id() ==>
+                        forall|va:VAddr,pa:PAddr| #![auto] self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid).contains_pair(va,pa) && pa == page_pptr.id() ==>
                             (
-                                self.page_alloc.page_mappings(page_pptr).contains((self.proc_man.get_proc(proc_ptr).get_pcid(),va))
+                                self.page_alloc.page_mappings(page_pptr).contains((pcid,va))
                             )
                     )
             )
         //true
     }
 
+    ///Spec for the tlbs for all the CPUs in the system
+    ///If a Pcid is free, meaning that no process is using it, tlb contains no entry for this Pcid (this requires a flushing when freeing a Pcid)
+    ///If a Pcid is allocated, meaning exactly one process is using it, the tlb entries agree to the Pcid's pagetable entries
+    ///TODO: @Xiangdong, When we have a better representation of the mapping, change agrees() to less_than() to represent that as long as 
+    ///the tlb entries have no permission or less permission than the current pagetable, we are good to go. 
+    pub closed spec fn kernel_tlb_wf(&self) -> bool{
+        &&&
+        (
+            forall|i:int,pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=pcid<PCID_MAX && self.pcid_alloc.free_pcids().contains(pcid) ==> (
+                    self.cpu_list@[i].get_tlb_for_pcid(pcid) =~= Map::empty()
+            )
+        )
+        &&&
+        (
+            forall|i:int,pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=pcid<PCID_MAX && self.pcid_alloc.allocated_pcids().contains(pcid) ==> (
+                    self.cpu_list@[i].get_tlb_for_pcid(pcid).agrees(self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid))
+            )
+        )
+    }
 
     pub closed spec fn kernel_wf(&self) -> bool
     {

@@ -1,10 +1,10 @@
 use vstd::prelude::*;
 use vstd::ptr::PointsTo;
-use vstd::ptr::PPtr;
+// use vstd::ptr::PPtr;
 
 use crate::linked_list::*;
-use crate::page::{PagePPtr,VAddr,PAddr,Pcid};
-use crate::paging::AddressSpace;
+use crate::page::{PagePPtr,Pcid};
+
 
 pub type ThreadPtr = usize;
 pub type ProcPtr = usize;
@@ -13,8 +13,6 @@ pub struct Process{
     pub owned_threads: LinkedList<ThreadPtr>,
 
     pub pcid: Pcid,
-    pub page_table_pptr: PPtr<AddressSpace>,
-    pub page_table_perm: Option<PointsTo<AddressSpace>>,
     //pub page_closure:  Ghost<Set<PagePPtr>>, //all the pages used by maintaining the struct of this process, including its threads'
     //pub data_page_closure: Ghost<Set<PagePPtr>>, // all the data page this process has access to. 
 }
@@ -44,17 +42,7 @@ verus! {
 impl Process {
     pub closed spec fn page_closure(&self) -> Set<PagePPtr>
     {
-        self.page_table_perm.unwrap()@.value.get_Some_0().0.tmp_table_page_closure()
-    }
-
-    pub closed spec fn data_page_closure(&self) -> Set<PagePPtr>
-    {
-        self.page_table_perm.unwrap()@.value.get_Some_0().0.tmp_data_page_closure()
-    }
-
-    pub closed spec fn va2pa_mapping(&self) -> Map<VAddr,PAddr>
-    {
-        self.page_table_perm.unwrap()@.value.get_Some_0().0.tmp_va2pa_mapping()
+        Set::empty()
     }
 
     pub closed spec fn get_pcid(&self) -> Pcid {
@@ -68,10 +56,6 @@ impl Thread {
         Set::empty()
     }
 
-    pub closed spec fn data_page_closure(&self) -> Set<PagePPtr>
-    {
-        Set::empty()
-    }
 }
 
 impl ProcessManager {
@@ -185,13 +169,6 @@ impl ProcessManager {
                 acc + self.thread_perms@[e]@.value.get_Some_0().page_closure()
         })
         // + ... fold page closures of other PM components
-    }
-
-    pub closed spec fn data_page_closure(&self) -> Set<PagePPtr>
-    {
-        self.proc_ptrs@.fold_left(Set::<PagePPtr>::empty(), |acc: Set::<PagePPtr>, e: ProcPtr| -> Set::<PagePPtr> {
-            acc + self.proc_perms@[e]@.value.get_Some_0().data_page_closure()
-        })
     }
 
     pub closed spec fn pcid_closure(&self) -> Set<Pcid>
