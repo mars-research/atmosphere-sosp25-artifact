@@ -6,7 +6,7 @@ use crate::mars_array::MarsArray;
 use vstd::ptr::PointsTo;
 use vstd::ptr::PPtr;
 
-pub const PCID_MAX:usize = 1usize<<12;
+pub const PCID_MAX:usize = 4096;
 
 pub struct PcidAllocator{
 

@@ -45,7 +45,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         self.value_list_len
     }
 
-    pub open spec fn is_unique(&self) -> bool {
+    pub open spec fn unique(&self) -> bool {
         forall|i:int, j:int| #![auto] i != j && 0 <= i < self.spec_seq@.len() && 0 <= j < self.spec_seq@.len()
             ==> self.spec_seq@[i] != self.spec_seq@[j]
     }
@@ -56,12 +56,12 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         self.spec_seq@
     }
 
-    pub closed spec fn ref_valid(&self, index: Index) -> bool{
+    pub closed spec fn node_ref_valid(&self, index: Index) -> bool{
         self.value_list@.contains(index)
     }
 
-    pub closed spec fn ref_resolve(&self, index: Index) -> usize
-        recommends self.ref_valid(index)
+    pub closed spec fn node_ref_resolve(&self, index: Index) -> usize
+        recommends self.node_ref_valid(index)
     {
         self.arr_seq@[index as int].value
     }
@@ -602,20 +602,22 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
     pub fn push(&mut self, new_ptr: usize) -> (free_node_index : Index)
         requires old(self).wf(),
-                 old(self).value_list_len < old(self).size,
-                 old(self).is_unique(),
-                 old(self).spec_seq@.contains(new_ptr) == false,
+                 old(self).len() < old(self).size,
+                 old(self).unique(),
+                 old(self)@.contains(new_ptr) == false,
         ensures self.wf(),
-                self.spec_seq@ == old(self).spec_seq@.push(new_ptr),
+                self@ == old(self)@.push(new_ptr),
                 self.value_list@ == old(self).value_list@.push(free_node_index),
-                self.value_list_len == old(self).value_list_len + 1,
+                self.len() == old(self).len() + 1,
                 self.arr_seq@[free_node_index as int].value == new_ptr,
-                self.ref_valid(free_node_index),
-                self.ref_resolve(free_node_index) == new_ptr,
-                forall|index:Index| old(self).ref_valid(index) ==> self.ref_valid(index),
-                forall|index:Index| old(self).ref_valid(index) ==> index != free_node_index,
-                forall|index:Index| old(self).ref_valid(index) ==> self.ref_resolve(index) == old(self).ref_resolve(index),
-                self.is_unique(),
+                self.node_ref_valid(free_node_index),
+                self.node_ref_resolve(free_node_index) == new_ptr,
+                forall|index:Index| old(self).node_ref_valid(index) ==> self.node_ref_valid(index),
+                forall|index:Index| old(self).node_ref_valid(index) ==> index != free_node_index,
+                forall|index:Index| old(self).node_ref_valid(index) ==> self.node_ref_resolve(index) == old(self).node_ref_resolve(index),
+                self.unique(),
+                forall| ptr: usize| ptr != new_ptr ==> old(self)@.contains(ptr) == self@.contains(ptr),
+                self@.contains(new_ptr),
     {
         assert(self.wf_spec_seq());
         let free_node_index = self.alloc_node_index();
@@ -902,18 +904,21 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
     pub fn pop(&mut self) -> (ret: usize)
         requires old(self).wf(),
-                 old(self).value_list_len > 0,
-                 old(self).is_unique(),
+                 old(self).len() > 0,
+                 old(self).unique(),
         ensures 
                 self.wf(),
                 self.value_list_len == old(self).value_list_len - 1,
                 self.value_list@ == old(self).value_list@.subrange(1, old(self).value_list@.len() as int),
-                self.spec_seq@ == old(self).spec_seq@.subrange(1, old(self).spec_seq@.len() as int),
-                ret == old(self).spec_seq@[0],
-                self.is_unique(),
-                forall|index:Index| old(self).ref_valid(index) && old(self).ref_resolve(index) != ret ==> self.ref_valid(index),
-                //forall|index:Index| old(self).ref_valid(index) && old(self).ref_resolve(index) == ret ==> !self.ref_valid(index),
-                forall|index:Index| old(self).ref_valid(index) && old(self).ref_resolve(index) != ret ==> self.ref_resolve(index) == old(self).ref_resolve(index),
+                self@ == old(self)@.subrange(1, old(self).spec_seq@.len() as int),
+                ret == old(self)@[0],
+                old(self)@.contains(ret),
+                self.unique(),
+                forall|index:Index| old(self).node_ref_valid(index) && old(self).node_ref_resolve(index) != ret ==> self.node_ref_valid(index),
+                //forall|index:Index| old(self).node_ref_valid(index) && old(self).node_ref_resolve(index) == ret ==> !self.node_ref_valid(index),
+                forall|index:Index| old(self).node_ref_valid(index) && old(self).node_ref_resolve(index) != ret ==> self.node_ref_resolve(index) == old(self).node_ref_resolve(index),
+                forall| ptr: usize| ptr != ret ==> old(self)@.contains(ptr) == self@.contains(ptr),
+                self@.contains(ret) == false,
 
         {
             assert(self.spec_seq@[0] == self.arr_seq@[self.value_list@[0] as int].value);
@@ -927,21 +932,21 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
             assert(self.free_list_ptr_all_null());
 
-            assert(forall|index:Index| old(self).ref_valid(index) && index != pop_index ==> self.ref_valid(index));
-            assert(old(self).ref_resolve(pop_index) == ret);
-            assert(forall|index:Index| old(self).ref_valid(index) && old(self).ref_resolve(index) != ret ==> self.ref_resolve(index) == old(self).ref_resolve(index));
+            assert(forall|index:Index| old(self).node_ref_valid(index) && index != pop_index ==> self.node_ref_valid(index));
+            assert(old(self).node_ref_resolve(pop_index) == ret);
+            assert(forall|index:Index| old(self).node_ref_valid(index) && old(self).node_ref_resolve(index) != ret ==> self.node_ref_resolve(index) == old(self).node_ref_resolve(index));
 
             self.free_node(pop_index);
             assert(self.free_list_len == old(self).free_list_len + 1);
             assert(self.value_list_len == old(self).value_list_len - 1);
             assert(self.wf());
 
-            assert(self.ref_valid(pop_index) == false);
-            assert(forall|index:Index| old(self).ref_valid(index) && index != pop_index ==> self.ref_valid(index));
-            assert(old(self).ref_resolve(pop_index) == ret);
-            assert(forall|index:Index| old(self).ref_valid(index) && old(self).ref_resolve(index) != ret ==> self.ref_resolve(index) == old(self).ref_resolve(index));
+            assert(self.node_ref_valid(pop_index) == false);
+            assert(forall|index:Index| old(self).node_ref_valid(index) && index != pop_index ==> self.node_ref_valid(index));
+            assert(old(self).node_ref_resolve(pop_index) == ret);
+            assert(forall|index:Index| old(self).node_ref_valid(index) && old(self).node_ref_resolve(index) != ret ==> self.node_ref_resolve(index) == old(self).node_ref_resolve(index));
 
-            assert(old(self).is_unique());
+            assert(old(self).unique());
             assert(ret == old(self).spec_seq@[0]);
             assert(self.spec_seq@ == old(self).spec_seq@.subrange(1, old(self).spec_seq@.len() as int));
             assert(forall| i: int| 0<= i <self.spec_seq@.len() ==> self.spec_seq@[i] == old(self).spec_seq@[i+1]);
@@ -1371,18 +1376,18 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
     pub fn remove(&mut self, index: Index) -> (ret: usize)
         requires old(self).wf(),
-                 old(self).ref_valid(index),
-                 old(self).is_unique(),
+                 old(self).node_ref_valid(index),
+                 old(self).unique(),
         ensures self.wf(),
                 self.value_list_len == old(self).value_list_len - 1,
-                ret == old(self).ref_resolve(index),
-                //self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).spec_seq@.index_of(old(self).ref_resolve(index))).add(old(self).spec_seq@.subrange(old(self).spec_seq@.index_of(old(self).ref_resolve(index)) + 1, old(self).spec_seq@.len() as int)), 
-                self.spec_seq@ == old(self).spec_seq@.remove(old(self).spec_seq@.index_of(old(self).ref_resolve(index))),
+                ret == old(self).node_ref_resolve(index),
+                //self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).spec_seq@.index_of(old(self).node_ref_resolve(index))).add(old(self).spec_seq@.subrange(old(self).spec_seq@.index_of(old(self).node_ref_resolve(index)) + 1, old(self).spec_seq@.len() as int)), 
+                self.spec_seq@ == old(self).spec_seq@.remove(old(self).spec_seq@.index_of(old(self).node_ref_resolve(index))),
                 forall| value:usize|  #![auto]  ret != value ==> old(self).spec_seq@.contains(value) == self.spec_seq@.contains(value),
                     self.spec_seq@.contains(ret) == false,
-                forall|_index:Index| old(self).ref_valid(_index) && _index != index ==> self.ref_valid(_index),
-                forall|_index:Index| old(self).ref_valid(_index) && _index != index ==> self.ref_resolve(_index) == old(self).ref_resolve(_index),
-                self.is_unique(),
+                forall|_index:Index| old(self).node_ref_valid(_index) && _index != index ==> self.node_ref_valid(_index),
+                forall|_index:Index| old(self).node_ref_valid(_index) && _index != index ==> self.node_ref_resolve(_index) == old(self).node_ref_resolve(_index),
+                self.unique(),
         {
             self.remove_value_by_index(index);
             let ret = self.get_ptr(index);

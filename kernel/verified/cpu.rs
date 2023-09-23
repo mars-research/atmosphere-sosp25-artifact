@@ -5,23 +5,23 @@ use crate::pcid_alloc::PCID_MAX;
 use crate::proc::ThreadPtr;
 use crate::mars_array::MarsArray;
 
-pub const NUM_CPUS:usize = 32;
+pub type CPUID = usize;
 
 verus! {
 pub struct Cpu{
-    current_t: ThreadPtr,
-    tlb: Ghost<Map<Pcid,Map<VAddr,PAddr>>>
+    pub current_t: ThreadPtr,
+    pub tlb: Ghost<Map<Pcid,Map<VAddr,PAddr>>>
 }
 impl Cpu {
-    pub closed spec fn wf(&self) -> bool{
+    pub open spec fn wf(&self) -> bool{
         self.tlb@.dom() =~= Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
     }
-    pub closed spec fn get_current_thread(&self) -> ThreadPtr
+    pub open spec fn get_current_thread(&self) -> ThreadPtr
     {
         self.current_t
     }
     
-    pub closed spec fn get_tlb_for_pcid(&self, pcid:Pcid) -> Map<VAddr,PAddr>
+    pub open spec fn get_tlb_for_pcid(&self, pcid:Pcid) -> Map<VAddr,PAddr>
         recommends self.wf(),
                    0 <= pcid< PCID_MAX,
     {
@@ -29,14 +29,20 @@ impl Cpu {
     }
 }
 
-pub struct CpuList{
-    cpus: MarsArray<Cpu,NUM_CPUS>,
-}
+// pub struct CpuList{
+//     cpus: MarsArray<Cpu,NUM_CPUS>,
+// }
 
-impl CpuList {
-    pub closed spec fn view(&self) -> Seq<Cpu>{
-        self.cpus@
-    }
-}
+// impl CpuList {
+//     pub open spec fn view(&self) -> Seq<Cpu>{
+//         self.cpus@
+//     }
+
+//     pub open spec fn view_as_thread_ptrs(&self) -> Seq<ThreadPtr>{
+//         self.cpus@.fold_left(Seq::<ThreadPtr>::empty(), |acc: Seq::<ThreadPtr>, e: Cpu| -> Seq::<ThreadPtr> {
+//             acc.push(e.current_t)
+//         })
+//     }
+// }
 
 }
