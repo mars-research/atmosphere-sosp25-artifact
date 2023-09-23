@@ -60,6 +60,21 @@ impl<T: Default> LinkedList<T> {
     {
         233
     }
+
+    pub closed spec fn page_closure(&self) -> Set<PagePPtr>
+    {
+        Set::empty()
+    }
+
+    pub closed spec fn node_ref_valid(&self, nr: &NodeRef<T>) -> bool
+    {
+        arbitrary()
+    }
+
+    pub closed spec fn node_ref_resolve(&self, nr: &NodeRef<T>) -> &T
+    {
+        arbitrary()
+    }
     //end of tmp
     //@Lukas: just change to whatever you want
 

@@ -13,4 +13,5 @@ pub mod proc;
 pub mod page_alloc;
 pub mod pcid_alloc;
 pub mod cpu;
+pub mod sched;
 pub mod mars_array;
