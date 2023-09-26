@@ -5,7 +5,7 @@ use vstd::ptr::PointsTo;
 use vstd::ptr::PPtr;
 
 use crate::linked_list::*;
-use crate::page::{PagePPtr,Pcid};
+use crate::page::{PagePtr,Pcid};
 use crate::pcid_alloc::PCID_MAX;
 use crate::sched::{Scheduler, Endpoint};
 use crate::mars_array::MarsArray;
@@ -106,7 +106,7 @@ pub fn thread_set_state(pptr: &PPtr::<Thread>,Tracked(perm): Tracked<&mut Points
 }
 
 impl Process {
-    pub closed spec fn page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn page_closure(&self) -> Set<PagePtr>
     {
         Set::empty()
     }
@@ -117,7 +117,7 @@ impl Process {
 }
 
 impl Thread {
-    pub closed spec fn page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn page_closure(&self) -> Set<PagePtr>
     {
         Set::empty()
     }
@@ -236,20 +236,20 @@ impl ProcessManager {
         (forall|thread_ptr: ThreadPtr| #![auto] self.scheduler@.contains(thread_ptr) ==>  self.scheduler.node_ref_resolve(self.thread_perms@[thread_ptr].view().value.get_Some_0().scheduler_rf.unwrap()) == thread_ptr )
     }
 
-    closed spec fn local_page_closure(&self) -> Set<PagePPtr>
+    closed spec fn local_page_closure(&self) -> Set<PagePtr>
     {
         Set::empty()
     }
 
-    pub closed spec fn page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn page_closure(&self) -> Set<PagePtr>
     {
         self.local_page_closure()
         +
-        self.proc_ptrs@.fold_left(Set::<PagePPtr>::empty(), |acc: Set::<PagePPtr>, e: ProcPtr| -> Set::<PagePPtr> {
+        self.proc_ptrs@.fold_left(Set::<PagePtr>::empty(), |acc: Set::<PagePtr>, e: ProcPtr| -> Set::<PagePtr> {
                 acc + self.proc_perms@[e]@.value.get_Some_0().page_closure()
         })
         +
-        self.get_thread_ptrs().fold(Set::<PagePPtr>::empty(), |acc: Set::<PagePPtr>, e: ThreadPtr| -> Set::<PagePPtr> {
+        self.get_thread_ptrs().fold(Set::<PagePtr>::empty(), |acc: Set::<PagePtr>, e: ThreadPtr| -> Set::<PagePtr> {
                 acc + self.thread_perms@[e]@.value.get_Some_0().page_closure()
         })
         // + ... fold page closures of other PM components

@@ -1,6 +1,6 @@
 use vstd::prelude::*;
 //use vstd::ptr::PointsTo;
-use crate::page::PagePPtr;
+use crate::page::PagePtr;
 //use crate::mars_array::MarsArray;
 use crate::proc::ThreadPtr;
 
@@ -21,7 +21,7 @@ impl Scheduler{
         self.queue@
     }
 
-    pub closed spec fn page_closure(&self) -> Set<PagePPtr>{
+    pub closed spec fn page_closure(&self) -> Set<PagePtr>{
         self.queue.page_closure()
     }
 

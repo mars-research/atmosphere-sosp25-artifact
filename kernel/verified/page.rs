@@ -7,6 +7,7 @@ use vstd::ptr::{
 verus! {
 
 pub type PagePPtr = PPtr<[u8; PAGE_SIZE]>;
+pub type PagePtr = usize;
 pub type PagePerm = PointsTo<[u8; PAGE_SIZE]>;
 
 pub type VAddr = u64;

@@ -25,7 +25,7 @@ impl Kernel {
 
 
 
-    pub closed spec fn kernel_page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn kernel_page_closure(&self) -> Set<PagePtr>
     {
         self.proc_man.page_closure()
         +
@@ -34,7 +34,7 @@ impl Kernel {
         // ... add page_closure of other kernel component
     }
 
-    pub closed spec fn system_data_page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn system_data_page_closure(&self) -> Set<PagePtr>
     {
         //system_data_page_closure() equals to data page closures of all the processes
         self.pcid_alloc.data_page_closure()
@@ -72,13 +72,13 @@ impl Kernel {
     ///If page_alloc.rf_count drops to zero, we can infer that no process maps pa anymore without even looking these processes' pagetable
     ///Therefore, page_alloc.mappings() cannot be generated on the fly. (or maybe we can)
     pub closed spec fn kernel_page_mapping_wf(&self) -> bool{
-        forall |page_pptr:PagePPtr| #![auto] self.page_alloc.mapped_pages().contains(page_pptr) ==>
+        forall |page_ptr:PagePtr| #![auto] self.page_alloc.mapped_pages().contains(page_ptr) ==>
             (
                 forall|pcid: Pcid| #![auto] 0<=pcid<PCID_MAX && self.pcid_alloc.all_pcids().contains(pcid) ==>
                     (
-                        forall|va:VAddr,pa:PAddr| #![auto] self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid).contains_pair(va,pa) && pa == page_pptr.id() ==>
+                        forall|va:VAddr,pa:PAddr| #![auto] self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid).contains_pair(va,pa) && pa == page_ptr ==>
                             (
-                                self.page_alloc.page_mappings(page_pptr).contains((pcid,va))
+                                self.page_alloc.page_mappings(page_ptr).contains((pcid,va))
                             )
                     )
             )

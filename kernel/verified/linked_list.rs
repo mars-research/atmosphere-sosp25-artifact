@@ -2,7 +2,7 @@ use vstd::prelude::*;
 
 verus! {
 
-use crate::page::PagePPtr;
+use crate::page::{PagePtr,PagePPtr};
 use crate::page_arena::{PageArena, PageElementPtr, PageMetadataPtr};
 
 type Arena<T> = PageArena<Node<T>, PageNode>;
@@ -61,7 +61,7 @@ impl<T: Default> LinkedList<T> {
         233
     }
 
-    pub closed spec fn page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn page_closure(&self) -> Set<PagePtr>
     {
         Set::empty()
     }

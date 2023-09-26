@@ -6,7 +6,7 @@
 use vstd::prelude::*;
 use vstd::ptr::PointsTo;
 
-use crate::page::{PagePPtr, PagePerm, VAddr, PAddr};
+use crate::page::{PagePtr, PagePPtr, PagePerm, VAddr, PAddr};
 
 pub struct AddressSpace(pub PML4);
 
@@ -270,11 +270,11 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     }
 
     ///Tmp change @zhaofeng delete this 
-    pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePPtr> {
+    pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePtr> {
         Set::empty()
     }
     
-    pub closed spec fn tmp_table_page_closure(&self) -> Set<PagePPtr> {
+    pub closed spec fn tmp_table_page_closure(&self) -> Set<PagePtr> {
         Set::empty()
     }
 

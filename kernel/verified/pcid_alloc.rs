@@ -1,6 +1,6 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
-use crate::page::{Pcid,VAddr,PAddr,PagePPtr};
+use crate::page::{Pcid,VAddr,PAddr,PagePtr};
 use crate::paging::AddressSpace;
 use crate::mars_array::MarsArray;
 use vstd::ptr::PointsTo;
@@ -52,10 +52,10 @@ impl PcidAllocator {
         self.page_table_perms@[pcid]@.value.get_Some_0().0.tmp_va2pa_mapping()
     }
 
-    pub closed spec fn data_page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn data_page_closure(&self) -> Set<PagePtr>
     {
         Seq::new(PCID_MAX as nat, |i: int| i as Pcid)
-            .fold_left(Set::<PagePPtr>::empty(), |acc: Set::<PagePPtr>, e: Pcid| -> Set::<PagePPtr> {
+            .fold_left(Set::<PagePtr>::empty(), |acc: Set::<PagePtr>, e: Pcid| -> Set::<PagePtr> {
                 if self.allocated_pcids().contains(e){
                     acc + self.page_table_perms@[e]@.value.get_Some_0().0.tmp_data_page_closure()
                 }else{
@@ -64,14 +64,14 @@ impl PcidAllocator {
             })
     }
 
-    closed spec fn local_page_closure(&self) -> Set<PagePPtr>{
+    closed spec fn local_page_closure(&self) -> Set<PagePtr>{
         Set::empty()
     }
 
-    pub closed spec fn page_closure(&self) -> Set<PagePPtr>
+    pub closed spec fn page_closure(&self) -> Set<PagePtr>
     {
         Seq::new(PCID_MAX as nat, |i: int| i as Pcid)
-            .fold_left(Set::<PagePPtr>::empty(), |acc: Set::<PagePPtr>, e: Pcid| -> Set::<PagePPtr> {
+            .fold_left(Set::<PagePtr>::empty(), |acc: Set::<PagePtr>, e: Pcid| -> Set::<PagePtr> {
                 if self.allocated_pcids().contains(e){
                     acc + self.page_table_perms@[e]@.value.get_Some_0().0.tmp_table_page_closure()
                 }else{
