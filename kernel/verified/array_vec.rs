@@ -5,8 +5,8 @@ verus! {
 
 /// A preallocated vector.
 pub struct ArrayVec<T, const N: usize> {
-    data: Array<T, N>,
-    len: usize,
+    pub data: Array<T, N>,
+    pub len: usize,
 }
 
 impl<T, const N: usize> ArrayVec<T, N> {
@@ -26,13 +26,13 @@ impl<T, const N: usize> ArrayVec<T, N> {
         ret
     }
 
-    pub closed spec fn view(&self) -> Seq<T>
+    pub open spec fn view(&self) -> Seq<T>
         recommends self.wf(),
     {
         self.view_until(self.len() as nat)
     }
 
-    spec fn view_until(&self, len: nat) -> Seq<T>
+    pub open spec fn view_until(&self, len: nat) -> Seq<T>
         recommends
             0 <= len <= self.len() as nat,
         decreases len
@@ -49,6 +49,10 @@ impl<T, const N: usize> ArrayVec<T, N> {
         */
     }
 
+    pub open spec fn unique(&self) -> bool{
+        forall|i:int,j:int| #![auto] 0<=i<self.len() && 0<=j<self.len() && i != j ==> ! (self@[i] =~= self@[j])
+    }
+
     pub closed spec fn wf(&self) -> bool {
         &&& 0 <= N <= usize::MAX
         &&& self.len() <= self.capacity()
@@ -60,6 +64,7 @@ impl<T, const N: usize> ArrayVec<T, N> {
         &&& forall |i: nat| (0 <= i < self.len()) == self.data.has_index(i)
     }
 
+    
     #[verifier(inline)]
     pub open spec fn spec_index(&self, index: int) -> (ret: &T) {
         &self@[index]
@@ -92,6 +97,35 @@ impl<T, const N: usize> ArrayVec<T, N> {
 
         ret
     }
+    
+    pub fn push_unique(&mut self, value: T) -> (ret: &T)
+    requires
+        old(self).wf(),
+        old(self).len() < old(self).capacity(),
+        old(self).unique(),
+        old(self)@.contains(value) == false,
+    ensures
+        self.wf(),
+        self@ =~= old(self)@.push(value),
+        self.len() == old(self).len() + 1,
+        self.unique(),
+        forall|t:T| #![auto] !( t =~= value) ==> old(self)@.contains(t) == self@.contains(t),
+        self@.contains(value),
+    {
+        let index = self.len;
+        let ret = self.data.insert(index, value);
+
+        self.len = self.len + 1;
+
+        assert(self@ =~= old(self)@.push(value));
+
+        assert(forall|t:T| #![auto] !( t =~= value) ==> self@.contains(t) ==> old(self)@.contains(t));
+        assert(forall|t:T| #![auto] !( t =~= value) ==> old(self)@.contains(t) ==> self@[old(self)@.index_of(t)] =~= t);
+        assert(forall|t:T| #![auto] !( t =~= value) ==> old(self)@.contains(t) ==> self@.contains(t));
+        assert(forall|i:int| #![auto] 0<=i<old(self).len() ==> ! (self@[i] =~= value));
+        assert(self@[self.len - 1] =~= value);
+        ret
+    }
 
     pub fn pop(&mut self) -> (ret: T)
         requires
@@ -106,6 +140,45 @@ impl<T, const N: usize> ArrayVec<T, N> {
         let ret = self.data.take(index);
 
         self.len = self.len - 1;
+
+        ret
+    }
+
+    pub fn pop_unique(&mut self) -> (ret: T)
+        requires
+            old(self).wf(),
+            old(self).len() > 0,
+            old(self).unique(),
+        ensures
+            self.wf(),
+            ret == old(self)@[old(self).len() - 1],
+            self@ =~= old(self)@.drop_last(),
+            self.unique(),
+            self@.contains(ret) == false,
+            forall|t:T| #![auto] !( t =~= ret) ==> old(self)@.contains(t) == self@.contains(t),
+    {
+        let index = self.len() - 1;
+        let ret = self.data.take(index);
+
+        self.len = self.len - 1;
+
+        assert(self@ =~= old(self)@.drop_last());
+        assert(self.unique());
+        assert(ret == old(self)@[old(self).len() - 1]);
+        assert(forall|i:int| #![auto] 0<=i<old(self).len() - 1 ==> !(self@[i] =~= ret)); 
+
+        assert(old(self)@.contains(ret));
+        assert(self@.contains(ret) == false);
+        assert(forall|t:T| #![auto] !( t =~= ret) ==> self@.contains(t) ==> old(self)@.contains(t));
+
+        
+        assert(forall|t:T| #![auto] !( t =~= ret) ==> !self@.contains(t) ==> !old(self)@.drop_last().contains(t));
+        assert(old(self)@[old(self)@.len() - 1] == ret);
+        assert(forall|t:T| #![auto] !( t =~= ret) ==> !self@.contains(t) ==> !old(self)@.subrange(old(self)@.len() - 1, old(self)@.len() as int).contains(t));
+        assert(old(self)@.drop_last() + old(self)@.subrange(old(self)@.len() - 1, old(self)@.len() as int) =~= old(self)@);
+        assert(forall|t:T| #![auto] !( t =~= ret) ==> !self@.contains(t) ==> !old(self)@.contains(t));
+
+        assert(forall|t:T| #![auto] !( t =~= ret) ==> old(self)@.contains(t) ==> self@.contains(t));
 
         ret
     }
