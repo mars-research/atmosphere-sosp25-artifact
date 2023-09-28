@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+use core::mem::MaybeUninit;
 
 verus! {
 
@@ -8,6 +9,19 @@ pub struct MarsArray<A, const N: usize>{
 }
 
 impl<A, const N: usize> MarsArray<A, N> {
+
+    #[verifier(external_body)]
+    pub fn new() -> (ret: Self)
+        ensures
+            ret.wf(),
+    {
+        let ret = Self {
+            ar: MaybeUninit::uninit().assume_init(),
+            seq: arbitrary(),
+        };
+
+        ret
+    }
 
     #[verifier(external_body)]
     pub fn get(&self, i: usize) -> (out: &A) 
