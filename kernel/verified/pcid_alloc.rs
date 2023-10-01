@@ -6,6 +6,7 @@ use crate::mars_array::MarsArray;
 use vstd::ptr::PointsTo;
 use vstd::ptr::PPtr;
 
+verus! {
 pub const PCID_MAX:usize = 4096;
 
 pub struct PcidAllocator{
@@ -14,7 +15,6 @@ pub struct PcidAllocator{
     pub page_table_perms: Tracked<Map<Pcid,PointsTo<AddressSpace>>>,
 }
 
-verus! {
 
 ///Pcid Allocator allocates, frees pcid and constructs pagetabels
 ///Spec: 

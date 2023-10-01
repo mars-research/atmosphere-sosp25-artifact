@@ -8,10 +8,8 @@ use crate::pcid_alloc::{PcidAllocator,PCID_MAX};
 use crate::cpu::{Cpu,CPUID};
 use crate::mars_array::MarsArray;
 
+verus! {
 pub const NUM_CPUS:usize = 32;
-pub const SCHEDULED:usize = 1;
-pub const BLOCKED:usize = 2;
-pub const RUNNING:usize = 3;
 
 pub struct Kernel{
     pub proc_man : ProcessManager,
@@ -19,7 +17,6 @@ pub struct Kernel{
     pub pcid_alloc: PcidAllocator,
     pub cpu_list: MarsArray<Cpu,NUM_CPUS>,
 }
-verus! {
 
 impl Kernel {
 
@@ -120,7 +117,7 @@ impl Kernel {
         )
         &&&
         (
-            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread(self.cpu_list@[i as int].current_t).state == 3 //RUNNING
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread(self.cpu_list@[i as int].current_t).state == RUNNING //RUNNING
         )
     }
 
@@ -143,11 +140,11 @@ impl Kernel {
             0 <= cpu_id <NUM_CPUS,
             old(self).proc_man.scheduler.len() < MAX_NUM_THREADS,
     {
-        assert(forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread(self.cpu_list@[i as int].current_t).state == 3);
+        assert(forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread(self.cpu_list@[i as int].current_t).state == RUNNING);
         assert(0 <= cpu_id <NUM_CPUS);
         let thread_ptr = self.cpu_list.get(cpu_id).current_t;
         assert(self.proc_man.get_thread(thread_ptr).state == RUNNING);
-        assert(self.proc_man.get_thread(thread_ptr).state != 1);
+        assert(self.proc_man.get_thread(thread_ptr).state != SCHEDULED);
         self.proc_man.push_scheduler(thread_ptr);
 
         let new_thread_ptr = self.proc_man.pop_scheduler();
@@ -159,11 +156,11 @@ impl Kernel {
         };
 
         self.cpu_list.set(cpu_id,cpu);
-        self.proc_man.set_thread_state(new_thread_ptr,3);
+        self.proc_man.set_thread_state(new_thread_ptr,RUNNING);
         // assert(self.kernel_tlb_wf());
         assert(self.cpu_list.wf());
         assert(forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread_ptrs().contains(self.cpu_list@[i as int].current_t));
-        assert(forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread(self.cpu_list@[i as int].current_t).state == 3);
+        assert(forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread(self.cpu_list@[i as int].current_t).state == RUNNING);
         assert(self.kernel_cpulist_wf());
         assert(self.proc_man.wf());
         assert(self.kernel_wf());

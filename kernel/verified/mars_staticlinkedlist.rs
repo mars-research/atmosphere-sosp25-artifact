@@ -37,9 +37,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     #[verifier(external_body)]
     pub fn new() -> (ret: Self)
         ensures
-            ret.array_wf(),
-            ret.spec_seq_wf(),
-            ret@.len() == 0,
+            ret.arr_seq@.len() == N,
     {
         let ret = Self {
 
@@ -65,12 +63,11 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
     pub fn init(&mut self)
         requires
-            old(self).array_wf(),
-            old(self).spec_seq_wf(),
-            old(self).spec_seq@.len() == 0,
+            old(self).arr_seq@.len() == N,
         ensures
             self.wf(),
             self.len() == 0,
+            self@ =~= Seq::empty(),
         {
             assume(N>2);
             assume(N<isize::MAX);
@@ -78,12 +75,15 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             self.value_list_head = -1;
             self.value_list_tail = -1;
             self.value_list_len = 0;
+            self.spec_seq = Ghost(Seq::empty());
             self.free_list = Ghost(Seq::empty());
             self.free_list_head = -1;
             self.free_list_tail = -1;
             self.free_list_len = 0;
             assert(self.value_list_wf());
             assert(self.free_list_wf());
+
+            self.size = N;
 
             self.free_list_head = 0;
             self.free_list_tail = 0;
@@ -171,7 +171,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
         }
 
-    pub closed spec fn spec_len(&self) -> usize{
+    pub open spec fn spec_len(&self) -> usize{
         self.value_list_len
     }
 
@@ -189,7 +189,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             ==> self.spec_seq@[i] != self.spec_seq@[j]
     }
 
-    pub closed spec fn view(&self) -> Seq<usize>
+    pub open spec fn view(&self) -> Seq<usize>
         recommends self.wf(),
     {
         self.spec_seq@
@@ -320,9 +320,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     }
 
     pub open spec fn array_wf(&self) -> bool{
-        self.arr_seq@.len() == N
+        (self.arr_seq@.len() == N)
         &&
-        self.size == N
+        (self.size == N)
     }
 
     pub open spec fn spec_seq_wf(&self) -> bool
