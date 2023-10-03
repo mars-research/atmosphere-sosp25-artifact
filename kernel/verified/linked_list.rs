@@ -2,7 +2,7 @@ use vstd::prelude::*;
 
 verus! {
 
-use crate::page::{PagePtr,PagePPtr};
+use crate::page::{PagePtr, PagePPtr};
 use crate::page_arena::{PageArena, PageElementPtr, PageMetadataPtr};
 
 type Arena<T> = PageArena<Node<T>, PageNode>;
@@ -58,7 +58,7 @@ impl<T: Default> LinkedList<T> {
 
     pub closed spec fn len(&self) -> int
     {
-        233
+        223
     }
 
     pub closed spec fn page_closure(&self) -> Set<PagePtr>
@@ -117,40 +117,47 @@ impl<T: Default> LinkedList<T> {
         }
     }
 
-    spec fn free_prev_of(&self, i: nat) -> Option<NodePtr<T>> {
-        if i == 0 {
-            None::<NodePtr<T>>
-        } else {
-            Some(self.free_ptrs@[i - 1])
-        }
-    }
+    // spec fn free_prev_of(&self, i: nat) -> Option<NodePtr<T>> {
+    //     if i == 0 {
+    //         None::<NodePtr<T>>
+    //     } else {
+    //         Some(self.free_ptrs@[i - 1])
+    //     }
+    // }
 
-    spec fn free_next_of(&self, i: nat) -> Option<NodePtr<T>> {
-        if i + 1 == self.free_ptrs@.len() {
-            None::<NodePtr<T>>
-        } else {
-            Some(self.free_ptrs@[i + 1int])
-        }
-    }
+    // spec fn free_next_of(&self, i: nat) -> Option<NodePtr<T>> {
+    //     if i + 1 == self.free_ptrs@.len() {
+    //         None::<NodePtr<T>>
+    //     } else {
+    //         Some(self.free_ptrs@[i + 1int])
+    //     }
+    // }
 
-    spec fn page_next_of(&self, i: nat) -> Option<PageNodePtr> {
-        if i + 1 == self.page_ptrs@.len() {
-            None::<PageNodePtr>
-        } else {
-            Some(self.page_ptrs@[i + 1int])
-        }
-    }
+    // spec fn page_next_of(&self, i: nat) -> Option<PageNodePtr> {
+    //     if i + 1 == self.page_ptrs@.len() {
+    //         None::<PageNodePtr>
+    //     } else {
+    //         Some(self.page_ptrs@[i + 1int])
+    //     }
+    // }
 
     // ********************
     // Well Formed Spec ***
     // ********************
 
     pub closed spec fn wf(&self) -> bool {
-        self.wf_perms() && self.wf_ptrs() && self.wf_free_ptrs() && self.wf_page_ptrs()
+        self.wf_perms() && self.wf_ptrs()
     }
 
+
     spec fn wf_perms(&self) -> bool {
-        true // TODO
+        &&& forall|i: PagePPtr| self.perms@.dom().contains(i) ==> #[trigger] self.wf_perm(i)
+    }
+
+    spec fn wf_perm(&self, ptr: PagePPtr) -> bool {
+        let arena: &Arena<T> = &self.perms@[ptr]@;
+
+        &&& ptr.id() == arena.page_base()
     }
 
     spec fn wf_ptrs(&self) -> bool {
@@ -160,12 +167,10 @@ impl<T: Default> LinkedList<T> {
     spec fn wf_ptr(&self, i: nat) -> bool {
         let ptr: &NodePtr<T> = &self.ptrs@[i as int];
         let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
-        
-        match arena.value_at_opt(ptr.index()) {
-            Some(node) => node.prev == self.prev_of(i) && node.next == self.next_of(i),
-            None => false,
-        }        
+        let node = arena.value_at(ptr.index());
+        node.prev == self.prev_of(i) && node.next == self.next_of(i)  
     }
+
 
     spec fn wf_head(&self) -> bool {
         if self.ptrs@.len() == 0 {
@@ -183,53 +188,53 @@ impl<T: Default> LinkedList<T> {
         }
     }
 
-    spec fn wf_free_ptrs(&self) -> bool {
-        self.wf_free_head() && self.wf_free_tail() && forall|i: nat| 0 <= i < self.free_ptrs@.len() ==> self.wf_free_ptr(i) 
-    }
+    // spec fn wf_free_ptrs(&self) -> bool {
+    //     self.wf_free_head() && self.wf_free_tail() && forall|i: nat| 0 <= i < self.free_ptrs@.len() ==> self.wf_free_ptr(i) 
+    // }
 
-    spec fn wf_free_ptr(&self, i: nat) -> bool {
-        let ptr: &NodePtr<T> = &self.free_ptrs@[i as int];
-        let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
+    // spec fn wf_free_ptr(&self, i: nat) -> bool {
+    //     let ptr: &NodePtr<T> = &self.free_ptrs@[i as int];
+    //     let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
         
-        match arena.value_at_opt(ptr.index()) {
-            Some(node) => node.prev == self.free_prev_of(i) && node.next == self.free_next_of(i),
-            None => false,
-        }        
-    }
+    //     match arena.value_at_opt(ptr.index()) {
+    //         Some(node) => node.prev == self.free_prev_of(i) && node.next == self.free_next_of(i),
+    //         None => false,
+    //     }        
+    // }
 
-    spec fn wf_free_head(&self) -> bool {
-        if self.free_ptrs@.len() == 0 {
-            self.free_head == None::<NodePtr<T>>
-        } else {
-            self.free_head == Some(self.free_ptrs@[0])
-        }
-    }
+    // spec fn wf_free_head(&self) -> bool {
+    //     if self.free_ptrs@.len() == 0 {
+    //         self.free_head == None::<NodePtr<T>>
+    //     } else {
+    //         self.free_head == Some(self.free_ptrs@[0])
+    //     }
+    // }
 
-    spec fn wf_free_tail(&self) -> bool {
-        if self.free_ptrs@.len() == 0 {
-            self.free_tail == None::<NodePtr<T>>
-        } else {
-            self.free_tail == Some(self.free_ptrs@[self.free_ptrs@.len() - 1])
-        }
-    }
+    // spec fn wf_free_tail(&self) -> bool {
+    //     if self.free_ptrs@.len() == 0 {
+    //         self.free_tail == None::<NodePtr<T>>
+    //     } else {
+    //         self.free_tail == Some(self.free_ptrs@[self.free_ptrs@.len() - 1])
+    //     }
+    // }
 
-    spec fn wf_page_ptrs(&self) -> bool {
-        self.wf_page_head() && forall |i: nat| 0 <= i < self.page_ptrs@.len() ==> self.wf_page_ptr(i)
-    }
+    // spec fn wf_page_ptrs(&self) -> bool {
+    //     self.wf_page_head() && forall |i: nat| 0 <= i < self.page_ptrs@.len() ==> self.wf_page_ptr(i)
+    // }
 
-    spec fn wf_page_ptr(&self, i: nat) -> bool {
-        let ptr: &PageNodePtr = &self.page_ptrs@[i as int];
-        let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
-        arena.metadata().next == self.page_next_of(i)     
-    }
+    // spec fn wf_page_ptr(&self, i: nat) -> bool {
+    //     let ptr: &PageNodePtr = &self.page_ptrs@[i as int];
+    //     let arena: &Arena<T> = &self.perms@[ptr.page_pptr()]@;
+    //     arena.metadata().next == self.page_next_of(i)     
+    // }
 
-    spec fn wf_page_head(&self) -> bool {
-        if self.page_ptrs@.len() == 0 {
-            self.page_head == None::<PageNodePtr>
-        } else {
-            self.page_head == Some(self.page_ptrs@[0])
-        }
-    }
+    // spec fn wf_page_head(&self) -> bool {
+    //     if self.page_ptrs@.len() == 0 {
+    //         self.page_head == None::<PageNodePtr>
+    //     } else {
+    //         self.page_head == Some(self.page_ptrs@[0])
+    //     }
+    // }
 }
 
 }
