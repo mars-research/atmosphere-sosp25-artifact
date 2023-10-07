@@ -18,6 +18,7 @@ pub type ThreadState = usize;
 pub const SCHEDULED:usize = 1;
 pub const BLOCKED:usize = 2;
 pub const RUNNING:usize = 3;
+pub const TRANSIT:usize = 4;
 
 pub type ThreadPtr = usize;
 pub type ProcPtr = usize;
@@ -186,6 +187,34 @@ pub struct ProcessManager{
         return (*uptr).assume_init_mut().owned_threads.push(thread_ptr);
     }
 
+    #[verifier(external_body)]
+    pub fn proc_remove_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, rf: Index) -> (ret: ThreadPtr)
+        requires 
+            proc_pptr.id() == old(proc_perm)@@.pptr,
+            old(proc_perm)@@.value.is_Some(),
+            old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
+            old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(rf),
+            old(proc_perm)@@.value.get_Some_0().owned_threads.unique(),
+        ensures
+            proc_pptr.id() == proc_perm@@.pptr,
+            proc_perm@@.value.is_Some(),
+            proc_perm@@.value.get_Some_0().owned_threads.wf(),
+            //proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
+            proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
+            proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
+            proc_perm@@.value.get_Some_0().owned_threads.value_list_len == old(proc_perm)@@.value.get_Some_0().owned_threads.value_list_len - 1,
+            ret == old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(rf),
+            proc_perm@@.value.get_Some_0().owned_threads.spec_seq@ == old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.remove(old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.index_of(old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(rf))),
+            forall| value:usize|  #![auto]  ret != value ==> old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.contains(value) == proc_perm@@.value.get_Some_0().owned_threads.spec_seq@.contains(value),
+            proc_perm@@.value.get_Some_0().owned_threads.spec_seq@.contains(ret) == false,
+            forall|_index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(_index) && _index != rf ==> proc_perm@@.value.get_Some_0().owned_threads.node_ref_valid(_index),
+            forall|_index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(_index) && _index != rf ==> proc_perm@@.value.get_Some_0().owned_threads.node_ref_resolve(_index) == old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(_index),
+            proc_perm@@.value.get_Some_0().owned_threads.unique(),
+
+    {
+        let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
+        return (*uptr).assume_init_mut().owned_threads.remove(rf);
+    }
 
 #[verifier(external_body)]
 pub fn thread_set_scheduler_rf(pptr: &PPtr::<Thread>, perm: &mut Tracked< PointsTo<Thread>>, scheduler_rf: Option<Index>)
@@ -362,7 +391,7 @@ impl ProcessManager {
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().pptr == thread_ptr)
         &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  0 <= self.thread_perms@[thread_ptr].view().value.get_Some_0().state <= 3)
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  0 <= self.thread_perms@[thread_ptr].view().value.get_Some_0().state <= 4)
         && 
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.proc_ptrs@.contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().parent))
         && 
@@ -392,6 +421,9 @@ impl ProcessManager {
         // (forall|thread_ptr: ThreadPtr| #![auto] self.scheduler@.contains(thread_ptr) ==>  self.get_thread_ptrs().contains(thread_ptr))
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.scheduler@.contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().value.get_Some_0().state == SCHEDULED)
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().state == SCHEDULED
+            ==> self.scheduler@.contains(thread_ptr))
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.scheduler@.contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().value.get_Some_0().scheduler_rf.is_Some())
         &&
@@ -530,13 +562,30 @@ impl ProcessManager {
             // self.thread_ptrs =~= old(self).thread_ptrs,
             // self.thread_perms =~= old(self).thread_perms,
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
-            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+            self.get_thread(ret).state == TRANSIT,
+            self.get_thread(ret).parent == old(self).get_thread(ret).parent,
+            //self.get_thread(ret).state == old(self).get_thread(ret).state,
+            self.get_thread(ret).parent_rf == old(self).get_thread(ret).parent_rf,
+            self.get_thread(ret).scheduler_rf == old(self).get_thread(ret).scheduler_rf,
+            self.get_thread(ret).endpoint_ptr == old(self).get_thread(ret).endpoint_ptr,
+            self.get_thread(ret).endpoint_descriptors == old(self).get_thread(ret).endpoint_descriptors,
+            self.get_thread(ret).parent_rf == old(self).get_thread(ret).parent_rf,
     {
         let ret = self.scheduler.pop();
-
+        let thread_pptr = PPtr::<Thread>::from_usize(ret);
+        let mut thread_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(ret));
+        thread_set_state(&thread_pptr, &mut thread_perm, TRANSIT);
+        proof{
+            assert(self.thread_perms@.dom().contains(ret) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(ret, thread_perm.get());
+        }
         assert(old(self).scheduler@[0] == ret);
         assert(old(self).scheduler@.contains(ret));
         assert(self.thread_perms@.dom().contains(ret));
+
 
         assert(self.wf_threads());
         assert(self.wf_procs());
@@ -552,6 +601,7 @@ impl ProcessManager {
             old(self).get_thread_ptrs().contains(thread_ptr),
             old(self).scheduler@.contains(thread_ptr) == false,
             0<=state<=3,
+            state != SCHEDULED,
         ensures
             self.wf(),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
@@ -694,5 +744,44 @@ impl ProcessManager {
         assert(self.wf());
         return page_ptr;
     }
+
+    pub fn free_thread_from_scheduler(&mut self, thread_ptr:ThreadPtr)
+        requires
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(thread_ptr),
+            old(self).get_thread(thread_ptr).state == SCHEDULED,
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        let parent_ptr = thread.parent;
+        assert(self.get_proc_ptrs().contains(parent_ptr));
+        assert(self.proc_perms@.dom().contains(parent_ptr));
+        assert(self.get_proc(parent_ptr).owned_threads.wf());
+        assert(self.get_proc(parent_ptr).owned_threads@.contains(thread_ptr));
+        assert(self.scheduler.wf());
+        assert(self.scheduler@.contains(thread_ptr));
+        assert(thread.scheduler_rf.is_Some());
+        self.scheduler.remove(thread.scheduler_rf.unwrap());
+        assert(self.scheduler@.contains(thread_ptr) == false);
+
+        assert(self.proc_perms@.dom().contains(parent_ptr));
+        let mut proc_perm =
+            Tracked((self.proc_perms.borrow_mut()).tracked_remove(parent_ptr));
+        proc_remove_thread(PPtr::<Process>::from_usize(parent_ptr), &mut proc_perm, thread.parent_rf);
+        assert(self.proc_perms@.dom().contains(parent_ptr) == false);
+        proof{
+            (self.proc_perms.borrow_mut())
+                .tracked_insert(parent_ptr, proc_perm.get());
+        }
+        proof{
+            (self.thread_perms.borrow_mut()).tracked_remove(thread_ptr);
+        }
+        proof{
+            self.thread_ptrs@ = self.thread_ptrs@.remove(thread_ptr);
+        }
+        assert(self.wf());
+    }
+
 }
 }
