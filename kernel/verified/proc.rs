@@ -9,9 +9,11 @@ use vstd::ptr::{
 use crate::linked_list::*;
 use crate::page::{PagePtr,Pcid,PagePPtr,PagePerm};
 use crate::pcid_alloc::PCID_MAX;
-use crate::sched::{Scheduler, Endpoint};
+use crate::sched::{Scheduler};
 use crate::mars_array::MarsArray;
 use crate::mars_staticlinkedlist::*;
+
+use crate::seters::*;
 
 verus! {
 pub type ThreadState = usize;
@@ -26,6 +28,7 @@ pub type EndpointPtr = usize;
 
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS:usize = 32;
 pub const MAX_NUM_THREADS_PER_PROC:usize = 500;
+pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 500;
 pub const MAX_NUM_PROCS:usize = PCID_MAX;
 pub const MAX_NUM_THREADS:usize = 500 * 4096;
 
@@ -43,13 +46,22 @@ pub struct Thread{
 
     // pub parent_rf: NodeRef<ThreadPtr>,
     // pub scheduler_rf: Option<NodeRef<ThreadPtr>>,
-    // pub endpoint_ptr: Option<NodeRef<ThreadPtr>>,
+    // pub endpoint_rf: Option<NodeRef<ThreadPtr>>,
 
     pub parent_rf: Index,
     pub scheduler_rf: Option<Index>,
-    pub endpoint_ptr: Option<Index>,
+    
+    pub endpoint_ptr: Option<EndpointPtr>,
+    pub endpoint_rf: Option<Index>,
 
     pub endpoint_descriptors: MarsArray<EndpointPtr,MAX_NUM_ENDPOINT_DESCRIPTORS>,
+}
+
+pub struct Endpoint{
+    pub queue: MarsStaticLinkedList<MAX_NUM_THREADS_PER_ENDPOINT>,
+    pub rf_counter: usize,
+
+    pub owning_threads: Ghost<Set<ThreadPtr>>,
 }
 
 pub struct ProcessManager{
@@ -62,239 +74,10 @@ pub struct ProcessManager{
     
     //pub scheduler: Scheduler,
     pub scheduler: MarsStaticLinkedList<MAX_NUM_THREADS>,
+    pub endpoint_ptrs: Ghost<Set<EndpointPtr>>,
     pub endpoint_perms: Tracked<Map<EndpointPtr, PointsTo<Endpoint>>>,
 
     pub pcid_closure : Ghost<Set<Pcid>>,
-}
-    //TODO: @Xiangdong Send all these seters to a different file and @Zhaofeng can write same macro.
-    #[verifier(external_body)]
-    pub fn page_to_proc(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Process>, Tracked<PointsTo<Process>>))
-        requires page.0.id() == page.1@@.pptr,
-                page.1@@.value.is_Some(),
-        ensures ret.0.id() == ret.1@@.pptr,
-                ret.0.id() == page.0.id(),
-                ret.1@@.value.is_Some(),
-                ret.1@@.value.get_Some_0().owned_threads.arr_seq@.len() == MAX_NUM_THREADS_PER_PROC,
-    {
-        unimplemented!();
-    }
-
-    #[verifier(external_body)]
-    pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Thread>, Tracked<PointsTo<Thread>>))
-        requires page.0.id() == page.1@@.pptr,
-                page.1@@.value.is_Some(),
-        ensures ret.0.id() == ret.1@@.pptr,
-                ret.0.id() == page.0.id(),
-                ret.1@@.value.is_Some(),
-    {
-        unimplemented!();
-    }
-
-    #[verifier(external_body)]
-    pub fn proc_to_page(proc: (PPtr::<Process>, Tracked<PointsTo<Process>>)) -> (ret :(PagePPtr,Tracked<PagePerm>))
-        requires proc.0.id() == proc.1@@.pptr,
-                 proc.1@@.value.is_Some(),
-        ensures ret.0.id() == ret.1@@.pptr,
-                ret.0.id() == proc.0.id(),
-                ret.1@@.value.is_Some(),
-    {
-        unimplemented!();
-    }
-    
-    #[verifier(external_body)]
-    pub fn proc_perm_init(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>)
-        requires 
-            proc_pptr.id() == old(proc_perm)@@.pptr,
-            old(proc_perm)@@.value.is_Some(),
-            old(proc_perm)@@.value.get_Some_0().owned_threads.arr_seq@.len() == MAX_NUM_THREADS_PER_PROC,
-        ensures
-            proc_pptr.id() == proc_perm@@.pptr,
-            proc_perm@@.value.is_Some(),
-            proc_perm@@.value.get_Some_0().owned_threads.wf(),
-            proc_perm@@.value.get_Some_0().owned_threads@ =~= Seq::empty(),
-    {
-        let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-        (*uptr).assume_init_mut().owned_threads.init();
-    }
-
-    #[verifier(external_body)]
-    pub fn proc_set_pl_rf(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, pl_rf: Index)
-        requires 
-            proc_pptr.id() == old(proc_perm)@@.pptr,
-            old(proc_perm)@@.value.is_Some(),
-            old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
-        ensures
-            proc_pptr.id() == proc_perm@@.pptr,
-            proc_perm@@.value.is_Some(),
-            //proc_perm@@.value.get_Some_0().owned_threads.wf(),
-            proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
-            //proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
-            proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
-            proc_perm@@.value.get_Some_0().pl_rf =~= pl_rf,
-    {
-        let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-        (*uptr).assume_init_mut().pl_rf = pl_rf;
-    }
-
-    #[verifier(external_body)]
-    pub fn proc_set_pcid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, pcid: Pcid)
-        requires 
-            proc_pptr.id() == old(proc_perm)@@.pptr,
-            old(proc_perm)@@.value.is_Some(),
-            old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
-        ensures
-            proc_pptr.id() == proc_perm@@.pptr,
-            proc_perm@@.value.is_Some(),
-            //proc_perm@@.value.get_Some_0().owned_threads.wf(),
-            proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
-            proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
-            //proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
-            proc_perm@@.value.get_Some_0().pcid =~= pcid,
-    {
-        let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-        (*uptr).assume_init_mut().pcid = pcid;
-    }
-
-    #[verifier(external_body)]
-    pub fn proc_push_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, thread_ptr: ThreadPtr) -> (free_node_index: Index)
-        requires 
-            proc_pptr.id() == old(proc_perm)@@.pptr,
-            old(proc_perm)@@.value.is_Some(),
-            old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
-            old(proc_perm)@@.value.get_Some_0().owned_threads@.contains(thread_ptr) == false,
-            old(proc_perm)@@.value.get_Some_0().owned_threads.len()<MAX_NUM_THREADS_PER_PROC,
-        ensures
-            proc_pptr.id() == proc_perm@@.pptr,
-            proc_perm@@.value.is_Some(),
-            proc_perm@@.value.get_Some_0().owned_threads.wf(),
-            //proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
-            proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
-            proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
-            proc_perm@@.value.get_Some_0().owned_threads@ == old(proc_perm)@@.value.get_Some_0().owned_threads@.push(thread_ptr),
-            proc_perm@@.value.get_Some_0().owned_threads.value_list@ == old(proc_perm)@@.value.get_Some_0().owned_threads.value_list@.push(free_node_index),
-            proc_perm@@.value.get_Some_0().owned_threads.len() == old(proc_perm)@@.value.get_Some_0().owned_threads.len() + 1,
-            proc_perm@@.value.get_Some_0().owned_threads.arr_seq@[free_node_index as int].value == thread_ptr,
-            proc_perm@@.value.get_Some_0().owned_threads.node_ref_valid(free_node_index),
-            proc_perm@@.value.get_Some_0().owned_threads.node_ref_resolve(free_node_index) == thread_ptr,
-            forall|index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(index) ==> proc_perm@@.value.get_Some_0().owned_threads.node_ref_valid(index),
-            forall|index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(index) ==> index != free_node_index,
-            forall|index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(index) ==> old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(index) ==  proc_perm@@.value.get_Some_0().owned_threads.node_ref_resolve(index),
-            proc_perm@@.value.get_Some_0().owned_threads.unique(),
-            forall| ptr: usize| ptr != thread_ptr ==> old(proc_perm)@@.value.get_Some_0().owned_threads@.contains(ptr) ==  proc_perm@@.value.get_Some_0().owned_threads@.contains(ptr),
-            proc_perm@@.value.get_Some_0().owned_threads@.contains(thread_ptr),
-    {
-        let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-        return (*uptr).assume_init_mut().owned_threads.push(thread_ptr);
-    }
-
-    #[verifier(external_body)]
-    pub fn proc_remove_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, rf: Index) -> (ret: ThreadPtr)
-        requires 
-            proc_pptr.id() == old(proc_perm)@@.pptr,
-            old(proc_perm)@@.value.is_Some(),
-            old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
-            old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(rf),
-            old(proc_perm)@@.value.get_Some_0().owned_threads.unique(),
-        ensures
-            proc_pptr.id() == proc_perm@@.pptr,
-            proc_perm@@.value.is_Some(),
-            proc_perm@@.value.get_Some_0().owned_threads.wf(),
-            //proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
-            proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
-            proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
-            proc_perm@@.value.get_Some_0().owned_threads.value_list_len == old(proc_perm)@@.value.get_Some_0().owned_threads.value_list_len - 1,
-            ret == old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(rf),
-            proc_perm@@.value.get_Some_0().owned_threads.spec_seq@ == old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.remove(old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.index_of(old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(rf))),
-            forall| value:usize|  #![auto]  ret != value ==> old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.contains(value) == proc_perm@@.value.get_Some_0().owned_threads.spec_seq@.contains(value),
-            proc_perm@@.value.get_Some_0().owned_threads.spec_seq@.contains(ret) == false,
-            forall|_index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(_index) && _index != rf ==> proc_perm@@.value.get_Some_0().owned_threads.node_ref_valid(_index),
-            forall|_index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(_index) && _index != rf ==> proc_perm@@.value.get_Some_0().owned_threads.node_ref_resolve(_index) == old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(_index),
-            proc_perm@@.value.get_Some_0().owned_threads.unique(),
-
-    {
-        let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-        return (*uptr).assume_init_mut().owned_threads.remove(rf);
-    }
-
-#[verifier(external_body)]
-pub fn thread_set_scheduler_rf(pptr: &PPtr::<Thread>, perm: &mut Tracked< PointsTo<Thread>>, scheduler_rf: Option<Index>)
-    requires pptr.id() == old(perm)@@.pptr,
-                old(perm)@@.value.is_Some(),
-    ensures pptr.id() == perm@@.pptr,
-            perm@@.value.is_Some(),
-            perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
-            perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
-            perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
-            //perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
-            perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
-            perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
-            perm@@.value.get_Some_0().scheduler_rf == scheduler_rf,
-{
-    unsafe {
-        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
-        (*uptr).assume_init_mut().scheduler_rf = scheduler_rf;
-    }
-}
-
-#[verifier(external_body)]
-pub fn thread_set_state(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, state: ThreadState)
-    requires pptr.id() == old(perm)@@.pptr,
-                old(perm)@@.value.is_Some(),
-    ensures pptr.id() == perm@@.pptr,
-            perm@@.value.is_Some(),
-            perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
-            //perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
-            perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
-            perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
-            perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
-            perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
-            perm@@.value.get_Some_0().state == state,
-{
-    unsafe {
-        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
-        (*uptr).assume_init_mut().state = state;
-    }
-}
-
-#[verifier(external_body)]
-pub fn thread_set_parent(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, parent: ProcPtr)
-    requires pptr.id() == old(perm)@@.pptr,
-                old(perm)@@.value.is_Some(),
-    ensures pptr.id() == perm@@.pptr,
-            perm@@.value.is_Some(),
-            //perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
-            perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
-            perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
-            perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
-            perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
-            perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
-            perm@@.value.get_Some_0().parent == parent,
-{
-    unsafe {
-        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
-        (*uptr).assume_init_mut().parent = parent;
-    }
-}
-
-
-#[verifier(external_body)]
-pub fn thread_set_parent_rf(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, parent_rf: Index)
-    requires pptr.id() == old(perm)@@.pptr,
-                old(perm)@@.value.is_Some(),
-    ensures pptr.id() == perm@@.pptr,
-            perm@@.value.is_Some(),
-            perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
-            perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
-            //perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
-            perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
-            perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
-            perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
-            perm@@.value.get_Some_0().parent_rf == parent_rf,
-{
-    unsafe {
-        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
-        (*uptr).assume_init_mut().parent_rf =parent_rf;
-    }
 }
 
 impl Process {
@@ -431,6 +214,45 @@ impl ProcessManager {
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.scheduler@.contains(thread_ptr) ==>  self.scheduler.node_ref_resolve(self.thread_perms@[thread_ptr].view().value.get_Some_0().scheduler_rf.unwrap()) == thread_ptr )
     }
+    pub closed spec fn wf_endpoints(&self) -> bool{
+        (self.endpoint_ptrs@ =~= self.endpoint_perms@.dom())
+        &&
+        (self.endpoint_perms@.dom().contains(0) == false)
+        &&
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) ==>  self.endpoint_perms@[endpoint_ptr].view().value.is_Some())
+        &&
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) ==>  self.endpoint_perms@[endpoint_ptr].view().pptr == endpoint_ptr)
+        &&
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+            ==> self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().owning_threads@.len() == self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().rf_counter)
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+            ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors.wf())
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+            ==> (forall|i:int,j:int| #![auto] i != j && 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && 0<=j<MAX_NUM_ENDPOINT_DESCRIPTORS 
+                ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@[i] == 0 || 
+                    self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@[j] == 0 || 
+                    self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@[i] != self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@[j]
+                )
+            )
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+            ==> (forall|i:int| #![auto] 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i] != 0
+                ==> self.endpoint_perms@.dom().contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i])
+            ))
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+            ==> (forall|i:int| #![auto] 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i] != 0
+                ==> self.endpoint_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i]]@.value.get_Some_0().owning_threads@.contains(thread_ptr)
+            ))
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().state == BLOCKED
+            ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_ptr.is_Some())
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().state == BLOCKED
+            ==>  self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@.contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_ptr.unwrap()))
+    }
 
     closed spec fn local_page_closure(&self) -> Set<PagePtr>
     {
@@ -509,6 +331,8 @@ impl ProcessManager {
         self.wf_mem_closure()
         &&
         self.wf_pcid_closure()
+        &&
+        self.wf_endpoints()
     }
 
     pub fn push_scheduler(&mut self, thread_ptr: ThreadPtr)
@@ -568,7 +392,7 @@ impl ProcessManager {
             //self.get_thread(ret).state == old(self).get_thread(ret).state,
             self.get_thread(ret).parent_rf == old(self).get_thread(ret).parent_rf,
             self.get_thread(ret).scheduler_rf == old(self).get_thread(ret).scheduler_rf,
-            self.get_thread(ret).endpoint_ptr == old(self).get_thread(ret).endpoint_ptr,
+            self.get_thread(ret).endpoint_rf == old(self).get_thread(ret).endpoint_rf,
             self.get_thread(ret).endpoint_descriptors == old(self).get_thread(ret).endpoint_descriptors,
             self.get_thread(ret).parent_rf == old(self).get_thread(ret).parent_rf,
     {
@@ -602,6 +426,7 @@ impl ProcessManager {
             old(self).scheduler@.contains(thread_ptr) == false,
             0<=state<=3,
             state != SCHEDULED,
+            state != BLOCKED,
         ensures
             self.wf(),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),

@@ -36,11 +36,4 @@ impl Scheduler{
     }
 }
 
-pub struct Endpoint{
-    queue: LinkedList<ThreadPtr>,
-    rf_counter: usize,
-
-    owning_threads: Ghost<Set<ThreadPtr>>,
-}
-
 }
