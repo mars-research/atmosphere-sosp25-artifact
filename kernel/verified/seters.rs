@@ -253,4 +253,52 @@ unsafe {
     (*uptr).assume_init_mut().parent_rf =parent_rf;
 }
 }
+
+#[verifier(external_body)]
+pub fn endpoint_remove_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, rf: Index) -> (ret: ThreadPtr)
+    requires 
+        endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
+        old(endpoint_perm)@@.value.is_Some(),
+        old(endpoint_perm)@@.value.get_Some_0().queue.wf(),
+        old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_valid(rf),
+        old(endpoint_perm)@@.value.get_Some_0().queue.unique(),
+    ensures
+        endpoint_pptr.id() == endpoint_perm@@.pptr,
+        endpoint_perm@@.value.is_Some(),
+        endpoint_perm@@.value.get_Some_0().queue.wf(),
+        endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@,
+        endpoint_perm@@.value.get_Some_0().rf_counter =~= old(endpoint_perm)@@.value.get_Some_0().rf_counter,
+        endpoint_perm@@.value.get_Some_0().queue.value_list_len == old(endpoint_perm)@@.value.get_Some_0().queue.value_list_len - 1,
+        ret == old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_resolve(rf),
+        endpoint_perm@@.value.get_Some_0().queue.spec_seq@ == old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.remove(old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.index_of(old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_resolve(rf))),
+        forall| value:usize|  #![auto]  ret != value ==> old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.contains(value) == endpoint_perm@@.value.get_Some_0().queue.spec_seq@.contains(value),
+        endpoint_perm@@.value.get_Some_0().queue.spec_seq@.contains(ret) == false,
+        forall|_index:Index| old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_valid(_index) && _index != rf ==> endpoint_perm@@.value.get_Some_0().queue.node_ref_valid(_index),
+        forall|_index:Index| old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_valid(_index) && _index != rf ==> endpoint_perm@@.value.get_Some_0().queue.node_ref_resolve(_index) == old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_resolve(_index),
+        endpoint_perm@@.value.get_Some_0().queue.unique(),
+
+{
+    let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
+    return (*uptr).assume_init_mut().queue.remove(rf);
+}
+
+#[verifier(external_body)]
+pub fn endpoint_remove_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr:ThreadPtr)
+    requires 
+        endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
+        old(endpoint_perm)@@.value.is_Some(),
+        old(endpoint_perm)@@.value.get_Some_0().owning_threads@.contains(thread_ptr),
+        old(endpoint_perm)@@.value.get_Some_0().rf_counter != 0,
+    ensures
+        endpoint_pptr.id() == endpoint_perm@@.pptr,
+        endpoint_perm@@.value.is_Some(),
+        endpoint_perm@@.value.get_Some_0().queue =~= old(endpoint_perm)@@.value.get_Some_0().queue,
+        endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@.remove(thread_ptr),
+        endpoint_perm@@.value.get_Some_0().rf_counter as int =~= old(endpoint_perm)@@.value.get_Some_0().rf_counter - 1,
+
+{
+    let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
+    (*uptr).assume_init_mut().rf_counter = (*uptr).assume_init_mut().rf_counter - 1;
+}
+
 }
