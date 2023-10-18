@@ -170,6 +170,36 @@ pub fn proc_remove_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Poi
 }
 
 #[verifier(external_body)]
+pub fn proc_pop_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>) -> (ret: ThreadPtr)
+    requires 
+        proc_pptr.id() == old(proc_perm)@@.pptr,
+        old(proc_perm)@@.value.is_Some(),
+        old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
+        old(proc_perm)@@.value.get_Some_0().owned_threads.len() != 0,
+        old(proc_perm)@@.value.get_Some_0().owned_threads.unique(),
+    ensures
+        proc_pptr.id() == proc_perm@@.pptr,
+        proc_perm@@.value.is_Some(),
+        proc_perm@@.value.get_Some_0().owned_threads.wf(),
+        //proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
+        proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
+        proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
+        proc_perm@@.value.get_Some_0().owned_threads.value_list_len == old(proc_perm)@@.value.get_Some_0().owned_threads.value_list_len - 1,
+        ret == old(proc_perm)@@.value.get_Some_0().owned_threads@[0],
+
+        proc_perm@@.value.get_Some_0().owned_threads.spec_seq@ == old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.drop_first(),
+        forall| value:usize|  #![auto]  ret != value ==> old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.contains(value) == proc_perm@@.value.get_Some_0().owned_threads.spec_seq@.contains(value),
+        proc_perm@@.value.get_Some_0().owned_threads.spec_seq@.contains(ret) == false,
+        forall|_index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(_index) && old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(_index) != ret ==> proc_perm@@.value.get_Some_0().owned_threads.node_ref_valid(_index),
+        forall|_index:Index| old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_valid(_index) && old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(_index) != ret ==> proc_perm@@.value.get_Some_0().owned_threads.node_ref_resolve(_index) == old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(_index),
+        proc_perm@@.value.get_Some_0().owned_threads.unique(),
+
+{
+    let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
+    return (*uptr).assume_init_mut().owned_threads.pop();
+}
+
+#[verifier(external_body)]
 pub fn thread_set_scheduler_rf(pptr: &PPtr::<Thread>, perm: &mut Tracked< PointsTo<Thread>>, scheduler_rf: Option<Index>)
 requires pptr.id() == old(perm)@@.pptr,
             old(perm)@@.value.is_Some(),
@@ -232,6 +262,34 @@ unsafe {
 }
 }
 
+#[verifier(external_body)]
+pub fn thread_set_endpoint_descriptors(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, index: usize, endpoint_pointer: EndpointPtr) -> (ret: EndpointPtr)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+            0<=index<MAX_NUM_ENDPOINT_DESCRIPTORS,
+            endpoint_descriptors_unique(old(perm)@@.value.get_Some_0().endpoint_descriptors)
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        //perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        perm@@.value.get_Some_0().endpoint_descriptors.wf(), 
+        perm@@.value.get_Some_0().endpoint_descriptors@ =~= old(perm)@@.value.get_Some_0().endpoint_descriptors@.update(index as int, endpoint_pointer),
+        ret == old(perm)@@.value.get_Some_0().endpoint_descriptors@[index as int],
+        forall|_endpoint_ptr: EndpointPtr| #![auto]  _endpoint_ptr != ret 
+            ==> perm@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) == old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr),
+{
+unsafe {
+    let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+    let ret = (*uptr).assume_init_mut().endpoint_descriptors.ar[index];
+    (*uptr).assume_init_mut().endpoint_descriptors.ar[index] = endpoint_pointer;
+    return ret;
+}
+}
 
 #[verifier(external_body)]
 pub fn thread_set_parent_rf(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, parent_rf: Index)

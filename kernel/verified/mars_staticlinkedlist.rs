@@ -501,6 +501,17 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         self.arr_seq@[i]
     }
 
+    //getters
+    pub fn get_head(&self) -> (ret:usize)
+        requires
+            self.wf(),
+            self.len() != 0,
+        ensures
+            ret == self@[0],
+    {
+        return self.get_ptr(self.value_list_head);
+    }
+
     //helper function for push()
     pub fn alloc_node_index(&mut self) -> (index: Index)
         requires old(self).value_list_len < old(self).size,

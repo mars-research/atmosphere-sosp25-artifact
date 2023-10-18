@@ -156,7 +156,7 @@ impl Kernel {
         };
 
         self.cpu_list.set(cpu_id,cpu);
-        self.proc_man.set_thread_state(new_thread_ptr,RUNNING);
+        //self.proc_man.set_thread_state(new_thread_ptr,RUNNING);
         // assert(self.kernel_tlb_wf());
         assert(self.cpu_list.wf());
         assert(forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread_ptrs().contains(self.cpu_list@[i as int].current_t));
