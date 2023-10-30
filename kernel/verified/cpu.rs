@@ -3,7 +3,7 @@ use vstd::prelude::*;
 use crate::page::{VAddr,PAddr,Pcid};
 use crate::pcid_alloc::PCID_MAX;
 use crate::proc::ThreadPtr;
-use crate::mars_array::MarsArray;
+// use crate::mars_array::MarsArray;
 
 pub type CPUID = usize;
 
