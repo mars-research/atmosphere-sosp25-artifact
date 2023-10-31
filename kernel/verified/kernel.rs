@@ -165,6 +165,33 @@ impl Kernel {
         assert(self.proc_man.wf());
         assert(self.kernel_wf());
     }
+
+    pub fn sys_send_nowait(&mut self, cpu_id: CPUID, sender_endpoint_index: EndpointIdx)
+        requires
+            old(self).kernel_wf(),
+            0 <= cpu_id <NUM_CPUS,
+            // old(self).proc_man.scheduler.len() < MAX_NUM_THREADS,
+    {
+        if sender_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS {
+            //put error code here
+            return;
+        } 
+        assert(0<=sender_endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS);
+
+        assert(forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self.proc_man.get_thread(self.cpu_list@[i as int].current_t).state == RUNNING);
+        assert(0 <= cpu_id <NUM_CPUS);
+        let thread_ptr = self.cpu_list.get(cpu_id).current_t;
+        assert(self.proc_man.get_thread(thread_ptr).state == RUNNING);
+        assert(self.proc_man.get_thread(thread_ptr).state != SCHEDULED);
+
+        let sender_endpoint_ptr = self.proc_man.get_thread_endpoint_descriptor(thread_ptr, sender_endpoint_index);
+        if sender_endpoint_ptr == 0 {
+            //put error code here
+            return;
+        }
+        assert(sender_endpoint_ptr != 0);
+        assert(self.proc_man.get_endpoint_ptrs().contains(sender_endpoint_ptr));
+    }
 }
 
 }

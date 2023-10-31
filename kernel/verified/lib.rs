@@ -17,3 +17,4 @@ pub mod sched;
 pub mod mars_array;
 pub mod mars_staticlinkedlist;
 pub mod setters;
+pub mod define;

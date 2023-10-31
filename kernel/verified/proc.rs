@@ -14,6 +14,7 @@ use crate::mars_array::MarsArray;
 use crate::mars_staticlinkedlist::*;
 
 use crate::setters::*;
+use crate::define::*;
 // use vstd::set_lib::lemma_set_properties;
 // use vstd::seq_lib::lemma_seq_properties;
 
@@ -46,6 +47,7 @@ pub const MAX_NUM_THREADS:usize = 500 * 4096;
 pub const IPC_MESSAGE_LEN:usize = 1024;
 pub const IPC_PAGEPAYLOAD_LEN:usize = 128;
 
+
 pub struct Process{
     // pub owned_threads: LinkedList<ThreadPtr>,
     // pub pl_rf: NodeRef<ProcPtr>,
@@ -70,6 +72,8 @@ pub struct Thread{
 
     pub endpoint_descriptors: MarsArray<EndpointPtr,MAX_NUM_ENDPOINT_DESCRIPTORS>,
     pub ipc_payload: IPCPayLoad,
+
+    pub error_code: Option<ErrorCodeType>,
 }
 
 pub struct IPCPayLoad{
@@ -221,6 +225,26 @@ impl ProcessManager {
 
         return ret;
     }
+
+    pub fn get_thread_endpoint_descriptor(&self, thread_ptr:ThreadPtr, endpoint_index: EndpointIdx) -> (ret: EndpointPtr)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+            0<= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+        ensures
+            ret == self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int],
+            ret != 0 ==> self.get_endpoint_ptrs().contains(ret),
+        {
+            assert(self.thread_perms@.dom().contains(thread_ptr));
+            let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+            let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+            assert(thread.endpoint_descriptors.wf());
+            let endpoint_ptr = *thread.endpoint_descriptors.get(endpoint_index);
+    
+            assert(endpoint_ptr != 0 ==> self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[endpoint_index as int] != 0);
+
+            return endpoint_ptr;
+        }
 
     pub closed spec fn get_thread_ptrs(&self) -> Set<ThreadPtr>
     {
@@ -1183,52 +1207,161 @@ impl ProcessManager {
         return ret;
     }
 
-    // //pop endpoint.
-    // pub fn pop_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx) -> (ret: ThreadPtr)
-    //     requires 
-    //         old(self).wf(),
-    //         old(self).get_thread_ptrs().contains(thread_ptr),
-    //         0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
-    //         old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int] != 0,
-    //         old(self).get_thread(thread_ptr).state == TRANSIT,
-    //         old(self).get_endpoint(old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]).len() != 0,
-    //         old(self).scheduler.len() < MAX_NUM_THREADS,
-    // {
-    //     assert(self.thread_perms@.dom().contains(thread_ptr));
-    //     let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
-    //     let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
-    //     assert(thread.endpoint_descriptors.wf());
-    //     let endpoint_ptr = *thread.endpoint_descriptors.get(endpoint_index);
-    //     assert(self.get_endpoint_ptrs().contains(endpoint_ptr));
+    //pop endpoint.
+    pub fn pop_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx) -> (ret: ThreadPtr)
+        requires 
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(thread_ptr),
+            0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
+            old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int] != 0,
+            old(self).get_thread(thread_ptr).state == TRANSIT,
+            old(self).get_endpoint(old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]).len() != 0,
+            old(self).scheduler.len() < MAX_NUM_THREADS,
+        ensures
+            self.wf(),
+            self.get_thread(ret).state == TRANSIT,
+            self.get_thread(thread_ptr).state == SCHEDULED,
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        assert(thread.endpoint_descriptors.wf());
+        let endpoint_ptr = *thread.endpoint_descriptors.get(endpoint_index);
+        assert(self.get_endpoint_ptrs().contains(endpoint_ptr));
 
-    //     let mut endpoint_perm =
-    //     Tracked((self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr));
-    //     assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
-    //     let ret = endpoint_pop_thread(PPtr::<Endpoint>::from_usize(endpoint_ptr), &mut endpoint_perm);
-    //     proof{
-    //         assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
-    //         (self.endpoint_perms.borrow_mut())
-    //             .tracked_insert(endpoint_ptr, endpoint_perm.get());
-    //     }
+        let mut endpoint_perm =
+        Tracked((self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr));
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+        let ret = endpoint_pop_thread(PPtr::<Endpoint>::from_usize(endpoint_ptr), &mut endpoint_perm);
+        proof{
+            assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+            (self.endpoint_perms.borrow_mut())
+                .tracked_insert(endpoint_ptr, endpoint_perm.get());
+        }
 
-    //     let mut ret_thread_perm =
-    //         Tracked((self.thread_perms.borrow_mut()).tracked_remove(ret));
-    //     assert(self.thread_perms@.dom().contains(ret) == false);
-    //     thread_set_endpoint_rf(&PPtr::<Thread>::from_usize(ret), &mut ret_thread_perm, None);
-    //     thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(ret), &mut ret_thread_perm, None);
-    //     thread_set_state(&PPtr::<Thread>::from_usize(ret), &mut ret_thread_perm, TRANSIT);
-    //     proof{
-    //         assert(self.thread_perms@.dom().contains(ret) == false);
-    //         (self.thread_perms.borrow_mut())
-    //             .tracked_insert(ret, ret_thread_perm.get());
-    //     }
+        assert(self.thread_perms@.dom().contains(ret));
+        let mut ret_thread_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(ret));
+        assert(self.thread_perms@.dom().contains(ret) == false);
+        assert(ret_thread_perm@@.pptr == ret);
+        assert(ret_thread_perm@@.value.get_Some_0().state == BLOCKED);
+        thread_set_endpoint_rf(&PPtr::<Thread>::from_usize(ret), &mut ret_thread_perm, None);
+        thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(ret), &mut ret_thread_perm, None);
+        thread_set_state(&PPtr::<Thread>::from_usize(ret), &mut ret_thread_perm, TRANSIT);
+        proof{
+            assert(self.thread_perms@.dom().contains(ret) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(ret, ret_thread_perm.get());
+        }
 
+        assert(self.wf_threads());
+        assert(self.wf_procs());
+        assert(self.wf_scheduler());
+        assert(self.wf_mem_closure());
+        assert(self.wf_pcid_closure());
+        assert(self.wf());
 
-
-    //     self.push_scheduler(thread_ptr);
+        self.push_scheduler(thread_ptr);
         
-    //     return ret;
-    // }
+        return ret;
+    }
 
+    pub fn push_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx)
+        requires 
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(thread_ptr),
+            0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
+            old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int] != 0,
+            old(self).get_thread(thread_ptr).state == TRANSIT,
+            old(self).get_endpoint(old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]).len() < MAX_NUM_THREADS_PER_ENDPOINT,
+        ensures
+            self.wf(),
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        assert(thread.endpoint_descriptors.wf());
+        let endpoint_ptr = *thread.endpoint_descriptors.get(endpoint_index);
+        assert(self.get_endpoint_ptrs().contains(endpoint_ptr));
+
+        let mut endpoint_perm =
+        Tracked((self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr));
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+        let endpoint_rf = endpoint_push_thread(PPtr::<Endpoint>::from_usize(endpoint_ptr), &mut endpoint_perm, thread_ptr);
+        proof{
+            assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+            (self.endpoint_perms.borrow_mut())
+                .tracked_insert(endpoint_ptr, endpoint_perm.get());
+        }
+
+        let mut thread_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
+        assert(self.thread_perms@.dom().contains(thread_ptr) == false);
+        assert(thread_perm@@.pptr == thread_ptr);
+        thread_set_endpoint_rf(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, Some(endpoint_rf));
+        thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, Some(endpoint_ptr));
+        thread_set_state(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, BLOCKED);
+        proof{
+            assert(self.thread_perms@.dom().contains(thread_ptr) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(thread_ptr, thread_perm.get());
+        }
+
+        assert(self.wf_threads());
+        assert(self.wf_procs());
+        assert(self.wf_scheduler());
+        assert(self.wf_mem_closure());
+        assert(self.wf_pcid_closure());
+        assert(self.wf_endpoints());
+        assert(self.wf());
+    }
+
+    pub fn pass_endpoint(&mut self, sender_ptr: ThreadPtr, sender_endpoint_index: EndpointIdx, receiver_ptr: ThreadPtr, receiver_endpoint_index: EndpointIdx,)
+        requires
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(sender_ptr),
+            old(self).get_thread_ptrs().contains(receiver_ptr),
+            0<=sender_endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
+            0<=receiver_endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
+            old(self).get_thread(sender_ptr).endpoint_descriptors@[sender_endpoint_index as int] != 0,
+            old(self).get_thread(receiver_ptr).endpoint_descriptors@[receiver_endpoint_index as int] == 0,
+            forall|i:int| #![auto] 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS ==> old(self).get_thread(receiver_ptr).endpoint_descriptors@[i as int] != old(self).get_thread(sender_ptr).endpoint_descriptors@[sender_endpoint_index as int],
+            old(self).get_endpoint(old(self).get_thread(sender_ptr).endpoint_descriptors@[sender_endpoint_index as int]).rf_counter != usize::MAX,
+        ensures
+            self.wf(),
+    {   
+        assert(self.thread_perms@.dom().contains(sender_ptr));
+        let tracked sender_thread_perm = self.thread_perms.borrow().tracked_borrow(sender_ptr);
+        let sender_thread : &Thread = PPtr::<Thread>::from_usize(sender_ptr).borrow(Tracked(sender_thread_perm));
+        assert(sender_thread.endpoint_descriptors.wf());
+        let endpoint_ptr = *sender_thread.endpoint_descriptors.get(sender_endpoint_index);
+
+        assert(self.get_endpoint_ptrs().contains(endpoint_ptr));
+
+        let mut endpoint_perm =
+        Tracked((self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr));
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+        endpoint_add_owning_thread(PPtr::<Endpoint>::from_usize(endpoint_ptr), &mut endpoint_perm, receiver_ptr);
+        proof{
+            assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+            (self.endpoint_perms.borrow_mut())
+                .tracked_insert(endpoint_ptr, endpoint_perm.get());
+        }
+
+        let mut receiver_thread_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(receiver_ptr));
+        assert(self.thread_perms@.dom().contains(receiver_ptr) == false);
+        assert(receiver_thread_perm@@.pptr == receiver_ptr);
+        thread_set_endpoint_descriptors(&PPtr::<Thread>::from_usize(receiver_ptr), &mut receiver_thread_perm, receiver_endpoint_index, endpoint_ptr);
+        assert(receiver_thread_perm@@.value.get_Some_0().endpoint_descriptors@[receiver_endpoint_index as int] == endpoint_ptr);
+        assert(receiver_thread_perm@@.value.get_Some_0().endpoint_descriptors@.contains(endpoint_ptr));
+        proof{
+            assert(self.thread_perms@.dom().contains(receiver_ptr) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(receiver_ptr, receiver_thread_perm.get());
+        }
+
+        assert(self.wf());
+    }
 }
 }
