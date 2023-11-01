@@ -18,3 +18,4 @@ pub mod mars_array;
 pub mod mars_staticlinkedlist;
 pub mod setters;
 pub mod define;
+// pub mod proc_getters;

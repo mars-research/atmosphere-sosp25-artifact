@@ -42,7 +42,11 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
             ret.0.id() == page.0.id(),
             ret.1@@.value.is_Some(),
             ret.1@@.value.get_Some_0().endpoint_descriptors.wf(),
-            ret.1@@.value.get_Some_0().endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {0})
+            ret.1@@.value.get_Some_0().endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {0}),
+            ret.1@@.value.get_Some_0().ipc_payload.wf(),
+            ret.1@@.value.get_Some_0().ipc_payload.message@ =~= Seq::new(IPC_MESSAGE_LEN as nat, |i:int| {0}),
+            ret.1@@.value.get_Some_0().ipc_payload.page_payload@ =~= Seq::new(IPC_PAGEPAYLOAD_LEN as nat, |i:int| {0}),
+            ret.1@@.value.get_Some_0().ipc_payload.endpoint_payload =~= None,
 {
     unimplemented!();
 }
@@ -217,6 +221,7 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().scheduler_rf == scheduler_rf,
 {
 unsafe {
@@ -239,6 +244,7 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
         perm@@.value.get_Some_0().endpoint_descriptors =~= old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().state == state,
 {
 unsafe {
@@ -261,6 +267,7 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().parent == parent,
 {
 unsafe {
@@ -285,6 +292,7 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
         //perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().endpoint_descriptors.wf(), 
         perm@@.value.get_Some_0().endpoint_descriptors@ =~= old(perm)@@.value.get_Some_0().endpoint_descriptors@.update(index as int, endpoint_pointer),
         ret == old(perm)@@.value.get_Some_0().endpoint_descriptors@[index as int],
@@ -313,6 +321,7 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().parent_rf == parent_rf,
 {
 unsafe {
@@ -336,6 +345,7 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().endpoint_ptr == endpoint_ptr,
 {
     unsafe {
@@ -359,6 +369,7 @@ ensures pptr.id() == perm@@.pptr,
         //perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().endpoint_rf == endpoint_rf,
 {
     unsafe {
@@ -381,7 +392,7 @@ pub fn endpoint_remove_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mu
         endpoint_perm@@.value.get_Some_0().queue.wf(),
         endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@,
         endpoint_perm@@.value.get_Some_0().rf_counter =~= old(endpoint_perm)@@.value.get_Some_0().rf_counter,
-        endpoint_perm@@.value.get_Some_0().state =~= old(endpoint_perm)@@.value.get_Some_0().state,
+        endpoint_perm@@.value.get_Some_0().queue_state =~= old(endpoint_perm)@@.value.get_Some_0().queue_state,
         endpoint_perm@@.value.get_Some_0().queue.value_list_len == old(endpoint_perm)@@.value.get_Some_0().queue.value_list_len - 1,
         ret == old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_resolve(rf),
         endpoint_perm@@.value.get_Some_0().queue.spec_seq@ == old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.remove(old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.index_of(old(endpoint_perm)@@.value.get_Some_0().queue.node_ref_resolve(rf))),
@@ -411,7 +422,7 @@ pub fn endpoint_remove_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_pe
         endpoint_pptr.id() == endpoint_perm@@.pptr,
         endpoint_perm@@.value.is_Some(),
         endpoint_perm@@.value.get_Some_0().queue =~= old(endpoint_perm)@@.value.get_Some_0().queue,
-        endpoint_perm@@.value.get_Some_0().state =~= old(endpoint_perm)@@.value.get_Some_0().state,
+        endpoint_perm@@.value.get_Some_0().queue_state =~= old(endpoint_perm)@@.value.get_Some_0().queue_state,
         endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@.remove(thread_ptr),
         endpoint_perm@@.value.get_Some_0().rf_counter as int =~= old(endpoint_perm)@@.value.get_Some_0().rf_counter - 1,
 
@@ -431,7 +442,7 @@ pub fn endpoint_add_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm:
         endpoint_pptr.id() == endpoint_perm@@.pptr,
         endpoint_perm@@.value.is_Some(),
         endpoint_perm@@.value.get_Some_0().queue =~= old(endpoint_perm)@@.value.get_Some_0().queue,
-        endpoint_perm@@.value.get_Some_0().state =~= old(endpoint_perm)@@.value.get_Some_0().state,
+        endpoint_perm@@.value.get_Some_0().queue_state =~= old(endpoint_perm)@@.value.get_Some_0().queue_state,
         endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@.insert(thread_ptr),
         endpoint_perm@@.value.get_Some_0().rf_counter as int =~= old(endpoint_perm)@@.value.get_Some_0().rf_counter + 1,
 
@@ -454,7 +465,7 @@ pub fn endpoint_pop_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut T
         endpoint_perm@@.value.get_Some_0().queue.wf(),
         endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@,
         endpoint_perm@@.value.get_Some_0().rf_counter =~= old(endpoint_perm)@@.value.get_Some_0().rf_counter,
-        endpoint_perm@@.value.get_Some_0().state =~= old(endpoint_perm)@@.value.get_Some_0().state,
+        endpoint_perm@@.value.get_Some_0().queue_state =~= old(endpoint_perm)@@.value.get_Some_0().queue_state,
         endpoint_perm@@.value.get_Some_0().queue.value_list_len == old(endpoint_perm)@@.value.get_Some_0().queue.value_list_len - 1,
         ret == old(endpoint_perm)@@.value.get_Some_0().queue@[0],
         endpoint_perm@@.value.get_Some_0().queue.spec_seq@ == old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.drop_first(),
@@ -489,7 +500,7 @@ pub fn endpoint_push_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut 
         endpoint_perm@@.value.get_Some_0().queue.wf(),
         endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@,
         endpoint_perm@@.value.get_Some_0().rf_counter =~= old(endpoint_perm)@@.value.get_Some_0().rf_counter,
-        endpoint_perm@@.value.get_Some_0().state =~= old(endpoint_perm)@@.value.get_Some_0().state,
+        endpoint_perm@@.value.get_Some_0().queue_state =~= old(endpoint_perm)@@.value.get_Some_0().queue_state,
         endpoint_perm@@.value.get_Some_0().queue.value_list_len == old(endpoint_perm)@@.value.get_Some_0().queue.value_list_len + 1,
         endpoint_perm@@.value.get_Some_0().queue.spec_seq@ == old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.push(thread_ptr),
         forall| value:usize|  #![auto]  thread_ptr != value ==> old(endpoint_perm)@@.value.get_Some_0().queue.spec_seq@.contains(value) == endpoint_perm@@.value.get_Some_0().queue.spec_seq@.contains(value),
