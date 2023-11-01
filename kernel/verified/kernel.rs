@@ -174,7 +174,9 @@ impl Kernel {
         assert(self.kernel_wf());
     }
 
-    pub fn sys_send_nowait(&mut self, cpu_id: CPUID, sender_endpoint_index: EndpointIdx)
+    /// Send Do Not Wait syscall
+    /// syscall will success if and only if
+    pub fn sys_send_no_wait(&mut self, cpu_id: CPUID, sender_endpoint_index: EndpointIdx)
         requires
             old(self).kernel_wf(),
             0 <= cpu_id <NUM_CPUS,

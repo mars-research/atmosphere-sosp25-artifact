@@ -8,6 +8,7 @@ pub mod mem;
 pub mod page;
 pub mod page_arena;
 pub mod paging;
+//pub mod dummy_paging;
 pub mod kernel;
 pub mod proc;
 pub mod page_alloc;
