@@ -19,6 +19,7 @@
 //! It provides statically-sized implementations of common data structures, as well as
 //! synchronization-related primitives like mutexes.
 
+pub mod boot;
 pub mod capability;
 pub mod cell;
 pub mod io;
