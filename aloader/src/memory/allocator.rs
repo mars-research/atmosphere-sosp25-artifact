@@ -3,7 +3,7 @@
 //! Since our only purpose is to load the microkernel and the
 //! initial task, we can keep this simple.
 
-use core::alloc::{GlobalAlloc, Layout};
+use core::alloc::{GlobalAlloc, Layout, LayoutError};
 use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -89,6 +89,25 @@ impl Memory for BumpAllocator {
             let layout = Layout::from_size_align(size, 4096).unwrap();
             self.alloc(layout) as *mut c_void
         }
+    }
+}
+
+impl BumpAllocator {
+    /// Reserves a region, returning a new BumpAllocator.
+    pub fn reserve(&mut self, size: usize) -> BumpAllocator {
+        let layout = Layout::from_size_align(size, 4096).expect("Invalid layout");
+        let base = unsafe { self.alloc(layout) };
+
+        Self {
+            base,
+            size,
+            watermark: AtomicUsize::new(0),
+        }
+    }
+
+    /// Returns the base of the allocation.
+    pub fn base(&self) -> *mut u8 {
+        self.base
     }
 }
 

@@ -16,3 +16,5 @@ result-*
 *.swp
 .gdb_history
 .vscode/**
+
+.verus-log

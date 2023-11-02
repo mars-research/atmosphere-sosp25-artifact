@@ -6,7 +6,7 @@ use core::slice;
 use super::{
     elf_types,
     elf_types::dynamic::{DT_NULL, DT_REL, DT_RELA, DT_RELAENT, DT_RELASZ, DT_RELENT, DT_RELSZ},
-    elf_types::program_header::{PT_DYNAMIC, ProgramHeader},
+    elf_types::program_header::{ProgramHeader, PT_DYNAMIC},
     R_RELATIVE,
 };
 

@@ -29,7 +29,12 @@ use core::arch::asm;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 
-use astd::io::Cursor;
+use astd::boot::{BootInfo, DomainMapping};
+use astd::io::{Cursor, Seek, SeekFrom};
+
+use elf::ElfHandle;
+
+const DOM0_RESERVATION: usize = 128 * 1024 * 1024; // 128 MiB
 
 /// Loader entry point.
 #[start]
@@ -47,12 +52,46 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         memory::init();
     }
 
-    let kernel_image = boot::get_kernel_image().expect("No kernel image was passed");
-    let kernel_image = Cursor::new(kernel_image);
-    let elf = elf::ElfHandle::parse(kernel_image, 4096).unwrap();
+    let kernel_file = {
+        let f = boot::get_kernel_image().expect("No kernel image was passed");
+        Cursor::new(f)
+    };
 
-    let mapping = elf.load(memory::memory()).unwrap();
-    log::info!("Calling into kernel @ {:x?}", mapping.entry_point);
+    let kernel_elf = ElfHandle::parse(kernel_file, 4096).unwrap();
+    let kernel_end = kernel_elf.elf_end();
+
+    let (kernel_map, mut kernel_file) = kernel_elf.load(memory::memory()).unwrap();
+
+    // Also load dom0 if it exists
+    kernel_file
+        .seek(SeekFrom::Start(kernel_end as u64))
+        .expect("Kernel file incomplete");
+
+    let mut boot_info = BootInfo::empty(); // stays on stack
+
+    match ElfHandle::parse(kernel_file, 4096) {
+        Ok(dom0_elf) => {
+            log::info!("Loading Dom0...");
+
+            let (reserved_start, mut memory) = memory::reserve(DOM0_RESERVATION);
+            let (dom0_map, _) = dom0_elf.load(&mut memory).expect("Failed to map Dom0");
+
+            let dom0 = DomainMapping {
+                reserved_start,
+                reserved_size: DOM0_RESERVATION,
+                entry_point: dom0_map.entry_point,
+                load_bias: dom0_map.load_bias,
+            };
+            log::info!("Loaded Dom0: {:?}", dom0);
+
+            boot_info.dom0 = Some(dom0);
+        }
+        Err(e) => {
+            log::warn!("No valid Dom0: {:?}", e);
+        }
+    }
+
+    log::info!("Calling into kernel @ {:x?}", kernel_map.entry_point);
 
     let ret: usize;
     unsafe {
@@ -64,7 +103,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
             "mov r15w, ss; push r15w",
 
             // clear state
-            "xor rdi, rdi",
+            // rdi = &boot_info
             "xor rsi, rsi",
             "xor r15, r15",
             "mov ds, r15w",
@@ -81,8 +120,8 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
             "pop r15w; mov fs, r15w",
             "pop r15w; mov ds, r15w",
 
-            inout("rax") mapping.entry_point => ret,
-            out("rdi") _,
+            inout("rax") kernel_map.entry_point => ret,
+            inout("rdi") &boot_info as *const _ => _,
             out("rsi") _,
             out("r15") _,
         );

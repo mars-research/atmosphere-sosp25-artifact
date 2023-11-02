@@ -35,7 +35,11 @@ pub enum GdbServer {
 
 impl GdbConnectionInfo {
     pub fn new(kernel: PathBuf, loader: PathBuf, server: GdbServer) -> Self {
-        Self { kernel, loader, server }
+        Self {
+            kernel,
+            loader,
+            server,
+        }
     }
 
     pub async fn launch_gdb(&self, extra_args: Vec<String>) -> Result<()> {

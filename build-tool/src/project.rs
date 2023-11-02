@@ -61,9 +61,7 @@ impl Project {
             ));
         }
 
-        Ok(Arc::new(Self {
-            root,
-        }))
+        Ok(Arc::new(Self { root }))
     }
 
     /// Returns the kernel crate.
@@ -82,6 +80,16 @@ impl Project {
             name: "aloader".to_string(),
             crate_dir: self.root.join("aloader"),
             binary: Some("aloader".to_string()),
+            max_stack_size: Some(Byte::from_bytes(1024 * 1024 * 16)), // 16 MiB
+        }
+    }
+
+    /// Returns the init/dom0 crate
+    pub fn dom0(self: &Arc<Self>) -> Crate {
+        Crate {
+            name: "dom0".to_string(),
+            crate_dir: self.root.join("dom0"),
+            binary: Some("dom0".to_string()),
             max_stack_size: Some(Byte::from_bytes(1024 * 1024 * 16)), // 16 MiB
         }
     }
@@ -141,8 +149,7 @@ impl Crate {
 
         if let Some(binary) = &self.binary {
             let reader = Cursor::new(output.stdout.as_slice());
-            let messages = CargoMessage::parse_stream(reader)
-                .collect::<Result<Vec<_>, _>>()?;
+            let messages = CargoMessage::parse_stream(reader).collect::<Result<Vec<_>, _>>()?;
 
             let executable = messages
                 .iter()
@@ -170,7 +177,6 @@ impl Crate {
         } else {
             Ok(None)
         }
-
     }
 
     async fn check_stack_sizes(&self, path: &Path) -> Result<()> {

@@ -52,7 +52,8 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
                     continue;
                 }
 
-                let lib = package.targets
+                let lib = package
+                    .targets
                     .iter()
                     .find(|target| target.kind == &["lib"] && target.crate_types == &["lib"])
                     .ok_or_else(|| anyhow!("Package {} must have a lib crate", package.name))?;
@@ -65,18 +66,17 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
     log::debug!("{:?}", source_paths);
     log::info!("Verifying {} crates...", source_paths.len());
 
-    let futures = source_paths
-        .iter()
-        .map(|root| {
-            Command::new("rust_verify")
-                .arg("--crate-type")
-                .arg("lib")
-                .arg(root)
-                .args(&local.extra_args)
-                .status()
-        });
+    let futures = source_paths.iter().map(|root| {
+        Command::new("rust_verify")
+            .arg("--crate-type")
+            .arg("lib")
+            .arg(root)
+            .args(&local.extra_args)
+            .status()
+    });
 
-    join_all(futures).await
+    join_all(futures)
+        .await
         .into_iter()
         .collect::<StdResult<Vec<_>, _>>()?;
 
