@@ -9,9 +9,7 @@ use tempfile::Builder as TempfileBuilder;
 use tokio::fs;
 
 use super::{GlobalOpts, SubCommand};
-use crate::emulator::{
-    CpuModel, Emulator, EmulatorExit, GdbServer, Qemu, RunConfiguration,
-};
+use crate::emulator::{CpuModel, Emulator, EmulatorExit, GdbServer, Qemu, RunConfiguration};
 use crate::error::Result;
 use crate::project::{Binary, BuildOptions, Project};
 

@@ -11,10 +11,7 @@ use tokio::io::{self, BufReader};
 use tokio::process::Command;
 
 use super::output_filter::InitialOutputFilter;
-use super::{
-    CpuModel, Emulator, EmulatorExit, GdbServer, RunConfiguration, /*InitialOutputFilter*/
-    GdbConnectionInfo,
-};
+use super::{CpuModel, Emulator, EmulatorExit, GdbConnectionInfo, GdbServer, RunConfiguration};
 use crate::error::Result;
 use crate::project::ProjectHandle;
 
@@ -50,8 +47,7 @@ impl Emulator for Qemu {
 
         let _command_line = config.full_command_line()
             + &format!(" qemu_debug_exit_io_base={}", self.debug_exit_io_base);
-        let suppress_initial_outputs =
-            config.suppress_initial_outputs; // FIXME
+        let suppress_initial_outputs = config.suppress_initial_outputs; // FIXME
 
         let mut command = Command::new(self.qemu_binary.as_os_str());
 
@@ -61,7 +57,8 @@ impl Emulator for Qemu {
 
         command.args(&[
             "-kernel",
-            config.loader
+            config
+                .loader
                 .path()
                 .to_str()
                 .expect("Early loader path contains non-UTF-8"),

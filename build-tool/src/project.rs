@@ -61,9 +61,7 @@ impl Project {
             ));
         }
 
-        Ok(Arc::new(Self {
-            root,
-        }))
+        Ok(Arc::new(Self { root }))
     }
 
     /// Returns the kernel crate.
@@ -141,8 +139,7 @@ impl Crate {
 
         if let Some(binary) = &self.binary {
             let reader = Cursor::new(output.stdout.as_slice());
-            let messages = CargoMessage::parse_stream(reader)
-                .collect::<Result<Vec<_>, _>>()?;
+            let messages = CargoMessage::parse_stream(reader).collect::<Result<Vec<_>, _>>()?;
 
             let executable = messages
                 .iter()
@@ -170,7 +167,6 @@ impl Crate {
         } else {
             Ok(None)
         }
-
     }
 
     async fn check_stack_sizes(&self, path: &Path) -> Result<()> {
