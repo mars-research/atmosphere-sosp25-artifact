@@ -1,5 +1,5 @@
 #![no_std]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 #![deny(missing_docs)]
 // Common lint configs
 #![deny(
@@ -22,6 +22,7 @@
 pub mod capability;
 pub mod cell;
 pub mod io;
+pub mod string;
 pub mod sync;
 
 pub use heapless;
