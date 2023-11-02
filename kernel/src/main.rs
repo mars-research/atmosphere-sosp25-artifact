@@ -63,7 +63,7 @@ fn main(boot_info: *const BootInfo) -> isize {
 
         gdt::init_cpu();
 
-        boot::init();
+        boot::init(boot_info);
         console::init();
         logging::init();
     }

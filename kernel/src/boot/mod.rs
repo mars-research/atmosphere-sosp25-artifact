@@ -6,29 +6,22 @@ pub mod command_line;
 
 use core::arch::asm;
 
+use astd::boot::BootInfo;
 use x86::io::{outb, outw};
 
 pub use command_line::get_command_line;
 
-static mut COMMAND_LINE: &str = "";
+static mut BOOT_INFO: BootInfo = BootInfo::empty();
 
-pub unsafe fn init() {
-    // TODO: Re-add boot info handling
-    /*
-    let info = get_bootinfo();
+pub unsafe fn init(boot_info: *const BootInfo) {
+    BOOT_INFO = (&*boot_info).clone();
 
-    if let Some(command_line) = info.command_line_tag() {
-        let ptr = command_line.command_line() as *const str;
-        COMMAND_LINE = &*ptr; // We won't touch the boot information region
-    }
-    */
-
-    command_line::init(COMMAND_LINE).expect("Invalid kernel command-line");
+    command_line::init(BOOT_INFO.command_line.as_str()).expect("Invalid kernel command-line");
 }
 
 /// Returns the raw kernel command line.
 pub fn get_raw_command_line() -> &'static str {
-    unsafe { COMMAND_LINE }
+    unsafe { BOOT_INFO.command_line.as_str() }
 }
 
 /// Shutdown the system.
