@@ -64,13 +64,15 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     pub fn init(&mut self)
         requires
             old(self).arr_seq@.len() == N,
+            N>2,
+            N<isize::MAX,
         ensures
             self.wf(),
             self.len() == 0,
             self@ =~= Seq::empty(),
         {
-            assume(N>2);
-            assume(N<isize::MAX);
+            // assume(N>2);
+            // assume(N<isize::MAX);
             self.value_list = Ghost(Seq::empty());
             self.value_list_head = -1;
             self.value_list_tail = -1;
