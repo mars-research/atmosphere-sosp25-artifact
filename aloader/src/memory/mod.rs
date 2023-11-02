@@ -116,3 +116,9 @@ pub unsafe fn init() {
 pub fn memory() -> &'static mut impl Memory {
     unsafe { &mut allocator::ALLOCATOR }
 }
+
+pub fn reserve(size: usize) -> (*mut u8, impl Memory) {
+    let allocator = unsafe { allocator::ALLOCATOR.reserve(size) };
+
+    (allocator.base(), allocator)
+}
