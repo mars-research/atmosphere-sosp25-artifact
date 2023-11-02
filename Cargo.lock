@@ -676,6 +676,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "dom0"
+version = "0.1.0"
+
+[[package]]
 name = "ecdsa"
 version = "0.16.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -36,6 +36,9 @@ pub struct RunConfiguration {
     /// The early loader to use.
     loader: Binary,
 
+    /// The Dom0 image to use.
+    dom0: Option<Binary>,
+
     /// Memory for the virtual machine.
     memory: Byte,
 
@@ -79,6 +82,8 @@ impl RunConfiguration {
     pub fn new(kernel: Binary, loader: Binary) -> Self {
         Self {
             kernel,
+            loader,
+            dom0: None,
             memory: Byte::from_unit(8.0f64, ByteUnit::GiB).unwrap(),
             use_virtualization: false,
             cpu_model: CpuModel::Haswell,
@@ -87,9 +92,14 @@ impl RunConfiguration {
             auto_shutdown: true,
             gdb_server: None,
             freeze_on_startup: false,
-            loader,
             suppress_initial_outputs: true,
         }
+    }
+
+    /// Set the Dom0 to run.
+    pub fn dom0(&mut self, dom0: Binary) -> &mut Self {
+        self.dom0 = Some(dom0);
+        self
     }
 
     /// Set the script to run.

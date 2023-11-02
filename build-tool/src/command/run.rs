@@ -87,9 +87,16 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
         .await?
         .expect("No binary was reproduced for the early loader");
 
+    let dom0 = project
+        .dom0()
+        .build(&opts)
+        .await?
+        .expect("No binary was reproduced for Dom0");
+
     let mut run_config = RunConfiguration::new(kernel, loader);
     run_config.use_virtualization(local.kvm);
     run_config.auto_shutdown(!local.no_shutdown);
+    run_config.dom0(dom0);
 
     if let Some(cpu_model) = local.cpu_model {
         run_config.cpu_model(cpu_model);

@@ -2,18 +2,20 @@
 
 use std::env;
 use std::ffi::OsString;
+use std::fs::OpenOptions as SyncOpenOptions;
 use std::path::PathBuf;
 use std::process::Stdio;
 
 use async_trait::async_trait;
 use byte_unit::ByteUnit;
+use tempfile::{Builder as TempfileBuilder, NamedTempFile, TempPath};
 use tokio::io::{self, BufReader};
 use tokio::process::Command;
 
 use super::output_filter::InitialOutputFilter;
 use super::{CpuModel, Emulator, EmulatorExit, GdbConnectionInfo, GdbServer, RunConfiguration};
 use crate::error::Result;
-use crate::project::ProjectHandle;
+use crate::project::{Binary, ProjectHandle};
 
 /// A QEMU instance.
 pub struct Qemu {
@@ -55,6 +57,15 @@ impl Emulator for Qemu {
             command.args(&["-bios", &qboot]);
         }
 
+        let mut initrd = JumboBinary::new()?;
+        initrd.push(&config.kernel)?;
+
+        if let Some(dom0) = &config.dom0 {
+            initrd.push(dom0)?;
+        }
+
+        let initrd = initrd.finalize();
+
         command.args(&[
             "-kernel",
             config
@@ -65,8 +76,8 @@ impl Emulator for Qemu {
         ]);
         command.args(&[
             "-initrd",
-            config.kernel
-                .path()
+            initrd
+                .as_os_str()
                 .to_str()
                 .expect("Kernel path contains non-UTF-8"),
         ]);
@@ -187,5 +198,34 @@ impl QemuArgs for GdbServer {
         }
 
         Ok(result)
+    }
+}
+
+/// A set of binaries.
+///
+/// Right now it's just a simple concatenantion of them, but
+/// in the future it will be more structured.
+struct JumboBinary(NamedTempFile);
+
+impl JumboBinary {
+    fn new() -> Result<Self> {
+        let tmp = TempfileBuilder::new().prefix("atmo-jumbo-").tempfile()?;
+
+        Ok(Self(tmp))
+    }
+
+    fn push(&mut self, binary: &Binary) -> Result<()> {
+        let mut f = SyncOpenOptions::new()
+            .read(true)
+            .write(false)
+            .open(binary.path())?;
+
+        std::io::copy(&mut f, &mut self.0)?;
+
+        Ok(())
+    }
+
+    fn finalize(self) -> TempPath {
+        self.0.into_temp_path()
     }
 }

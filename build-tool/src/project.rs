@@ -84,6 +84,16 @@ impl Project {
         }
     }
 
+    /// Returns the init/dom0 crate
+    pub fn dom0(self: &Arc<Self>) -> Crate {
+        Crate {
+            name: "dom0".to_string(),
+            crate_dir: self.root.join("dom0"),
+            binary: Some("dom0".to_string()),
+            max_stack_size: Some(Byte::from_bytes(1024 * 1024 * 16)), // 16 MiB
+        }
+    }
+
     /// Returns the path to the workspace root.
     pub fn root(&self) -> PathBuf {
         self.root.clone()
