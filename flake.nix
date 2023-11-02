@@ -69,6 +69,8 @@
 
         editorconfig-checker
 
+        jq
+
         (python3.withPackages (py: with py; [ z3 ]))
 
         (pkgs.writeShellScriptBin "x86_64.ld" ''
