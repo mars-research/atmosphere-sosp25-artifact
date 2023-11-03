@@ -9,9 +9,11 @@ use vstd::ptr::PPtr;
 verus! {
 pub const PCID_MAX:usize = 4096;
 
+pub type PageTablePtr = usize;
+
 pub struct PcidAllocator{
 
-    pub page_table_pptrs: MarsArray<PPtr<AddressSpace>,PCID_MAX>,
+    pub page_table_ptrs: MarsArray<PageTablePtr,PCID_MAX>,
     pub page_table_perms: Tracked<Map<Pcid,PointsTo<AddressSpace>>>,
 }
 
@@ -21,6 +23,37 @@ pub struct PcidAllocator{
 ///For each free pcid, they have no corresponding pagetable, hence no mapping 
 ///For each allocated pcid, they have one distinct pagetable
 impl PcidAllocator {
+
+    #[verifier(external_body)]
+    pub fn new() -> (ret: Self)
+        ensures
+            ret.page_table_ptrs.wf(),
+            ret.page_table_perms@ =~= Map::empty(),
+    {
+        let ret = Self {
+            page_table_ptrs: MarsArray::<PageTablePtr,PCID_MAX>::new(),
+            page_table_perms: arbitrary(),
+        };
+
+        ret
+    }
+
+    pub fn init(&mut self)
+        requires
+            old(self).page_table_ptrs.wf(),
+            old(self).page_table_perms@ =~= Map::empty(),
+        ensures
+            self.wf(),
+            forall |i:int| #![auto] 0<=i<PCID_MAX ==> self.page_table_ptrs@[i] == 0,
+            self.page_table_perms@ =~= Map::empty(),
+    {
+        self.page_table_ptrs.init2zero();
+    }
+
+    pub closed spec fn wf(&self) -> bool{
+        &&&
+        self.page_table_ptrs.wf()
+    }
 
     pub closed spec fn allocated_pcids(&self) -> Set<Pcid>
     {

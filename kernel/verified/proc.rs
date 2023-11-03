@@ -172,10 +172,54 @@ pub open spec fn endpoint_descriptors_unique(endpoint_descriptors:MarsArray<Endp
 
 impl ProcessManager {
 
-    // pub closed spec fn get_procs(&self) -> Seq<Process>
-    // {
-    //     Seq::new(self.proc_ptrs@.len(), |i: int| self.proc_perms@[self.proc_ptrs@[i]]@.value.get_Some_0())
-    // }
+    #[verifier(external_body)]
+    pub fn new() -> (ret: ProcessManager)
+        ensures
+            ret.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
+            ret.proc_perms@ =~= Map::empty(),
+            ret.thread_ptrs@ =~= Set::empty(),
+            ret.thread_perms@ =~= Map::empty(),
+            ret.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            ret.endpoint_ptrs@ =~= Set::empty(),
+            ret.endpoint_perms@ =~= Map::empty(),
+            ret.pcid_closure@ =~= Set::empty(),
+            
+    {
+        let ret = Self {
+            proc_ptrs: MarsStaticLinkedList::<MAX_NUM_PROCS>::new(),
+            proc_perms: arbitrary(),
+        
+            thread_ptrs: arbitrary(),
+            thread_perms: arbitrary(),
+            
+            scheduler: MarsStaticLinkedList::<MAX_NUM_THREADS>::new(),
+            endpoint_ptrs: arbitrary(),
+            endpoint_perms: arbitrary(),
+        
+            pcid_closure : arbitrary(),
+        };
+
+        ret
+    }
+
+    pub fn init(&mut self)
+        requires 
+            old(self).proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
+            old(self).proc_ptrs@ =~= Seq::empty(),
+            old(self).proc_perms@ =~= Map::empty(),
+            old(self).thread_ptrs@ =~= Set::empty(),
+            old(self).thread_perms@ =~= Map::empty(),
+            old(self).scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            old(self).scheduler@ =~= Seq::empty(),
+            old(self).endpoint_ptrs@ =~= Set::empty(),
+            old(self).endpoint_perms@ =~= Map::empty(),
+            old(self).pcid_closure@ =~= Set::empty(),
+        ensures
+            self.wf(),
+        {
+            self.proc_ptrs.init();
+            self.scheduler.init();
+        }
 
     pub open spec fn get_proc_ptrs(&self) -> Seq<ProcPtr>
     {

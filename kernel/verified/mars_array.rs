@@ -8,6 +8,70 @@ pub struct MarsArray<A, const N: usize>{
     pub ar: [A;N]
 }
 
+impl<const N: usize> MarsArray<u8, N> {
+
+    pub fn init2zero(&mut self) 
+        requires 
+            old(self).wf(),
+            N <= usize::MAX,
+        ensures
+            forall|index:int| 0<= index < N ==> self@[index] == 0,
+            self.wf(),
+    {
+        let mut i = 0;
+        while i != N
+            invariant
+                N <= usize::MAX,
+                0<=i<=N,
+                self.wf(),
+                forall|j:int| #![auto] 0<=j<i ==> self@[j] == 0,
+            ensures
+                i==N,
+                self.wf(),
+                forall|j:int| #![auto] 0<=j<N ==> self@[j] == 0,
+        {
+            let tmp:Ghost<Seq<u8>> = Ghost(self@);
+            assert(forall|j:int| #![auto] 0<=j<i ==> self@[j] == 0);
+            self.set(i,0);
+            assert(self@ =~= tmp@.update(i as int,0));
+            assert(forall|j:int| #![auto] 0<=j<i ==> self@[j] == 0);
+            i = i+1;
+        }
+    }
+}
+
+impl<const N: usize> MarsArray<usize, N> {
+
+    pub fn init2zero(&mut self) 
+        requires 
+            old(self).wf(),
+            N <= usize::MAX,
+        ensures
+            forall|index:int| 0<= index < N ==> self@[index] == 0,
+            self.wf(),
+    {
+        let mut i = 0;
+        while i != N
+            invariant
+                N <= usize::MAX,
+                0<=i<=N,
+                self.wf(),
+                forall|j:int| #![auto] 0<=j<i ==> self@[j] == 0,
+            ensures
+                i==N,
+                self.wf(),
+                forall|j:int| #![auto] 0<=j<N ==> self@[j] == 0,
+        {
+            let tmp:Ghost<Seq<usize>> = Ghost(self@);
+            assert(forall|j:int| #![auto] 0<=j<i ==> self@[j] == 0);
+            self.set(i,0);
+            assert(self@ =~= tmp@.update(i as int,0));
+            assert(forall|j:int| #![auto] 0<=j<i ==> self@[j] == 0);
+            i = i+1;
+        }
+    }
+}
+
 impl<A, const N: usize> MarsArray<A, N> {
 
     #[verifier(external_body)]
@@ -41,7 +105,7 @@ impl<A, const N: usize> MarsArray<A, N> {
             0 <= i < N,
             old(self).wf(),
         ensures
-            self.seq@ == old(self).seq@.update(i as int, out),
+            self.seq@ =~= old(self).seq@.update(i as int, out),
             self.wf(),
     {
         self.ar[i] = out;

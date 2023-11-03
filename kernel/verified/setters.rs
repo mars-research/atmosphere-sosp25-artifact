@@ -31,7 +31,7 @@ pub fn page_to_proc(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Process
             ret.1@@.value.is_Some(),
             ret.1@@.value.get_Some_0().owned_threads.arr_seq@.len() == MAX_NUM_THREADS_PER_PROC,
 {
-    unimplemented!();
+    (PPtr::<Process>::from_usize(page.0.to_usize()), Tracked::assume_new())
 }
 
 #[verifier(external_body)]
@@ -48,7 +48,12 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
             ret.1@@.value.get_Some_0().ipc_payload.page_payload@ =~= Seq::new(IPC_PAGEPAYLOAD_LEN as nat, |i:int| {0}),
             ret.1@@.value.get_Some_0().ipc_payload.endpoint_payload =~= None,
 {
-    unimplemented!();
+    let uptr = page.0.to_usize() as *mut MaybeUninit<Thread>;
+    (*uptr).assume_init_mut().endpoint_descriptors.init2zero();
+    (*uptr).assume_init_mut().ipc_payload.message.init2zero();
+    (*uptr).assume_init_mut().ipc_payload.page_payload.init2zero();
+    (*uptr).assume_init_mut().ipc_payload.endpoint_payload = None;
+    (PPtr::<Thread>::from_usize(page.0.to_usize()), Tracked::assume_new())
 }
 
 #[verifier(external_body)]
@@ -59,7 +64,7 @@ pub fn proc_to_page(proc: (PPtr::<Process>, Tracked<PointsTo<Process>>)) -> (ret
             ret.0.id() == proc.0.id(),
             ret.1@@.value.is_Some(),
 {
-    unimplemented!();
+    (PagePPtr::from_usize(proc.0.to_usize()), Tracked::assume_new())
 }
 
 #[verifier(external_body)]
