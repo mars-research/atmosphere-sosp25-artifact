@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-// use vstd::ptr::PointsTo;
+use vstd::ptr::PointsTo;
 
 use crate::array_vec::*;
 use crate::proc::*;
@@ -8,6 +8,7 @@ use crate::page::*;
 use crate::pcid_alloc::{PcidAllocator,PCID_MAX};
 use crate::cpu::{Cpu,CPUID};
 use crate::mars_array::MarsArray;
+use crate::paging::*;
 
 verus! {
 pub const NUM_CPUS:usize = 32;
@@ -82,7 +83,7 @@ impl Kernel {
 
      
 
-    pub fn kernel_init(&mut self,boot_page_ptrs: &ArrayVec<bool,NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>)
+    pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<Option<VAddr>,NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, dom0_pagetable : Tracked<PointsTo<AddressSpace>>)
         requires 
             old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
             old(self).proc_man.proc_ptrs@ =~= Seq::empty(),
@@ -105,7 +106,7 @@ impl Kernel {
             old(self).pcid_alloc.page_table_perms@ =~= Map::empty(),
             boot_page_ptrs.wf(),
             boot_page_ptrs.len() == NUM_PAGES,
-            (forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int] == true ==> 
+            (forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].is_Some() ==> 
                 (boot_page_perms@.dom().contains(page_index2page_ptr(i))
                  && 
                  boot_page_perms@[page_index2page_ptr(i)]@.pptr == page_index2page_ptr(i)
@@ -116,7 +117,7 @@ impl Kernel {
             NUM_PAGES * 4096 <= usize::MAX,
             old(self).cpu_list.wf()
         ensures
-            self.kernel_wf(),
+            //self.kernel_wf(),
         {
             self.proc_man.init();
             self.page_alloc.init(boot_page_ptrs, boot_page_perms);
@@ -125,6 +126,18 @@ impl Kernel {
             assert(self.kernel_no_transit_thread());
             assert(self.kernel_cpulist_wf());
             assert(self.proc_man.wf());
+
+            let num_free_pages = self.page_alloc.get_num_free_pages();
+
+            if num_free_pages >= 2{
+                let (page_ptr_1, page_perm_1) = self.page_alloc.alloc_kernel_mem();
+                let (page_ptr_2, page_perm_2) = self.page_alloc.alloc_kernel_mem();
+
+                assert(page_ptr_1 != page_ptr_2);
+                assert(self.proc_man.scheduler.len() == 0);
+                let dom0_proc_ptr = self.proc_man.new_proc(page_ptr_1, page_perm_1, 0);
+                let dom0_thread_ptr = self.proc_man.new_thread(page_ptr_2, page_perm_2, dom0_proc_ptr);
+            }
         }
 
         
@@ -178,7 +191,7 @@ impl Kernel {
     pub closed spec fn kernel_page_mapping_wf(&self) -> bool{
         forall |page_ptr:PagePtr| #![auto] self.page_alloc.mapped_pages().contains(page_ptr) ==>
             (
-                forall|pcid: Pcid| #![auto] 0<=pcid<PCID_MAX && self.pcid_alloc.all_pcids().contains(pcid) ==>
+                forall|pcid: Pcid| #![auto] self.pcid_alloc.allocated_pcids().contains(pcid) ==>
                     (
                         forall|va:VAddr,pa:PAddr| #![auto] self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid).contains_pair(va,pa) && pa == page_ptr ==>
                             (

@@ -184,7 +184,6 @@ impl ProcessManager {
             ret.endpoint_ptrs@ =~= Set::empty(),
             ret.endpoint_perms@ =~= Map::empty(),
             ret.pcid_closure@ =~= Set::empty(),
-            
     {
         let ret = Self {
             proc_ptrs: MarsStaticLinkedList::<MAX_NUM_PROCS>::new(),
@@ -224,6 +223,7 @@ impl ProcessManager {
             self.thread_perms@ =~= Map::empty(),
             self.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
             self.scheduler@ =~= Seq::empty(),
+            self.scheduler.len() =~= 0,
             self.endpoint_ptrs@ =~= Set::empty(),
             self.endpoint_perms@ =~= Map::empty(),
             self.pcid_closure@ =~= Set::empty(),
@@ -243,6 +243,15 @@ impl ProcessManager {
             self.get_proc_ptrs().contains(proc_ptr),
     {
         self.proc_perms@[proc_ptr]@.value.get_Some_0()
+    }
+
+    pub fn get_proc_ptrs_len(&self) ->(ret: usize)
+    requires
+        self.wf(),
+    ensures
+        ret == self.proc_ptrs.len(),
+    {
+        self.proc_ptrs.len()
     }
 
     pub fn get_proc_owned_thread_len(&self, proc_ptr: ProcPtr) -> (ret: usize)
@@ -426,7 +435,8 @@ impl ProcessManager {
         return ret;
     }
 
-    pub closed spec fn get_thread_ptrs(&self) -> Set<ThreadPtr>
+    #[verifier(inline)]
+    pub open spec fn get_thread_ptrs(&self) -> Set<ThreadPtr>
     {
         self.thread_ptrs@
     }
@@ -657,7 +667,8 @@ impl ProcessManager {
         // + ... fold page closures of other PM components
     }
 
-    pub closed spec fn pcid_closure(&self) -> Set<Pcid>
+    #[verifier(inline)]
+    pub open spec fn pcid_closure(&self) -> Set<Pcid>
     {
         self.pcid_closure@
     }
@@ -791,6 +802,7 @@ impl ProcessManager {
             self.get_thread(ret).endpoint_rf == old(self).get_thread(ret).endpoint_rf,
             self.get_thread(ret).endpoint_descriptors == old(self).get_thread(ret).endpoint_descriptors,
             self.get_thread(ret).parent_rf == old(self).get_thread(ret).parent_rf,
+            ret == old(self).scheduler@[0],
     {
         let ret = self.scheduler.pop();
         let thread_pptr = PPtr::<Thread>::from_usize(ret);
@@ -920,7 +932,12 @@ impl ProcessManager {
             old(self).pcid_closure().contains(new_pcid) == false,
         ensures
             self.wf(),
+            self.scheduler =~= old(self).scheduler,
             self.pcid_closure() =~= old(self).pcid_closure().insert(new_pcid),
+            self.page_closure() =~= old(self).page_closure().insert(page_ptr),
+            self.get_proc_ptrs() =~= old(self).get_proc_ptrs().push(ret),
+            self.get_proc_ptrs().contains(ret),
+            self.proc_perms@[ret]@.value.get_Some_0().owned_threads.len() == 0,
     {
         assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
     ==>  (forall|_thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().queue@.contains(_thread_ptr)
@@ -1063,7 +1080,7 @@ impl ProcessManager {
         return proc_to_page((PPtr::<Process>::from_usize(proc_ptr), Tracked(proc_perm)));
     }
 
-    pub fn new_thread(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr) -> (ret: ProcPtr)
+    pub fn new_thread(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr) -> (ret: ThreadPtr)
         requires
             old(self).wf(),
             old(self).get_proc_ptrs().contains(parent_ptr),
@@ -1074,6 +1091,7 @@ impl ProcessManager {
             old(self).proc_perms@[parent_ptr]@.value.get_Some_0().owned_threads.len()<MAX_NUM_THREADS_PER_PROC,
         ensures
             self.wf(),
+            self.scheduler@ =~= old(self).scheduler@.push(ret),
     {
         assert(self.thread_ptrs@.contains(page_ptr) == false);
         assert(forall|_proc_ptr: usize| #![auto] self.proc_perms@.dom().contains(_proc_ptr) ==> self.proc_perms@[_proc_ptr]@.value.get_Some_0().owned_threads@.contains(page_ptr) == false);

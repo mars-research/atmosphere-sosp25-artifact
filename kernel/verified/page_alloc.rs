@@ -9,7 +9,14 @@ pub const NUM_PAGES:usize = 4*1024*1024; //16GB
 pub const PAGE_SIZE:usize = 4096;
 pub const MAX_USIZE:u64 = 31*1024*1024*1024;
 
+pub const DOM0_NUM_PAGES:usize = 1024;
+
 pub type PageType = u8;
+pub const R:PageType = 1;
+pub const RW:PageType = 2;
+pub const RX:PageType = 3;
+pub const RWX:PageType = 4;
+
 pub type PageState = usize;
 
 pub const UNAVAILABLE:PageState = 0;
@@ -189,6 +196,15 @@ impl<const N: usize> MarsArray<Page, N> {
 }
 impl PageAllocator {
 
+    pub fn get_num_free_pages(&self) -> (ret: usize)
+        requires
+            self.wf(),
+        ensures 
+            ret == self.free_pages.len(),
+    {
+        self.free_pages.len()
+    }
+
     ///Spec helper for kernel memory management.
     ///In Atmo, each physical page has three possible states: Free, Allocated, Mapped.
     ///The state of each page can be inferred by:
@@ -240,7 +256,10 @@ impl PageAllocator {
         ret
     }
 
-    pub fn init(&mut self, boot_page_ptrs: &ArrayVec<bool,NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>)
+    //boot_page_ptrs[i] == None --> Page is unavailable
+    //boot_page_ptrs[i] == Some(0) --> Page is free
+    //boot_page_ptrs[i] == Some(vaddr) --> Page is mapped by dom0
+    pub fn init(&mut self, boot_page_ptrs: &ArrayVec<Option<VAddr>,NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>)
         requires
             old(self).page_array.wf(),
             old(self).free_pages.wf(),
@@ -251,7 +270,7 @@ impl PageAllocator {
             old(self).page_perms@.dom() =~= Set::empty(),
             boot_page_ptrs.wf(),
             boot_page_ptrs.len() == NUM_PAGES,
-            (forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int] == true ==> 
+            (forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].is_Some() ==> 
                 (boot_page_perms@.dom().contains(page_index2page_ptr(i))
                  && 
                  boot_page_perms@[page_index2page_ptr(i)]@.pptr == page_index2page_ptr(i)
@@ -262,20 +281,22 @@ impl PageAllocator {
             NUM_PAGES * 4096 <= usize::MAX,
         ensures
             self.wf(),
-            forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int] == true ==> self.free_pages@.contains(page_index2page_ptr(i)), 
+            forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].is_Some() && boot_page_ptrs@[i as int].unwrap() == 0 ==> self.free_pages@.contains(page_index2page_ptr(i)), 
+            self.allocated_pages@ =~= Set::empty(), 
 
     {
         proof{self.free_pages@.unique_seq_to_set();}
-
+        self.mapped_pages = Ghost(Set::empty());
         let mut i = 0;
             while i != NUM_PAGES
                 invariant
                     0<= i <= NUM_PAGES,
                     NUM_PAGES * 4096 <= usize::MAX,
                     forall|j:usize| #![auto] 0<=j<i ==> 
-                        (self.page_array[j as int].start == page_index2page_ptr(j)
+                        (
+                        self.page_array[j as int].start == page_index2page_ptr(j)
                         &&
-                        self.page_array[j as int].rf_count == 0
+                        self.page_array[j as int].rf_count == self.page_array[j as int].mappings@.dom().len()
                         &&
                         self.page_array[j as int].mappings@.dom().finite()
                         ),
@@ -285,20 +306,22 @@ impl PageAllocator {
                     self.free_pages.wf(),
                     self.free_pages.unique(),
                     self.free_pages.len() <= i,
-                    self.allocated_pages@ =~= Set::empty(),
-                    self.mapped_pages@ =~= Set::empty(),
+                    self.mapped_pages@.finite(),
+                    forall|j:usize| #![auto] i<=j<NUM_PAGES ==> self.mapped_pages@.contains(page_index2page_ptr(j)) == false,
+                    self.allocated_pages@ =~= Set::empty(), 
                     forall|j:usize| #![auto] 0<=j<self.free_pages.len() ==> self.free_pages@[j as int] < page_index2page_ptr(i),
-                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].rf_count == 0, 
-                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].mappings@ =~= Map::empty(), 
-                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].state != MAPPED, 
+                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int].is_Some() && boot_page_ptrs@[j as int].unwrap() == 0 ==> self.page_array@[j as int].rf_count == 0, 
+                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int].is_Some() && boot_page_ptrs@[j as int].unwrap() == 0 ==> self.page_array@[j as int].mappings@ =~= Map::empty(), 
                     forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].state != ALLOCATED, 
-                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int] == true ==> self.page_array@[j as int].state == FREE, 
+                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int].is_Some() && boot_page_ptrs@[j as int].unwrap() == 0 ==> self.page_array@[j as int].state == FREE, 
+                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int].is_Some() && boot_page_ptrs@[j as int].unwrap() != 0 ==> self.page_array@[j as int].state == MAPPED,
+                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int].is_Some() && boot_page_ptrs@[j as int].unwrap() != 0 ==> self.page_mappings(page_index2page_ptr(j)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[j as int].unwrap())),
                     forall|page_ptr:PagePtr| #![auto] self.free_pages@.contains(page_ptr) ==> (self.page_array@[page_ptr2page_index(page_ptr as usize) as int].state == FREE),
                     forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == FREE ==> self.free_pages@.contains(self.page_array@[j as int].start),
                     forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == FREE ==> self.free_pages@.contains(page_index2page_ptr(j)), 
-                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int] == true ==> self.free_pages@.contains(page_index2page_ptr(j)), 
-                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int] == false ==> self.page_array@[j as int].state == UNAVAILABLE, 
-                    (forall|j:usize| #![auto] i<=j<NUM_PAGES && boot_page_ptrs@[j as int] == true ==> 
+                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int].is_Some() && boot_page_ptrs@[j as int].unwrap() == 0 ==> self.free_pages@.contains(page_index2page_ptr(j)), 
+                    forall|j:usize| #![auto] 0<=j<i && boot_page_ptrs@[j as int].is_None() ==> self.page_array@[j as int].state == UNAVAILABLE, 
+                    (forall|j:usize| #![auto] i<=j<NUM_PAGES && boot_page_ptrs@[j as int].is_Some() ==> 
                         (boot_page_perms@.dom().contains(page_index2page_ptr(j))
                          && 
                          boot_page_perms@[page_index2page_ptr(j)]@.pptr == page_index2page_ptr(j)
@@ -309,18 +332,53 @@ impl PageAllocator {
                     forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].start == j * PAGE_SIZE,
                     forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].state <= MAPPED,
                     forall|i:int| #![auto] 0<=i<self.free_pages.len() ==> page_ptr_valid(self.free_pages@[i]),
+                    self.page_perms@.dom() =~= self.free_pages_as_set() + self.mapped_pages(),
+                    forall|page_ptr:PagePtr| #![auto] self.page_perms@.dom().contains(page_ptr) ==> self.page_perms@[page_ptr]@.pptr == page_ptr,
+                    forall|page_ptr:PagePtr| #![auto] self.page_perms@.dom().contains(page_ptr) ==> self.page_perms@[page_ptr]@.value.is_Some(),
                     self.page_perms_wf(),
-                    self.free_pages_as_set().len() <= i,
-                    self.available_pages@ =~= self.free_pages_as_set(),
+                    self.free_pages_as_set().len() + self.mapped_pages@.len() <= i,
+                    self.mapped_pages@.disjoint(self.free_pages_as_set()),
+                    self.available_pages@ =~= self.free_pages_as_set() + self.mapped_pages@,
+                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].start == j * PAGE_SIZE,
+                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].state <= MAPPED,
+                    forall|j:usize| #![auto] 0<=j<i ==> (self.page_array@[j as int].rf_count != 0 <==> self.page_array@[j as int].state == MAPPED),
+                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].mappings@.dom().finite(),
+                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].rf_count == self.page_array@[j as int].mappings@.dom().len(),
+                    forall|page_ptr:PagePtr| #![auto] self.allocated_pages@.contains(page_ptr) ==> page_ptr_valid(page_ptr),
+                    forall|j:int| #![auto] 0<=j<i ==> (self.page_array@[j].state == ALLOCATED ==> self.allocated_pages@.contains(self.page_array@[j].start)),
+                    forall|page_ptr:PagePtr| #![auto] self.allocated_pages@.contains(page_ptr) ==> (self.page_array@[page_ptr2page_index(page_ptr as usize) as int].state == ALLOCATED),
+                    forall|page_ptr:PagePtr| #![auto] self.mapped_pages@.contains(page_ptr) ==> page_ptr_valid(page_ptr),
+                    forall|j:usize| #![auto] 0<=j<i ==> (self.page_array@[j as int].state == MAPPED ==> self.mapped_pages@.contains(self.page_array@[j as int].start)),
+                    forall|page_ptr:PagePtr| #![auto] self.mapped_pages@.contains(page_ptr) ==> (self.page_array@[page_ptr2page_index(page_ptr as usize) as int].state == MAPPED),
+                    self.available_pages@.finite(),
+                    self.available_pages@.len() <= NUM_PAGES,
+                    forall|j:usize| #![auto] 0<=j<i ==> (self.page_array@[j as int].state != UNAVAILABLE ==> self.available_pages@.contains(page_index2page_ptr(j))),
                 ensures
                     i == NUM_PAGES,
-                    self.wf(),
-                    forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int] == true ==> self.free_pages@.contains(page_index2page_ptr(i)), 
+                    forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].is_Some() && boot_page_ptrs@[i as int].unwrap() == 0 ==> self.free_pages@.contains(page_index2page_ptr(i)), 
+                    self.allocated_pages@ =~= Set::empty(), 
+                    self.mem_wf(),
+                    self.page_array_wf(),
+                    self.free_pages_wf(),
+                    self.allocated_pages_wf(),
+                    self.mapped_pages_wf(),
+                    self.rf_wf(),
+                    self.page_perms_wf(),
+                    self.available_pages_wf(),
         {
-            self.page_array.set_page_start(i, page_index2page_ptr(i));
-            self.page_array.set_page_rf_count(i, 0);
-            self.page_array.set_page_mappings(i, Ghost(Map::empty()));
-            if *boot_page_ptrs.index(i) {
+            let result =  *boot_page_ptrs.index(i);
+            if result.is_none() {
+                self.page_array.set_page_start(i, page_index2page_ptr(i));
+                self.page_array.set_page_rf_count(i, 0);
+                self.page_array.set_page_mappings(i, Ghost(Map::empty()));
+                self.page_array.set_page_state(i, UNAVAILABLE);
+            }
+            else if result.unwrap() == 0{
+                assert(self.free_pages_as_set().len() + self.mapped_pages@.len() <= i);
+                let free_pages: Ghost<Set<PagePtr>> = Ghost(self.free_pages_as_set());
+                self.page_array.set_page_start(i, page_index2page_ptr(i));
+                self.page_array.set_page_rf_count(i, 0);
+                self.page_array.set_page_mappings(i, Ghost(Map::empty()));
                 self.page_array.set_page_state(i, FREE);
                 self.free_pages.push_unique(page_index2page_ptr(i));
                 let tracked mut page_perm: PagePerm =
@@ -329,13 +387,54 @@ impl PageAllocator {
                     (self.page_perms.borrow_mut())
                         .tracked_insert(page_index2page_ptr(i), page_perm);
                 }
+                assert(free_pages@.insert(page_index2page_ptr(i)) =~= self.free_pages_as_set());
+                assert(self.free_pages_as_set().len() + self.mapped_pages@.len() <= i + 1);
             }else{
-                self.page_array.set_page_state(i, UNAVAILABLE);
+                assert(self.free_pages_as_set().len() + self.mapped_pages@.len() <= i);
+                let mapped_pages:Ghost<Set<PagePtr>> = Ghost(self.mapped_pages@);
+                assert(forall|j:usize| #![auto] 0<=j<i ==> 
+                    (
+                    self.page_array[j as int].start == page_index2page_ptr(j)
+                    &&
+                    self.page_array[j as int].rf_count == self.page_array[j as int].mappings@.dom().len()
+                    &&
+                    self.page_array[j as int].mappings@.dom().finite()
+                    ));
+                
+                self.page_array.set_page_start(i, page_index2page_ptr(i));
+                self.page_array.set_page_rf_count(i, 1);
+                self.page_array.set_page_mappings(i, Ghost(Map::<(Pcid,VAddr),PageType>::empty().insert((0,result.unwrap()),0)));
+                self.page_array.set_page_state(i, MAPPED);
+
+                self.mapped_pages = Ghost(self.mapped_pages@.insert(page_index2page_ptr(i)));
+                let tracked mut page_perm: PagePerm =
+                    (boot_page_perms.borrow_mut()).tracked_remove(page_index2page_ptr(i));
+                proof{
+                    (self.page_perms.borrow_mut())
+                        .tracked_insert(page_index2page_ptr(i), page_perm);
+                }
+                assert(forall|j:usize| #![auto] 0<=j<i+1 ==> 
+                    (
+                    self.page_array[j as int].start == page_index2page_ptr(j)
+                    &&
+                    self.page_array[j as int].rf_count == self.page_array[j as int].mappings@.dom().len()
+                    &&
+                    self.page_array[j as int].mappings@.dom().finite()
+                    ));
+                assert(mapped_pages@.insert(page_index2page_ptr(i)) =~= self.mapped_pages@);
+                assert(mapped_pages@.len() + 1 >= self.mapped_pages@.len());
+                assert(self.free_pages_as_set().len() + self.mapped_pages@.len() <= i + 1);
             }
             proof{
-                self.available_pages@ = self.free_pages_as_set();
+                self.available_pages@ = self.free_pages_as_set() + self.mapped_pages@;
             }
-            proof{self.free_pages@.unique_seq_to_set();}
+            proof{vstd::set_lib::lemma_set_disjoint_lens(self.free_pages_as_set(), self.mapped_pages@);}
+            assert(self.mapped_pages@.disjoint(self.free_pages_as_set()));
+            // assert(self.free_pages_as_set().intersect(self.mapped_pages@).len() == 0);
+            assert(self.available_pages@.len() == self.free_pages_as_set().len() + self.mapped_pages@.len());
+
+            
+
             i = i + 1;
         }
         
@@ -525,10 +624,13 @@ impl PageAllocator {
         ensures
             self.wf(),
             old(self).free_pages_as_set().contains(ret.0),
+            self.free_pages_as_set().contains(ret.0) == false,
+            self.free_pages_as_set() =~= self.free_pages_as_set().remove(ret.0),
             self.allocated_pages().contains(ret.0),
             self.available_pages() =~= old(self).available_pages(),
             ret.1@@.pptr == ret.0,
             ret.1@@.value.is_Some(),
+            self.free_pages.len() as int =~= old(self).free_pages.len() as int - 1,
     {
         proof{
             self.page_array_wf_derive();
@@ -612,6 +714,17 @@ impl PageAllocator {
         assert(self.wf());
         return ret;
     }
+
+    // pub fn mark_dom0_pages(&mut self, pcid:Pcid, page_ptrs: &ArrayVec<page_ptr,DOM0_NUM_PAGES>, targets: &ArrayVec<VAddr,DOM0_NUM_PAGES>, page_types: &ArrayVec<PageType,DOM0_NUM_PAGES>)
+    //     requires
+    //         old(self).wf(),
+    //         old(self).allocated_pages@ =~= Set::empty(),
+    //         old(self).mapped_pages@ =~= Set::empty(), 
+
+
+    // {
+
+    // }
 
     pub fn map_user_page(&mut self, page_ptr : PagePtr, target: (Pcid,VAddr), page_type: PageType)
         requires
