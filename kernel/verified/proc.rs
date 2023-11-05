@@ -180,6 +180,7 @@ impl ProcessManager {
             ret.thread_ptrs@ =~= Set::empty(),
             ret.thread_perms@ =~= Map::empty(),
             ret.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            ret.scheduler@ =~= Seq::empty(),
             ret.endpoint_ptrs@ =~= Set::empty(),
             ret.endpoint_perms@ =~= Map::empty(),
             ret.pcid_closure@ =~= Set::empty(),
@@ -216,6 +217,17 @@ impl ProcessManager {
             old(self).pcid_closure@ =~= Set::empty(),
         ensures
             self.wf(),
+            self.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
+            self.proc_ptrs@ =~= Seq::empty(),
+            self.proc_perms@ =~= Map::empty(),
+            self.thread_ptrs@ =~= Set::empty(),
+            self.thread_perms@ =~= Map::empty(),
+            self.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            self.scheduler@ =~= Seq::empty(),
+            self.endpoint_ptrs@ =~= Set::empty(),
+            self.endpoint_perms@ =~= Map::empty(),
+            self.pcid_closure@ =~= Set::empty(),
+            forall|thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==> self.get_thread(thread_ptr).state != TRANSIT,
         {
             self.proc_ptrs.init();
             self.scheduler.init();

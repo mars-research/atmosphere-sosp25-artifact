@@ -1,8 +1,9 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
 
+use crate::array_vec::*;
 use crate::proc::*;
-use crate::page_alloc::PageAllocator;
+use crate::page_alloc::*;
 use crate::page::*;
 use crate::pcid_alloc::{PcidAllocator,PCID_MAX};
 use crate::cpu::{Cpu,CPUID};
@@ -18,9 +19,115 @@ pub struct Kernel{
     pub cpu_list: MarsArray<Cpu,NUM_CPUS>,
 }
 
+impl MarsArray<Cpu,NUM_CPUS>{
+    pub fn init_to_none(&mut self)
+        requires
+            old(self).wf(),
+        ensures
+            self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].is_idle(),
+    {
+        let mut i = 0;
+        while i != NUM_CPUS
+            invariant
+                0<= i <= NUM_CPUS,
+                self.wf(),
+                forall |j:int| #![auto] 0<=j<i ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
+            ensures
+                i == NUM_CPUS,
+                self.wf(),
+                forall |j:int| #![auto] 0<=j<NUM_CPUS ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
+        {
+            let cpu = Cpu{
+                current_t: None,
+                tlb: Ghost(Map::empty()),
+            };
+            let tmp:Ghost<Seq<Cpu>> = Ghost(self@); 
+            self.set(i,cpu);
+            assert(self.seq@ =~= tmp@.update(i as int, cpu));
+            i = i + 1;
+        }
+    }
+}
+
 impl Kernel {
 
+    #[verifier(external_body)]
+    pub fn new() -> (ret: Self)
+        ensures
+            ret.proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
+            ret.proc_man.proc_perms@ =~= Map::empty(),
+            ret.proc_man.thread_ptrs@ =~= Set::empty(),
+            ret.proc_man.thread_perms@ =~= Map::empty(),
+            ret.proc_man.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            ret.proc_man.endpoint_ptrs@ =~= Set::empty(),
+            ret.proc_man.endpoint_perms@ =~= Map::empty(),
+            ret.proc_man.pcid_closure@ =~= Set::empty(),
+            ret.page_alloc.page_array.wf(),
+            ret.page_alloc.free_pages.wf(),
+            ret.page_alloc.free_pages.len() == 0,
+            ret.pcid_alloc.page_table_ptrs.wf(),
+            ret.pcid_alloc.page_table_perms@ =~= Map::empty(),
+            ret.cpu_list.wf(),
+    {
+        let ret = Self {
+            proc_man : ProcessManager::new(),
+            page_alloc: PageAllocator::new(),
+            pcid_alloc: PcidAllocator::new(),
+            cpu_list: MarsArray::<Cpu,NUM_CPUS>::new(),
+        };
 
+        ret
+    }
+
+     
+
+    pub fn kernel_init(&mut self,boot_page_ptrs: &ArrayVec<bool,NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>)
+        requires 
+            old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
+            old(self).proc_man.proc_ptrs@ =~= Seq::empty(),
+            old(self).proc_man.proc_perms@ =~= Map::empty(),
+            old(self).proc_man.thread_ptrs@ =~= Set::empty(),
+            old(self).proc_man.thread_perms@ =~= Map::empty(),
+            old(self).proc_man.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            old(self).proc_man.scheduler@ =~= Seq::empty(),
+            old(self).proc_man.endpoint_ptrs@ =~= Set::empty(),
+            old(self).proc_man.endpoint_perms@ =~= Map::empty(),
+            old(self).proc_man.pcid_closure@ =~= Set::empty(),
+            old(self).page_alloc.page_array.wf(),
+            old(self).page_alloc.free_pages.wf(),
+            old(self).page_alloc.free_pages.len() == 0,
+            old(self).page_alloc.allocated_pages@ =~= Set::empty(),
+            old(self).page_alloc.mapped_pages@ =~= Set::empty(),
+            old(self).page_alloc.available_pages@ =~= Set::empty(),
+            old(self).page_alloc.page_perms@.dom() =~= Set::empty(),
+            old(self).pcid_alloc.page_table_ptrs.wf(),
+            old(self).pcid_alloc.page_table_perms@ =~= Map::empty(),
+            boot_page_ptrs.wf(),
+            boot_page_ptrs.len() == NUM_PAGES,
+            (forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int] == true ==> 
+                (boot_page_perms@.dom().contains(page_index2page_ptr(i))
+                 && 
+                 boot_page_perms@[page_index2page_ptr(i)]@.pptr == page_index2page_ptr(i)
+                 &&
+                 boot_page_perms@[page_index2page_ptr(i)]@.value.is_Some()
+                )
+            ),
+            NUM_PAGES * 4096 <= usize::MAX,
+            old(self).cpu_list.wf()
+        ensures
+            self.kernel_wf(),
+        {
+            self.proc_man.init();
+            self.page_alloc.init(boot_page_ptrs, boot_page_perms);
+            self.pcid_alloc.init();
+            self.cpu_list.init_to_none();
+            assert(self.kernel_no_transit_thread());
+            assert(self.kernel_cpulist_wf());
+            assert(self.proc_man.wf());
+        }
+
+        
 
     pub closed spec fn kernel_page_closure(&self) -> Set<PagePtr>
     {
