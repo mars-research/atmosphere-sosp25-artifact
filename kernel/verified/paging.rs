@@ -7,7 +7,7 @@ use vstd::prelude::*;
 use vstd::ptr::PointsTo;
 
 use crate::page::{PagePtr, PagePPtr, PagePerm, VAddr, PAddr};
-
+use crate::page_alloc::*;
 pub struct AddressSpace(pub PML4);
 
 verus! {
@@ -270,16 +270,65 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     }
 
     ///Tmp change @zhaofeng delete this 
-    pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePtr> {
-        Set::empty()
+    // pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePtr> {
+    //     Set::empty()
+    // }
+    pub open spec fn tmp_wf(&self)->bool{
+        &&&
+        (forall|va:VAddr| #![auto] self.tmp_va2pa_mapping().dom().contains(va) ==> page_ptr_valid(self.tmp_va2pa_mapping()[va] as usize))
+
     }
-    
+
     pub closed spec fn tmp_table_page_closure(&self) -> Set<PagePtr> {
         Set::empty()
     }
 
     pub closed spec fn tmp_va2pa_mapping(&self) -> Map<VAddr,PAddr> {
         Map::empty()
+    }
+
+    pub closed spec fn ready2map_va(&self, va:VAddr) -> bool
+    {
+        arbitrary()
+    }
+
+    #[verifier(external_body)]
+    pub fn create_entry4va(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            old(self).wf(),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 4,
+        ensures
+            self.wf(),
+            page_alloc.wf(),
+            self.tmp_table_page_closure() =~= old(self).tmp_table_page_closure() + ret@,
+            ret@.subset_of(old(page_alloc).free_pages_as_set()),
+            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
+            self.ready2map_va(va) == true,
+    {
+        arbitrary()
+    }
+
+    #[verifier(external_body)]
+    pub fn resolve_va(&self, va:VAddr) -> (ret: Option<PAddr>)
+        ensures
+            ret.is_None() ==> self.tmp_va2pa_mapping().dom().contains(va) == false,
+            ret.is_Some() ==> self.tmp_va2pa_mapping().dom().contains(va) && self.tmp_va2pa_mapping()[va] == ret.unwrap(),
+    {
+        arbitrary()
+    }
+
+    #[verifier(external_body)]
+    pub fn map_pa_to_va(&mut self, va:VAddr, pa:PAddr)
+        requires
+            old(self).wf(),
+            old(self).tmp_va2pa_mapping().dom().contains(va) == false,
+        ensures
+            self.wf(),
+            self.tmp_va2pa_mapping().dom().contains(va) == true,
+            self.tmp_va2pa_mapping()[va] == pa,
+    {
+        arbitrary()
     }
     ///end tmp
     
