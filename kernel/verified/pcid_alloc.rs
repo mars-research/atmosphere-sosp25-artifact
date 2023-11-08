@@ -71,19 +71,19 @@ impl PcidAllocator {
         self.page_tables.wf()
         &&&
         (
-            forall|i:int| #![auto] 0<=i<self.free_page_tables.len() ==> self.page_tables[self.free_page_tables@[i] as int].0.tmp_va2pa_mapping() =~= Map::empty()
+            forall|i:int| #![auto] 0<=i<self.free_page_tables.len() ==> self.page_tables[self.free_page_tables@[i] as int].0.tmp_get_mem_mappings() =~= Map::empty()
         )
         &&&
         (
-            forall|i:int,va:VAddr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_va2pa_mapping().dom().contains(va) ==> page_ptr_valid(self.page_tables[i].0.tmp_va2pa_mapping()[va] as usize)
+            forall|i:int,va:VAddr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.page_tables[i].0.tmp_get_mem_mappings()[va] as usize)
         )
         &&&
         (
-            forall|i:int,page_ptr:PagePtr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_table_page_closure().contains(page_ptr) ==> self.page_table_pages@.contains(page_ptr)
+            forall|i:int,page_ptr:PagePtr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_page_table_page_closure().contains(page_ptr) ==> self.page_table_pages@.contains(page_ptr)
         )
         &&&
         (
-            forall|i:int,j:int| #![auto] 0<=i<PCID_MAX && 0<=j<PCID_MAX && i != j ==> self.page_tables[i].0.tmp_table_page_closure().disjoint(self.page_tables[j].0.tmp_table_page_closure())
+            forall|i:int,j:int| #![auto] 0<=i<PCID_MAX && 0<=j<PCID_MAX && i != j ==> self.page_tables[i].0.tmp_page_table_page_closure().disjoint(self.page_tables[j].0.tmp_page_table_page_closure())
         )
     }
 
@@ -101,7 +101,7 @@ impl PcidAllocator {
         recommends 
             0<=pcid<PCID_MAX,
     {
-        self.page_tables@[pcid as int].0.tmp_va2pa_mapping()
+        self.page_tables@[pcid as int].0.tmp_get_mem_mappings()
     }
 
     pub fn resolve(&self, pcid: Pcid, va: VAddr) -> (ret : Option<PAddr>)
@@ -115,7 +115,7 @@ impl PcidAllocator {
             ret.is_Some() ==> self.get_address_space(pcid)[va] == ret.unwrap(),
             ret.is_Some() ==> page_ptr_valid(ret.unwrap() as usize),
     {
-        return self.page_tables.get(pcid).0.resolve_va(va);
+        return self.page_tables.get(pcid).0.resolve(va);
     }
 
     

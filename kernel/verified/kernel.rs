@@ -107,7 +107,7 @@ impl Kernel {
             old(self).page_alloc.page_array.wf(),
             old(self).page_alloc.free_pages.wf(),
             old(self).page_alloc.free_pages.len() == 0,
-            old(self).page_alloc.pagetable_pages@ =~= Set::empty(),
+            old(self).page_alloc.page_table_pages@ =~= Set::empty(),
             old(self).page_alloc.allocated_pages@ =~= Set::empty(),
             old(self).page_alloc.mapped_pages@ =~= Set::empty(),
             old(self).page_alloc.available_pages@ =~= Set::empty(),
@@ -126,7 +126,7 @@ impl Kernel {
             ),
             NUM_PAGES * 4096 <= usize::MAX,
             old(self).cpu_list.wf(),
-            forall|va:VAddr,pa:PAddr| #![auto] dom0_pagetable@@.value.get_Some_0().0.tmp_va2pa_mapping().contains_pair(va,pa) ==>
+            forall|va:VAddr,pa:PAddr| #![auto] dom0_pagetable@@.value.get_Some_0().0.tmp_get_mem_mappings().contains_pair(va,pa) ==>
                 (
                     va != 0
                     &&
@@ -207,17 +207,20 @@ impl Kernel {
     ///If page_alloc.rf_count drops to zero, we can infer that no process maps pa anymore without even looking these processes' pagetable
     ///Therefore, page_alloc.mappings() cannot be generated on the fly. (or maybe we can)
     // pub closed spec fn kernel_page_mapping_wf(&self) -> bool{
-    //     forall |page_ptr:PagePtr| #![auto] self.page_alloc.mapped_pages().contains(page_ptr) ==>
+    //     // forall |page_ptr:PagePtr| #![auto] self.page_alloc.mapped_pages().contains(page_ptr) ==>
+    //     //     (
+    //     //         forall|pcid: Pcid| #![auto] self.pcid_alloc.allocated_pcids().contains(pcid) ==>
+    //     //             (
+    //     //                 forall|va:VAddr,pa:PAddr| #![auto] self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid).contains_pair(va,pa) && pa == page_ptr ==>
+    //     //                     (
+    //     //                         self.page_alloc.get_page_mappings(page_ptr).contains((pcid,va))
+    //     //                     )
+    //     //             )
+    //     //     )
+    //     forall |pcid:Pcid va:VAddr, pa:PAddr| #![auto] 0<=pcid<PCID_MAX && self.pcid_alloc.get_address_space(pcid).dom().contains(va) && self.pcid_alloc.get_address_space(pcid)[va] == pa ==>
     //         (
-    //             forall|pcid: Pcid| #![auto] self.pcid_alloc.allocated_pcids().contains(pcid) ==>
-    //                 (
-    //                     forall|va:VAddr,pa:PAddr| #![auto] self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid).contains_pair(va,pa) && pa == page_ptr ==>
-    //                         (
-    //                             self.page_alloc.page_mappings(page_ptr).contains((pcid,va))
-    //                         )
-    //                 )
+    //             self.page_alloc.get_page_mappings(pa as usize).contains((pcid,va))
     //         )
-    //     //true
     // }
 
     ///Spec for the tlbs for all the CPUs in the system
