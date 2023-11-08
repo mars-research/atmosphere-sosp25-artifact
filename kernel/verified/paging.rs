@@ -8,6 +8,9 @@ use vstd::ptr::PointsTo;
 
 use crate::page::{PagePtr, PagePPtr, PagePerm, VAddr, PAddr};
 use crate::page_alloc::*;
+use crate::mars_array::*;
+use crate::page::*;
+use crate::pcid_alloc::*;
 pub struct AddressSpace(pub PML4);
 
 verus! {
@@ -767,4 +770,44 @@ mod spec_tests {
     }
 }
 
+impl MarsArray<AddressSpace,PCID_MAX>{
+
+    #[verifier(external_body)]
+    pub fn pcid_map_pa_to_va(&mut self, pcid:Pcid, va:VAddr, pa:PAddr)
+    requires
+        0<=pcid<PCID_MAX,
+        old(self).wf(),
+        old(self)@[pcid as int].0.wf(),
+        old(self)@[pcid as int].0.tmp_va2pa_mapping().dom().contains(va) == false,
+    ensures
+        self.wf(),
+        self@[pcid as int].0.wf(),
+        self@[pcid as int].0.tmp_va2pa_mapping().dom().contains(va) == true,
+        self@[pcid as int].0.tmp_va2pa_mapping()[va] == pa,
+        forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int]
+    {
+        self.ar[pcid].0.map_pa_to_va(va, pa);
+    }
+
+    #[verifier(external_body)]
+    pub fn pcid_create_entry4va(&mut self, pcid:Pcid, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self)@[pcid as int].0.wf(),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 4,
+        ensures
+            self.wf(),
+            self@[pcid as int].0.wf(),
+            page_alloc.wf(),
+            self@[pcid as int].0.tmp_table_page_closure() =~= old(self)@[pcid as int].0.tmp_table_page_closure() + ret@,
+            ret@.subset_of(old(page_alloc).free_pages_as_set()),
+            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
+            self@[pcid as int].0.ready2map_va(va) == true,
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int]
+    {
+        return self.ar[pcid].0.create_entry4va(va, page_alloc);
+    }
+}
 }

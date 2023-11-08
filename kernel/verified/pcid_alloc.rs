@@ -87,39 +87,37 @@ impl PcidAllocator {
         )
     }
 
-    // pub closed spec fn allocated_pcids(&self) -> Set<Pcid>
-    // {
-    //     Set::empty()
-    // }
+    pub open spec fn free_pcids(&self) -> Set<Pcid>
+    {
+        self.free_page_tables@.to_set()
+    }
 
-    // pub closed spec fn free_pcids(&self) -> Set<Pcid>
-    // {
-    //     Set::empty()
-    // }
+    pub open spec fn all_pcids(&self) -> Set<Pcid>
+    {
+        Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
+    }
 
-    // pub closed spec fn all_pcids(&self) -> Set<Pcid>
-    // {
-    //     Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
-    // }
+    pub closed spec fn get_address_space(&self,pcid:Pcid) ->  Map<VAddr,PAddr>
+        recommends 
+            0<=pcid<PCID_MAX,
+    {
+        self.page_tables@[pcid as int].0.tmp_va2pa_mapping()
+    }
 
-    // pub closed spec fn pcid_wf(&self) -> bool
-    // {
-    //     &&&
-    //     (self.allocated_pcids() * self.free_pcids() =~= Set::empty())
-    //     &&&
-    //     ((self.allocated_pcids() + self.free_pcids()) =~= self.all_pcids()) 
-    // }
+    pub fn resolve(&self, pcid: Pcid, va: VAddr) -> (ret : Option<PAddr>)
+        requires
+            self.wf(),
+            0<=pcid<PCID_MAX,
+            //self.free_pcids().contains(pcid) == false,    
+        ensures
+            ret.is_None() ==> self.get_address_space(pcid).dom().contains(va) == false,
+            ret.is_Some() ==> self.get_address_space(pcid).dom().contains(va),
+            ret.is_Some() ==> self.get_address_space(pcid)[va] == ret.unwrap(),
+            ret.is_Some() ==> page_ptr_valid(ret.unwrap() as usize),
+    {
+        return self.page_tables.get(pcid).0.resolve_va(va);
+    }
 
-    // pub closed spec fn get_va2pa_mapping_for_pcid(&self,pcid:Pcid) ->  Map<VAddr,PAddr>
-    //     recommends 
-    //         0<=pcid<PCID_MAX,
-    // {
-    //     self.page_table_perms@[pcid]@.value.get_Some_0().0.tmp_va2pa_mapping()
-    // }
-
-    // closed spec fn local_page_closure(&self) -> Set<PagePtr>{
-    //     Set::empty()
-    // }
-
+    
 }
 }
