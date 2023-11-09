@@ -310,10 +310,24 @@ impl<T> PageElementPtr<T> {
         }
     }
 
+    // pub closed spec fn spec_clone(&self) -> (ep: Self)
+    //     ensures
+    //         self.same_ptr(&ep),
+    // {
+    //     Self {
+    //         page_pptr: self.page_pptr.clone(),
+    //         index: self.index,
+        
+    //         phantom: self.phantom,
+    //     }
+    // }
+
     // Specs
 
-    pub closed spec fn same_ptr(&self, other: &Self) -> bool {
-        self.page_pptr.id() === other.page_pptr.id() && self.index == other.index
+    pub open spec fn same_ptr(&self, other: &Self) -> bool {
+        &&& self.page_pptr().id() === other.page_pptr().id() 
+        &&& self.index() == other.index()
+        &&& self.page_base() === other.page_base()
     }
 
     pub closed spec fn page_pptr(&self) -> PagePPtr {
@@ -384,8 +398,8 @@ impl<MT> PageMetadataPtr<MT> {
 
     // Specs
 
-    pub closed spec fn same_ptr(&self, other: &Self) -> bool {
-        self.page_pptr.id() === other.page_pptr.id()
+    pub open spec fn same_ptr(&self, other: &Self) -> bool {
+        self.page_pptr().id() === other.page_pptr().id()
     }
 
     pub closed spec fn page_pptr(&self) -> PagePPtr {
