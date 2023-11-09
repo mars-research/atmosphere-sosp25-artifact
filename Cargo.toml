@@ -5,6 +5,7 @@ members = [
   "astd",
   "atest",
   "build-tool",
+  "dom0",
   "kernel-logger",
   "ns16550a",
   "kernel",

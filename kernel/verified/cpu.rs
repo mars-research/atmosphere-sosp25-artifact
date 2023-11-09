@@ -9,16 +9,20 @@ pub type CPUID = usize;
 
 verus! {
 pub struct Cpu{
-    pub current_t: ThreadPtr,
+    pub current_t: Option<ThreadPtr>,
     pub tlb: Ghost<Map<Pcid,Map<VAddr,PAddr>>>
 }
 impl Cpu {
     pub open spec fn wf(&self) -> bool{
         self.tlb@.dom() =~= Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
     }
-    pub open spec fn get_current_thread(&self) -> ThreadPtr
+    pub open spec fn get_current_thread(&self) -> Option<ThreadPtr>
     {
         self.current_t
+    }
+
+    pub open spec fn is_idle(&self) -> bool{
+        self.current_t.is_Some() == false
     }
     
     pub open spec fn get_tlb_for_pcid(&self, pcid:Pcid) -> Map<VAddr,PAddr>

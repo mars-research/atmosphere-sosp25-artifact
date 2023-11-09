@@ -5,6 +5,7 @@
 
 mod dynamic;
 
+use core::cmp::max;
 use core::ffi::c_void;
 use core::fmt;
 use core::mem;
@@ -89,6 +90,7 @@ pub struct ElfHandle<F: Read + Seek> {
     header: Header,
     program_headers: ArrayVec<ProgramHeader, MAX_PROGRAM_HEADERS>,
     page_size: usize,
+    elf_end: usize,
 }
 
 pub struct ElfMapping {
@@ -169,6 +171,7 @@ where
 
         let mut program_headers = ArrayVec::new();
 
+        let mut elf_end = 0;
         for _ in 0..header.e_phnum {
             let mut ph_bytes = [0u8; mem::size_of::<ProgramHeader>()];
             file.read_exact(&mut ph_bytes).map_err(Into::into)?;
@@ -177,18 +180,29 @@ where
                 .unwrap()
                 .clone();
 
+            let file_end = ph.p_offset + ph.p_filesz;
+            elf_end = max(elf_end, file_end as usize);
+
             program_headers.push(ph).unwrap();
         }
+
+        if header.e_shoff != 0 {
+            let file_end = header.e_shoff + header.e_shentsize as u64 * header.e_shnum as u64;
+            elf_end = max(elf_end, file_end as usize);
+        }
+
+        log::info!("ELF end: {}", elf_end);
 
         Ok(Self {
             file,
             header: header.clone(),
             program_headers,
             page_size,
+            elf_end,
         })
     }
 
-    pub fn load(mut self, memory: &mut impl Memory) -> Result<ElfMapping, Error> {
+    pub fn load(mut self, memory: &mut impl Memory) -> Result<(ElfMapping, T), Error> {
         let summary = if let Some(summary) = self.summarize_loadable() {
             summary
         } else {
@@ -317,15 +331,23 @@ where
             }
         }
 
-        if let Some(dynamic) = Dynamic::from_program_headers(self.program_headers.iter(), load_bias) {
+        if let Some(dynamic) = Dynamic::from_program_headers(self.program_headers.iter(), load_bias)
+        {
             log::debug!("Applying relocations");
             dynamic.fixup();
         }
 
-        Ok(ElfMapping {
-            load_bias,
-            entry_point,
-        })
+        Ok((
+            ElfMapping {
+                load_bias,
+                entry_point,
+            },
+            self.file,
+        ))
+    }
+
+    pub fn elf_end(&self) -> usize {
+        self.elf_end
     }
 
     fn summarize_loadable(&self) -> Option<LoadableSummary> {

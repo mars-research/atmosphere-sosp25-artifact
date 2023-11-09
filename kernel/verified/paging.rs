@@ -7,7 +7,10 @@ use vstd::prelude::*;
 use vstd::ptr::PointsTo;
 
 use crate::page::{PagePtr, PagePPtr, PagePerm, VAddr, PAddr};
-
+use crate::page_alloc::*;
+use crate::mars_array::*;
+use crate::page::*;
+use crate::pcid_alloc::*;
 pub struct AddressSpace(pub PML4);
 
 verus! {
@@ -270,16 +273,81 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     }
 
     ///Tmp change @zhaofeng delete this 
-    pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePtr> {
-        Set::empty()
+    // pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePtr> {
+    //     Set::empty()
+    // }
+    pub open spec fn tmp_wf(&self)->bool{
+        &&&
+        (forall|va:VAddr| #![auto] self.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.tmp_get_mem_mappings()[va] as usize))
+
     }
-    
-    pub closed spec fn tmp_table_page_closure(&self) -> Set<PagePtr> {
+
+    pub closed spec fn tmp_page_table_page_closure(&self) -> Set<PagePtr> {
         Set::empty()
     }
 
-    pub closed spec fn tmp_va2pa_mapping(&self) -> Map<VAddr,PAddr> {
+    pub closed spec fn tmp_get_mem_mappings(&self) -> Map<VAddr,PAddr> {
         Map::empty()
+    }
+
+    pub closed spec fn va_entry_exists(&self, va:VAddr) -> bool
+    {
+        arbitrary()
+    }
+
+    #[verifier(external_body)]
+    pub fn create_entry4va(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            old(self).wf(),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 4,
+        ensures
+            self.wf(),
+            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings(),
+            page_alloc.wf(),
+            self.tmp_page_table_page_closure() =~= old(self).tmp_page_table_page_closure() + ret@,
+            ret@.subset_of(old(page_alloc).free_pages_as_set()),
+            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
+            self.va_entry_exists(va) == true,
+    {
+        arbitrary()
+    }
+
+    #[verifier(external_body)]
+    pub fn resolve(&self, va:VAddr) -> (ret: Option<PAddr>)
+        ensures
+            ret.is_None() ==> self.tmp_get_mem_mappings().dom().contains(va) == false,
+            ret.is_Some() ==> self.tmp_get_mem_mappings().dom().contains(va) && self.tmp_get_mem_mappings()[va] == ret.unwrap(),
+    {
+        arbitrary()
+    }
+
+    #[verifier(external_body)]
+    pub fn map_pa_to_va(&mut self, va:VAddr, pa:PAddr)
+        requires
+            old(self).wf(),
+            old(self).tmp_get_mem_mappings().dom().contains(va) == false,
+        ensures
+            self.wf(),
+            self.tmp_get_mem_mappings().dom().contains(va) == true,
+            self.tmp_get_mem_mappings()[va] == pa,
+            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings().insert(va,pa),
+    {
+        arbitrary()
+    }
+
+    #[verifier(external_body)]
+    pub fn unmap(&mut self, va:VAddr) -> (ret: PAddr)
+        requires
+            old(self).wf(),
+            old(self).tmp_get_mem_mappings().dom().contains(va),
+        ensures
+            self.wf(),
+            self.tmp_get_mem_mappings().dom().contains(va) == false,
+            old(self).tmp_get_mem_mappings()[va] == ret,
+            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings().remove(va),
+    {
+        arbitrary()
     }
     ///end tmp
     
@@ -718,4 +786,96 @@ mod spec_tests {
     }
 }
 
+impl MarsArray<AddressSpace,PCID_MAX>{
+
+    #[verifier(external_body)]
+    pub fn init(&mut self)
+        requires
+            old(self).wf(),
+        ensures
+            self.wf(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.wf(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.tmp_page_table_page_closure() =~= Set::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+    {
+        arbitrary()
+    }
+
+    // #[verifier(external_body)]
+    // pub fn pcid_clear(&mut self, pcid:Pcid, page_alloc :&mut PageAllocator)
+    // requires
+    //     0<=pcid<PCID_MAX,
+    //     old(self).wf(),
+    //     old(self)@[pcid as int].0.wf(),
+    //     old(page_alloc).wf(),
+    // ensures
+    //     self.wf(),
+    //     self@[pcid as int].0.wf(),
+    //     page_alloc.wf(),
+    //     self@[pcid as int].0.tmp_page_table_page_closure() =~= Set::empty(),
+    //     page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() + old(self)@[pcid as int].0.tmp_page_table_page_closure(),
+    //     self@[pcid as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+    //     forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+    // {
+    //     self.ar[pcid].0.clear(page_alloc);
+    // }
+
+
+    #[verifier(external_body)]
+    pub fn pcid_map_pa_to_va(&mut self, pcid:Pcid, va:VAddr, pa:PAddr)
+    requires
+        0<=pcid<PCID_MAX,
+        old(self).wf(),
+        old(self)@[pcid as int].0.wf(),
+        old(self)@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va) == false,
+    ensures
+        self.wf(),
+        self@[pcid as int].0.wf(),
+        self@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va) == true,
+        self@[pcid as int].0.tmp_get_mem_mappings()[va] == pa,
+        forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+        self@[pcid as int].0.tmp_get_mem_mappings() =~= old(self)@[pcid as int].0.tmp_get_mem_mappings().insert(va,pa),
+    {
+        self.ar[pcid].0.map_pa_to_va(va, pa);
+    }
+
+    #[verifier(external_body)]
+    pub fn pcid_unmap(&mut self, pcid:Pcid, va:VAddr) -> (ret: PAddr)
+    requires
+        0<=pcid<PCID_MAX,
+        old(self).wf(),
+        old(self)@[pcid as int].0.wf(),
+        old(self)@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va),
+    ensures
+        self.wf(),
+        self@[pcid as int].0.wf(),
+        self@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va) == false,
+        old(self)@[pcid as int].0.tmp_get_mem_mappings()[va] == ret,
+        forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+        self@[pcid as int].0.tmp_get_mem_mappings() =~= old(self)@[pcid as int].0.tmp_get_mem_mappings().remove(va),
+    {
+        return self.ar[pcid].0.unmap(va);
+    }
+
+    #[verifier(external_body)]
+    pub fn pcid_create_entry4va(&mut self, pcid:Pcid, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self)@[pcid as int].0.wf(),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 4,
+        ensures
+            self.wf(),
+            self@[pcid as int].0.wf(),
+            page_alloc.wf(),
+            self@[pcid as int].0.tmp_page_table_page_closure() =~= old(self)@[pcid as int].0.tmp_page_table_page_closure() + ret@,
+            ret@.subset_of(old(page_alloc).free_pages_as_set()),
+            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
+            self@[pcid as int].0.va_entry_exists(va) == true,
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int]
+    {
+        return self.ar[pcid].0.create_entry4va(va, page_alloc);
+    }
+}
 }

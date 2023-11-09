@@ -34,6 +34,8 @@
 
     craneLib = (crane.mkLib pkgs).overrideToolchain pinnedRust;
 
+    pinnedVerus = verus.packages.${system}.verus-no-std;
+
     mkShell = pkgs.mkShell.override {
       stdenv = pkgs.llvmPackages_14.stdenv;
     };
@@ -46,10 +48,9 @@
     devShell = mkShell {
       nativeBuildInputs = [
         pinnedRust
+        pinnedVerus
 
         pkgs.mars-research.mars-tools
-
-        verus.packages.${system}.verus-no-std
       ] ++ (with pkgs; [
         llvmPackages_14.bintools
         llvmPackages_14.llvm
@@ -68,15 +69,23 @@
 
         editorconfig-checker
 
+        jq
+
+        (python3.withPackages (py: with py; [ z3 ]))
+
         (pkgs.writeShellScriptBin "x86_64.ld" ''
           exec ${x86Tools.buildPackages.bintools}/bin/${x86Tools.stdenv.cc.targetPrefix}ld "$@"
         '')
 
         (pkgs.writeShellScriptBin "atmo" ''
           set -euo pipefail
-          root=$(dirname $(cargo locate-project --workspace | ${pkgs.jq}/bin/jq -r .root))
+          metadata=$(cargo metadata --format-version 1)
+          root=$(echo $metadata | jq -r '.workspace_root')
+          target_dir=$(echo $metadata | jq -r '.target_directory')
           pushd "$root/build-tool" >/dev/null
-          exec cargo run --quiet -- "$@"
+          cargo build --quiet
+
+          "$target_dir/debug/atmo" "$@"
         '')
 
         (mkCargoShim "verify")

@@ -1,5 +1,5 @@
 #![no_std]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 #![deny(missing_docs)]
 // Common lint configs
 #![deny(
@@ -19,9 +19,11 @@
 //! It provides statically-sized implementations of common data structures, as well as
 //! synchronization-related primitives like mutexes.
 
+pub mod boot;
 pub mod capability;
 pub mod cell;
 pub mod io;
+pub mod string;
 pub mod sync;
 
 pub use heapless;

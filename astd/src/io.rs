@@ -5,9 +5,7 @@ use core::convert::AsRef;
 use displaydoc::Display;
 use embedded_io as eio;
 pub use embedded_io::{
-    Read, Seek, SeekFrom, Write,
-    ReadExactError, WriteAllError, WriteFmtError,
-    ErrorType, ErrorKind,
+    ErrorKind, ErrorType, Read, ReadExactError, Seek, SeekFrom, Write, WriteAllError, WriteFmtError,
 };
 
 /// An I/O error.
