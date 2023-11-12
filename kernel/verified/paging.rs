@@ -290,13 +290,23 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
         Map::empty()
     }
 
-    pub closed spec fn va_entry_exists(&self, va:VAddr) -> bool
+    #[verifier(external_body)]
+    #[verifier(when_used_as_spec(spec_va_entry_exists))]
+    pub fn va_entry_exists(&self, va:VAddr) -> (ret: bool)
+        ensures
+            ret == self.va_entry_exists(va),
+    {
+        arbitrary()
+    }
+
+
+    pub closed spec fn spec_va_entry_exists(&self, va:VAddr) -> bool
     {
         arbitrary()
     }
 
     #[verifier(external_body)]
-    pub fn create_entry4va(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+    pub fn create_va_entry(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
         requires
             old(self).wf(),
             old(page_alloc).wf(),
@@ -323,7 +333,7 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     }
 
     #[verifier(external_body)]
-    pub fn map_pa_to_va(&mut self, va:VAddr, pa:PAddr)
+    pub fn map(&mut self, va:VAddr, pa:PAddr)
         requires
             old(self).wf(),
             old(self).tmp_get_mem_mappings().dom().contains(va) == false,
@@ -822,7 +832,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
 
 
     #[verifier(external_body)]
-    pub fn pcid_map_pa_to_va(&mut self, pcid:Pcid, va:VAddr, pa:PAddr)
+    pub fn pcid_map(&mut self, pcid:Pcid, va:VAddr, pa:PAddr)
     requires
         0<=pcid<PCID_MAX,
         old(self).wf(),
@@ -836,7 +846,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
         forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
         self@[pcid as int].0.tmp_get_mem_mappings() =~= old(self)@[pcid as int].0.tmp_get_mem_mappings().insert(va,pa),
     {
-        self.ar[pcid].0.map_pa_to_va(va, pa);
+        self.ar[pcid].0.map(va, pa);
     }
 
     #[verifier(external_body)]
@@ -858,7 +868,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
     }
 
     #[verifier(external_body)]
-    pub fn pcid_create_entry4va(&mut self, pcid:Pcid, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+    pub fn pcid_create_va_entry(&mut self, pcid:Pcid, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
         requires
             0<=pcid<PCID_MAX,
             old(self).wf(),
@@ -875,7 +885,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
             self@[pcid as int].0.va_entry_exists(va) == true,
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int]
     {
-        return self.ar[pcid].0.create_entry4va(va, page_alloc);
+        return self.ar[pcid].0.create_va_entry(va, page_alloc);
     }
 }
 }
