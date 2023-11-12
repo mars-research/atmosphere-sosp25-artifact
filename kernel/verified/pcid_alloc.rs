@@ -28,35 +28,111 @@ pub struct PcidAllocator{
 ///For each allocated pcid, they have one distinct pagetable
 impl PcidAllocator {
 
+    #[verifier(external_body)]
+    pub fn new() -> (ret: Self)
+        ensures
+            ret.free_page_tables.wf(),
+            ret.free_page_tables@ =~= Seq::empty(),
+            ret.page_tables.wf(),
+            ret.page_table_pages@ =~= Set::empty(),
+    {
+        let ret = Self {
+            free_page_tables: ArrayVec::<Pcid,PCID_MAX>::new(),
+            page_tables: MarsArray::<AddressSpace,PCID_MAX>::new(),
+            page_table_pages:arbitrary(),
+        };
+
+        ret
+    }
+
     // #[verifier(external_body)]
-    // pub fn new() -> (ret: Self)
-    //     ensures
-    //         ret.page_table_ptrs.wf(),
-    //         ret.page_table_perms@ =~= Map::empty(),
-    //         ret.page_table_pages@ =~= Set::empty(),
-    // {
-    //     let ret = Self {
-    //         page_table_ptrs: MarsArray::<PageTablePtr,PCID_MAX>::new(),
-    //         page_table_perms: arbitrary(),
-    //         page_table_pages:arbitrary(),
-    //     };
+    pub fn init(&mut self, dom0_address_space: &AddressSpace)
+        requires
+            old(self).free_page_tables.wf(),
+            old(self).free_page_tables@ =~= Seq::empty(),
+            old(self).page_tables.wf(),
+            old(self).page_table_pages@ =~= Set::empty(),
+            forall|va:VAddr| #![auto] dom0_address_space.0.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(dom0_address_space.0.tmp_get_mem_mappings()[va] as usize),
+        ensures
+            self.wf(),
+            self.free_page_tables.unique(),
+            self.free_page_tables.len() == PCID_MAX - 1,
+            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.free_page_tables@.contains(j),
+            forall|j:usize| #![auto] 0<=j<self.free_page_tables.len() ==> self.free_page_tables@[j as int]<PCID_MAX,
+            self.free_page_tables.wf(),
+            self.page_tables.wf(),
+            self.free_page_tables@.contains(0) == false,
+            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.page_tables[j as int].0.tmp_page_table_page_closure() =~= Set::empty(),
+            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.page_tables[j as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+            self.page_tables[0].0.tmp_page_table_page_closure() =~= dom0_address_space.0.tmp_page_table_page_closure(),
+            self.page_tables[0].0.tmp_get_mem_mappings() =~= dom0_address_space.0.tmp_get_mem_mappings(),
+    {
+        let mut i = 1;
+        while i != PCID_MAX
+            invariant
+                self.free_page_tables.unique(),
+                self.free_page_tables.len() == i - 1,
+                1 <= i <= PCID_MAX,
+                self.free_page_tables@.contains(0) == false,
+                forall|j:usize| #![auto] 1<=j<i ==> self.free_page_tables@.contains(j),
+                forall|j:usize| #![auto] 0<=j<self.free_page_tables.len() ==> self.free_page_tables@[j as int]<i,
+                self.free_page_tables.wf(),
+                self.page_tables.wf(),
+                self.page_table_pages@ =~= Set::empty(),
+            ensures
+                self.free_page_tables.unique(),
+                self.free_page_tables.len() == PCID_MAX - 1,
+                i == PCID_MAX,
+                self.free_page_tables@.contains(0) == false,
+                forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.free_page_tables@.contains(j),
+                forall|j:usize| #![auto] 0<=j<self.free_page_tables.len() ==> self.free_page_tables@[j as int]<PCID_MAX,
+                self.free_page_tables.wf(),
+                self.page_tables.wf(),
+                self.page_table_pages@ =~= Set::empty(),
 
-    //     ret
-    // }
+        {
+            self.free_page_tables.push_unique(i);
+            i = i + 1;
+        }
 
-    // pub fn init(&mut self)
-    //     requires
-    //         old(self).page_table_ptrs.wf(),
-    //         old(self).page_table_perms@ =~= Map::empty(),
-    //         old(self).page_table_pages@ =~= Set::empty(),
-    //     ensures
-    //         self.wf(),
-    //         forall |i:int| #![auto] 0<=i<PCID_MAX ==> self.page_table_ptrs@[i] == 0,
-    //         self.page_table_perms@ =~= Map::empty(),
-    //         self.page_table_pages@ =~= Set::empty(),
-    // {
-    //     self.page_table_ptrs.init2zero();
-    // }
+        i = 0;
+        while i != PCID_MAX
+        invariant
+            0 <= i <= PCID_MAX,
+            self.free_page_tables.unique(),
+            self.free_page_tables.len() == PCID_MAX - 1,
+            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.free_page_tables@.contains(j),
+            forall|j:usize| #![auto] 0<=j<self.free_page_tables.len() ==> self.free_page_tables@[j as int]<PCID_MAX,
+            self.free_page_tables.wf(),
+            self.page_tables.wf(),
+            self.free_page_tables@.contains(0) == false,
+            self.page_table_pages@ =~= Set::empty(),
+            forall|j:usize| #![auto] 0<=j<i ==> self.page_tables[j as int].0.tmp_page_table_page_closure() =~= Set::empty(),
+            forall|j:usize| #![auto] 0<=j<i ==> self.page_tables[j as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+        ensures
+            self.free_page_tables.unique(),
+            self.free_page_tables.len() == PCID_MAX - 1,
+            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.free_page_tables@.contains(j),
+            forall|j:usize| #![auto] 0<=j<self.free_page_tables.len() ==> self.free_page_tables@[j as int]<PCID_MAX,
+            self.free_page_tables.wf(),
+            self.page_tables.wf(),
+            self.free_page_tables@.contains(0) == false,
+            self.page_table_pages@ =~= Set::empty(),
+            forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].0.tmp_page_table_page_closure() =~= Set::empty(),
+            forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+    {  
+        self.page_tables.pcid_init(i);
+        i = i + 1;
+    }
+
+    self.page_tables.pcid_adpot(0, dom0_address_space);
+    proof{self.page_table_pages@ = dom0_address_space.0.tmp_page_table_page_closure();}
+    assert(self.free_page_tables.wf());
+    assert(self.free_page_tables@.no_duplicates());
+
+   assert(self.wf());
+
+    }
 
     pub closed spec fn wf(&self) -> bool{
         &&&
@@ -65,7 +141,7 @@ impl PcidAllocator {
         self.free_page_tables@.no_duplicates()
         &&&
         (
-            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self.free_page_tables@[i]<PCID_MAX
+            forall|i:int| #![auto] 0<=i<self.free_page_tables.len()  ==> self.free_page_tables@[i]<PCID_MAX
         )
         &&&
         self.page_tables.wf()

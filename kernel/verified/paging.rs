@@ -276,6 +276,25 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     // pub closed spec fn tmp_data_page_closure(&self) -> Set<PagePtr> {
     //     Set::empty()
     // }
+
+    #[verifier(external_body)]
+    pub fn tmp_init(&mut self)
+        ensures
+            self.tmp_get_mem_mappings() =~= Map::empty(),
+            self.tmp_page_table_page_closure() =~= Set::empty(),
+    {
+
+    }
+
+    #[verifier(external_body)]
+    pub fn tmp_adpot(&mut self, addr_spa: &AddressSpace)
+        ensures
+            self.tmp_get_mem_mappings() =~= addr_spa.0.tmp_get_mem_mappings(),
+            self.tmp_page_table_page_closure() =~= addr_spa.0.tmp_page_table_page_closure(),
+    {
+
+    }
+
     pub open spec fn tmp_wf(&self)->bool{
         &&&
         (forall|va:VAddr| #![auto] self.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.tmp_get_mem_mappings()[va] as usize))
@@ -830,6 +849,36 @@ impl MarsArray<AddressSpace,PCID_MAX>{
     //     self.ar[pcid].0.clear(page_alloc);
     // }
 
+    #[verifier(external_body)]
+    pub fn pcid_adpot(&mut self, pcid:Pcid, addr_spa: &AddressSpace)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+        ensures
+            self.wf(),
+            self@[pcid as int].0.wf(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+            self@[pcid as int].0.tmp_get_mem_mappings() =~= addr_spa.0.tmp_get_mem_mappings(),
+            self@[pcid as int].0.tmp_page_table_page_closure() =~= addr_spa.0.tmp_page_table_page_closure(),
+    {
+        self.ar[pcid].0.tmp_adpot(addr_spa);
+    }
+
+    #[verifier(external_body)]
+    pub fn pcid_init(&mut self, pcid:Pcid)
+    requires
+        0<=pcid<PCID_MAX,
+        old(self).wf(),
+        // old(self)@[pcid as int].0.wf(),
+    ensures
+        self.wf(),
+        self@[pcid as int].0.wf(),
+        forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+        self@[pcid as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+        self@[pcid as int].0.tmp_page_table_page_closure() =~= Set::empty(),
+    {
+        self.ar[pcid].0.tmp_init();
+    }
 
     #[verifier(external_body)]
     pub fn pcid_map(&mut self, pcid:Pcid, va:VAddr, pa:PAddr)
