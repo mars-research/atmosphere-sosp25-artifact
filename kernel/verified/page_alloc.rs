@@ -50,9 +50,9 @@ pub struct PageAllocator{
     pub page_perms: Tracked<Map<PagePtr,PagePerm>>,
 
 
-    //fields for virtual addresses
-    pub free_pcids: ArrayVec<Pcid,PCID_MAX>,
-    pub page_tables: MarsArray<AddressSpace,PCID_MAX>,
+    // //fields for virtual addresses
+    // pub free_pcids: ArrayVec<Pcid,PCID_MAX>,
+    // pub page_tables: MarsArray<AddressSpace,PCID_MAX>,
 }
 
 #[verifier(external_body)]
@@ -271,8 +271,8 @@ impl PageAllocator {
             available_pages: arbitrary(),
             page_perms: arbitrary(),
 
-            free_pcids: ArrayVec::<Pcid,PCID_MAX>::new(),
-            page_tables: MarsArray::<AddressSpace,PCID_MAX>::new(),
+            // free_pcids: ArrayVec::<Pcid,PCID_MAX>::new(),
+            // page_tables: MarsArray::<AddressSpace,PCID_MAX>::new(),
         };
 
         ret
@@ -602,38 +602,38 @@ impl PageAllocator {
            
     }
 
-    pub closed spec fn address_space_wf(&self) -> bool{
-        &&&
-        self.free_pcids.wf()
-        &&&
-        self.free_pcids@.no_duplicates()
-        &&&
-        (
-            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self.free_pcids@[i]<PCID_MAX
-        )
-        &&&
-        self.page_tables.wf()
-        &&&
-        (
-            forall|i:int| #![auto] 0<=i<self.free_pcids.len() ==> self.page_tables[self.free_pcids@[i] as int].0.tmp_get_mem_mappings() =~= Map::empty()
-        )
-        &&&
-        (
-            forall|i:int,va:VAddr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.page_tables[i].0.tmp_get_mem_mappings()[va] as usize)
-        )
-        &&&
-        (
-            forall|i:int,page_ptr:PagePtr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_page_table_page_closure().contains(page_ptr) ==> self.page_table_pages@.contains(page_ptr)
-        )
-        &&&
-        (
-            forall|i:int,j:int| #![auto] 0<=i<PCID_MAX && 0<=j<PCID_MAX && i != j ==> self.page_tables[i].0.tmp_page_table_page_closure().disjoint(self.page_tables[j].0.tmp_page_table_page_closure())
-        )
-    }
+    // pub closed spec fn address_space_wf(&self) -> bool{
+    //     &&&
+    //     self.free_pcids.wf()
+    //     &&&
+    //     self.free_pcids@.no_duplicates()
+    //     &&&
+    //     (
+    //         forall|i:int| #![auto] 0<=i<PCID_MAX ==> self.free_pcids@[i]<PCID_MAX
+    //     )
+    //     &&&
+    //     self.page_tables.wf()
+    //     &&&
+    //     (
+    //         forall|i:int| #![auto] 0<=i<self.free_pcids.len() ==> self.page_tables[self.free_pcids@[i] as int].0.tmp_get_mem_mappings() =~= Map::empty()
+    //     )
+    //     &&&
+    //     (
+    //         forall|i:int,va:VAddr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.page_tables[i].0.tmp_get_mem_mappings()[va] as usize)
+    //     )
+    //     &&&
+    //     (
+    //         forall|i:int,page_ptr:PagePtr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_page_table_page_closure().contains(page_ptr) ==> self.page_table_pages@.contains(page_ptr)
+    //     )
+    //     &&&
+    //     (
+    //         forall|i:int,j:int| #![auto] 0<=i<PCID_MAX && 0<=j<PCID_MAX && i != j ==> self.page_tables[i].0.tmp_page_table_page_closure().disjoint(self.page_tables[j].0.tmp_page_table_page_closure())
+    //     )
+    // }
 
-    pub closed spec fn wf(&self) -> bool
+    pub open spec fn wf(&self) -> bool
     {
-        true
+        self.page_alloc_wf()
     }
 
     pub closed spec fn get_page_mappings(&self, page_ptr: PagePtr) -> Set<(Pcid,VAddr)>
@@ -650,22 +650,22 @@ impl PageAllocator {
         self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count
     }
 
-    pub open spec fn free_pcids(&self) -> Set<Pcid>
-    {
-        self.free_pcids@.to_set()
-    }
+    // pub open spec fn free_pcids(&self) -> Set<Pcid>
+    // {
+    //     self.free_pcids@.to_set()
+    // }
 
-    pub open spec fn all_pcids(&self) -> Set<Pcid>
-    {
-        Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
-    }
+    // pub open spec fn all_pcids(&self) -> Set<Pcid>
+    // {
+    //     Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
+    // }
 
-    pub closed spec fn get_address_space(&self,pcid:Pcid) ->  Map<VAddr,PAddr>
-        recommends 
-            0<=pcid<PCID_MAX,
-    {
-        self.page_tables@[pcid as int].0.tmp_get_mem_mappings()
-    }
+    // pub closed spec fn get_address_space(&self,pcid:Pcid) ->  Map<VAddr,PAddr>
+    //     recommends 
+    //         0<=pcid<PCID_MAX,
+    // {
+    //     self.page_tables@[pcid as int].0.tmp_get_mem_mappings()
+    // }
 
     pub fn alloc_kernel_mem(&mut self) -> (ret : (PagePtr,Tracked<PagePerm>))
         requires 
