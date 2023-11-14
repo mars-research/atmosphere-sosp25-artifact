@@ -13,6 +13,7 @@ use crate::pcid_alloc::PCID_MAX;
 use crate::mars_array::MarsArray;
 use crate::mars_staticlinkedlist::*;
 use crate::page::*;
+use crate::trap::*;
 
 use crate::setters::*;
 use crate::define::*;
@@ -70,6 +71,8 @@ pub struct Thread{
     pub ipc_payload: IPCPayLoad,
 
     pub error_code: Option<ErrorCodeType>,
+    
+    pub trap_frame: PtRegs,
 }
 
 pub struct IPCPayLoad{
