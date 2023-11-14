@@ -803,6 +803,7 @@ impl ProcessManager {
             self.get_thread(ret).endpoint_descriptors == old(self).get_thread(ret).endpoint_descriptors,
             self.get_thread(ret).parent_rf == old(self).get_thread(ret).parent_rf,
             ret == old(self).scheduler@[0],
+            self.page_closure() =~= old(self).page_closure(),
     {
         let ret = self.scheduler.pop();
         let thread_pptr = PPtr::<Thread>::from_usize(ret);
@@ -937,6 +938,8 @@ impl ProcessManager {
             self.page_closure() =~= old(self).page_closure().insert(page_ptr),
             self.get_proc_ptrs() =~= old(self).get_proc_ptrs().push(ret),
             self.get_proc_ptrs().contains(ret),
+            self.page_closure() =~= old(self).page_closure().insert(ret),
+            self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
             self.proc_perms@[ret]@.value.get_Some_0().owned_threads.len() == 0,
     {
         assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
@@ -1090,8 +1093,13 @@ impl ProcessManager {
             old(self).scheduler.len() < MAX_NUM_THREADS,
             old(self).proc_perms@[parent_ptr]@.value.get_Some_0().owned_threads.len()<MAX_NUM_THREADS_PER_PROC,
         ensures
+            page_ptr == ret,
             self.wf(),
             self.scheduler@ =~= old(self).scheduler@.push(ret),
+            self.get_thread(ret).state == SCHEDULED,
+            self.get_thread_ptrs() =~= old(self).get_thread_ptrs().insert(ret),
+            self.page_closure() =~= old(self).page_closure().insert(ret),
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
     {
         assert(self.thread_ptrs@.contains(page_ptr) == false);
         assert(forall|_proc_ptr: usize| #![auto] self.proc_perms@.dom().contains(_proc_ptr) ==> self.proc_perms@[_proc_ptr]@.value.get_Some_0().owned_threads@.contains(page_ptr) == false);

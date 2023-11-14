@@ -66,6 +66,7 @@ impl PcidAllocator {
             forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.page_tables[j as int].0.tmp_get_mem_mappings() =~= Map::empty(),
             self.page_tables[0].0.tmp_page_table_page_closure() =~= dom0_address_space.0.tmp_page_table_page_closure(),
             self.page_tables[0].0.tmp_get_mem_mappings() =~= dom0_address_space.0.tmp_get_mem_mappings(),
+            self.page_table_pages@ =~= dom0_address_space.0.tmp_page_table_page_closure(),
     {
         let mut i = 1;
         while i != PCID_MAX
@@ -168,12 +169,18 @@ impl PcidAllocator {
         self.free_page_tables@.to_set()
     }
 
+    
+    pub open spec fn page_table_pages(&self) -> Set<PagePtr>
+    {
+        self.page_table_pages@
+    }
+
     pub open spec fn all_pcids(&self) -> Set<Pcid>
     {
         Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
     }
 
-    pub closed spec fn get_address_space(&self,pcid:Pcid) ->  Map<VAddr,PAddr>
+    pub open spec fn get_address_space(&self,pcid:Pcid) ->  Map<VAddr,PAddr>
         recommends 
             0<=pcid<PCID_MAX,
     {
