@@ -45,13 +45,13 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
             ret.1@@.value.get_Some_0().endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {0}),
             ret.1@@.value.get_Some_0().ipc_payload.wf(),
             ret.1@@.value.get_Some_0().ipc_payload.message@ =~= Seq::new(IPC_MESSAGE_LEN as nat, |i:int| {0}),
-            ret.1@@.value.get_Some_0().ipc_payload.page_payload@ =~= Seq::new(IPC_PAGEPAYLOAD_LEN as nat, |i:int| {0}),
+            ret.1@@.value.get_Some_0().ipc_payload.page_payload@ =~= (0,0),
             ret.1@@.value.get_Some_0().ipc_payload.endpoint_payload =~= None,
 {
     let uptr = page.0.to_usize() as *mut MaybeUninit<Thread>;
     (*uptr).assume_init_mut().endpoint_descriptors.init2zero();
     (*uptr).assume_init_mut().ipc_payload.message.init2zero();
-    (*uptr).assume_init_mut().ipc_payload.page_payload.init2zero();
+    (*uptr).assume_init_mut().ipc_payload.page_payload = (0,0);
     (*uptr).assume_init_mut().ipc_payload.endpoint_payload = None;
     (PPtr::<Thread>::from_usize(page.0.to_usize()), Tracked::assume_new())
 }

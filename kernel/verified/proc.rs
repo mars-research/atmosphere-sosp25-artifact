@@ -12,6 +12,7 @@ use crate::pcid_alloc::PCID_MAX;
 // use crate::sched::{Scheduler};
 use crate::mars_array::MarsArray;
 use crate::mars_staticlinkedlist::*;
+use crate::page::*;
 
 use crate::setters::*;
 use crate::define::*;
@@ -73,7 +74,7 @@ pub struct Thread{
 
 pub struct IPCPayLoad{
     pub message: MarsArray<u8, IPC_MESSAGE_LEN>,
-    pub page_payload: MarsArray<PagePtr,IPC_PAGEPAYLOAD_LEN>,
+    pub page_payload: (VAddr, usize),
     pub endpoint_payload: Option<EndpointIdx>,
 }
 
@@ -139,21 +140,6 @@ impl IPCPayLoad{
     pub open spec fn wf(&self) -> bool{
         &&& 
         self.message.wf()
-        &&& 
-        self.page_payload.wf()
-        &&&
-        (forall|i:int,j:int| #![auto] i != j && 0<=i<IPC_PAGEPAYLOAD_LEN && 0<=j<IPC_PAGEPAYLOAD_LEN 
-            ==> self.page_payload@[i] == 0 || 
-                self.page_payload@[j] == 0 || 
-                self.page_payload@[i] != self.page_payload@[j]
-            )
-        &&&
-        (forall|i:int| #![auto] 0<=i<IPC_PAGEPAYLOAD_LEN && self.page_payload@[i] != 0 
-            ==>(
-                forall|j:int| #![auto] 0<=j<IPC_PAGEPAYLOAD_LEN && j < i
-                    ==> self.page_payload@[j] != 0 
-            )
-        )
         &&&
         (
             self.endpoint_payload.is_Some() == true ==> self.endpoint_payload.unwrap() < MAX_NUM_ENDPOINT_DESCRIPTORS
