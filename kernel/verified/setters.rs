@@ -9,6 +9,8 @@ use vstd::ptr::{
     // PAGE_SIZE,
 };
 use crate::proc::*;
+use crate::define::*;
+
 verus!{
 
 // use crate::linked_list::*;
@@ -380,6 +382,29 @@ ensures pptr.id() == perm@@.pptr,
     unsafe {
         let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
         (*uptr).assume_init_mut().endpoint_rf =endpoint_rf;
+    }
+}
+
+#[verifier(external_body)]
+pub fn thread_set_error_code(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, error_code: Option<ErrorCodeType>)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        //perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().error_code == error_code,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().error_code =error_code;
     }
 }
 

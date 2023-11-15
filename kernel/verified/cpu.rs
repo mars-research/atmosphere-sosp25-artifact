@@ -3,14 +3,55 @@ use vstd::prelude::*;
 use crate::page::{VAddr,PAddr,Pcid};
 use crate::pcid_alloc::PCID_MAX;
 use crate::proc::ThreadPtr;
-// use crate::mars_array::MarsArray;
+use crate::kernel::*;
+use crate::mars_array::MarsArray;
+
+use core::mem::MaybeUninit;
 
 pub type CPUID = usize;
 
 verus! {
+pub struct CPUStack{
+    pub kernel_stack: [u8;4096],
+    pub tlb_stack: [u8;4096],
+}
+
+pub struct CPUStackList{
+    pub stack_ar: [CPUStack;NUM_CPUS],
+}
+
+impl CPUStackList{
+
+    #[verifier(external_body)]
+    pub fn new() -> (ret: Self)
+    {
+        let ret = Self {
+            stack_ar: MaybeUninit::uninit().assume_init(),
+        };
+
+        ret
+    }
+
+    #[verifier(external_body)]
+    pub fn get_kernel_stack(&self, cpu_id:CPUID) -> usize
+    {
+        unsafe{
+            return &self.stack_ar[cpu_id].kernel_stack as *const u8 as usize
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn get_tlb_stack(&self, cpu_id:CPUID) -> usize
+    {
+        unsafe{
+            return &self.stack_ar[cpu_id].tlb_stack as *const u8 as usize
+        }
+    }
+}
+
 pub struct Cpu{
     pub current_t: Option<ThreadPtr>,
-    pub tlb: Ghost<Map<Pcid,Map<VAddr,PAddr>>>
+    pub tlb: Ghost<Map<Pcid,Map<VAddr,PAddr>>>,
 }
 impl Cpu {
     pub open spec fn wf(&self) -> bool{
@@ -33,20 +74,63 @@ impl Cpu {
     }
 }
 
-// pub struct CpuList{
-//     cpus: MarsArray<Cpu,NUM_CPUS>,
-// }
+impl MarsArray<Cpu,NUM_CPUS>{
+    pub fn init_to_none(&mut self)
+        requires
+            old(self).wf(),
+        ensures
+            self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].is_idle(),
+    {
+        let mut i = 0;
+        while i != NUM_CPUS
+            invariant
+                0<= i <= NUM_CPUS,
+                self.wf(),
+                forall |j:int| #![auto] 0<=j<i ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
+            ensures
+                i == NUM_CPUS,
+                self.wf(),
+                forall |j:int| #![auto] 0<=j<NUM_CPUS ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
+        {
+            let cpu = Cpu{
+                current_t: None,
+                tlb: Ghost(Map::empty()),
+            };
+            let tmp:Ghost<Seq<Cpu>> = Ghost(self@); 
+            self.set(i,cpu);
+            assert(self.seq@ =~= tmp@.update(i as int, cpu));
+            i = i + 1;
+        }
+    }
 
-// impl CpuList {
-//     pub open spec fn view(&self) -> Seq<Cpu>{
-//         self.cpus@
-//     }
+    #[verifier(external_body)]
+    pub fn flush_address(&mut self, pcid:Pcid, va: VAddr)
+        requires
+            old(self).wf(),
+        ensures
+            self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].current_t =~= old(self)@[i as int].current_t,
+            forall|i:CPUID, _pcid:Pcid, _va:VAddr| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid && self@[i as int].tlb@.dom().contains(_pcid) && self@[i as int].tlb@[_pcid].dom().contains(_va) && _va != va
+                ==> self@[i as int].tlb@[_pcid][_va] =~= old(self)@[i as int].tlb@[_pcid][_va],
+            forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid 
+                ==> self@[i as int].tlb@[_pcid].dom().contains(va) == false,
+    {
 
-//     pub open spec fn view_as_thread_ptrs(&self) -> Seq<ThreadPtr>{
-//         self.cpus@.fold_left(Seq::<ThreadPtr>::empty(), |acc: Seq::<ThreadPtr>, e: Cpu| -> Seq::<ThreadPtr> {
-//             acc.push(e.current_t)
-//         })
-//     }
-// }
+    }
+
+    #[verifier(external_body)]
+    pub fn flush_pcid(&mut self, pcid:Pcid)
+        requires
+            old(self).wf(),
+        ensures
+            self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].current_t =~= old(self)@[i as int].current_t,
+            forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid ==> self@[i as int].tlb@[_pcid] =~= old(self)@[i as int].tlb@[_pcid],
+            forall|i:CPUID| #![auto] self@[i as int].tlb@[pcid] =~= Map::empty(),
+    {
+
+    }
+}
 
 }

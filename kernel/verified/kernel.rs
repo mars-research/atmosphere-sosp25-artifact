@@ -9,7 +9,7 @@ use crate::pcid_alloc::{PcidAllocator,PCID_MAX};
 use crate::cpu::{Cpu,CPUID};
 use crate::mars_array::MarsArray;
 use crate::paging::*;
-
+use crate::define::*;
 verus! {
 
 // #[verifier(external_body)]
@@ -27,37 +27,6 @@ pub struct Kernel{
     pub page_alloc: PageAllocator,
     pub pcid_alloc: PcidAllocator,
     pub cpu_list: MarsArray<Cpu,NUM_CPUS>,
-}
-
-impl MarsArray<Cpu,NUM_CPUS>{
-    pub fn init_to_none(&mut self)
-        requires
-            old(self).wf(),
-        ensures
-            self.wf(),
-            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].is_idle(),
-    {
-        let mut i = 0;
-        while i != NUM_CPUS
-            invariant
-                0<= i <= NUM_CPUS,
-                self.wf(),
-                forall |j:int| #![auto] 0<=j<i ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
-            ensures
-                i == NUM_CPUS,
-                self.wf(),
-                forall |j:int| #![auto] 0<=j<NUM_CPUS ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
-        {
-            let cpu = Cpu{
-                current_t: None,
-                tlb: Ghost(Map::empty()),
-            };
-            let tmp:Ghost<Seq<Cpu>> = Ghost(self@); 
-            self.set(i,cpu);
-            assert(self.seq@ =~= tmp@.update(i as int, cpu));
-            i = i + 1;
-        }
-    }
 }
 
 impl Kernel {
@@ -247,16 +216,6 @@ impl Kernel {
     // /If page_alloc.rf_count drops to zero, we can infer that no process maps pa anymore without even looking these processes' pagetable
     // /Therefore, page_alloc.mappings() cannot be generated on the fly. (or maybe we can)
     pub closed spec fn kernel_page_mapping_wf(&self) -> bool{
-        // forall |page_ptr:PagePtr| #![auto] self.page_alloc.mapped_pages().contains(page_ptr) ==>
-        //     (
-        //         forall|pcid: Pcid| #![auto] self.pcid_alloc.allocated_pcids().contains(pcid) ==>
-        //             (
-        //                 forall|va:VAddr,pa:PAddr| #![auto] self.pcid_alloc.get_va2pa_mapping_for_pcid(pcid).contains_pair(va,pa) && pa == page_ptr ==>
-        //                     (
-        //                         self.page_alloc.get_page_mappings(page_ptr).contains((pcid,va))
-        //                     )
-        //             )
-        //     )
         forall |pcid:Pcid, va:VAddr| #![auto] 0<=pcid<PCID_MAX && self.pcid_alloc.get_address_space(pcid).dom().contains(va) ==>
             (
                 self.page_alloc.get_page_mappings(self.pcid_alloc.get_address_space(pcid)[va] as usize).contains((pcid,va))
@@ -356,34 +315,32 @@ impl Kernel {
     }
 
     /// Send Do Not Wait syscall
-    /// syscall will success if and only if
     pub fn sys_send_no_wait(&mut self, cpu_id: CPUID, sender_endpoint_index: EndpointIdx)
         requires
             old(self).kernel_wf(),
             0 <= cpu_id <NUM_CPUS,
             // old(self).proc_man.scheduler.len() < MAX_NUM_THREADS,
     {
-        if sender_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS {
-            //put error code here
-            return;
-        } 
-        assert(0<=sender_endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS);
-
         assert(0 <= cpu_id <NUM_CPUS);
         let sender_thread_ptr_option = self.cpu_list.get(cpu_id).current_t;
         if sender_thread_ptr_option.is_none(){
             //should panic as unverified code has some fatal bugs
             return;
         }
+
+        if sender_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS {
+            self.proc_man.set_thread_error_code(sender_thread_ptr_option.unwrap(), Some(SENDER_ENDPOINT_OUT_OF_BOUND));
+            return;
+        } 
+        assert(0<=sender_endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS);
+
         let sender_thread_ptr = sender_thread_ptr_option.unwrap();
         assert(self.proc_man.get_thread(sender_thread_ptr).state == RUNNING);
         assert(self.proc_man.get_thread(sender_thread_ptr).state != SCHEDULED);
-        // assert(self.proc_man.get_thread(sender_thread_ptr).state != BLOCKED);
-        // assert(self.proc_man.scheduler@.contains(sender_thread_ptr) == false);
 
         let endpoint_ptr = self.proc_man.get_thread_endpoint_descriptor(sender_thread_ptr, sender_endpoint_index);
         if endpoint_ptr == 0 {
-            //put error code here
+            self.proc_man.set_thread_error_code(sender_thread_ptr_option.unwrap(), Some(SENDER_ENDPOINT_NOT_EXIST));
             return;
         }
         assert(endpoint_ptr != 0);
@@ -391,14 +348,13 @@ impl Kernel {
 
         let endpoint_len = self.proc_man.get_endpoint_len(endpoint_ptr);
         if endpoint_len == 0{
-            // no receiver
+            self.proc_man.set_thread_error_code(sender_thread_ptr_option.unwrap(), Some(NO_RECEIVER));
             return;
         }
-        //assert(self.proc_man.get_endpoint(self.proc_man.get_thread(sender_thread_ptr).endpoint_descriptors@[sender_endpoint_index as int]).len() != 0);
 
         let endpoint_queue_state = self.proc_man.get_endpoint_queue_state(endpoint_ptr);
         if endpoint_queue_state == SEND{
-            //sender queue
+            self.proc_man.set_thread_error_code(sender_thread_ptr_option.unwrap(), Some(NO_RECEIVER));
             return; // due to no wait
         }
 
@@ -415,7 +371,7 @@ impl Kernel {
             //just context switch and schedule sender
             assert(self.kernel_wf());
             if self.proc_man.scheduler.len() >= MAX_NUM_THREADS{
-                //no space in scheduler 
+                self.proc_man.set_thread_error_code(sender_thread_ptr_option.unwrap(), Some(SCHEDULER_NO_SPACE));
                 return;
             }
 
@@ -425,6 +381,7 @@ impl Kernel {
             let tmp = self.proc_man.pop_endpoint(sender_thread_ptr,sender_endpoint_index);
             assert(tmp == receiver_thread_ptr);
 
+            self.proc_man.set_thread_error_code(sender_thread_ptr, Some(SUCCESS));
             self.proc_man.push_scheduler(sender_thread_ptr);
             assert(self.proc_man.get_thread(tmp).state == TRANSIT);
             self.proc_man.set_thread_to_running(receiver_thread_ptr);
@@ -433,7 +390,8 @@ impl Kernel {
                 current_t: Some(receiver_thread_ptr),
                 tlb: self.cpu_list.get(cpu_id).tlb
             };
-    
+
+            self.proc_man.set_thread_error_code(receiver_thread_ptr, Some(SUCCESS));
             self.cpu_list.set(cpu_id,cpu);
             assert(self.kernel_wf());
 
@@ -448,18 +406,19 @@ impl Kernel {
 
             let endpoint_ptr = self.proc_man.get_thread_endpoint_descriptor(sender_thread_ptr, sender_endpoint_payload_index);
             if endpoint_ptr == 0{
-                // sender trying to send a endpoint that does not exist
+                self.proc_man.set_thread_error_code(sender_thread_ptr, Some(SHARED_ENDPOINT_NOT_EXIST));
                 return;
             }
 
             let endpoint_rf = self.proc_man.get_endpoint_rf_counter(endpoint_ptr);
             if endpoint_rf == usize::MAX{
-                // endpoint cannot be shared anymore, counter overflow. (not gonna happe)
+                // endpoint cannot be shared anymore, counter overflow. (not gonna happen)
+                self.proc_man.set_thread_error_code(sender_thread_ptr, Some(SHARED_ENDPOINT_REF_COUNT_OVERFLOW));
                 return;
             }
 
             if self.proc_man.scheduler.len() >= MAX_NUM_THREADS{
-                //no space in scheduler 
+                self.proc_man.set_thread_error_code(sender_thread_ptr, Some(SCHEDULER_NO_SPACE));
                 return;
             }
 
@@ -467,10 +426,13 @@ impl Kernel {
             let receiver_capable_of_receiving = self.proc_man.check_thread_capable_for_new_endpoint(receiver_thread_ptr, receiver_endpoint_payload_index, endpoint_ptr);
             if receiver_capable_of_receiving == false{
                 //receiver no longer able to receive, goes to scheduler
+
+                self.proc_man.set_thread_error_code(receiver_thread_ptr, Some(SHARED_ENDPOINT_SLOT_TAKEN));
                 let tmp = self.proc_man.pop_endpoint(sender_thread_ptr,sender_endpoint_index);
                 assert(tmp == receiver_thread_ptr);
                 self.proc_man.push_scheduler(receiver_thread_ptr);
 
+                self.proc_man.set_thread_error_code(sender_thread_ptr, Some(SHARED_ENDPOINT_SLOT_TAKEN));
                 assert(self.kernel_wf());
                 return;
             }
@@ -482,9 +444,12 @@ impl Kernel {
             let tmp = self.proc_man.pop_endpoint(sender_thread_ptr,sender_endpoint_index);
             assert(tmp == receiver_thread_ptr);
 
+            self.proc_man.set_thread_error_code(sender_thread_ptr, Some(SUCCESS));
             self.proc_man.push_scheduler(sender_thread_ptr);
+
             assert(self.proc_man.get_thread(tmp).state == TRANSIT);
             self.proc_man.set_thread_to_running(receiver_thread_ptr);
+            self.proc_man.set_thread_error_code(receiver_thread_ptr, Some(SUCCESS));
 
             let cpu = Cpu{
                 current_t: Some(receiver_thread_ptr),
@@ -498,13 +463,4 @@ impl Kernel {
         }
     }
 }
-    // pub proof fn test(a:Set<PagePtr>, b:Set<PagePtr>)
-    //     requires
-    //         forall|p: PagePtr| #![auto] a.contains(p) <==> b.contains(p),
-    //     ensures
-    //         a =~= b,
-    // {
-        
-    // }
-
 }

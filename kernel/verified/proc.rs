@@ -912,6 +912,48 @@ impl ProcessManager {
     assert(self.wf_pcid_closure());
 }
 
+pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<ErrorCodeType>)
+    requires 
+        old(self).wf(),
+        old(self).get_thread_ptrs().contains(thread_ptr),
+    ensures
+        self.wf(),
+        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
+        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+        self.proc_ptrs =~= old(self).proc_ptrs,
+        self.proc_perms =~= old(self).proc_perms,
+        self.thread_ptrs =~= old(self).thread_ptrs,
+        //self.thread_perms=@ =~= old(self).thread_perms@,
+        self.scheduler =~= old(self).scheduler,
+        self.endpoint_ptrs =~= old(self).endpoint_ptrs,
+        self.endpoint_perms =~= old(self).endpoint_perms,
+        self.pcid_closure =~= old(self).pcid_closure,
+        self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
+        self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
+        self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
+        self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
+        self.get_thread(thread_ptr).endpoint_ptr =~= old(self).get_thread(thread_ptr).endpoint_ptr,
+        self.get_thread(thread_ptr).endpoint_rf =~= old(self).get_thread(thread_ptr).endpoint_rf,
+        self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
+        self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
+        //self.get_thread(thread_ptr).error_code =~= old(self).get_thread(thread_ptr).error_code,
+        self.get_thread(thread_ptr).error_code =~= error_code,
+{
+    let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
+    let mut thread_perm =
+        Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
+    thread_set_error_code(&thread_pptr, &mut thread_perm, error_code);
+    proof{
+        assert(self.thread_perms@.dom().contains(thread_ptr) == false);
+        (self.thread_perms.borrow_mut())
+            .tracked_insert(thread_ptr, thread_perm.get());
+    }
+    assert(self.wf_threads());
+    assert(self.wf_procs());
+    assert(self.wf_scheduler());
+    assert(self.wf_mem_closure());
+    assert(self.wf_pcid_closure());
+}
     pub fn new_proc(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, new_pcid: Pcid) -> (ret: ProcPtr)
         requires
             old(self).wf(),
@@ -975,71 +1017,6 @@ impl ProcessManager {
         assert(self.wf_pcid_closure());
         assert(self.endpoint_ptrs@ =~= self.endpoint_perms@.dom());
         assert(self.endpoint_perms@.dom().contains(0) == false);
-//         assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) ==>  self.endpoint_perms@[_endpoint_ptr].view().value.is_Some());
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) ==>  self.endpoint_perms@[_endpoint_ptr].view().pptr == _endpoint_ptr);
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) ==>  self.endpoint_perms@[_endpoint_ptr].view().value.get_Some_0().queue.wf());
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) ==>  self.endpoint_perms@[_endpoint_ptr].view().value.get_Some_0().queue.unique());
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
-//     ==> self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().owning_threads@.len() == self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().rf_counter);
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
-//     ==> self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().rf_counter != 0);
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
-//     ==> (forall|_thread_ptr: ThreadPtr| #![auto] self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().owning_threads@.contains(_thread_ptr)
-//         ==> self.thread_perms@.dom().contains(_thread_ptr))
-// );
-// assert(self.endpoint_perms@ =~= old(self).endpoint_perms@);
-// assert(self.thread_perms@ =~= old(self).thread_perms@);
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
-//     ==>  (forall|_thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().queue@.contains(_thread_ptr)
-//         ==> (
-//             self.thread_perms@.dom().contains(_thread_ptr)
-//         )
-// ));
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
-//     ==>  (forall|_thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().queue@.contains(_thread_ptr)
-//         ==> (
-//             self.thread_perms@[_thread_ptr]@.value.get_Some_0().state == BLOCKED
-//         )
-// ));
-// assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
-//     ==>  (forall|_thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().queue@.contains(_thread_ptr)
-//         ==> (
-//             self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_ptr.unwrap() == _endpoint_ptr
-//         )
-// ));
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) 
-//     ==> self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_descriptors.wf());
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) 
-//     ==> (forall|i:int,j:int| #![auto] i != j && 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && 0<=j<MAX_NUM_ENDPOINT_DESCRIPTORS 
-//         ==> self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_descriptors@[i] == 0 || 
-//             self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_descriptors@[j] == 0 || 
-//             self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_descriptors@[i] != self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_descriptors@[j]
-//         )
-//     );
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) 
-//     ==> (forall|i:int| #![auto] 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i] != 0
-//         ==> self.endpoint_perms@.dom().contains(self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i])
-//     ));
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) 
-//     ==> (forall|i:int| #![auto] 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i] != 0
-//         ==> self.endpoint_perms@[self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i]]@.value.get_Some_0().owning_threads@.contains(_thread_ptr)
-//     ));
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().state == BLOCKED
-//     ==> self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_ptr.is_Some());
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().state == BLOCKED
-//     ==> self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_ptr.unwrap() != 0);
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().state == BLOCKED
-//     ==>  self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_descriptors@.contains(self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_ptr.unwrap()));
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().state == BLOCKED
-//     ==> self.thread_perms@[_thread_ptr]@.value.get_Some_0().endpoint_rf.is_Some());
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().state == BLOCKED
-//     ==>  self.endpoint_perms@[self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_ptr.unwrap()]@.value.get_Some_0().queue@.contains(_thread_ptr));
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().state == BLOCKED
-//     ==>  self.endpoint_perms@[self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_ptr.unwrap()]@.value.get_Some_0().queue.node_ref_valid(self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_rf.unwrap())
-// );
-// assert(forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().state == BLOCKED
-//     ==>  self.endpoint_perms@[self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_ptr.unwrap()]@.value.get_Some_0().queue.node_ref_resolve(self.thread_perms@[_thread_ptr].view().value.get_Some_0().endpoint_rf.unwrap()) == _thread_ptr
-// );
         assert(self.wf_endpoints());
         assert(self.wf());
 
