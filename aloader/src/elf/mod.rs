@@ -89,6 +89,7 @@ pub struct ElfHandle<F: Read + Seek> {
     file: F,
     header: Header,
     program_headers: ArrayVec<ProgramHeader, MAX_PROGRAM_HEADERS>,
+    start_pos: u64,
     page_size: usize,
     elf_end: usize,
 }
@@ -141,6 +142,8 @@ where
     T::Error: Into<Error>,
 {
     pub fn parse(mut file: T, page_size: usize) -> Result<Self, Error> {
+        let start_pos = file.stream_position().map_err(Into::into)?;
+
         let mut header_bytes = [0u8; HEADER_SIZE];
         file.read_exact(&mut header_bytes).map_err(Into::into)?;
 
@@ -197,6 +200,7 @@ where
             file,
             header: header.clone(),
             program_headers,
+            start_pos,
             page_size,
             elf_end,
         })
@@ -293,7 +297,7 @@ where
                 let dst = unsafe { slice::from_raw_parts_mut(mapping as *mut u8, file_map_size) };
 
                 self.file
-                    .seek(SeekFrom::Start(self.page_start(offset) as u64))
+                    .seek(SeekFrom::Start(self.start_pos + self.page_start(offset) as u64))
                     .map_err(Into::into)?;
                 self.file.read_exact(dst).map_err(Into::into)?;
             }
