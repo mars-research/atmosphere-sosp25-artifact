@@ -10,9 +10,11 @@
 //! ## GDT Entries
 //!
 //! * 0 - Null
-//! * 1 - Kernel Code
-//! * 2 - Kernel Data
-//! * 3,4 - TSS
+//! * 1 - Kernel Data
+//! * 2 - Kernel Code
+//! * 3 - User Data
+//! * 4 - User Code
+//! * 5,6 - TSS
 
 mod types;
 
@@ -72,6 +74,23 @@ pub unsafe fn init_cpu() {
         GdtEntry::new(0, 0, access, GDT_F_LONG_MODE)
     };
 
+    gdt.user_code = {
+        let mut access = AccessByte::new();
+        access.set_privilege(3);
+        access.set_executable(true);
+        access.set_read_write(true);
+
+        GdtEntry::new(0, 0, access, GDT_F_LONG_MODE)
+    };
+
+    gdt.user_data = {
+        let mut access = AccessByte::new();
+        access.set_privilege(3);
+        access.set_read_write(true);
+
+        GdtEntry::new(0, 0, access, GDT_F_LONG_MODE)
+    };
+
     gdt.tss = {
         let mut access = SystemAccessByte::new(SystemDescriptorType::AvailableTss);
         access.set_privilege(3);
@@ -89,11 +108,12 @@ pub unsafe fn init_cpu() {
 
     // We don't load FS and GS
     // GS is used for the CPU-local structure (crate::cpu).
-    load_cs(SegmentSelector::new(1, Ring::Ring0));
-    load_ds(SegmentSelector::new(2, Ring::Ring0));
-    load_es(SegmentSelector::new(2, Ring::Ring0));
-    load_ss(SegmentSelector::new(2, Ring::Ring0));
-    load_tr(SegmentSelector::new(3, Ring::Ring0));
+    use GlobalDescriptorTable as GDT;
+    load_cs(SegmentSelector::new(GDT::KERNEL_CODE_INDEX, Ring::Ring0));
+    load_ds(SegmentSelector::new(GDT::KERNEL_DATA_INDEX, Ring::Ring0));
+    load_es(SegmentSelector::new(GDT::KERNEL_DATA_INDEX, Ring::Ring0));
+    load_ss(SegmentSelector::new(GDT::KERNEL_DATA_INDEX, Ring::Ring0));
+    load_tr(SegmentSelector::new(GDT::TSS_INDEX, Ring::Ring0));
 }
 
 /// A Global Descriptor Table.
@@ -103,11 +123,17 @@ pub struct GlobalDescriptorTable {
     /// Null entry.
     _null: GdtEntry,
 
+    /// Kernel data.
+    pub kernel_data: GdtEntry,
+
     /// Kernel code.
     pub kernel_code: GdtEntry,
 
-    /// Kernel data.
-    pub kernel_data: GdtEntry,
+    /// User data.
+    pub user_data: GdtEntry,
+
+    /// User code.
+    pub user_code: GdtEntry,
 
     /// TSS.
     ///
@@ -116,6 +142,12 @@ pub struct GlobalDescriptorTable {
 }
 
 impl GlobalDescriptorTable {
+    pub const KERNEL_DATA_INDEX: u16 = 1;
+    pub const KERNEL_CODE_INDEX: u16 = 2;
+    pub const USER_DATA_INDEX: u16 = 3;
+    pub const USER_CODE_INDEX: u16 = 4;
+    pub const TSS_INDEX: u16 = 5;
+
     /// Zero-initializes the GDT.
     ///
     /// It must be correctly initialized before being loaded.
@@ -124,6 +156,8 @@ impl GlobalDescriptorTable {
             _null: GdtEntry::empty(),
             kernel_code: GdtEntry::empty(),
             kernel_data: GdtEntry::empty(),
+            user_code: GdtEntry::empty(),
+            user_data: GdtEntry::empty(),
             tss: BigGdtEntry::empty(),
         }
     }
