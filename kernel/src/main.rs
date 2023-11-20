@@ -40,9 +40,11 @@ mod gdt;
 mod interrupt;
 mod logging;
 mod scripts;
+mod syscalls;
 mod utils;
 
-use core::panic::PanicInfo;
+use core::{panic::PanicInfo, ffi::c_void};
+use core::arch::asm;
 
 use astd::boot::BootInfo;
 
@@ -62,6 +64,7 @@ fn main(boot_info: *const BootInfo) -> isize {
         interrupt::init_cpu();
 
         gdt::init_cpu();
+        syscalls::init_cpu();
 
         boot::init(boot_info);
         console::init();
