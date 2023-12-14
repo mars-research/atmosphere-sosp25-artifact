@@ -6,11 +6,11 @@
 use vstd::prelude::*;
 use vstd::ptr::PointsTo;
 
-use crate::page::{PagePtr, PagePPtr, PagePerm, VAddr, PAddr};
+
 use crate::page_alloc::*;
 use crate::mars_array::*;
-use crate::page::*;
-use crate::pcid_alloc::*;
+use crate::define::*;
+
 pub struct AddressSpace(pub PML4);
 
 verus! {
@@ -278,7 +278,7 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     // }
 
     #[verifier(external_body)]
-    pub fn tmp_init(&mut self)
+    pub fn tmp_init(&mut self, kernel_pml4_entry: usize)
         ensures
             self.tmp_get_mem_mappings() =~= Map::empty(),
             self.tmp_page_table_page_closure() =~= Set::empty(),
@@ -865,7 +865,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
     }
 
     #[verifier(external_body)]
-    pub fn pcid_init(&mut self, pcid:Pcid)
+    pub fn pcid_init(&mut self, pcid:Pcid, kernel_pml4_entry: usize)
     requires
         0<=pcid<PCID_MAX,
         old(self).wf(),
@@ -877,7 +877,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
         self@[pcid as int].0.tmp_get_mem_mappings() =~= Map::empty(),
         self@[pcid as int].0.tmp_page_table_page_closure() =~= Set::empty(),
     {
-        self.ar[pcid].0.tmp_init();
+        self.ar[pcid].0.tmp_init(kernel_pml4_entry);
     }
 
     #[verifier(external_body)]

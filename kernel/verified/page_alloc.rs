@@ -1,33 +1,12 @@
 use vstd::prelude::*;
-// use vstd::ptr::PointsTo;
+use vstd::ptr::*;
 use crate::mars_array::MarsArray;
 use crate::array_vec::ArrayVec;
-use crate::paging::AddressSpace;
-use crate::page::*;
+
+
+use crate::define::*;
 
 verus! {
-
-pub const NUM_PAGES:usize = 4*1024*1024; //16GB
-pub const PAGE_SIZE:usize = 4096;
-pub const MAX_USIZE:u64 = 31*1024*1024*1024;
-
-pub const DOM0_NUM_PAGES:usize = 1024;
-
-pub type PageType = u8;
-pub const R:PageType = 1;
-pub const RW:PageType = 2;
-pub const RX:PageType = 3;
-pub const RWX:PageType = 4;
-
-pub type PageState = usize;
-
-pub const UNAVAILABLE:PageState = 0;
-pub const FREE:PageState = 1;
-pub const PAGETABLE:PageState = 2;
-pub const ALLOCATED:PageState = 3;
-pub const MAPPED:PageState = 4;
-
-pub const PCID_MAX:usize = 4096;
 
 pub struct Page{
     pub start: PagePtr,

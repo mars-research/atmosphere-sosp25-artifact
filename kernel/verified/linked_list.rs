@@ -2,7 +2,7 @@ use vstd::prelude::*;
 
 verus! {
 
-use crate::page::{PagePtr, PagePPtr};
+use crate::define::*;
 use crate::page_arena::{PageArena, PageElementPtr, PageMetadataPtr};
 
 type Arena<T> = PageArena<Node<T>, PageNode>;

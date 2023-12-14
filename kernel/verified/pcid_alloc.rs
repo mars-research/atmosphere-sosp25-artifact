@@ -1,18 +1,13 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
-use crate::page::{Pcid,VAddr,PAddr,PagePtr};
+
 use crate::paging::AddressSpace;
 use crate::mars_array::MarsArray;
 use crate::array_vec::ArrayVec;
 use crate::page_alloc::*;
-use vstd::ptr::PointsTo;
-use vstd::ptr::PPtr;
+use crate::define::*;
 
 verus! {
-pub const PCID_MAX:usize = 4096;
-
-pub type PageTablePtr = usize;
-
 pub struct PcidAllocator{
 
     pub free_page_tables: ArrayVec<Pcid,PCID_MAX>,
@@ -46,7 +41,7 @@ impl PcidAllocator {
     }
 
     // #[verifier(external_body)]
-    pub fn init(&mut self, dom0_address_space: &AddressSpace)
+    pub fn init(&mut self, dom0_address_space: &AddressSpace, kernel_pml4_entry: usize)
         requires
             old(self).free_page_tables.wf(),
             old(self).free_page_tables@ =~= Seq::empty(),
@@ -122,7 +117,7 @@ impl PcidAllocator {
             forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].0.tmp_page_table_page_closure() =~= Set::empty(),
             forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].0.tmp_get_mem_mappings() =~= Map::empty(),
     {  
-        self.page_tables.pcid_init(i);
+        self.page_tables.pcid_init(i, kernel_pml4_entry);
         i = i + 1;
     }
 

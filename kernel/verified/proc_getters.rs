@@ -5,7 +5,7 @@ use vstd::ptr::{
 };
 
 //use crate::linked_list::*;
-use crate::page::{PagePtr,Pcid,PagePPtr,PagePerm};
+
 use crate::pcid_alloc::PCID_MAX;
 // use crate::sched::{Scheduler};
 use crate::mars_array::MarsArray;
@@ -17,6 +17,7 @@ use crate::define::*;
 // use vstd::seq_lib::lemma_seq_properties;
 
 use crate::proc::*;
+
 verus!{
 
 impl ProcessManager{

@@ -1,15 +1,14 @@
 use vstd::prelude::*;
-use vstd::ptr::PointsTo;
 
 use crate::array_vec::*;
 use crate::proc::*;
 use crate::page_alloc::*;
-use crate::page::*;
-use crate::pcid_alloc::{PcidAllocator,PCID_MAX};
+use crate::pcid_alloc::*;
 use crate::cpu::{Cpu,CPUID};
 use crate::mars_array::MarsArray;
 use crate::paging::*;
 use crate::define::*;
+
 verus! {
 
 // #[verifier(external_body)]
@@ -61,7 +60,7 @@ impl Kernel {
 
      
 
-    pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, dom0_address_space: &AddressSpace)
+    pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, dom0_address_space: &AddressSpace, kernel_pml4_entry: usize)
         requires 
             old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
             old(self).proc_man.proc_ptrs@ =~= Seq::empty(),
@@ -125,7 +124,7 @@ impl Kernel {
         {
             self.proc_man.init();
             self.page_alloc.init(boot_page_ptrs, boot_page_perms);
-            self.pcid_alloc.init(dom0_address_space);
+            self.pcid_alloc.init(dom0_address_space, kernel_pml4_entry);
             assert(self.kernel_page_mapping_wf());
             self.cpu_list.init_to_none();
             assert(self.kernel_no_transit_thread());

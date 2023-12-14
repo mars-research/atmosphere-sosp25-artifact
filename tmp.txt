@@ -1,0 +1,116 @@
+warning: unused import: `PagePPtr`
+ --> /home/xiangdc/atmosphere/kernel/verified/linked_list.rs:5:28
+  |
+5 | use crate::page::{PagePtr, PagePPtr};
+  |                            ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `crate::pcid_alloc::*`
+  --> /home/xiangdc/atmosphere/kernel/verified/paging.rs:13:5
+   |
+13 | use crate::pcid_alloc::*;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `vstd::ptr::PointsTo`
+ --> /home/xiangdc/atmosphere/kernel/verified/kernel.rs:2:5
+  |
+2 | use vstd::ptr::PointsTo;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `PAGE_SIZE`
+ --> /home/xiangdc/atmosphere/kernel/verified/proc/spec.rs:6:5
+  |
+6 |     PAGE_SIZE,
+  |     ^^^^^^^^^
+
+warning: unused imports: `PagePPtr`, `PagePerm`
+  --> /home/xiangdc/atmosphere/kernel/verified/proc/spec.rs:10:32
+   |
+10 | 
+   |                                ^^^^^^^^ ^^^^^^^^
+
+warning: unused import: `crate::setters::*`
+  --> /home/xiangdc/atmosphere/kernel/verified/proc/spec.rs:18:5
+   |
+18 | use crate::setters::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::pcid_alloc::PCID_MAX`
+  --> /home/xiangdc/atmosphere/kernel/verified/proc/proc.rs:11:5
+   |
+11 | use crate::pcid_alloc::PCID_MAX;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::mars_array::MarsArray`
+  --> /home/xiangdc/atmosphere/kernel/verified/proc/proc.rs:13:5
+   |
+13 | use crate::mars_array::MarsArray;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::mars_staticlinkedlist::*`
+  --> /home/xiangdc/atmosphere/kernel/verified/proc/proc.rs:14:5
+   |
+14 | use crate::mars_staticlinkedlist::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::page::*`
+  --> /home/xiangdc/atmosphere/kernel/verified/proc/proc.rs:15:5
+   |
+15 | 
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::trap::*`
+  --> /home/xiangdc/atmosphere/kernel/verified/proc/proc.rs:16:5
+   |
+16 | use crate::trap::*;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::paging::AddressSpace`
+ --> /home/xiangdc/atmosphere/kernel/verified/page_alloc.rs:5:5
+  |
+5 | use crate::paging::AddressSpace;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `vstd::ptr::PointsTo`
+ --> /home/xiangdc/atmosphere/kernel/verified/pcid_alloc.rs:8:5
+  |
+8 | use vstd::ptr::PointsTo;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `vstd::ptr::PPtr`
+ --> /home/xiangdc/atmosphere/kernel/verified/pcid_alloc.rs:9:5
+  |
+9 | use vstd::ptr::PPtr;
+  |     ^^^^^^^^^^^^^^^
+
+note: verifying module proc::proc
+
+note: while loop has been running for 2 seconds
+      reporting errors as they are discovered (they may not be in source order)
+   --> /home/xiangdc/atmosphere/kernel/verified/proc/proc.rs:633:9
+    |
+633 | /         while loop_i != MAX_NUM_ENDPOINT_DESCRIPTORS
+634 | |             invariant
+635 | |                 0 <= loop_i <= MAX_NUM_ENDPOINT_DESCRIPTORS,
+636 | |                 self.wf(),
+...   |
+755 | |             loop_i = loop_i + 1;
+756 | |         }
+    | |_________^
+
+note: while loop has been running for 2 seconds
+      reporting errors as they are discovered (they may not be in source order)
+   --> /home/xiangdc/atmosphere/kernel/verified/proc/proc.rs:533:9
+    |
+533 | /         while loop_i != original_len
+534 | |             invariant
+535 | |                 self.wf(),
+536 | |                 old(self).get_proc_ptrs().contains(proc_ptr),
+...   |
+596 | |             loop_i = loop_i + 1;
+597 | |         }
+    | |_________^
+
+warning: 14 warnings emitted
+

@@ -1,10 +1,9 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
-use crate::page::{VAddr,PAddr,Pcid};
-use crate::pcid_alloc::PCID_MAX;
-use crate::proc::ThreadPtr;
+
 use crate::kernel::*;
 use crate::mars_array::MarsArray;
+use crate::define::*;
 
 use core::mem::MaybeUninit;
 

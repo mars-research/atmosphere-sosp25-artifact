@@ -9,16 +9,13 @@ use vstd::ptr::{
     // PAGE_SIZE,
 };
 use crate::proc::*;
+
 use crate::define::*;
 
 verus!{
 
 // use crate::linked_list::*;
-use crate::page::{
-    // PagePtr,
-    Pcid,
-    PagePPtr,
-    PagePerm};
+
 // use crate::pcid_alloc::PCID_MAX;
 // use crate::sched::{Scheduler};
 // use crate::mars_array::MarsArray;

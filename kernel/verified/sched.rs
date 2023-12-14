@@ -1,8 +1,7 @@
 use vstd::prelude::*;
-//use vstd::ptr::PointsTo;
-use crate::page::PagePtr;
-//use crate::mars_array::MarsArray;
-use crate::proc::ThreadPtr;
+
+// use crate::proc::*;
+use crate::define::*;
 
 use crate::linked_list::*;
 

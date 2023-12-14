@@ -2,7 +2,8 @@ use vstd::prelude::*;
 use vstd::ptr::PPtr;
 
 use crate::mem::size_of;
-use crate::page::{PagePPtr, PagePerm};
+
+use crate::define::*;
 
 verus! {
 
