@@ -121,7 +121,7 @@ impl PcidAllocator {
         i = i + 1;
     }
 
-    self.page_tables.pcid_adpot(0, dom0_address_space);
+    self.page_tables.pcid_adopt(0, dom0_address_space);
     proof{self.page_table_pages@ = dom0_address_space.0.tmp_page_table_page_closure();}
     assert(self.free_page_tables.wf());
     assert(self.free_page_tables@.no_duplicates());

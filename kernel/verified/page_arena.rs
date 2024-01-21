@@ -274,7 +274,7 @@ impl<T, MT> PageArena<T, MT> {
             ret@.page_base() === pptr.id(),
             ret@.metadata === metadata,
     {
-        Tracked::assume_new()
+        Tracked::assume_new(|| unreachable!())
     }
 
     #[verifier(external_body)]

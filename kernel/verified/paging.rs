@@ -11,9 +11,10 @@ use crate::page_alloc::*;
 use crate::mars_array::*;
 use crate::define::*;
 
-pub struct AddressSpace(pub PML4);
 
 verus! {
+
+pub struct AddressSpace(pub PML4);
 
 macro_rules! common_entry_impl {
     // Can't rely on the verus macro transformations here
@@ -287,7 +288,7 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     }
 
     #[verifier(external_body)]
-    pub fn tmp_adpot(&mut self, addr_spa: &AddressSpace)
+    pub fn tmp_adopt(&mut self, addr_spa: &AddressSpace)
         ensures
             self.tmp_get_mem_mappings() =~= addr_spa.0.tmp_get_mem_mappings(),
             self.tmp_page_table_page_closure() =~= addr_spa.0.tmp_page_table_page_closure(),
@@ -484,7 +485,7 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
         Self {
             //entries: [(); 512].map(|_| E::new()),
             entries: UntypedPagingLevel::new(),
-            perms: Ghost::assume_new(),
+            perms: Ghost::assume_new(|| unreachable!()),
         }
     }
 }
@@ -850,7 +851,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
     // }
 
     #[verifier(external_body)]
-    pub fn pcid_adpot(&mut self, pcid:Pcid, addr_spa: &AddressSpace)
+    pub fn pcid_adopt(&mut self, pcid:Pcid, addr_spa: &AddressSpace)
         requires
             0<=pcid<PCID_MAX,
             old(self).wf(),
@@ -861,7 +862,7 @@ impl MarsArray<AddressSpace,PCID_MAX>{
             self@[pcid as int].0.tmp_get_mem_mappings() =~= addr_spa.0.tmp_get_mem_mappings(),
             self@[pcid as int].0.tmp_page_table_page_closure() =~= addr_spa.0.tmp_page_table_page_closure(),
     {
-        self.ar[pcid].0.tmp_adpot(addr_spa);
+        self.ar[pcid].0.tmp_adopt(addr_spa);
     }
 
     #[verifier(external_body)]
