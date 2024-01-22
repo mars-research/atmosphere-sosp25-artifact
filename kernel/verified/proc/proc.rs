@@ -66,7 +66,7 @@ impl ProcessManager {
 ));
         assert(self.proc_ptrs@.contains(page_ptr) == false);
         let ret = page_ptr;
-        let (proc_pptr,mut proc_perm) = page_to_proc((PPtr::<[u8; PAGE_SIZE]>::from_usize(page_ptr),page_perm));
+        let (proc_pptr,mut proc_perm) = page_to_proc((PPtr::<[u8; PAGE_SZ]>::from_usize(page_ptr),page_perm));
 
         let proc_ptr = proc_pptr.to_usize();
 

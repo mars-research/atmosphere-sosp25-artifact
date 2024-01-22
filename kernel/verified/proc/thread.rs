@@ -217,7 +217,7 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
         assert(self.thread_ptrs@.contains(page_ptr) == false);
         assert(forall|_proc_ptr: usize| #![auto] self.proc_perms@.dom().contains(_proc_ptr) ==> self.proc_perms@[_proc_ptr]@.value.get_Some_0().owned_threads@.contains(page_ptr) == false);
 
-        let (thread_pptr,mut thread_perm) = page_to_thread((PPtr::<[u8; PAGE_SIZE]>::from_usize(page_ptr),page_perm));
+        let (thread_pptr,mut thread_perm) = page_to_thread((PPtr::<[u8; PAGE_SZ]>::from_usize(page_ptr),page_perm));
         thread_set_state(&thread_pptr, &mut thread_perm, SCHEDULED);
         let scheduler_rf = self.scheduler.push(page_ptr);
         thread_set_scheduler_rf(&thread_pptr, &mut thread_perm, Some(scheduler_rf));
