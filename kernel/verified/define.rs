@@ -39,7 +39,7 @@ pub const IPC_MESSAGE_LEN:usize = 1024;
 pub const IPC_PAGEPAYLOAD_LEN:usize = 128;
 
 pub const NUM_PAGES:usize = 4*1024*1024; //16GB
-pub const PAGE_SIZE:usize = 4096;
+pub const PAGE_SZ:usize = 4096;
 pub const MAX_USIZE:u64 = 31*1024*1024*1024;
 
 pub const DOM0_NUM_PAGES:usize = 1024;
@@ -61,9 +61,9 @@ pub const MAPPED:PageState = 4;
 pub type PageTablePtr = usize;
 pub const PCID_MAX:usize = 4096;
 
-pub type PagePPtr = PPtr<[u8; PAGE_SIZE]>;
+pub type PagePPtr = PPtr<[u8; PAGE_SZ]>;
 pub type PagePtr = usize;
-pub type PagePerm = PointsTo<[u8; PAGE_SIZE]>;
+pub type PagePerm = PointsTo<[u8; PAGE_SZ]>;
 
 pub type VAddr = u64;
 pub type PAddr = u64;

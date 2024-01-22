@@ -7,7 +7,7 @@ use crate::define::*;
 
 verus! {
 
-// Why 4096 instead of PAGE_SIZE in some places?
+// Why 4096 instead of PAGE_SZ in some places?
 //
 // https://github.com/verus-lang/verus/issues/587
 
@@ -155,7 +155,7 @@ impl<T, MT> PageArena<T, MT> {
         let metadata_size = size_of::<MT>();
 
         if metadata_size > 4096 {
-            // In reality, metadata_size == PAGE_SIZE is also unacceptable
+            // In reality, metadata_size == PAGE_SZ is also unacceptable
             // and will fail the following check
             return None;
         }
@@ -274,7 +274,7 @@ impl<T, MT> PageArena<T, MT> {
             ret@.page_base() === pptr.id(),
             ret@.metadata === metadata,
     {
-        Tracked::assume_new(|| unreachable!())
+        Tracked::assume_new()
     }
 
     #[verifier(external_body)]

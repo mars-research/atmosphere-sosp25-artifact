@@ -97,10 +97,10 @@ const MAXPHYADDR: u64 = 56;
 const PAGE_SHIFT: u64 = 12;
 
 /// The size of a regular 4KiB page.
-const PAGE_SIZE: u64 = 4096;
+const PAGE_SZ: u64 = 4096;
 
 /// Bitmask to get the page in a linear address.
-const PAGE_MASK: u64 = !(PAGE_SIZE - 1);
+const PAGE_MASK: u64 = !(PAGE_SZ - 1);
 
 /// Bitmask to get the physical address.
 #[verifier(external_body)]
@@ -485,7 +485,7 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
         Self {
             //entries: [(); 512].map(|_| E::new()),
             entries: UntypedPagingLevel::new(),
-            perms: Ghost::assume_new(|| unreachable!()),
+            perms: Ghost::assume_new(),
         }
     }
 }
@@ -761,6 +761,7 @@ impl PTE {
             ret.address() == page.id(),
     {
         Self(page.to_usize() as u64 & 0b1)
+        // unimplemented!()
     }
 }
 

@@ -375,7 +375,7 @@ impl PageAllocator {
                     forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == MAPPED ==> self.get_page_mappings(page_index2page_ptr(j)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[j as int].1)),
 
 
-                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].start == j * PAGE_SIZE,
+                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].start == j * PAGE_SZ,
                     forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].state <= MAPPED,
                     forall|i:int| #![auto] 0<=i<self.free_pages.len() ==> page_ptr_valid(self.free_pages@[i]),
                     self.page_perms@.dom() =~= self.free_pages_as_set() + self.mapped_pages(),
@@ -384,7 +384,7 @@ impl PageAllocator {
                     forall|page_ptr:PagePtr| #![auto] self.page_perms@.dom().contains(page_ptr) ==> self.page_perms@[page_ptr]@.pptr == page_ptr,
                     forall|page_ptr:PagePtr| #![auto] self.page_perms@.dom().contains(page_ptr) ==> self.page_perms@[page_ptr]@.value.is_Some(),
 
-                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].start == j * PAGE_SIZE,
+                    forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].start == j * PAGE_SZ,
                     forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].state <= MAPPED,
 
                     forall|j:usize| #![auto] 0<=j<i ==> self.page_array@[j as int].mappings@.dom().finite(),
@@ -520,7 +520,7 @@ impl PageAllocator {
     pub closed spec fn page_array_wf(&self) -> bool{
         (self.page_array.wf())
         &&
-        (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].start == i * PAGE_SIZE)
+        (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].start == i * PAGE_SZ)
         &&
         (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].state <= MAPPED)
         &&
@@ -544,7 +544,7 @@ impl PageAllocator {
         &&
         (forall|i:int| #![auto] 0<=i<self.free_pages.len() ==> page_ptr_valid(self.free_pages@[i]))
         &&
-        (forall|i:int| #![auto] 0<=i<self.free_pages.len() ==> (self.page_array@[(self.free_pages@[i] as usize/PAGE_SIZE) as int].start =~= self.free_pages@[i]))
+        (forall|i:int| #![auto] 0<=i<self.free_pages.len() ==> (self.page_array@[(self.free_pages@[i] as usize/PAGE_SZ) as int].start =~= self.free_pages@[i]))
         &&
         (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> (self.page_array@[i].state == FREE ==> self.free_pages@.contains(self.page_array@[i].start)))
         &&

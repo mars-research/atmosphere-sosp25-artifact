@@ -1,7 +1,7 @@
 use vstd::prelude::*;
 use vstd::ptr::{
     PPtr, PointsTo,
-    PAGE_SIZE,
+    PAGE_SZ,
 };
 
 //use crate::linked_list::*;
