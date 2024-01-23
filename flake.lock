@@ -170,16 +170,15 @@
         ]
       },
       "locked": {
-        "lastModified": 1691691040,
-        "narHash": "sha256-7nt/HqUrbNXP9BzveNSzZG7Tw3k0Ik2WOMD6CX5qlOI=",
-        "owner": "zhaofengli",
+        "lastModified": 1705976279,
+        "narHash": "sha256-Zx97bJ3+O8IP70uJPD//rRsr8bcxICISMTZUT/L9eFk=",
+        "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "46dff9c200a4cf65447637ca0c6ee62826429924",
+        "rev": "f889dc31ef97835834bdc3662394ebdb3c96b974",
         "type": "github"
       },
       "original": {
-        "owner": "zhaofengli",
-        "ref": "fix-sysroot-with-rustc-dev",
+        "owner": "oxalica",
         "repo": "rust-overlay",
         "type": "github"
       }
@@ -219,11 +218,11 @@
         "rust-overlay": "rust-overlay_3"
       },
       "locked": {
-        "lastModified": 1699439000,
-        "narHash": "sha256-+z79+wKine59gdTak440CiM7JnrldU9S2C7b/eshrFQ=",
+        "lastModified": 1706021020,
+        "narHash": "sha256-ZczHACY22R/tRnWAxFBy+7PEpQMVlSPsYuVYVOQBsHU=",
         "owner": "mars-research",
         "repo": "verus",
-        "rev": "26ee3454a6c962157a0824f72142b96282772cc2",
+        "rev": "f96080c8664d838f6a783d6c77de29272369b87f",
         "type": "github"
       },
       "original": {
