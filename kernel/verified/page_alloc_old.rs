@@ -171,7 +171,7 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_get_page_mappings(&mut self, index: usize, mappings: Ghost<Map<(Pcid,VAddr),PageType>>) 
+    pub fn set_page_mappings(&mut self, index: usize, mappings: Ghost<Map<(Pcid,VAddr),PageType>>) 
         requires 
             0 <= index < N,
             old(self).wf(),
@@ -425,7 +425,7 @@ impl PageAllocator {
             if pair.0 == UNAVAILABLE {
                 self.page_array.set_page_start(i, page_index2page_ptr(i));
                 self.page_array.set_page_rf_count(i, 0);
-                self.page_array.set_get_page_mappings(i, Ghost(Map::empty()));
+                self.page_array.set_page_mappings(i, Ghost(Map::empty()));
                 self.page_array.set_page_state(i, UNAVAILABLE);
             }
             else if pair.0 == FREE {
@@ -433,7 +433,7 @@ impl PageAllocator {
                 // let free_pages: Ghost<Set<PagePtr>> = Ghost(self.free_pages_as_set());
                 self.page_array.set_page_start(i, page_index2page_ptr(i));
                 self.page_array.set_page_rf_count(i, 0);
-                self.page_array.set_get_page_mappings(i, Ghost(Map::empty()));
+                self.page_array.set_page_mappings(i, Ghost(Map::empty()));
                 self.page_array.set_page_state(i, FREE);
                 self.free_pages.push_unique(page_index2page_ptr(i));
                 let tracked mut page_perm: PagePerm =
@@ -460,7 +460,7 @@ impl PageAllocator {
                 //     ));
                 self.page_array.set_page_start(i, page_index2page_ptr(i));
                 self.page_array.set_page_rf_count(i, 1);
-                self.page_array.set_get_page_mappings(i, Ghost(Map::<(Pcid,VAddr),PageType>::empty().insert((0,pair.1),0)));
+                self.page_array.set_page_mappings(i, Ghost(Map::<(Pcid,VAddr),PageType>::empty().insert((0,pair.1),0)));
                 self.page_array.set_page_state(i, MAPPED);
 
                 self.mapped_pages = Ghost(self.mapped_pages@.insert(page_index2page_ptr(i)));
@@ -484,12 +484,15 @@ impl PageAllocator {
                 assert(mapped_pages@.insert(page_index2page_ptr(i)) =~= self.mapped_pages@);
                 // assert(mapped_pages@.len() + 1 >= self.mapped_pages@.len());
                 // assert(self.free_pages_as_set().len() + self.mapped_pages@.len() <= i + 1);
-            }else{
+            }else if pair.0 == IO {
+
+            }
+            else{
                 assert(pair.0 == PAGETABLE); 
                 let page_table_pages:Ghost<Set<PagePtr>> = Ghost(self.page_table_pages@);
                 self.page_array.set_page_start(i, page_index2page_ptr(i));
                 self.page_array.set_page_rf_count(i, 0);
-                self.page_array.set_get_page_mappings(i, Ghost(Map::empty()));
+                self.page_array.set_page_mappings(i, Ghost(Map::empty()));
                 self.page_array.set_page_state(i, PAGETABLE);
 
                 self.page_table_pages = Ghost(self.page_table_pages@.insert(page_index2page_ptr(i)));
@@ -793,7 +796,7 @@ impl PageAllocator {
         assert(self.page_array@[page_ptr2page_index(ret) as int].mappings@.dom().finite());
         assert(self.page_array@[page_ptr2page_index(ret) as int].mappings@.dom() =~= Set::empty());
         let new_mappings = Ghost(self.page_array@[spec_page_ptr2page_index(ret) as int].mappings@.insert(target, page_type));
-        self.page_array.set_get_page_mappings(page_ptr2page_index(ret),new_mappings);
+        self.page_array.set_page_mappings(page_ptr2page_index(ret),new_mappings);
 
         assert(self.mapped_pages@.contains(ret) == false);
         proof{
@@ -819,7 +822,7 @@ impl PageAllocator {
         let new_rf_count = old_rf_count + 1;
         self.page_array.set_page_rf_count(page_ptr2page_index(page_ptr), new_rf_count);
         let new_mappings = Ghost(self.page_array@[spec_page_ptr2page_index(page_ptr) as int].mappings@.insert(target, page_type));
-        self.page_array.set_get_page_mappings(page_ptr2page_index(page_ptr),new_mappings);
+        self.page_array.set_page_mappings(page_ptr2page_index(page_ptr),new_mappings);
 
         assert(self.wf());
     }
@@ -836,7 +839,7 @@ impl PageAllocator {
         let new_rf_count = old_rf_count - 1;
         self.page_array.set_page_rf_count(page_ptr2page_index(page_ptr), new_rf_count);
         let new_mappings = Ghost(self.page_array@[spec_page_ptr2page_index(page_ptr) as int].mappings@.remove(target));
-        self.page_array.set_get_page_mappings(page_ptr2page_index(page_ptr),new_mappings);
+        self.page_array.set_page_mappings(page_ptr2page_index(page_ptr),new_mappings);
         if new_rf_count == 0{
             assert(self.page_array@[spec_page_ptr2page_index(page_ptr) as int].mappings@.dom() =~= Set::empty());
             assert(self.free_pages@.contains(page_ptr) == false);

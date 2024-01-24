@@ -1,7 +1,7 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
 
-use crate::paging::AddressSpace;
+use crate::paging_dummy::AddressSpace;
 use crate::mars_array::MarsArray;
 use crate::array_vec::ArrayVec;
 use crate::page_alloc::*;

@@ -57,6 +57,7 @@ pub const FREE:PageState = 1;
 pub const PAGETABLE:PageState = 2;
 pub const ALLOCATED:PageState = 3;
 pub const MAPPED:PageState = 4;
+pub const IO:PageState = 5;
 
 pub type PageTablePtr = usize;
 pub const PCID_MAX:usize = 4096;

@@ -6,7 +6,7 @@ use crate::page_alloc::*;
 use crate::pcid_alloc::*;
 use crate::cpu::{Cpu,CPUID};
 use crate::mars_array::MarsArray;
-use crate::paging::*;
+use crate::paging_dummy::*;
 use crate::define::*;
 
 verus! {
