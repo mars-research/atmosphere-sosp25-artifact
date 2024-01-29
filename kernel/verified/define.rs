@@ -70,4 +70,11 @@ pub type VAddr = u64;
 pub type PAddr = u64;
 
 pub type Pcid = usize;
+
+pub type L4Index = usize;
+pub type L3Index = usize;
+pub type L2Index = usize;
+pub type L1Index = usize;
+
+pub const VA_MASK:u64 = 0x0000_ffff_ffff_f000;
 }

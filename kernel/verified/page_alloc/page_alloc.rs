@@ -235,6 +235,85 @@ impl PageAllocator {
         }
     }
 
+        pub fn alloc_pagetable_mem(&mut self) -> (ret : (PagePtr,Tracked<PagePerm>))
+        requires 
+            old(self).page_alloc_wf(),
+            old(self).free_pages.len() > 0,
+        ensures
+            self.page_alloc_wf(),
+            old(self).free_pages_as_set().contains(ret.0),
+            self.free_pages_as_set().contains(ret.0) == false,
+            self.free_pages_as_set() =~= old(self).free_pages_as_set().remove(ret.0),
+            self.allocated_pages() =~= old(self).allocated_pages(),
+            self.page_table_pages() =~= old(self).page_table_pages().insert(ret.0),
+            self.mapped_pages() =~= old(self).mapped_pages(),
+            self.page_table_pages().contains(ret.0),
+            self.available_pages() =~= old(self).available_pages(),
+            ret.1@@.pptr == ret.0,
+            ret.1@@.value.is_Some(),
+            self.free_pages.len() as int =~= old(self).free_pages.len() as int - 1,
+            forall|page_ptr:PagePtr| #![auto] self.available_pages@.contains(page_ptr) ==> self.get_page_mappings(page_ptr) =~= old(self).get_page_mappings(page_ptr),
+    {
+        proof{
+            self.page_array_wf_derive();
+        }
+        let ptr = self.free_pages.pop_unique();
+        assert(old(self).free_pages@.contains(ptr));
+        assert(self.page_array@[page_ptr2page_index(ptr) as int].is_io_page == false);
+        assert(old(self).free_pages_as_set().contains(ptr));
+        assert(self.free_pages@.contains(ptr) == false);
+
+        assert(old(self).page_table_pages() * old(self).free_pages_as_set() =~= Set::empty());
+        assert(old(self).page_table_pages().contains(ptr) == false);
+        assert(self.page_table_pages@.contains(ptr) == false);
+        self.page_array.set_page_state(page_ptr2page_index(ptr),PAGETABLE);
+        proof{
+            self.page_table_pages@ = self.page_table_pages@.insert(ptr);
+        }
+
+        assert(self.free_pages.wf());
+        assert(self.free_pages_wf());
+
+        assert(self.free_pages_as_set() =~= old(self).free_pages_as_set().remove(ptr));
+
+        assert((self.page_table_pages() + self.free_pages_as_set()) =~= (old(self).page_table_pages() + old(self).free_pages_as_set()));
+        assert((self.allocated_pages() + self.mapped_pages() + self.free_pages_as_set()) + self.page_table_pages() =~= self.available_pages());
+        assert(self.mem_wf());
+        assert(self.page_table_pages_wf());
+        assert(self.mapped_pages_wf());
+
+        assert(self.page_perms@.dom().contains(ptr));
+        let tracked mut page_perm: PagePerm =
+            (self.page_perms.borrow_mut()).tracked_remove(ptr);
+        assert(page_perm@.value.is_Some());
+        return (ptr,Tracked(page_perm));
+    }
+
+    pub fn free_pagetable_mem(&mut self, ptr : PagePtr, perm: Tracked<PagePerm>)
+        requires 
+            old(self).page_alloc_wf(),
+            old(self).page_table_pages().contains(ptr),
+            old(self).free_pages.len() < NUM_PAGES,
+            perm@@.pptr == ptr,
+            perm@@.value.is_Some(),
+        ensures
+            self.page_alloc_wf(),
+    {
+        assert(page_ptr_valid(ptr));
+        proof{self.page_table_pages@ = self.page_table_pages@.remove(ptr);}
+        assert(self.free_pages_as_set().contains(ptr) == false);
+        assert(self.free_pages@.contains(ptr) == false);
+        self.free_pages.push_unique(ptr);
+        assert(self.page_array@[page_ptr2page_index(ptr) as int].rf_count == 0);
+        self.page_array.set_page_state(page_ptr2page_index(ptr),FREE);
+        proof{
+            assert(self.page_perms@.dom().contains(ptr) == false);
+            (self.page_perms.borrow_mut())
+                .tracked_insert(ptr, perm.get());
+        }
+        assert(self.page_alloc_wf());
+    }
+
     pub fn init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>)
     requires
         old(self).page_array.wf(),

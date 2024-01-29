@@ -6,7 +6,7 @@ use crate::page_alloc::*;
 use crate::pcid_alloc::*;
 use crate::cpu::{Cpu,CPUID};
 use crate::mars_array::MarsArray;
-use crate::paging_dummy::*;
+use crate::pagetable::*;
 use crate::define::*;
 
 verus! {
@@ -60,7 +60,7 @@ impl Kernel {
 
      
 
-    pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, dom0_address_space: &AddressSpace, kernel_pml4_entry: usize)
+    pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, dom0_address_space: &PageTable, kernel_pml4_entry: usize)
         requires 
             old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
             old(self).proc_man.proc_ptrs@ =~= Seq::empty(),
@@ -98,26 +98,26 @@ impl Kernel {
             ),
             (forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 ==PAGETABLE ==> 
                 (
-                    dom0_address_space.0.tmp_page_table_page_closure().contains(page_index2page_ptr(i))
+                    dom0_address_space.tmp_page_table_page_closure().contains(page_index2page_ptr(i))
                 )
             ),
             NUM_PAGES * 4096 <= usize::MAX,
             old(self).cpu_list.wf(),
-            forall|va:VAddr| #![auto] dom0_address_space.0.tmp_get_mem_mappings().dom().contains(va) ==> (
-                page_ptr_valid(dom0_address_space.0.tmp_get_mem_mappings()[va] as usize)
+            forall|va:VAddr| #![auto] dom0_address_space.tmp_get_mem_mappings().dom().contains(va) ==> (
+                page_ptr_valid(dom0_address_space.tmp_get_mem_mappings()[va] as usize)
                 &&
                 va != 0
                 &&
-                boot_page_ptrs@[page_ptr2page_index(dom0_address_space.0.tmp_get_mem_mappings()[va] as usize) as int].0 == MAPPED && boot_page_ptrs@[page_ptr2page_index(dom0_address_space.0.tmp_get_mem_mappings()[va] as usize) as int].1 == va
+                boot_page_ptrs@[page_ptr2page_index(dom0_address_space.tmp_get_mem_mappings()[va] as usize) as int].0 == MAPPED && boot_page_ptrs@[page_ptr2page_index(dom0_address_space.tmp_get_mem_mappings()[va] as usize) as int].1 == va
                 ),
-            forall|page_ptr:PagePtr| #![auto] dom0_address_space.0.tmp_page_table_page_closure().contains(page_ptr) ==> 
+            forall|page_ptr:PagePtr| #![auto] dom0_address_space.tmp_page_table_page_closure().contains(page_ptr) ==> 
                 (
                     page_ptr_valid(page_ptr)
                     &&
                     boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].0 == PAGETABLE
                 ),
             forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == PAGETABLE ==>
-                dom0_address_space.0.tmp_page_table_page_closure().contains(page_index2page_ptr(i)),
+                dom0_address_space.tmp_page_table_page_closure().contains(page_index2page_ptr(i)),
 
         ensures
             self.kernel_wf(),
@@ -134,8 +134,8 @@ impl Kernel {
             proof{
                 page_ptr_lemma();
             }
-            assert(forall|page_ptr:PagePtr| #![auto] dom0_address_space.0.tmp_page_table_page_closure().contains(page_ptr) ==> self.page_alloc.page_table_pages().contains(page_ptr));
-            assert(forall|page_ptr:PagePtr| #![auto] self.page_alloc.page_table_pages().contains(page_ptr) ==> dom0_address_space.0.tmp_page_table_page_closure().contains(page_ptr));
+            assert(forall|page_ptr:PagePtr| #![auto] dom0_address_space.tmp_page_table_page_closure().contains(page_ptr) ==> self.page_alloc.page_table_pages().contains(page_ptr));
+            assert(forall|page_ptr:PagePtr| #![auto] self.page_alloc.page_table_pages().contains(page_ptr) ==> dom0_address_space.tmp_page_table_page_closure().contains(page_ptr));
             assert(self.page_alloc.page_table_pages() =~= self.pcid_alloc.page_table_pages());
             assert(self.page_alloc.allocated_pages() =~= self.proc_man.page_closure());
             assert(self.page_alloc.mem_wf());

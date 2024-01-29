@@ -31,7 +31,7 @@ pub struct PageAllocator{
 
     // //fields for virtual addresses
     // pub free_pcids: ArrayVec<Pcid,PCID_MAX>,
-    // pub page_tables: MarsArray<AddressSpace,PCID_MAX>,
+    // pub page_tables: MarsArray<PageTable,PCID_MAX>,
 }
 
 #[verifier(external_body)]
@@ -255,7 +255,7 @@ impl PageAllocator {
             page_perms: arbitrary(),
 
             // free_pcids: ArrayVec::<Pcid,PCID_MAX>::new(),
-            // page_tables: MarsArray::<AddressSpace,PCID_MAX>::new(),
+            // page_tables: MarsArray::<PageTable,PCID_MAX>::new(),
         };
 
         ret
