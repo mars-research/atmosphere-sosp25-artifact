@@ -665,6 +665,97 @@ impl PageTable{
         return ret;
     }
 
+
+    pub fn unmap_page_no_lookup(&mut self,page_alloc :&mut PageAllocator, l4i:usize, l3i:usize, l2i:usize, l1i:usize,  l3_ptr:usize, l2_ptr:usize, l1_ptr:usize)
+        requires
+            old(self).wf(),
+            0 <= l4i < 512,
+            0 <= l3i < 512,
+            0 <= l2i < 512,
+            0 <= l1i < 512,
+            old(self).l4_entry_exists(l4i),
+            old(self).l3_entry_exists(l4i,l3i),
+            old(self).l2_entry_exists(l4i,l3i,l2i),
+            old(self).resolve_mapping_l4(l4i) == l3_ptr,
+            old(self).resolve_mapping_l3(l4i,l3i) == l2_ptr,
+            old(self).resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr,
+            old(self).resolve_mapping_l2(l4i,l3i,l2i) != 0,
+        ensures
+            self.wf(),
+            self.l4_entry_exists(l4i),
+            self.l3_entry_exists(l4i,l3i),
+            self.l2_entry_exists(l4i,l3i,l2i),
+            self.resolve_mapping_l4(l4i) == l3_ptr,
+            self.resolve_mapping_l3(l4i,l3i) == l2_ptr,
+            self.resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr,
+            self.resolve_mapping_l2(l4i,l3i,l2i) != 0,
+            forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
+                self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))],
+            self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))] == 0,
+            forall|j:usize| 0<=j<512 && j != l1i ==> 
+                self.l1_tables@[l1_ptr]@.value.get_Some_0().table@[j as int] == old(self).l1_tables@[l1_ptr]@.value.get_Some_0().table@[j as int],
+            self.l1_tables@[l1_ptr]@.value.get_Some_0().table@[l1i as int] == 0,
+
+    {
+        proof{
+            lemma_1();
+        }
+        assert(self.l1_tables@.dom().contains(l1_ptr));
+        let tracked mut l1_perm = self.l1_tables.borrow_mut().tracked_remove(l1_ptr);
+        assert(l1_ptr == l1_perm@.pptr);
+        let l1_pptr = PPtr::<LookUpTable>::from_usize(l1_ptr);
+
+        assert(l1_perm@.value.get_Some_0().table.wf());
+        assert(l1_perm@.pptr == l1_ptr);
+        LookUpTable_set(&l1_pptr,Tracked(&mut l1_perm),l1i,0);
+        proof {self.mapping@ = self.mapping@.insert(spec_index2va((l4i,l3i,l2i,l1i)),0);}
+
+        proof {self.l1_tables.borrow_mut().tracked_insert(l1_ptr, l1_perm);}
+
+        assert(self.wf_l4());
+
+        assert(self.wf_l3());
+        
+        assert(self.wf_l2());
+
+        assert(self.wf_l1());
+
+        proof{
+            self.wf_to_wf_mapping();
+        }
+
+        assert(self.no_self_mapping());
+
+        assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i) == 0);
+
+        assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
+            self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))]);
+
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr ==> (
+            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i))
+        );
+
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i) == l1_ptr && _l1i != l1i==> (
+            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i))
+        );
+
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i)) ==> (
+            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i))
+        );
+
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i)) ==> (
+            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))])
+        );
+
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] 0<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && _l1i != l1i ==> (
+            self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))])
+        );
+
+        assert(self.wf_mapping());
+
+        assert(self.wf());
+    }
+
 }
 
 }
