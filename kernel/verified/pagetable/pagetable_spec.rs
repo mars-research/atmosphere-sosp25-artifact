@@ -389,7 +389,16 @@ impl PageTable{
         self.no_self_mapping()
         &&
         self.wf_mapping()
+        &&
+        self.l4_kernel_entries_reserved()
     }
+
+    pub open spec fn l4_kernel_entries_reserved(&self) -> bool
+        recommends self.wf_l4(),
+    {
+        forall|l4i: L4Index| #![auto] 0<=l4i<KERNEL_MEM_END_L4INDEX ==> self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int] == 0
+    }
+
 
     pub open spec fn l4_entry_exists(&self, l4i: L4Index) -> bool
         recommends self.wf(),

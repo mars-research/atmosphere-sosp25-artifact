@@ -453,6 +453,7 @@ impl PageTable{
             lemma_set_properties::<Set<PagePtr>>();  
         }
         let (l4i,l3i,l2i,l1i) = va2index(va);
+        assert(l4i >= KERNEL_MEM_END_L4INDEX);
         assert(self.cr3 == self.l4_table@[self.cr3]@.pptr);
         let tracked l4_perm = self.l4_table.borrow().tracked_borrow(self.cr3);
         let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(l4_perm));

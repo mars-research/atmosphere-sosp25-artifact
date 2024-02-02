@@ -47,7 +47,7 @@ pub fn page_to_lookuptable(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr,
 
 pub open spec fn spec_va_valid(va: usize) -> bool
 {
-    va & VA_MASK as usize == 0
+    (va & VA_MASK as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX
 }
 
 pub open spec fn spec_v2l1index(va: usize) -> L1Index
@@ -89,7 +89,7 @@ pub open spec fn spec_index2va(i:(L4Index,L3Index,L2Index,L1Index)) -> usize
 pub fn va_valid(va: usize) -> (ret: bool)
     ensures ret == spec_va_valid(va),
 {
-    va & VA_MASK as usize == 0
+    (va & VA_MASK as usize == 0) &&  (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX as u64
 }
 
 #[verifier(external_body)]
@@ -123,7 +123,7 @@ pub fn v2l3index(va: usize) -> (ret: L3Index)
 pub fn v2l4index(va: usize) -> (ret: L4Index)
     requires spec_va_valid(va),
     ensures  ret == spec_v2l4index(va),
-                ret <= 0x1ff,
+            KERNEL_MEM_END_L4INDEX <= ret <= 0x1ff,
 {
     (va as u64 >> 39u64 & 0x1ffu64) as usize
 }
@@ -133,7 +133,7 @@ pub fn va2index(va: usize) -> (ret : (L4Index,L3Index,L2Index,L1Index))
     requires
         spec_va_valid(va),
     ensures
-        ret.0 == spec_v2l4index(va) && ret.0 <= 0x1ff,
+        ret.0 == spec_v2l4index(va) && KERNEL_MEM_END_L4INDEX <= ret.0 <= 0x1ff,
         ret.1 == spec_v2l3index(va) && ret.1 <= 0x1ff,
         ret.2 == spec_v2l2index(va) && ret.2 <= 0x1ff,
         ret.3 == spec_v2l1index(va) && ret.3 <= 0x1ff,

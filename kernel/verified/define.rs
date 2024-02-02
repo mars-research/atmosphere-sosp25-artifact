@@ -38,6 +38,7 @@ pub const MAX_NUM_THREADS:usize = 500 * 4096;
 pub const IPC_MESSAGE_LEN:usize = 1024;
 pub const IPC_PAGEPAYLOAD_LEN:usize = 128;
 
+pub const KERNEL_MEM_END_L4INDEX:usize = 1; //1 for now
 pub const NUM_PAGES:usize = 4*1024*1024; //16GB
 pub const PAGE_SZ:usize = 4096;
 pub const MAX_USIZE:u64 = 31*1024*1024*1024;
