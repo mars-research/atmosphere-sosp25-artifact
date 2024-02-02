@@ -51,6 +51,7 @@ impl CPUStackList{
 pub struct Cpu{
     pub current_t: Option<ThreadPtr>,
     pub tlb: Ghost<Map<Pcid,Map<VAddr,PAddr>>>,
+    pub iotlb: Ghost<Map<IOid,Map<VAddr,PAddr>>>,
 }
 impl Cpu {
     pub open spec fn wf(&self) -> bool{
@@ -67,9 +68,15 @@ impl Cpu {
     
     pub open spec fn get_tlb_for_pcid(&self, pcid:Pcid) -> Map<VAddr,PAddr>
         recommends self.wf(),
-                   0 <= pcid< PCID_MAX,
+            0 <= pcid< PCID_MAX,
     {
         self.tlb@[pcid]
+    }
+
+    pub open spec fn get_tlb_for_ioid(&self, ioid:IOid) -> Map<VAddr,PAddr>
+        recommends self.wf(),
+    {
+        self.iotlb@[ioid]
     }
 }
 
@@ -95,6 +102,7 @@ impl MarsArray<Cpu,NUM_CPUS>{
             let cpu = Cpu{
                 current_t: None,
                 tlb: Ghost(Map::empty()),
+                iotlb: Ghost(Map::empty()),
             };
             let tmp:Ghost<Seq<Cpu>> = Ghost(self@); 
             self.set(i,cpu);
@@ -109,9 +117,12 @@ impl MarsArray<Cpu,NUM_CPUS>{
             old(self).wf(),
         ensures
             self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].iotlb@.dom() =~= old(self)@[i as int].iotlb@.dom(),
             forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].current_t =~= old(self)@[i as int].current_t,
             forall|i:CPUID, _pcid:Pcid, _va:VAddr| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid && self@[i as int].tlb@.dom().contains(_pcid) && self@[i as int].tlb@[_pcid].dom().contains(_va) && _va != va
                 ==> self@[i as int].tlb@[_pcid][_va] =~= old(self)@[i as int].tlb@[_pcid][_va],
+            forall|i:CPUID, _ioid:IOid| #![auto] 0<=i<NUM_CPUS && self@[i as int].iotlb@.dom().contains(_ioid) ==> 
+                self@[i as int].iotlb@[_ioid] =~= old(self)@[i as int].iotlb@[_ioid],
             forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid 
                 ==> self@[i as int].tlb@[_pcid].dom().contains(va) == false,
     {
@@ -124,9 +135,29 @@ impl MarsArray<Cpu,NUM_CPUS>{
             old(self).wf(),
         ensures
             self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].iotlb@.dom() =~= old(self)@[i as int].iotlb@.dom(),
             forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].current_t =~= old(self)@[i as int].current_t,
             forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid ==> self@[i as int].tlb@[_pcid] =~= old(self)@[i as int].tlb@[_pcid],
+            forall|i:CPUID, _ioid:IOid| #![auto] 0<=i<NUM_CPUS && self@[i as int].iotlb@.dom().contains(_ioid) ==> 
+                self@[i as int].iotlb@[_ioid] =~= old(self)@[i as int].iotlb@[_ioid],
             forall|i:CPUID| #![auto] self@[i as int].tlb@[pcid] =~= Map::empty(),
+    {
+
+    }
+
+    #[verifier(external_body)]
+    pub fn flush_ioid(&mut self, ioid:IOid)
+        requires
+            old(self).wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> old(self)@[i as int].iotlb@.dom().contains(ioid),
+        ensures
+            self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].iotlb@.dom() =~= old(self)@[i as int].iotlb@.dom(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].current_t =~= old(self)@[i as int].current_t,
+            forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX ==> self@[i as int].tlb@[_pcid] =~= old(self)@[i as int].tlb@[_pcid],
+            forall|i:CPUID, _ioid:IOid| #![auto] 0<=i<NUM_CPUS && self@[i as int].iotlb@.dom().contains(_ioid) && _ioid != ioid ==> 
+                self@[i as int].iotlb@[_ioid] =~= old(self)@[i as int].iotlb@[_ioid],
+            forall|i:CPUID| #![auto] self@[i as int].iotlb@[ioid] =~= Map::empty(),
     {
 
     }

@@ -98,12 +98,12 @@ impl PageTable{
         arbitrary()
     }
 
-    pub fn add_mapping(&mut self, va:usize, dst:usize) -> (ret: bool)
+    pub fn add_mapping(&mut self, va:VAddr, dst:PAddr) -> (ret: bool)
         requires 
             old(self).wf(),
             spec_va_valid(va),
             //old(self).va_exists(va),
-            old(self).all_pages().contains(dst) == false,
+            old(self).get_pagetable_page_closure().contains(dst) == false,
             old(self).mapping@[va] == 0,
         ensures
             self.wf(),
@@ -223,7 +223,7 @@ impl PageTable{
         return true;
 
     }
-    pub fn remove_mapping(&mut self, va:usize) -> (ret: usize)
+    pub fn remove_mapping(&mut self, va:VAddr) -> (ret: PAddr)
         requires 
             old(self).wf(),
             spec_va_valid(va),
@@ -358,7 +358,7 @@ impl PageTable{
 
         return dst;
     }
-    pub fn get_va_entry(&self, va:usize) -> (ret:Option<usize>)
+    pub fn get_va_entry(&self, va:VAddr) -> (ret:Option<PAddr>)
         requires
             self.wf(),
             spec_va_valid(va),
@@ -425,22 +425,22 @@ impl PageTable{
         return Some(dst);
     }
 
-    pub fn create_va_entry1(&mut self, va:usize,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+    pub fn create_va_entry1(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
         requires
             old(self).wf(),
             old(page_alloc).wf(),
             old(page_alloc).free_pages.len() >= 4,
             spec_va_valid(va),
-            old(self).all_pages().disjoint(old(page_alloc).free_pages_as_set()),
+            old(self).get_pagetable_page_closure().disjoint(old(page_alloc).free_pages_as_set()),
             old(self).all_mapped_pages().disjoint(old(page_alloc).free_pages_as_set()),
         ensures
             self.wf(),
-            self.all_pages() =~= old(self).all_pages() + ret@,
+            self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@,
             page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
             ret@.subset_of(old(page_alloc).free_pages_as_set()),
-            self.all_pages().disjoint(page_alloc.free_pages_as_set()),
+            self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()),
             self.mapping@ =~= old(self).mapping@,
-            self.all_pages() =~= old(self).all_pages() + ret@,
+            self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@,
             self.va_exists(va),
             page_alloc.wf(),
             page_alloc.mapped_pages() =~= old(page_alloc).mapped_pages(),
@@ -507,17 +507,17 @@ impl PageTable{
             assert(self.wf());
             l3_ptr = l3_ptr_tmp;
             proof{ret@ = ret@.insert(l3_ptr_tmp);}
-            assert(self.all_pages() =~= old(self).all_pages() + ret@);
+            assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
             assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
             assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-            assert(self.all_pages().disjoint(page_alloc.free_pages_as_set()));
+            assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
         }
         assert(self.wf());
         assert(self.resolve_mapping_l4(l4i) == l3_ptr);
-        assert(self.all_pages() =~= old(self).all_pages() + ret@);
+        assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
         assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
         assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-        assert(self.all_pages().disjoint(page_alloc.free_pages_as_set()));
+        assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
 
         assert(self.l4_table@[self.cr3]@.value.get_Some_0().table@.contains(l3_ptr));
         let tracked l3_perm = self.l3_tables.borrow().tracked_borrow(l3_ptr);
@@ -575,17 +575,17 @@ impl PageTable{
 
             l2_ptr = l2_ptr_tmp;
             proof{ret@ = ret@.insert(l2_ptr_tmp);}
-            assert(self.all_pages() =~= old(self).all_pages() + ret@);
+            assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
             assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
             assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-            assert(self.all_pages().disjoint(page_alloc.free_pages_as_set()));
+            assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
         }
         assert(self.wf());
         assert(self.resolve_mapping_l3(l4i,l3i) == l2_ptr);
-        assert(self.all_pages() =~= old(self).all_pages() + ret@);
+        assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
         assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
         assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-        assert(self.all_pages().disjoint(page_alloc.free_pages_as_set()));
+        assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
 
         let tracked l2_perm = self.l2_tables.borrow().tracked_borrow(l2_ptr);
         assert(l2_ptr == l2_perm@.pptr);
@@ -642,20 +642,20 @@ impl PageTable{
 
             l1_ptr = l1_ptr_tmp;
             proof{ret@ = ret@.insert(l1_ptr_tmp);}
-            assert(self.all_pages() =~= old(self).all_pages() + ret@);
+            assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
             assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
             assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-            assert(self.all_pages().disjoint(page_alloc.free_pages_as_set()));
+            assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
         }
         assert(self.wf());
         assert(self.resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr);
-        assert(self.all_pages() =~= old(self).all_pages() + ret@);
+        assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
         assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
         assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-        assert(self.all_pages().disjoint(page_alloc.free_pages_as_set()));
+        assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
 
         assert(self.mapping@ =~= old(self).mapping@);
-        assert(self.all_pages() =~= old(self).all_pages() + ret@);
+        assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
         assert(self.va_exists(va));
 
         assert(page_alloc.wf());

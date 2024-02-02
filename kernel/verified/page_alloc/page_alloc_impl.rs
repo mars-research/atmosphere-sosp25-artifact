@@ -133,6 +133,14 @@ impl PageAllocator {
             old(self).page_array@[page_ptr2page_index(page_ptr) as int].rf_count < usize::MAX,
         ensures
             self.page_alloc_wf(),
+            self.free_pages =~= old(self).free_pages,
+            self.page_table_pages =~= old(self).page_table_pages,
+            self.allocated_pages =~= old(self).allocated_pages,
+            self.mapped_pages =~= old(self).mapped_pages,
+            self.available_pages =~= old(self).available_pages,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(page_ptr) ==> self.page_array@[i] =~= old(self).page_array@[i],
+            self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@ =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].mappings@.insert(target, page_type),
+            self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom() =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom().insert(target),
     {
         assert(self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count != 0);
         assert(self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count > 0);

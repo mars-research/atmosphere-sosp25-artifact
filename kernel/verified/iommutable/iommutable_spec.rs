@@ -3,18 +3,20 @@ use vstd::prelude::*;
 use crate::define::*;
 
 verus!{
-pub struct IOMMUTable{}
+pub struct IOMMUTable{
+    
+}
 
 impl IOMMUTable{
     pub open spec fn wf(&self) -> bool{
         arbitrary()
     }
 
-    pub closed spec fn iommutable_page_closure(&self) -> Set<PagePtr> {
+    pub closed spec fn get_iommutable_page_closure(&self) -> Set<PagePtr> {
         Set::empty()
     }
 
-    pub closed spec fn iommutable_mappings(&self) -> Map<VAddr,PAddr> {
+    pub closed spec fn get_iommutable_mappings(&self) -> Map<usize,usize> {
         Map::empty()
     }
 

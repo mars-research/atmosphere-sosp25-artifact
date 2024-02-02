@@ -10,17 +10,17 @@ use crate::pagetable::*;
 verus!{
 
 pub struct LookUpTable{
-    pub table : MarsArray<usize,512>,
+    pub table : MarsArray<PAddr,512>,
 }
 pub struct PageTable{
-    pub cr3: usize,
+    pub cr3: PAddr,
     
-    pub l4_table: Tracked<Map<usize,PointsTo<LookUpTable>>>,
-    pub l3_tables: Tracked<Map<usize,PointsTo<LookUpTable>>>,
-    pub l2_tables: Tracked<Map<usize,PointsTo<LookUpTable>>>,
-    pub l1_tables: Tracked<Map<usize,PointsTo<LookUpTable>>>,
+    pub l4_table: Tracked<Map<PAddr,PointsTo<LookUpTable>>>,
+    pub l3_tables: Tracked<Map<PAddr,PointsTo<LookUpTable>>>,
+    pub l2_tables: Tracked<Map<PAddr,PointsTo<LookUpTable>>>,
+    pub l1_tables: Tracked<Map<PAddr,PointsTo<LookUpTable>>>,
 
-    pub mapping: Ghost<Map<usize,usize>>,
+    pub mapping: Ghost<Map<VAddr,PAddr>>,
 }
     
 
@@ -44,25 +44,33 @@ impl PageTable{
         Map::empty()
     }
 
-    pub open spec fn all_pages(&self) -> Set<usize>{
+    #[verifier(inline)]
+    pub open spec fn get_pagetable_page_closure(&self) -> Set<PagePtr>{
         (self.l3_tables@.dom() + self.l2_tables@.dom() + self.l1_tables@.dom()).insert(self.cr3)
     }
 
-    pub open spec fn all_mapped_pages(&self) -> Set<usize>{
-        Set::<usize>::new(|pa: usize| self.pa_mapped(pa))
+    #[verifier(inline)]
+    pub open spec fn get_pagetable_mapping(&self) -> Map<PAddr,VAddr> {
+        self.mapping@
     }
-
-    pub open spec fn pa_mapped(&self, pa:usize) -> bool
+    
+    #[verifier(inline)]
+    pub open spec fn all_mapped_pages(&self) -> Set<PagePtr>{
+        Set::<PagePtr>::new(|pa: PagePtr| self.pa_mapped(pa))
+    }
+    
+    #[verifier(inline)]
+    pub open spec fn pa_mapped(&self, pa:PAddr) -> bool
     {
         (pa != 0)
         &&
-        (exists|i: usize,j: usize| #![auto] self.l1_tables@.dom().contains(i) && 0 <= j < 512 && self.l1_tables@[i]@.value.get_Some_0().table@[j as int] == pa)
+        (exists|l1_ptr: PAddr, l1index: L1Index| #![auto] self.l1_tables@.dom().contains(l1_ptr) && 0 <= l1index < 512 && self.l1_tables@[l1_ptr]@.value.get_Some_0().table@[l1index as int] == pa)
     }
 
     pub open spec fn wf_l4(&self) -> bool{
         self.cr3 != 0
         &&
-        self.l4_table@.dom() =~=  Set::<usize>::empty().insert(self.cr3)
+        self.l4_table@.dom() =~=  Set::<PAddr>::empty().insert(self.cr3)
         &&
         self.cr3 == self.l4_table@[self.cr3]@.pptr
         &&
@@ -93,26 +101,26 @@ impl PageTable{
         )       
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.pptr == i
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.pptr == i
         )
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.value.is_Some()
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.value.is_Some()
         )
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.value.get_Some_0().table.wf()
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.value.get_Some_0().table.wf()
         )
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> self.l4_table@[self.cr3]@.value.get_Some_0().table@.contains(i)
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> self.l4_table@[self.cr3]@.value.get_Some_0().table@.contains(i)
         )
 
         //L3 table only maps to L2
         //L3 tables are disjoint
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i)
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i)
                 ==> 
                 (
                     forall|l3i: L3Index, l3j: L3Index| #![auto] l3i != l3j && 0 <= l3i < 512 && 0 <= l3j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[l3i as int] != 0 && self.l3_tables@[i]@.value.get_Some_0().table@[l3j as int] != 0 ==>
@@ -121,7 +129,7 @@ impl PageTable{
         )
         &&
         (
-            forall|i: usize,j: usize| #![auto] i != j && self.l3_tables@.dom().contains(i) && self.l3_tables@.dom().contains(j)
+            forall|i: PAddr,j: PAddr| #![auto] i != j && self.l3_tables@.dom().contains(i) && self.l3_tables@.dom().contains(j)
                 ==> 
                 (
                     forall|l3i: L3Index, l3j: L3Index| #![auto] 0 <= l3i < 512 && 0 <= l3j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[l3i as int] != 0 && self.l3_tables@[j]@.value.get_Some_0().table@[l3j as int] != 0 ==>
@@ -130,19 +138,19 @@ impl PageTable{
         )
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[j as int] != 0 ==>
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                forall|j: L3Index| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[j as int] != 0 ==>
                     self.l3_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
-        (   forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[j as int] != 0 ==>
+        (   forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                forall|j: L3Index| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[j as int] != 0 ==>
                     self.l1_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                forall|j: L3Index| #![auto] 0 <= j < 512 ==>
                     self.cr3 != self.l3_tables@[i]@.value.get_Some_0().table@[j as int]
         )
     }
@@ -150,7 +158,7 @@ impl PageTable{
     pub open spec fn wf_l2(&self) -> bool{
       //all l3 mappings exist in l2
         (
-            forall|i: usize| #![auto] self.l3_tables@.dom().contains(i) ==> (
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> (
                 forall|j: L3Index| #![auto] 0<= j < 512 && self.l3_tables@[i]@.value.get_Some_0().table@[j as int] != 0 ==>
                      self.l2_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0().table@[j as int])
             )
@@ -161,21 +169,21 @@ impl PageTable{
         )  
         &&
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.pptr == i
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.pptr == i
         )
         &&
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.is_Some()
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.is_Some()
         )
         &&
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.get_Some_0().table.wf()
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.value.get_Some_0().table.wf()
         )
         &&
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
                 (
-                    exists|j:usize| #![auto] self.l3_tables@.dom().contains(j) && self.l3_tables@[j]@.value.get_Some_0().table@.contains(i)
+                    exists|j:PAddr| #![auto] self.l3_tables@.dom().contains(j) && self.l3_tables@[j]@.value.get_Some_0().table@.contains(i)
                 )
         )
 
@@ -185,7 +193,7 @@ impl PageTable{
         //L2 tables are disjoint
         &&
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==>
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==>
             (
                 forall|l2i: L2Index, l2j: L2Index| #![auto] l2i != l2j && 0 <= l2i < 512 && 0 <= l2j < 512 && self.l2_tables@[i]@.value.get_Some_0().table@[l2i as int] != 0 && self.l2_tables@[i]@.value.get_Some_0().table@[l2j as int] != 0 ==>
                     self.l2_tables@[i]@.value.get_Some_0().table@[l2i as int] != self.l2_tables@[i]@.value.get_Some_0().table@[l2j as int]
@@ -193,27 +201,27 @@ impl PageTable{
         )
         &&
         (
-            forall|i: usize,j: usize| #![auto] i != j && self.l2_tables@.dom().contains(i) && self.l2_tables@.dom().contains(j) ==>
+            forall|i: PAddr,j: PAddr| #![auto] i != j && self.l2_tables@.dom().contains(i) && self.l2_tables@.dom().contains(j) ==>
             (
                 forall|l2i: L2Index, l2j: L2Index| #![auto] 0 <= l2i < 512 && 0 <= l2j < 512 && self.l2_tables@[i]@.value.get_Some_0().table@[l2i as int] != 0 && self.l2_tables@[j]@.value.get_Some_0().table@[l2j as int] != 0 ==>
                     self.l2_tables@[i]@.value.get_Some_0().table@[l2i as int] != self.l2_tables@[j]@.value.get_Some_0().table@[l2j as int]
             )
         )
         &&
-        (forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-            forall|j: usize| #![auto]  0 <= j < 512 ==>
+        (forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+            forall|j: L2Index| #![auto]  0 <= j < 512 ==>
                 self.l2_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+                forall|j: L2Index| #![auto] 0 <= j < 512 ==>
                     self.l3_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
         (
             forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
+                forall|j: L2Index| #![auto] 0 <= j < 512 ==>
                     self.cr3 != self.l2_tables@[i]@.value.get_Some_0().table@[j as int]
         )
     }
@@ -221,8 +229,8 @@ impl PageTable{
     pub open spec fn wf_l1(&self) -> bool{
         //all l2 mappings exist in l1
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
-                (forall|j: usize| #![auto] self.l2_tables@[i]@.value.get_Some_0().table@.contains(j) && j != 0==>
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+                (forall|j: PAddr| #![auto] self.l2_tables@[i]@.value.get_Some_0().table@.contains(j) && j != 0==>
                      self.l1_tables@.dom().contains(j)
                 )
         )
@@ -232,15 +240,15 @@ impl PageTable{
         )   
         &&
         (
-            forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.pptr == i
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.pptr == i
         )
         &&
         (
-            forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.value.is_Some()
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.value.is_Some()
         )
         &&
         (
-            forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.value.get_Some_0().table.wf()
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.value.get_Some_0().table.wf()
         )
     }
 
@@ -249,38 +257,38 @@ impl PageTable{
         //L1 table only maps to outside of this pagetable
         //L1 tables do not have to be disjoint
         (
-            forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] self.l1_tables@[i]@.value.get_Some_0().table@.contains(j) && j != 0==>
-                    self.l3_tables@.dom().contains(j) == false  
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> 
+                forall|j: L1Index| #![auto] 0 <= j < 512 ==>
+                    self.l3_tables@.dom().contains(self.l1_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
         (
-            forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
-                forall|j: usize| #![auto] 0 <= j < 512 ==>
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> 
+                forall|j: L1Index| #![auto] 0 <= j < 512 ==>
                     self.l2_tables@.dom().contains(self.l1_tables@[i]@.value.get_Some_0().table@[j as int]) == false  
         )
         &&
         (
-            forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
-                forall|j: usize|  #![auto] 0 <= j < 512 ==>
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> 
+                forall|j: L1Index|  #![auto] 0 <= j < 512 ==>
                     self.l1_tables@.dom().contains(self.l1_tables@[i]@.value.get_Some_0().table@[j as int]) == false 
         )
         && 
-        (forall|i: usize| #![auto] self.l1_tables@.dom().contains(i) ==> 
-            forall|j: usize|  #![auto] 0 <= j < 512 ==>
+        (forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> 
+            forall|j: L1Index|  #![auto] 0 <= j < 512 ==>
                 self.cr3 != self.l1_tables@[i]@.value.get_Some_0().table@[j as int]
         )
     }
 
     #[verifier(inline)]
-    pub open spec fn resolve_mapping_l4(&self, l4i: usize) -> usize
+    pub open spec fn resolve_mapping_l4(&self, l4i: L4Index) -> PAddr
         recommends
             0<= l4i < 512, 
     {
         self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int]
     }
 
-    pub open spec fn resolve_mapping_l3(&self, l4i: usize, l3i: usize) -> usize
+    pub open spec fn resolve_mapping_l3(&self, l4i: L4Index, l3i: L3Index) -> PAddr
     recommends
         0<= l4i < 512,
         0<= l3i < 512,
@@ -292,7 +300,7 @@ impl PageTable{
         }
     }
 
-    pub open spec fn resolve_mapping_l2(&self, l4i: usize, l3i: usize, l2i: usize) -> usize
+    pub open spec fn resolve_mapping_l2(&self, l4i: L4Index, l3i: L3Index, l2i: L2Index) -> PAddr
     recommends
         0<= l4i < 512,
         0<= l3i < 512,
@@ -305,7 +313,7 @@ impl PageTable{
         }
     }
 
-    pub open spec fn resolve_mapping_l1(&self, l4i: usize, l3i: usize, l2i: usize, l1i: usize) -> usize
+    pub open spec fn resolve_mapping_l1(&self, l4i: L4Index, l3i: L3Index, l2i: L2Index, l1i: L1Index) -> PAddr
     recommends
         0<= l4i < 512,
         0<= l3i < 512,
@@ -349,7 +357,7 @@ impl PageTable{
 
 
     pub open spec fn wf_l2_mapping(&self) -> bool{
-        forall|l4i: usize,l3i: usize,l2i: usize,l4j: usize,l3j: usize,l2j: usize| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512) 
+        forall|l4i: L4Index,l3i: L3Index,l2i: L2Index,l4j: L4Index,l3j: L3Index,l2j: L2Index| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512) 
         && (0<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512) 
         && !(l4i == l4j && l3i == l3j && l2i == l2j ) ==> 
         self.resolve_mapping_l2(l4i,l3i,l2i) == 0 || self.resolve_mapping_l2(l4j,l3j,l2j) == 0 || self.resolve_mapping_l2(l4i,l3i,l2i) != self.resolve_mapping_l2(l4j,l3j,l2j)
@@ -359,12 +367,12 @@ impl PageTable{
 
     pub open spec fn wf_mapping(&self) -> bool{
         (
-            forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@.dom().contains(va) 
+            forall|va: VAddr| #![auto] spec_va_valid(va) ==> self.mapping@.dom().contains(va) 
         )
         // &&
         // (forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@[va] == self.resolve_mapping_l1(spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va)))
         &&
-        (forall|l4i: usize,l3i: usize,l2i: usize, l1i: usize| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512) 
+        (forall|l4i: L4Index,l3i: L3Index,l2i: L2Index, l1i: L1Index| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512) 
         ==> self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))] == self.resolve_mapping_l1(l4i,l3i,l2i,l1i))
         
     }
@@ -383,13 +391,13 @@ impl PageTable{
         self.wf_mapping()
     }
 
-    pub open spec fn l4_entry_exists(&self, l4i: usize) -> bool
+    pub open spec fn l4_entry_exists(&self, l4i: L4Index) -> bool
         recommends self.wf(),
     {
         self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int] != 0
     }
 
-    pub open spec fn l3_entry_exists(&self, l4i: usize, l3i :usize) -> bool
+    pub open spec fn l3_entry_exists(&self, l4i: L4Index, l3i :L3Index) -> bool
         recommends self.wf(),
                     self.l4_entry_exists(l4i)
     {
@@ -398,7 +406,7 @@ impl PageTable{
         ]@.value.get_Some_0().table@[l3i as int] != 0
     }
 
-    pub open spec fn l2_entry_exists(&self, l4i: usize, l3i: usize, l2i: usize) -> bool
+    pub open spec fn l2_entry_exists(&self, l4i: L4Index, l3i: L3Index, l2i: L2Index) -> bool
     recommends self.wf(),
                 self.l4_entry_exists(l4i),
                 self.l3_entry_exists(l4i,l3i)
@@ -410,7 +418,7 @@ impl PageTable{
                 ]@.value.get_Some_0().table@[l2i as int] != 0
     }
 
-    pub open spec fn va_exists(&self, va:usize) -> bool
+    pub open spec fn va_exists(&self, va:VAddr) -> bool
         recommends spec_va_valid(va),    
     {
         let (l4i,l3i,l2i,_) = spec_va2index(va);

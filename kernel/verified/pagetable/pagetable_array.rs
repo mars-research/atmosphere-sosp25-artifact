@@ -109,5 +109,30 @@ impl MarsArray<PageTable,PCID_MAX>{
     {
         arbitrary()
     }
+
+    // new
+    #[verifier(external_body)]
+    pub fn map_pagetable_page_by_pcid(&mut self, pcid:Pcid, va: VAddr, dst:PAddr) -> (ret: bool)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self)@[pcid as int].wf(),
+            spec_va_valid(va),
+            old(self)@[pcid as int].get_pagetable_page_closure().contains(dst) == false,
+            old(self)@[pcid as int].mapping@[va] == 0,
+        ensures 
+            self.wf(),
+            self@[pcid as int].wf(),
+            old(self)@[pcid as int].va_exists(va) == ret ,
+            old(self)@[pcid as int].va_exists(va) ==> 
+                self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@.insert(va,dst),
+            !old(self)@[pcid as int].va_exists(va) ==> 
+                self@[pcid as int].mapping@ =~=old(self)@[pcid as int].mapping@,
+            self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+    {
+        return self.ar[pcid].add_mapping(va, dst);
+    }
+
 }
 }

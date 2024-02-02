@@ -305,40 +305,21 @@ impl PageAllocator {
            
     }
 
-    // pub open spec fn address_space_wf(&self) -> bool{
-    //     &&&
-    //     self.free_pcids.wf()
-    //     &&&
-    //     self.free_pcids@.no_duplicates()
-    //     &&&
-    //     (
-    //         forall|i:int| #![auto] 0<=i<PCID_MAX ==> self.free_pcids@[i]<PCID_MAX
-    //     )
-    //     &&&
-    //     self.page_tables.wf()
-    //     &&&
-    //     (
-    //         forall|i:int| #![auto] 0<=i<self.free_pcids.len() ==> self.page_tables[self.free_pcids@[i] as int].0.tmp_get_mem_mappings() =~= Map::empty()
-    //     )
-    //     &&&
-    //     (
-    //         forall|i:int,va:VAddr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.page_tables[i].0.tmp_get_mem_mappings()[va] as usize)
-    //     )
-    //     &&&
-    //     (
-    //         forall|i:int,page_ptr:PagePtr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].0.tmp_page_table_page_closure().contains(page_ptr) ==> self.page_table_pages@.contains(page_ptr)
-    //     )
-    //     &&&
-    //     (
-    //         forall|i:int,j:int| #![auto] 0<=i<PCID_MAX && 0<=j<PCID_MAX && i != j ==> self.page_tables[i].0.tmp_page_table_page_closure().disjoint(self.page_tables[j].0.tmp_page_table_page_closure())
-    //     )
-    // }
 
     pub open spec fn wf(&self) -> bool
     {
         self.page_alloc_wf()
     }
+    
+    #[verifier(inline)]
+    pub open spec fn get_page(&self, page_ptr:PagePtr) -> Page
+        recommends
+            self.available_pages().contains(page_ptr),
+    {
+        self.page_array@[page_ptr2page_index(page_ptr) as int]
+    }
 
+    #[verifier(inline)]
     pub open spec fn get_page_mappings(&self, page_ptr: PagePtr) -> Set<(Pcid,VAddr)>
         recommends
             self.available_pages().contains(page_ptr),
@@ -346,6 +327,7 @@ impl PageAllocator {
         self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom()
     }
 
+    #[verifier(inline)]
     pub open spec fn get_page_io_mappings(&self, page_ptr: PagePtr) -> Set<(Pcid,VAddr)>
         recommends
             self.available_pages().contains(page_ptr),
@@ -353,6 +335,7 @@ impl PageAllocator {
         self.page_array@[page_ptr2page_index(page_ptr) as int].io_mappings@.dom()
     }
 
+    #[verifier(inline)]
     pub open spec fn page_rf_counter(&self, page_ptr: PagePtr) -> usize
         recommends
             page_ptr_valid(page_ptr),
@@ -360,6 +343,7 @@ impl PageAllocator {
         self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count
     }
 
+    #[verifier(inline)]
     pub open spec fn page_is_io_page(&self, page_ptr: PagePtr) -> bool
         recommends
             page_ptr_valid(page_ptr),
@@ -367,22 +351,6 @@ impl PageAllocator {
         self.page_array@[page_ptr2page_index(page_ptr) as int].is_io_page
     }
 
-    // pub open spec fn free_pcids(&self) -> Set<Pcid>
-    // {
-    //     self.free_pcids@.to_set()
-    // }
-
-    // pub open spec fn all_pcids(&self) -> Set<Pcid>
-    // {
-    //     Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
-    // }
-
-    // pub open spec fn get_address_space(&self,pcid:Pcid) ->  Map<VAddr,PAddr>
-    //     recommends 
-    //         0<=pcid<PCID_MAX,
-    // {
-    //     self.page_tables@[pcid as int].0.tmp_get_mem_mappings()
-    // }
 
 }
 

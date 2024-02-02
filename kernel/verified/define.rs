@@ -66,10 +66,11 @@ pub type PagePPtr = PPtr<[u8; PAGE_SZ]>;
 pub type PagePtr = usize;
 pub type PagePerm = PointsTo<[u8; PAGE_SZ]>;
 
-pub type VAddr = u64;
-pub type PAddr = u64;
+pub type VAddr = usize;
+pub type PAddr = usize;
 
 pub type Pcid = usize;
+pub type IOid = usize;
 
 pub type L4Index = usize;
 pub type L3Index = usize;
@@ -77,4 +78,6 @@ pub type L2Index = usize;
 pub type L1Index = usize;
 
 pub const VA_MASK:u64 = 0x0000_ffff_ffff_f000;
+
+pub const NUM_CPUS:usize = 32;
 }
