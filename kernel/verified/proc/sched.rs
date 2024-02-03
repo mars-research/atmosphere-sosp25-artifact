@@ -16,6 +16,7 @@ impl ProcessManager {
             old(self).get_thread_ptrs().contains(thread_ptr),
             old(self).get_thread(thread_ptr).state != SCHEDULED,
             old(self).get_thread(thread_ptr).state != BLOCKED,
+            old(self).get_thread(thread_ptr).state != CALLING,
         ensures
             self.wf(),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
@@ -57,6 +58,7 @@ impl ProcessManager {
         assert(self.wf_scheduler());
         assert(self.wf_mem_closure());
         assert(self.wf_pcid_closure());
+        assert(self.wf_ipc());
     }
 
     pub fn pop_scheduler(&mut self) -> (ret: ThreadPtr)

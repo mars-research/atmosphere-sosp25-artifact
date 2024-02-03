@@ -29,6 +29,11 @@ pub struct Thread{
     pub ipc_payload: IPCPayLoad,
 
     pub error_code: Option<ErrorCodeType>,
+
+    pub callee: Option<ThreadPtr>,
+    pub caller: Option<ThreadPtr>,
+
+    pub is_receiving_call: bool,
     
     pub trap_frame: PtRegs,
 }
@@ -65,6 +70,7 @@ impl ProcessManager {
             old(self).get_thread_ptrs().contains(thread_ptr),
             old(self).get_thread(thread_ptr).state != BLOCKED,
             old(self).get_thread(thread_ptr).state != SCHEDULED,
+            old(self).get_thread(thread_ptr).state != CALLING,
         ensures
             self.wf(),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),

@@ -16,10 +16,11 @@ pub const SHARED_ENDPOINT_SLOT_TAKEN:ErrorCodeType = 9;
 
 
 pub type ThreadState = usize;
-pub const SCHEDULED:usize = 1;
-pub const BLOCKED:usize = 2;
-pub const RUNNING:usize = 3;
-pub const TRANSIT:usize = 4;
+pub const SCHEDULED:ThreadState = 1;
+pub const BLOCKED:ThreadState = 2;
+pub const RUNNING:ThreadState = 3;
+pub const CALLING:ThreadState = 4;
+pub const TRANSIT:ThreadState = 5;
 
 pub type EndpointState = bool;
 pub const RECEIVE:EndpointState = true;

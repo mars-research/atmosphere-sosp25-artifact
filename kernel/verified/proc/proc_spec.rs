@@ -376,7 +376,7 @@ impl ProcessManager {
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().pptr == thread_ptr)
         &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  0 <= self.thread_perms@[thread_ptr].view().value.get_Some_0().state <= 4)
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  0 <= self.thread_perms@[thread_ptr].view().value.get_Some_0().state <= TRANSIT)
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().value.get_Some_0().ipc_payload.wf())
         && 
@@ -513,6 +513,25 @@ impl ProcessManager {
         )
     }
 
+    pub open spec fn wf_ipc(&self) -> bool{
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().state != CALLING ==>
+            self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.is_None())
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().state == CALLING ==>
+            (self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.is_Some() && self.thread_perms@.dom().contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.unwrap())
+            )
+        )
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.is_Some() ==>
+            self.thread_perms@.dom().contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.unwrap()))
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.is_Some() ==>
+            self.thread_perms@[thread_ptr].view().value.get_Some_0().is_receiving_call == false)
+
+    
+
+    }
+
     pub open spec fn local_page_closure(&self) -> Set<PagePtr>
     {
         Set::empty()
@@ -598,6 +617,8 @@ impl ProcessManager {
         self.wf_pcid_closure()
         &&
         self.wf_endpoints()
+        &&
+        self.wf_ipc()
     }
 }
 }

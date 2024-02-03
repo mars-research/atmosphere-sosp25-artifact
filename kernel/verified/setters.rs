@@ -226,6 +226,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().scheduler_rf == scheduler_rf,
 {
 unsafe {
@@ -249,6 +252,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_descriptors =~= old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().state == state,
 {
 unsafe {
@@ -272,6 +278,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().parent == parent,
 {
 unsafe {
@@ -297,6 +306,9 @@ ensures pptr.id() == perm@@.pptr,
         //perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().endpoint_descriptors.wf(), 
         perm@@.value.get_Some_0().endpoint_descriptors@ =~= old(perm)@@.value.get_Some_0().endpoint_descriptors@.update(index as int, endpoint_pointer),
         ret == old(perm)@@.value.get_Some_0().endpoint_descriptors@[index as int],
@@ -326,6 +338,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().parent_rf == parent_rf,
 {
 unsafe {
@@ -350,6 +365,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().endpoint_ptr == endpoint_ptr,
 {
     unsafe {
@@ -374,6 +392,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().endpoint_rf == endpoint_rf,
 {
     unsafe {
@@ -397,6 +418,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
         perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
         //perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().error_code == error_code,
 {
     unsafe {
@@ -405,6 +429,84 @@ ensures pptr.id() == perm@@.pptr,
     }
 }
 
+#[verifier(external_body)]
+pub fn thread_set_is_receiving_call(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, is_receiving_call: bool)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        // perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
+        perm@@.value.get_Some_0().is_receiving_call == is_receiving_call,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().is_receiving_call = is_receiving_call;
+    }
+}
+
+
+#[verifier(external_body)]
+pub fn thread_set_callee(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, callee: Option<ThreadPtr>)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        // perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
+        perm@@.value.get_Some_0().callee == callee,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().callee = callee;
+    }
+}
+
+#[verifier(external_body)]
+pub fn thread_set_caller(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, caller: Option<ThreadPtr>)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        // perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
+        perm@@.value.get_Some_0().caller == caller,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().caller = caller;
+    }
+}
 #[verifier(external_body)]
 pub fn endpoint_remove_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, rf: Index) -> (ret: ThreadPtr)
     requires 
