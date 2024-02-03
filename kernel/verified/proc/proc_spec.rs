@@ -15,6 +15,26 @@ use crate::define::*;
 
 verus! {
 
+pub struct Process{
+    // pub owned_threads: LinkedList<ThreadPtr>,
+    // pub pl_rf: NodeRef<ProcPtr>,
+    pub pl_rf: Index,
+    pub pcid: Pcid,
+    pub ioid: Option<IOid>,
+    pub owned_threads: MarsStaticLinkedList<MAX_NUM_THREADS_PER_PROC>,
+}
+
+impl Process {
+    pub open spec fn page_closure(&self) -> Set<PagePtr>
+    {
+        Set::empty()
+    }
+
+    pub open spec fn get_pcid(&self) -> Pcid {
+        self.pcid
+    }
+}
+
 pub struct ProcessManager{
     // pub proc_ptrs: LinkedList<ProcPtr>,
     pub proc_ptrs: MarsStaticLinkedList<MAX_NUM_PROCS>,
@@ -29,6 +49,7 @@ pub struct ProcessManager{
     pub endpoint_perms: Tracked<Map<EndpointPtr, PointsTo<Endpoint>>>,
 
     pub pcid_closure : Ghost<Set<Pcid>>,
+    pub ioid_closure : Ghost<Set<IOid>>,
 }
 
 #[verifier(inline)]
@@ -68,6 +89,7 @@ impl ProcessManager {
             endpoint_perms: arbitrary(),
         
             pcid_closure : arbitrary(),
+            ioid_closure : arbitrary(),
         };
 
         ret
@@ -115,6 +137,14 @@ impl ProcessManager {
     {
         self.proc_perms@[proc_ptr]@.value.get_Some_0()
     }
+
+    pub open spec fn get_thread(&self, thread_ptr: ThreadPtr) -> Thread
+        recommends
+            self.get_thread_ptrs().contains(thread_ptr),
+    {
+        self.thread_perms@[thread_ptr]@.value.get_Some_0()
+    }
+
 
     pub fn get_proc_ptrs_len(&self) ->(ret: usize)
     requires
@@ -312,12 +342,6 @@ impl ProcessManager {
         self.thread_ptrs@
     }
 
-    pub open spec fn get_thread(&self, thread_ptr:ThreadPtr) -> Thread
-        recommends
-            self.get_thread_ptrs().contains(thread_ptr)
-    {
-        self.thread_perms@[thread_ptr].view().value.get_Some_0()
-    }
     
     pub open spec fn get_endpoint_ptrs(&self) -> Set<EndpointPtr>
     {
@@ -526,6 +550,14 @@ impl ProcessManager {
             self.thread_perms@.dom().contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.unwrap()))
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.is_Some() ==>
+            self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.unwrap()].view().value.get_Some_0().callee.is_Some()
+            && self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.unwrap()].view().value.get_Some_0().callee.unwrap() == thread_ptr)
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.is_Some() ==>
+            self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.unwrap()].view().value.get_Some_0().caller.is_Some()
+            && self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.unwrap()].view().value.get_Some_0().caller.unwrap() == thread_ptr)
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.is_Some() ==>
             self.thread_perms@[thread_ptr].view().value.get_Some_0().is_receiving_call == false)
 
     
@@ -605,6 +637,23 @@ impl ProcessManager {
         )
     }
 
+    pub open spec fn wf_ioid_closure(&self) -> bool{
+        (
+            self.ioid_closure@.finite()
+        )
+        &&
+        (
+            forall|proc_ptr_i: ProcPtr,proc_ptr_j: ProcPtr| #![auto] proc_ptr_i != proc_ptr_j && self.proc_perms@.dom().contains(proc_ptr_i) && self.proc_perms@.dom().contains(proc_ptr_j)
+                && self.proc_perms@[proc_ptr_i].view().value.get_Some_0().ioid.is_Some() && self.proc_perms@[proc_ptr_j].view().value.get_Some_0().ioid.is_Some()
+                ==>  self.proc_perms@[proc_ptr_i].view().value.get_Some_0().ioid.unwrap() != self.proc_perms@[proc_ptr_j].view().value.get_Some_0().ioid.unwrap()
+        )
+        &&
+        (
+            forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) && self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.is_Some()
+                ==>  self.pcid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.unwrap())
+        )
+    }
+
     pub open spec fn wf(&self) -> bool{
         self.wf_threads()
         &&
@@ -619,6 +668,20 @@ impl ProcessManager {
         self.wf_endpoints()
         &&
         self.wf_ipc()
+    }
+
+    pub proof fn wf_ipc_derive_1(&self, thread_ptr:ThreadPtr)
+        requires 
+            self.wf_ipc(),
+            self.thread_ptrs@.contains(thread_ptr),
+            self.get_thread(thread_ptr).callee.is_None(),
+            self.get_thread(thread_ptr).caller.is_None(),
+        ensures
+            forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().caller.is_Some() ==>
+                self.thread_perms@[_thread_ptr].view().value.get_Some_0().caller.unwrap() != thread_ptr,
+            
+    {
+
     }
 }
 }

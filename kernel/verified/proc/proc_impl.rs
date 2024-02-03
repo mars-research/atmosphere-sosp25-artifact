@@ -15,25 +15,6 @@ use crate::define::*;
 
 verus! {
 
-pub struct Process{
-    // pub owned_threads: LinkedList<ThreadPtr>,
-    // pub pl_rf: NodeRef<ProcPtr>,
-    pub pl_rf: Index,
-    pub pcid: Pcid,
-    pub owned_threads: MarsStaticLinkedList<MAX_NUM_THREADS_PER_PROC>,
-}
-
-impl Process {
-    pub open spec fn page_closure(&self) -> Set<PagePtr>
-    {
-        Set::empty()
-    }
-
-    pub open spec fn get_pcid(&self) -> Pcid {
-        self.pcid
-    }
-}
-
 impl ProcessManager {
     pub fn new_proc(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, new_pcid: Pcid) -> (ret: ProcPtr)
         requires

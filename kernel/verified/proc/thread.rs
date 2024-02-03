@@ -250,6 +250,16 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
         }
         assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
             ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(page_ptr) == false);
+
+
+        assert(self.wf_threads());
+        assert(self.wf_procs());
+        assert(self.wf_scheduler());
+        assert(self.wf_mem_closure());
+        assert(self.wf_pcid_closure());
+        assert(self.wf_endpoints());
+        assert(self.wf_ipc());
+            
         assert(self.wf());
         return page_ptr;
     }
@@ -316,6 +326,8 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
         old(self).wf(),
         old(self).get_proc_ptrs().contains(proc_ptr),
         forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().state == TRANSIT,
+        forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().callee.is_None(),  
+        forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().caller.is_None(),     
     ensures
         ret@ + self.page_closure() =~= old(self).page_closure(),
         self.wf(),
@@ -340,6 +352,8 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
                 old(self).get_proc(proc_ptr).owned_threads.wf(),
                 self.get_proc(proc_ptr).owned_threads@ =~= old(self).get_proc(proc_ptr).owned_threads@.subrange(loop_i as int, original_len as int),
                 forall|i:int| #![auto] 0<=i< self.get_proc(proc_ptr).owned_threads.len() ==> self.thread_perms@[self.get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().state == TRANSIT,
+                forall|i:int| #![auto] 0<=i< self.get_proc(proc_ptr).owned_threads.len() ==> self.thread_perms@[self.get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().callee.is_None(),
+                forall|i:int| #![auto] 0<=i< self.get_proc(proc_ptr).owned_threads.len() ==> self.thread_perms@[self.get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().caller.is_None(),
                 self.page_closure().finite(),
                 old(self).page_closure().finite(),
                 ret@.finite(),
@@ -389,7 +403,6 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
                 self.thread_ptrs@ = self.thread_ptrs@.remove(thread_ptr);
                 ret@ = ret@.insert(thread_ptr);
             }
-            
             assert(self.wf());
             loop_i = loop_i + 1;
         }
