@@ -28,13 +28,14 @@ impl MMUManager{
             self.iommu_perms =~= old(self).iommu_perms,
             self.iommu_table_pages =~= old(self).iommu_table_pages,
             forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> self.get_pagetable_by_pcid(_pcid) =~= old(self).get_pagetable_by_pcid(_pcid),
-            // forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> self.get_pagetable_mapping_by_pcid(_pcid) =~= old(self).get_pagetable_mapping_by_pcid(_pcid),
             self.get_pagetable_page_closure_by_pcid(pcid) =~= old(self).get_pagetable_page_closure_by_pcid(pcid),
             old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) == ret,
             old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==> 
                 self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid).insert(va,dst),
             !old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==> 
                 self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid),
+            forall|_ioid:IOid| #![auto] self.get_iommu_ids().contains(_ioid) ==> self.get_iommutable_by_ioid(_ioid) =~= old(self).get_iommutable_by_ioid(_ioid),
+            forall|_ioid:IOid| #![auto] self.get_iommu_ids().contains(_ioid) ==> self.get_iommutable_mapping_by_ioid(_ioid) =~= old(self).get_iommutable_mapping_by_ioid(_ioid),
     {
         return self.page_tables.map_pagetable_page_by_pcid(pcid,va,dst);
     }

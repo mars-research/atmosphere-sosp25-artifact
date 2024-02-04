@@ -16,7 +16,7 @@ pub struct Page{
     pub rf_count: usize,
 
     pub mappings: Ghost<Map<(Pcid,VAddr),PageType>>,
-    pub io_mappings: Ghost<Map<(Pcid,VAddr),PageType>>,
+    pub io_mappings: Ghost<Map<(IOid,VAddr),PageType>>,
 }
 
 pub struct PageAllocator{
@@ -328,7 +328,7 @@ impl PageAllocator {
     }
 
     #[verifier(inline)]
-    pub open spec fn get_page_io_mappings(&self, page_ptr: PagePtr) -> Set<(Pcid,VAddr)>
+    pub open spec fn get_page_io_mappings(&self, page_ptr: PagePtr) -> Set<(IOid,VAddr)>
         recommends
             self.get_available_pages().contains(page_ptr),
     {

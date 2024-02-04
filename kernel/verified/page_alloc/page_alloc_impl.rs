@@ -141,6 +141,8 @@ impl PageAllocator {
             forall|i:int| #![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(page_ptr) ==> self.page_array@[i] =~= old(self).page_array@[i],
             self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@ =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].mappings@.insert(target, page_type),
             self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom() =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom().insert(target),
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].io_mappings@ =~= old(self).page_array@[i].io_mappings@,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].io_mappings@.dom() =~= old(self).page_array@[i].io_mappings@.dom(),
     {
         assert(self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count != 0);
         assert(self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count > 0);

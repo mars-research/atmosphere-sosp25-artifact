@@ -51,6 +51,32 @@ impl MMUManager{
         self.page_tables[pcid as int].get_pagetable_page_closure()
     }
 
+    #[verifier(inline)]
+    pub open spec fn get_iommu_ids(&self) -> Set<IOid>
+    {
+        self.iommu_ids@
+    }
+
+    #[verifier(inline)]
+    pub open spec fn get_iommutable_by_ioid(&self, ioid: IOid) -> IOMMUTable
+        recommends self.get_iommu_ids().contains(ioid),
+    {
+        self.iommu_perms@[ioid].view().value.get_Some_0()
+    }
+
+    #[verifier(inline)]
+    pub open spec fn get_iommutable_mapping_by_ioid(&self, ioid: IOid) -> Map<usize,usize>
+        recommends self.get_iommu_ids().contains(ioid),
+    {   
+        self.get_iommutable_by_ioid(ioid).get_iommutable_mappings()
+    }
+    #[verifier(inline)]
+    pub open spec fn get_iommutable_page_closure_by_ioid(&self, ioid: IOid) -> Set<PagePtr>
+        recommends self.get_iommu_ids().contains(ioid),
+    {   
+        self.get_iommutable_by_ioid(ioid).get_iommutable_page_closure()
+    }
+
     pub open spec fn pagetables_wf(&self) -> bool{
         &&&
         self.free_pcids.wf()
@@ -102,29 +128,33 @@ impl MMUManager{
         (self.iommu_ids@ =~= self.iommu_perms@.dom())
         &&&
         (
-            forall|io_id: IOid| #![auto] self.iommu_ids@.contains(io_id) ==> self.iommu_perms@[io_id]@.pptr == io_id
+            forall|ioid: IOid| #![auto] self.iommu_ids@.contains(ioid) ==> self.iommu_perms@[ioid]@.pptr == ioid
         )
         &&&
         (
-            forall|io_id: IOid| #![auto] self.iommu_ids@.contains(io_id) ==> self.iommu_perms@[io_id]@.value.is_Some()
+            forall|ioid: IOid| #![auto] self.iommu_ids@.contains(ioid) ==> self.iommu_perms@[ioid]@.value.is_Some()
         )
         &&&
         (
-            forall|io_id: IOid| #![auto] self.iommu_ids@.contains(io_id) ==> self.iommu_perms@[io_id]@.value.get_Some_0().wf()
+            forall|ioid: IOid| #![auto] self.iommu_ids@.contains(ioid) ==> self.iommu_perms@[ioid]@.value.get_Some_0().wf()
         )
         &&&
         (
-            forall|io_id: IOid,va:usize| #![auto] self.iommu_ids@.contains(io_id) && self.iommu_perms@[io_id]@.value.get_Some_0().get_iommutable_mappings().dom().contains(va) ==> 
-                page_ptr_valid(self.iommu_perms@[io_id]@.value.get_Some_0().get_iommutable_mappings()[va])
+            forall|ioid: IOid| #![auto] self.iommu_ids@.contains(ioid) ==> self.iommu_perms@[ioid]@.value.get_Some_0().wf_mapping()
         )
         &&&
         (
-            forall|io_id: IOid,page_ptr:PagePtr| #![auto] self.iommu_ids@.contains(io_id) && self.iommu_perms@[io_id]@.value.get_Some_0().get_iommutable_page_closure().contains(page_ptr) ==> self.iommu_table_pages@.contains(page_ptr)
+            forall|ioid: IOid,va:usize| #![auto] self.iommu_ids@.contains(ioid) && self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mappings().dom().contains(va) ==> 
+                page_ptr_valid(self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mappings()[va])
+        )
+        &&&
+        (
+            forall|ioid: IOid,page_ptr:PagePtr| #![auto] self.iommu_ids@.contains(ioid) && self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_page_closure().contains(page_ptr) ==> self.iommu_table_pages@.contains(page_ptr)
         )        
         &&&
         (
-            forall|io_id_i: IOid,io_id_j: IOid,| #![auto] self.iommu_ids@.contains(io_id_i) && self.iommu_ids@.contains(io_id_j) && io_id_i != io_id_j ==> 
-                self.iommu_perms@[io_id_i]@.value.get_Some_0().get_iommutable_page_closure().disjoint(self.iommu_perms@[io_id_j]@.value.get_Some_0().get_iommutable_page_closure())
+            forall|ioid_i: IOid,ioid_j: IOid,| #![auto] self.iommu_ids@.contains(ioid_i) && self.iommu_ids@.contains(ioid_j) && ioid_i != ioid_j ==> 
+                self.iommu_perms@[ioid_i]@.value.get_Some_0().get_iommutable_page_closure().disjoint(self.iommu_perms@[ioid_j]@.value.get_Some_0().get_iommutable_page_closure())
         )
     }
 
