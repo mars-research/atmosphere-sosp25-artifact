@@ -5,14 +5,14 @@ use super::*;
 use vstd::prelude::*;
 use vstd::ptr::*;
 
-use crate::mars_staticlinkedlist::*;
+// use crate::mars_staticlinkedlist::*;
 
-use crate::setters::*;
+// use crate::setters::*;
 use crate::define::*;
 // use vstd::set_lib::lemma_set_properties;
 // use vstd::seq_lib::lemma_seq_properties;
 
-
+// use crate::proc::*;
 verus! {
 
 impl ProcessManager {

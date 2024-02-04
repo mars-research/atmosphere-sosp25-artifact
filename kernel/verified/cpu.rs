@@ -1,7 +1,6 @@
 use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
 
-use crate::kernel::*;
 use crate::mars_array::MarsArray;
 use crate::define::*;
 

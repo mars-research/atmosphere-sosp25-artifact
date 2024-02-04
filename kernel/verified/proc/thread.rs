@@ -8,7 +8,8 @@ use crate::define::*;
 use crate::trap::*;
 
 use vstd::ptr::*;
-use crate::setters::*;
+
+use crate::proc::*;
 
 verus! {
 pub struct Thread{
