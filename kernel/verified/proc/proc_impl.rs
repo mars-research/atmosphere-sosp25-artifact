@@ -61,6 +61,7 @@ impl ProcessManager {
         
         proc_set_pl_rf(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, pl_rf);
         proc_set_pcid(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, new_pcid);
+        proc_set_ioid(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, None);
 
 
         assert(self.proc_perms@.dom().contains(ret) == false);
@@ -96,16 +97,21 @@ impl ProcessManager {
             (self.proc_perms.borrow_mut()).tracked_remove(proc_ptr);
         let pl_rf = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(&proc_perm)).pl_rf;
         let pcid = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(&proc_perm)).pcid;
+        let ioid = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(&proc_perm)).ioid;
         let removed_proc_ptr = self.proc_ptrs.remove(pl_rf);
         assert(removed_proc_ptr == proc_ptr);
         proof{
             self.pcid_closure@ = self.pcid_closure@.remove(pcid);
+        }
+        if ioid.is_some(){
+            proof {self.ioid_closure@ = self.ioid_closure@.remove(ioid.unwrap()); }
         }
         assert(self.wf_threads());
         assert(self.wf_procs());
         assert(self.wf_scheduler());
         assert(self.wf_mem_closure());
         assert(self.wf_pcid_closure());
+        assert(self.wf_ioid_closure());
         assert(self.wf());
 
         return proc_to_page((PPtr::<Process>::from_usize(proc_ptr), Tracked(proc_perm)));

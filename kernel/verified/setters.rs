@@ -119,11 +119,33 @@ pub fn proc_set_pcid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo
         proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
         proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
         //proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
+        proc_perm@@.value.get_Some_0().ioid =~= old(proc_perm)@@.value.get_Some_0().ioid,
         proc_perm@@.value.get_Some_0().pcid =~= pcid,
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
     (*uptr).assume_init_mut().pcid = pcid;
 }
+
+#[verifier(external_body)]
+pub fn proc_set_ioid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, ioid: Option<IOid>)
+    requires 
+        proc_pptr.id() == old(proc_perm)@@.pptr,
+        old(proc_perm)@@.value.is_Some(),
+        old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
+    ensures
+        proc_pptr.id() == proc_perm@@.pptr,
+        proc_perm@@.value.is_Some(),
+        //proc_perm@@.value.get_Some_0().owned_threads.wf(),
+        proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
+        proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
+        proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
+        // proc_perm@@.value.get_Some_0().ioid =~= old(proc_perm)@@.value.get_Some_0().ioid,
+        proc_perm@@.value.get_Some_0().ioid =~= ioid,
+{
+    let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
+    (*uptr).assume_init_mut().ioid = ioid;
+}
+
 
 #[verifier(external_body)]
 pub fn proc_push_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, thread_ptr: ThreadPtr) -> (free_node_index: Index)
@@ -140,6 +162,7 @@ pub fn proc_push_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Point
         //proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
         proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
         proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
+        proc_perm@@.value.get_Some_0().ioid =~= old(proc_perm)@@.value.get_Some_0().ioid,
         proc_perm@@.value.get_Some_0().owned_threads@ == old(proc_perm)@@.value.get_Some_0().owned_threads@.push(thread_ptr),
         proc_perm@@.value.get_Some_0().owned_threads.value_list@ == old(proc_perm)@@.value.get_Some_0().owned_threads.value_list@.push(free_node_index),
         proc_perm@@.value.get_Some_0().owned_threads.len() == old(proc_perm)@@.value.get_Some_0().owned_threads.len() + 1,
@@ -172,6 +195,7 @@ pub fn proc_remove_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Poi
         //proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
         proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
         proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
+        proc_perm@@.value.get_Some_0().ioid =~= old(proc_perm)@@.value.get_Some_0().ioid,
         proc_perm@@.value.get_Some_0().owned_threads.value_list_len == old(proc_perm)@@.value.get_Some_0().owned_threads.value_list_len - 1,
         ret == old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(rf),
         proc_perm@@.value.get_Some_0().owned_threads.spec_seq@ == old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.remove(old(proc_perm)@@.value.get_Some_0().owned_threads.spec_seq@.index_of(old(proc_perm)@@.value.get_Some_0().owned_threads.node_ref_resolve(rf))),
@@ -201,6 +225,7 @@ pub fn proc_pop_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Points
         //proc_perm@@.value.get_Some_0().owned_threads =~= old(proc_perm)@@.value.get_Some_0().owned_threads,
         proc_perm@@.value.get_Some_0().pl_rf =~= old(proc_perm)@@.value.get_Some_0().pl_rf,
         proc_perm@@.value.get_Some_0().pcid =~= old(proc_perm)@@.value.get_Some_0().pcid,
+        proc_perm@@.value.get_Some_0().ioid =~= old(proc_perm)@@.value.get_Some_0().ioid,
         proc_perm@@.value.get_Some_0().owned_threads.value_list_len == old(proc_perm)@@.value.get_Some_0().owned_threads.value_list_len - 1,
         ret == old(proc_perm)@@.value.get_Some_0().owned_threads@[0],
 

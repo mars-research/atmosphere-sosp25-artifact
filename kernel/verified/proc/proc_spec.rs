@@ -76,6 +76,7 @@ impl ProcessManager {
             ret.endpoint_ptrs@ =~= Set::empty(),
             ret.endpoint_perms@ =~= Map::empty(),
             ret.pcid_closure@ =~= Set::empty(),
+            ret.ioid_closure@ =~= Set::empty(),
     {
         let ret = Self {
             proc_ptrs: MarsStaticLinkedList::<MAX_NUM_PROCS>::new(),
@@ -107,6 +108,7 @@ impl ProcessManager {
             old(self).endpoint_ptrs@ =~= Set::empty(),
             old(self).endpoint_perms@ =~= Map::empty(),
             old(self).pcid_closure@ =~= Set::empty(),
+            old(self).ioid_closure@ =~= Set::empty(),
         ensures
             self.wf(),
             self.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
@@ -595,6 +597,12 @@ impl ProcessManager {
         self.pcid_closure@
     }
 
+    #[verifier(inline)]
+    pub open spec fn ioid_closure(&self) -> Set<IOid>
+    {
+        self.ioid_closure@
+    }
+
     ///Memory spec helper
     ///specs:
     ///For two different Processes, their page closures are disjoint.
@@ -650,7 +658,7 @@ impl ProcessManager {
         &&
         (
             forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) && self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.is_Some()
-                ==>  self.pcid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.unwrap())
+                ==>  self.ioid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.unwrap())
         )
     }
 
@@ -668,6 +676,8 @@ impl ProcessManager {
         self.wf_endpoints()
         &&
         self.wf_ipc()
+        &&
+        self.wf_ioid_closure()
     }
 
     pub proof fn wf_ipc_derive_1(&self, thread_ptr:ThreadPtr)
