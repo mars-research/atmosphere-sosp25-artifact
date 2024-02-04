@@ -16,8 +16,8 @@ impl MarsArray<PageTable,PCID_MAX>{
         ensures
             self.wf(),
             forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].wf(),
-            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].tmp_page_table_page_closure() =~= Set::empty(),
-            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].tmp_get_mem_mappings() =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].get_pagetable_page_closure() =~= Set::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].get_pagetable_mapping() =~= Map::empty(),
     {
         arbitrary()
     }
@@ -31,8 +31,8 @@ impl MarsArray<PageTable,PCID_MAX>{
             self.wf(),
             self@[pcid as int].wf(),
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-            self@[pcid as int].tmp_get_mem_mappings() =~= addr_spa.tmp_get_mem_mappings(),
-            self@[pcid as int].tmp_page_table_page_closure() =~= addr_spa.tmp_page_table_page_closure(),
+            self@[pcid as int].get_pagetable_mapping() =~= addr_spa.get_pagetable_mapping(),
+            self@[pcid as int].get_pagetable_page_closure() =~= addr_spa.get_pagetable_page_closure(),
     {
         arbitrary()
     }
@@ -47,8 +47,8 @@ impl MarsArray<PageTable,PCID_MAX>{
         self.wf(),
         self@[pcid as int].wf(),
         forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-        self@[pcid as int].tmp_get_mem_mappings() =~= Map::empty(),
-        self@[pcid as int].tmp_page_table_page_closure() =~= Set::empty(),
+        self@[pcid as int].get_pagetable_mapping() =~= Map::empty(),
+        self@[pcid as int].get_pagetable_page_closure() =~= Set::empty(),
     {
         arbitrary()
     }
@@ -59,14 +59,14 @@ impl MarsArray<PageTable,PCID_MAX>{
         0<=pcid<PCID_MAX,
         old(self).wf(),
         old(self)@[pcid as int].wf(),
-        old(self)@[pcid as int].tmp_get_mem_mappings().dom().contains(va) == false,
+        old(self)@[pcid as int].get_pagetable_mapping().dom().contains(va) == false,
     ensures
         self.wf(),
         self@[pcid as int].wf(),
-        self@[pcid as int].tmp_get_mem_mappings().dom().contains(va) == true,
-        self@[pcid as int].tmp_get_mem_mappings()[va] == pa,
+        self@[pcid as int].get_pagetable_mapping().dom().contains(va) == true,
+        self@[pcid as int].get_pagetable_mapping()[va] == pa,
         forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-        self@[pcid as int].tmp_get_mem_mappings() =~= old(self)@[pcid as int].tmp_get_mem_mappings().insert(va,pa),
+        self@[pcid as int].get_pagetable_mapping() =~= old(self)@[pcid as int].get_pagetable_mapping().insert(va,pa),
     {
         arbitrary()
     }
@@ -77,14 +77,14 @@ impl MarsArray<PageTable,PCID_MAX>{
         0<=pcid<PCID_MAX,
         old(self).wf(),
         old(self)@[pcid as int].wf(),
-        old(self)@[pcid as int].tmp_get_mem_mappings().dom().contains(va),
+        old(self)@[pcid as int].get_pagetable_mapping().dom().contains(va),
     ensures
         self.wf(),
         self@[pcid as int].wf(),
-        self@[pcid as int].tmp_get_mem_mappings().dom().contains(va) == false,
-        old(self)@[pcid as int].tmp_get_mem_mappings()[va] == ret,
+        self@[pcid as int].get_pagetable_mapping().dom().contains(va) == false,
+        old(self)@[pcid as int].get_pagetable_mapping()[va] == ret,
         forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-        self@[pcid as int].tmp_get_mem_mappings() =~= old(self)@[pcid as int].tmp_get_mem_mappings().remove(va),
+        self@[pcid as int].get_pagetable_mapping() =~= old(self)@[pcid as int].get_pagetable_mapping().remove(va),
     {
         arbitrary()
     }
@@ -101,10 +101,10 @@ impl MarsArray<PageTable,PCID_MAX>{
             self.wf(),
             self@[pcid as int].wf(),
             page_alloc.wf(),
-            self@[pcid as int].tmp_page_table_page_closure() =~= old(self)@[pcid as int].tmp_page_table_page_closure() + ret@,
-            ret@.subset_of(old(page_alloc).free_pages_as_set()),
-            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
-            self@[pcid as int].va_entry_exists(va) == true,
+            self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure() + ret@,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            self@[pcid as int].is_va_entry_exist(va) == true,
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int]
     {
         arbitrary()
@@ -123,15 +123,15 @@ impl MarsArray<PageTable,PCID_MAX>{
         ensures 
             self.wf(),
             self@[pcid as int].wf(),
-            old(self)@[pcid as int].va_exists(va) == ret ,
-            old(self)@[pcid as int].va_exists(va) ==> 
+            old(self)@[pcid as int].is_va_entry_exist(va) == ret ,
+            old(self)@[pcid as int].is_va_entry_exist(va) ==> 
                 self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@.insert(va,dst),
-            !old(self)@[pcid as int].va_exists(va) ==> 
+            !old(self)@[pcid as int].is_va_entry_exist(va) ==> 
                 self@[pcid as int].mapping@ =~=old(self)@[pcid as int].mapping@,
             self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure(),
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
     {
-        return self.ar[pcid].add_mapping(va, dst);
+        return self.ar[pcid].map(va, dst);
     }
 
 }

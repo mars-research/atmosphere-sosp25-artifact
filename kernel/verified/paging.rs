@@ -281,8 +281,8 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     #[verifier(external_body)]
     pub fn tmp_init(&mut self, kernel_pml4_entry: usize)
         ensures
-            self.tmp_get_mem_mappings() =~= Map::empty(),
-            self.tmp_page_table_page_closure() =~= Set::empty(),
+            self.get_pagetable_mapping() =~= Map::empty(),
+            self.get_pagetable_page_closure() =~= Set::empty(),
     {
 
     }
@@ -290,37 +290,37 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     #[verifier(external_body)]
     pub fn tmp_adopt(&mut self, addr_spa: &AddressSpace)
         ensures
-            self.tmp_get_mem_mappings() =~= addr_spa.0.tmp_get_mem_mappings(),
-            self.tmp_page_table_page_closure() =~= addr_spa.0.tmp_page_table_page_closure(),
+            self.get_pagetable_mapping() =~= addr_spa.0.get_pagetable_mapping(),
+            self.get_pagetable_page_closure() =~= addr_spa.0.get_pagetable_page_closure(),
     {
 
     }
 
     pub open spec fn tmp_wf(&self)->bool{
         &&&
-        (forall|va:VAddr| #![auto] self.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.tmp_get_mem_mappings()[va] as usize))
+        (forall|va:VAddr| #![auto] self.get_pagetable_mapping().dom().contains(va) ==> page_ptr_valid(self.get_pagetable_mapping()[va] as usize))
 
     }
 
-    pub closed spec fn tmp_page_table_page_closure(&self) -> Set<PagePtr> {
+    pub closed spec fn get_pagetable_page_closure(&self) -> Set<PagePtr> {
         Set::empty()
     }
 
-    pub closed spec fn tmp_get_mem_mappings(&self) -> Map<VAddr,PAddr> {
+    pub closed spec fn get_pagetable_mapping(&self) -> Map<VAddr,PAddr> {
         Map::empty()
     }
 
     #[verifier(external_body)]
-    #[verifier(when_used_as_spec(spec_va_entry_exists))]
-    pub fn va_entry_exists(&self, va:VAddr) -> (ret: bool)
+    #[verifier(when_used_as_spec(spec_is_va_entry_exist))]
+    pub fn is_va_entry_exist(&self, va:VAddr) -> (ret: bool)
         ensures
-            ret == self.va_entry_exists(va),
+            ret == self.is_va_entry_exist(va),
     {
         arbitrary()
     }
 
 
-    pub closed spec fn spec_va_entry_exists(&self, va:VAddr) -> bool
+    pub closed spec fn spec_is_va_entry_exist(&self, va:VAddr) -> bool
     {
         arbitrary()
     }
@@ -333,12 +333,12 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
             old(page_alloc).free_pages.len() >= 4,
         ensures
             self.wf(),
-            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings(),
+            self.get_pagetable_mapping() =~= old(self).get_pagetable_mapping(),
             page_alloc.wf(),
-            self.tmp_page_table_page_closure() =~= old(self).tmp_page_table_page_closure() + ret@,
-            ret@.subset_of(old(page_alloc).free_pages_as_set()),
-            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
-            self.va_entry_exists(va) == true,
+            self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            self.is_va_entry_exist(va) == true,
     {
         arbitrary()
     }
@@ -346,8 +346,8 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     #[verifier(external_body)]
     pub fn resolve(&self, va:VAddr) -> (ret: Option<PAddr>)
         ensures
-            ret.is_None() ==> self.tmp_get_mem_mappings().dom().contains(va) == false,
-            ret.is_Some() ==> self.tmp_get_mem_mappings().dom().contains(va) && self.tmp_get_mem_mappings()[va] == ret.unwrap(),
+            ret.is_None() ==> self.get_pagetable_mapping().dom().contains(va) == false,
+            ret.is_Some() ==> self.get_pagetable_mapping().dom().contains(va) && self.get_pagetable_mapping()[va] == ret.unwrap(),
     {
         arbitrary()
     }
@@ -356,12 +356,12 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     pub fn map(&mut self, va:VAddr, pa:PAddr)
         requires
             old(self).wf(),
-            old(self).tmp_get_mem_mappings().dom().contains(va) == false,
+            old(self).get_pagetable_mapping().dom().contains(va) == false,
         ensures
             self.wf(),
-            self.tmp_get_mem_mappings().dom().contains(va) == true,
-            self.tmp_get_mem_mappings()[va] == pa,
-            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings().insert(va,pa),
+            self.get_pagetable_mapping().dom().contains(va) == true,
+            self.get_pagetable_mapping()[va] == pa,
+            self.get_pagetable_mapping() =~= old(self).get_pagetable_mapping().insert(va,pa),
     {
         arbitrary()
     }
@@ -370,12 +370,12 @@ impl<E: Entry, T: TableTarget> PagingLevel<E, T> {
     pub fn unmap(&mut self, va:VAddr) -> (ret: PAddr)
         requires
             old(self).wf(),
-            old(self).tmp_get_mem_mappings().dom().contains(va),
+            old(self).get_pagetable_mapping().dom().contains(va),
         ensures
             self.wf(),
-            self.tmp_get_mem_mappings().dom().contains(va) == false,
-            old(self).tmp_get_mem_mappings()[va] == ret,
-            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings().remove(va),
+            self.get_pagetable_mapping().dom().contains(va) == false,
+            old(self).get_pagetable_mapping()[va] == ret,
+            self.get_pagetable_mapping() =~= old(self).get_pagetable_mapping().remove(va),
     {
         arbitrary()
     }
@@ -826,8 +826,8 @@ impl MarsArray<AddressSpace,PCID_MAX>{
         ensures
             self.wf(),
             forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.wf(),
-            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.tmp_page_table_page_closure() =~= Set::empty(),
-            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.get_pagetable_page_closure() =~= Set::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].0.get_pagetable_mapping() =~= Map::empty(),
     {
         arbitrary()
     }
@@ -843,9 +843,9 @@ impl MarsArray<AddressSpace,PCID_MAX>{
     //     self.wf(),
     //     self@[pcid as int].0.wf(),
     //     page_alloc.wf(),
-    //     self@[pcid as int].0.tmp_page_table_page_closure() =~= Set::empty(),
-    //     page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() + old(self)@[pcid as int].0.tmp_page_table_page_closure(),
-    //     self@[pcid as int].0.tmp_get_mem_mappings() =~= Map::empty(),
+    //     self@[pcid as int].0.get_pagetable_page_closure() =~= Set::empty(),
+    //     page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() + old(self)@[pcid as int].0.get_pagetable_page_closure(),
+    //     self@[pcid as int].0.get_pagetable_mapping() =~= Map::empty(),
     //     forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
     // {
     //     self.ar[pcid].0.clear(page_alloc);
@@ -860,8 +860,8 @@ impl MarsArray<AddressSpace,PCID_MAX>{
             self.wf(),
             self@[pcid as int].0.wf(),
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-            self@[pcid as int].0.tmp_get_mem_mappings() =~= addr_spa.0.tmp_get_mem_mappings(),
-            self@[pcid as int].0.tmp_page_table_page_closure() =~= addr_spa.0.tmp_page_table_page_closure(),
+            self@[pcid as int].0.get_pagetable_mapping() =~= addr_spa.0.get_pagetable_mapping(),
+            self@[pcid as int].0.get_pagetable_page_closure() =~= addr_spa.0.get_pagetable_page_closure(),
     {
         self.ar[pcid].0.tmp_adopt(addr_spa);
     }
@@ -876,8 +876,8 @@ impl MarsArray<AddressSpace,PCID_MAX>{
         self.wf(),
         self@[pcid as int].0.wf(),
         forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-        self@[pcid as int].0.tmp_get_mem_mappings() =~= Map::empty(),
-        self@[pcid as int].0.tmp_page_table_page_closure() =~= Set::empty(),
+        self@[pcid as int].0.get_pagetable_mapping() =~= Map::empty(),
+        self@[pcid as int].0.get_pagetable_page_closure() =~= Set::empty(),
     {
         self.ar[pcid].0.tmp_init(kernel_pml4_entry);
     }
@@ -888,14 +888,14 @@ impl MarsArray<AddressSpace,PCID_MAX>{
         0<=pcid<PCID_MAX,
         old(self).wf(),
         old(self)@[pcid as int].0.wf(),
-        old(self)@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va) == false,
+        old(self)@[pcid as int].0.get_pagetable_mapping().dom().contains(va) == false,
     ensures
         self.wf(),
         self@[pcid as int].0.wf(),
-        self@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va) == true,
-        self@[pcid as int].0.tmp_get_mem_mappings()[va] == pa,
+        self@[pcid as int].0.get_pagetable_mapping().dom().contains(va) == true,
+        self@[pcid as int].0.get_pagetable_mapping()[va] == pa,
         forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-        self@[pcid as int].0.tmp_get_mem_mappings() =~= old(self)@[pcid as int].0.tmp_get_mem_mappings().insert(va,pa),
+        self@[pcid as int].0.get_pagetable_mapping() =~= old(self)@[pcid as int].0.get_pagetable_mapping().insert(va,pa),
     {
         self.ar[pcid].0.map(va, pa);
     }
@@ -906,14 +906,14 @@ impl MarsArray<AddressSpace,PCID_MAX>{
         0<=pcid<PCID_MAX,
         old(self).wf(),
         old(self)@[pcid as int].0.wf(),
-        old(self)@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va),
+        old(self)@[pcid as int].0.get_pagetable_mapping().dom().contains(va),
     ensures
         self.wf(),
         self@[pcid as int].0.wf(),
-        self@[pcid as int].0.tmp_get_mem_mappings().dom().contains(va) == false,
-        old(self)@[pcid as int].0.tmp_get_mem_mappings()[va] == ret,
+        self@[pcid as int].0.get_pagetable_mapping().dom().contains(va) == false,
+        old(self)@[pcid as int].0.get_pagetable_mapping()[va] == ret,
         forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
-        self@[pcid as int].0.tmp_get_mem_mappings() =~= old(self)@[pcid as int].0.tmp_get_mem_mappings().remove(va),
+        self@[pcid as int].0.get_pagetable_mapping() =~= old(self)@[pcid as int].0.get_pagetable_mapping().remove(va),
     {
         return self.ar[pcid].0.unmap(va);
     }
@@ -930,10 +930,10 @@ impl MarsArray<AddressSpace,PCID_MAX>{
             self.wf(),
             self@[pcid as int].0.wf(),
             page_alloc.wf(),
-            self@[pcid as int].0.tmp_page_table_page_closure() =~= old(self)@[pcid as int].0.tmp_page_table_page_closure() + ret@,
-            ret@.subset_of(old(page_alloc).free_pages_as_set()),
-            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
-            self@[pcid as int].0.va_entry_exists(va) == true,
+            self@[pcid as int].0.get_pagetable_page_closure() =~= old(self)@[pcid as int].0.get_pagetable_page_closure() + ret@,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            self@[pcid as int].0.is_va_entry_exist(va) == true,
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int]
     {
         return self.ar[pcid].0.create_va_entry(va, page_alloc);

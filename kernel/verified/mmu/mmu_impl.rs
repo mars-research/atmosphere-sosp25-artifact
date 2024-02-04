@@ -14,7 +14,7 @@ impl MMUManager{
         requires
             0<=pcid<PCID_MAX,
             old(self).wf(),
-            old(self).free_pcids_as_set().contains(pcid) == false,
+            old(self).get_free_pcids_as_set().contains(pcid) == false,
             spec_va_valid(va),
             old(self).get_mmu_page_closure().contains(dst) == false,
             old(self).get_pagetable_mapping_by_pcid(pcid)[va] == 0,
@@ -30,10 +30,10 @@ impl MMUManager{
             forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> self.get_pagetable_by_pcid(_pcid) =~= old(self).get_pagetable_by_pcid(_pcid),
             // forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> self.get_pagetable_mapping_by_pcid(_pcid) =~= old(self).get_pagetable_mapping_by_pcid(_pcid),
             self.get_pagetable_page_closure_by_pcid(pcid) =~= old(self).get_pagetable_page_closure_by_pcid(pcid),
-            old(self).get_pagetable_by_pcid(pcid).va_exists(va) == ret,
-            old(self).get_pagetable_by_pcid(pcid).va_exists(va) ==> 
+            old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) == ret,
+            old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==> 
                 self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid).insert(va,dst),
-            !old(self).get_pagetable_by_pcid(pcid).va_exists(va) ==> 
+            !old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==> 
                 self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid),
     {
         return self.page_tables.map_pagetable_page_by_pcid(pcid,va,dst);

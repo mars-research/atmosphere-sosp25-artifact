@@ -47,7 +47,7 @@ impl PcidAllocator {
             old(self).free_page_tables@ =~= Seq::empty(),
             old(self).page_tables.wf(),
             old(self).page_table_pages@ =~= Set::empty(),
-            forall|va:VAddr| #![auto] dom0_address_space.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(dom0_address_space.tmp_get_mem_mappings()[va] as usize),
+            forall|va:VAddr| #![auto] dom0_address_space.get_pagetable_mapping().dom().contains(va) ==> page_ptr_valid(dom0_address_space.get_pagetable_mapping()[va] as usize),
         ensures
             self.wf(),
             self.free_page_tables.unique(),
@@ -57,11 +57,11 @@ impl PcidAllocator {
             self.free_page_tables.wf(),
             self.page_tables.wf(),
             self.free_page_tables@.contains(0) == false,
-            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.page_tables[j as int].tmp_page_table_page_closure() =~= Set::empty(),
-            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.page_tables[j as int].tmp_get_mem_mappings() =~= Map::empty(),
-            self.page_tables[0].tmp_page_table_page_closure() =~= dom0_address_space.tmp_page_table_page_closure(),
-            self.page_tables[0].tmp_get_mem_mappings() =~= dom0_address_space.tmp_get_mem_mappings(),
-            self.page_table_pages@ =~= dom0_address_space.tmp_page_table_page_closure(),
+            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.page_tables[j as int].get_pagetable_page_closure() =~= Set::empty(),
+            forall|j:usize| #![auto] 1<=j<PCID_MAX ==> self.page_tables[j as int].get_pagetable_mapping() =~= Map::empty(),
+            self.page_tables[0].get_pagetable_page_closure() =~= dom0_address_space.get_pagetable_page_closure(),
+            self.page_tables[0].get_pagetable_mapping() =~= dom0_address_space.get_pagetable_mapping(),
+            self.page_table_pages@ =~= dom0_address_space.get_pagetable_page_closure(),
     {
         let mut i = 1;
         while i != PCID_MAX
@@ -103,8 +103,8 @@ impl PcidAllocator {
             self.page_tables.wf(),
             self.free_page_tables@.contains(0) == false,
             self.page_table_pages@ =~= Set::empty(),
-            forall|j:usize| #![auto] 0<=j<i ==> self.page_tables[j as int].tmp_page_table_page_closure() =~= Set::empty(),
-            forall|j:usize| #![auto] 0<=j<i ==> self.page_tables[j as int].tmp_get_mem_mappings() =~= Map::empty(),
+            forall|j:usize| #![auto] 0<=j<i ==> self.page_tables[j as int].get_pagetable_page_closure() =~= Set::empty(),
+            forall|j:usize| #![auto] 0<=j<i ==> self.page_tables[j as int].get_pagetable_mapping() =~= Map::empty(),
         ensures
             self.free_page_tables.unique(),
             self.free_page_tables.len() == PCID_MAX - 1,
@@ -114,15 +114,15 @@ impl PcidAllocator {
             self.page_tables.wf(),
             self.free_page_tables@.contains(0) == false,
             self.page_table_pages@ =~= Set::empty(),
-            forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].tmp_page_table_page_closure() =~= Set::empty(),
-            forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].tmp_get_mem_mappings() =~= Map::empty(),
+            forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].get_pagetable_page_closure() =~= Set::empty(),
+            forall|j:usize| #![auto] 0<=j<PCID_MAX ==> self.page_tables[j as int].get_pagetable_mapping() =~= Map::empty(),
     {  
         self.page_tables.pcid_init(i, kernel_pml4_entry);
         i = i + 1;
     }
 
     self.page_tables.pcid_adopt(0, dom0_address_space);
-    proof{self.page_table_pages@ = dom0_address_space.tmp_page_table_page_closure();}
+    proof{self.page_table_pages@ = dom0_address_space.get_pagetable_page_closure();}
     assert(self.free_page_tables.wf());
     assert(self.free_page_tables@.no_duplicates());
 
@@ -143,19 +143,19 @@ impl PcidAllocator {
         self.page_tables.wf()
         &&&
         (
-            forall|i:int| #![auto] 0<=i<self.free_page_tables.len() ==> self.page_tables[self.free_page_tables@[i] as int].tmp_get_mem_mappings() =~= Map::empty()
+            forall|i:int| #![auto] 0<=i<self.free_page_tables.len() ==> self.page_tables[self.free_page_tables@[i] as int].get_pagetable_mapping() =~= Map::empty()
         )
         &&&
         (
-            forall|i:int,va:VAddr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.page_tables[i].tmp_get_mem_mappings()[va] as usize)
+            forall|i:int,va:VAddr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].get_pagetable_mapping().dom().contains(va) ==> page_ptr_valid(self.page_tables[i].get_pagetable_mapping()[va] as usize)
         )
         &&&
         (
-            forall|i:int,page_ptr:PagePtr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].tmp_page_table_page_closure().contains(page_ptr) ==> self.page_table_pages@.contains(page_ptr)
+            forall|i:int,page_ptr:PagePtr| #![auto] 0<=i<PCID_MAX && self.page_tables[i].get_pagetable_page_closure().contains(page_ptr) ==> self.page_table_pages@.contains(page_ptr)
         )
         &&&
         (
-            forall|i:int,j:int| #![auto] 0<=i<PCID_MAX && 0<=j<PCID_MAX && i != j ==> self.page_tables[i].tmp_page_table_page_closure().disjoint(self.page_tables[j].tmp_page_table_page_closure())
+            forall|i:int,j:int| #![auto] 0<=i<PCID_MAX && 0<=j<PCID_MAX && i != j ==> self.page_tables[i].get_pagetable_page_closure().disjoint(self.page_tables[j].get_pagetable_page_closure())
         )
     }
 
@@ -165,7 +165,7 @@ impl PcidAllocator {
     }
 
     
-    pub open spec fn page_table_pages(&self) -> Set<PagePtr>
+    pub open spec fn get_page_table_pages(&self) -> Set<PagePtr>
     {
         self.page_table_pages@
     }
@@ -179,7 +179,7 @@ impl PcidAllocator {
         recommends 
             0<=pcid<PCID_MAX,
     {
-        self.page_tables@[pcid as int].tmp_get_mem_mappings()
+        self.page_tables@[pcid as int].get_pagetable_mapping()
     }
 
     pub fn resolve(&self, pcid: Pcid, va: VAddr) -> (ret : Option<PAddr>)

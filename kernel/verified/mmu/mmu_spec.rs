@@ -23,7 +23,7 @@ pub struct MMUManager{
 
 impl MMUManager{
     #[verifier(inline)]
-    pub open spec fn free_pcids_as_set(&self) -> Set<Pcid>
+    pub open spec fn get_free_pcids_as_set(&self) -> Set<Pcid>
     {
         self.free_pcids@.to_set()
     }
@@ -84,7 +84,7 @@ impl MMUManager{
         )
         &&&
         (
-            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX && self.free_pcids_as_set().contains(pcid) == false ==> 
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX && self.get_free_pcids_as_set().contains(pcid) == false ==> 
                 self.page_tables[pcid as int].wf()
         )
         &&&

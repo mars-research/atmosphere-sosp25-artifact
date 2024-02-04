@@ -42,9 +42,9 @@ impl ProcessManager{
             self.wf(),
             self.get_thread_ptrs().contains(thread_ptr),
             ret@.finite(),
-            ret@.disjoint(self.page_closure()),
-            ret@ + self.page_closure() =~= old(self).page_closure(),
-            ret@.subset_of(old(self).page_closure()),
+            ret@.disjoint(self.get_proc_man_page_closure()),
+            ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
+            ret@.subset_of(old(self).get_proc_man_page_closure()),
             forall|i:int| #![auto] 0<=i< MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@[i] == 0,
             self.proc_ptrs@ =~= old(self).proc_ptrs@,
             self.proc_perms@ =~= old(self).proc_perms@,
@@ -71,13 +71,13 @@ impl ProcessManager{
                 self.thread_perms@.dom().contains(thread_ptr),
                 forall|i:int| #![auto] 0<=i< loop_i ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@[i] == 0,
                 self.get_thread(thread_ptr).state == TRANSIT,
-                self.page_closure().finite(),
-                old(self).page_closure().finite(),
+                self.get_proc_man_page_closure().finite(),
+                old(self).get_proc_man_page_closure().finite(),
                 ret@.finite(),
-                ret@.disjoint(self.page_closure()),
-                ret@ + self.page_closure() =~= old(self).page_closure(),
-                self.page_closure().subset_of(old(self).page_closure()),
-                ret@.subset_of(old(self).page_closure()),
+                ret@.disjoint(self.get_proc_man_page_closure()),
+                ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
+                self.get_proc_man_page_closure().subset_of(old(self).get_proc_man_page_closure()),
+                ret@.subset_of(old(self).get_proc_man_page_closure()),
                 self.proc_ptrs@ =~= old(self).proc_ptrs@,
                 self.proc_perms@ =~= old(self).proc_perms@,
                 self.thread_ptrs@ =~= old(self).thread_ptrs@,
@@ -98,14 +98,14 @@ impl ProcessManager{
                 self.thread_perms@.dom().contains(thread_ptr),
                 forall|i:int| #![auto] 0<=i< MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@[i] == 0,
                 self.get_thread(thread_ptr).state == TRANSIT,
-                self.page_closure().subset_of(old(self).page_closure()),
-                self.page_closure().finite(),
-                old(self).page_closure().finite(),
+                self.get_proc_man_page_closure().subset_of(old(self).get_proc_man_page_closure()),
+                self.get_proc_man_page_closure().finite(),
+                old(self).get_proc_man_page_closure().finite(),
                 ret@.finite(),
-                ret@.disjoint(self.page_closure()),
-                ret@ + self.page_closure() =~= old(self).page_closure(),
-                self.page_closure().subset_of(old(self).page_closure()),
-                ret@.subset_of(old(self).page_closure()),
+                ret@.disjoint(self.get_proc_man_page_closure()),
+                ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
+                self.get_proc_man_page_closure().subset_of(old(self).get_proc_man_page_closure()),
+                ret@.subset_of(old(self).get_proc_man_page_closure()),
                 self.proc_ptrs@ =~= old(self).proc_ptrs@,
                 self.proc_perms@ =~= old(self).proc_perms@,
                 self.thread_ptrs@ =~= old(self).thread_ptrs@,
@@ -171,15 +171,15 @@ impl ProcessManager{
                     ));
                     
                     proof{
-                        assert(ret@.disjoint(self.page_closure()));
-                        let old_closure = self.page_closure();
-                        assert(self.page_closure().contains(endpoint_ptr) == true);
+                        assert(ret@.disjoint(self.get_proc_man_page_closure()));
+                        let old_closure = self.get_proc_man_page_closure();
+                        assert(self.get_proc_man_page_closure().contains(endpoint_ptr) == true);
                         assert(ret@.contains(endpoint_ptr) == false); 
                         (self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr);
                         self.endpoint_ptrs@ =  self.endpoint_ptrs@.remove(endpoint_ptr);
-                        assert(old_closure.remove(endpoint_ptr) =~= self.page_closure());
+                        assert(old_closure.remove(endpoint_ptr) =~= self.get_proc_man_page_closure());
                         ret@ = ret@.insert(endpoint_ptr);
-                        assert(ret@.disjoint(self.page_closure()));
+                        assert(ret@.disjoint(self.get_proc_man_page_closure()));
                     }
                     
                 }
@@ -189,8 +189,8 @@ impl ProcessManager{
             loop_i = loop_i + 1;
         }
         assert(ret@.finite());
-        assert(ret@.disjoint(self.page_closure()));
-        assert(ret@ + self.page_closure() =~= old(self).page_closure());
+        assert(ret@.disjoint(self.get_proc_man_page_closure()));
+        assert(ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure());
         
         assert(self.wf_endpoints());
         assert(self.wf());

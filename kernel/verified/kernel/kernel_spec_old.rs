@@ -97,26 +97,26 @@ impl Kernel {
             ),
             (forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 ==PAGETABLE ==> 
                 (
-                    dom0_address_space.tmp_page_table_page_closure().contains(page_index2page_ptr(i))
+                    dom0_address_space.get_pagetable_page_closure().contains(page_index2page_ptr(i))
                 )
             ),
             NUM_PAGES * 4096 <= usize::MAX,
             old(self).cpu_list.wf(),
-            forall|va:VAddr| #![auto] dom0_address_space.tmp_get_mem_mappings().dom().contains(va) ==> (
-                page_ptr_valid(dom0_address_space.tmp_get_mem_mappings()[va] as usize)
+            forall|va:VAddr| #![auto] dom0_address_space.get_pagetable_mapping().dom().contains(va) ==> (
+                page_ptr_valid(dom0_address_space.get_pagetable_mapping()[va] as usize)
                 &&
                 va != 0
                 &&
-                boot_page_ptrs@[page_ptr2page_index(dom0_address_space.tmp_get_mem_mappings()[va] as usize) as int].0 == MAPPED && boot_page_ptrs@[page_ptr2page_index(dom0_address_space.tmp_get_mem_mappings()[va] as usize) as int].1 == va
+                boot_page_ptrs@[page_ptr2page_index(dom0_address_space.get_pagetable_mapping()[va] as usize) as int].0 == MAPPED && boot_page_ptrs@[page_ptr2page_index(dom0_address_space.get_pagetable_mapping()[va] as usize) as int].1 == va
                 ),
-            forall|page_ptr:PagePtr| #![auto] dom0_address_space.tmp_page_table_page_closure().contains(page_ptr) ==> 
+            forall|page_ptr:PagePtr| #![auto] dom0_address_space.get_pagetable_page_closure().contains(page_ptr) ==> 
                 (
                     page_ptr_valid(page_ptr)
                     &&
                     boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].0 == PAGETABLE
                 ),
             forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == PAGETABLE ==>
-                dom0_address_space.tmp_page_table_page_closure().contains(page_index2page_ptr(i)),
+                dom0_address_space.get_pagetable_page_closure().contains(page_index2page_ptr(i)),
 
         ensures
             self.kernel_wf(),
@@ -133,10 +133,10 @@ impl Kernel {
             proof{
                 page_ptr_lemma();
             }
-            assert(forall|page_ptr:PagePtr| #![auto] dom0_address_space.tmp_page_table_page_closure().contains(page_ptr) ==> self.page_alloc.page_table_pages().contains(page_ptr));
-            assert(forall|page_ptr:PagePtr| #![auto] self.page_alloc.page_table_pages().contains(page_ptr) ==> dom0_address_space.tmp_page_table_page_closure().contains(page_ptr));
-            assert(self.page_alloc.page_table_pages() =~= self.pcid_alloc.page_table_pages());
-            assert(self.page_alloc.allocated_pages() =~= self.proc_man.page_closure());
+            assert(forall|page_ptr:PagePtr| #![auto] dom0_address_space.get_pagetable_page_closure().contains(page_ptr) ==> self.page_alloc.get_page_table_pages().contains(page_ptr));
+            assert(forall|page_ptr:PagePtr| #![auto] self.page_alloc.get_page_table_pages().contains(page_ptr) ==> dom0_address_space.get_pagetable_page_closure().contains(page_ptr));
+            assert(self.page_alloc.get_page_table_pages() =~= self.pcid_alloc.get_page_table_pages());
+            assert(self.page_alloc.get_allocated_pages() =~= self.proc_man.page_closure());
             assert(self.page_alloc.mem_wf());
 
             let num_free_pages = self.page_alloc.get_num_free_pages();
@@ -145,7 +145,7 @@ impl Kernel {
                 let (page_ptr_1, page_perm_1) = self.page_alloc.alloc_kernel_mem();
                 let (page_ptr_2, page_perm_2) = self.page_alloc.alloc_kernel_mem();
 
-                // assert(self.page_alloc.allocated_pages() =~= Set::<PagePtr>::empty().insert(page_ptr_1).insert(page_ptr_2));
+                // assert(self.page_alloc.get_allocated_pages() =~= Set::<PagePtr>::empty().insert(page_ptr_1).insert(page_ptr_2));
 
                 assert(page_ptr_1 != page_ptr_2);
                 assert(self.proc_man.scheduler.len() == 0);
@@ -154,9 +154,9 @@ impl Kernel {
                 // assert(self.proc_man.page_closure() =~= Set::<PagePtr>::empty().insert(page_ptr_1).insert(page_ptr_2));
             }
 
-            assert(self.page_alloc.page_table_pages() =~= self.pcid_alloc.page_table_pages());
+            assert(self.page_alloc.get_page_table_pages() =~= self.pcid_alloc.get_page_table_pages());
             
-            assert(self.page_alloc.allocated_pages() =~= self.proc_man.page_closure());
+            assert(self.page_alloc.get_allocated_pages() =~= self.proc_man.page_closure());
             assert(self.page_alloc.mem_wf());
 
             assert(self.kernel_page_mapping_wf());
@@ -185,9 +185,9 @@ impl Kernel {
     pub open spec fn kernel_mem_wf(&self) -> bool
     {
         &&&
-        self.page_alloc.page_table_pages() =~= self.pcid_alloc.page_table_pages()
+        self.page_alloc.get_page_table_pages() =~= self.pcid_alloc.get_page_table_pages()
         &&&
-        self.page_alloc.allocated_pages() =~= self.proc_man.page_closure()
+        self.page_alloc.get_allocated_pages() =~= self.proc_man.page_closure()
         &&&
         self.page_alloc.mem_wf()
     }

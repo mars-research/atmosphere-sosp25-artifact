@@ -98,31 +98,31 @@ impl PageAllocator {
     ///If a physical page's page permission is held by any kernel component or in the global page array is marked as Allocated, it is in Allocated state
     ///If a physical page in the global page array is marked as Free, it is in Free state
     #[verifier(inline)]
-    pub open spec fn page_table_pages(&self) -> Set<PagePtr>
+    pub open spec fn get_page_table_pages(&self) -> Set<PagePtr>
     {
         self.page_table_pages@
     }
 
     #[verifier(inline)]
-    pub open spec fn allocated_pages(&self) -> Set<PagePtr>
+    pub open spec fn get_allocated_pages(&self) -> Set<PagePtr>
     {
         self.allocated_pages@
     }
     
     #[verifier(inline)]
-    pub open spec fn mapped_pages(&self) -> Set<PagePtr>
+    pub open spec fn get_mapped_pages(&self) -> Set<PagePtr>
     {
         self.mapped_pages@
     }
     
     #[verifier(inline)]
-    pub open spec fn free_pages_as_set(&self) -> Set<PagePtr>
+    pub open spec fn get_free_pages_as_set(&self) -> Set<PagePtr>
     {
         self.free_pages@.to_set()
     }
 
     #[verifier(inline)]
-    pub open spec fn available_pages(&self) -> Set<PagePtr>
+    pub open spec fn get_available_pages(&self) -> Set<PagePtr>
     {
         
         self.available_pages@
@@ -183,7 +183,7 @@ impl PageAllocator {
     }
 
     pub open spec fn page_perms_wf(&self) -> bool{
-        (self.page_perms@.dom() =~= self.free_pages_as_set() + self.mapped_pages())
+        (self.page_perms@.dom() =~= self.get_free_pages_as_set() + self.get_mapped_pages())
         &&
         (forall|page_ptr:PagePtr| #![auto] self.page_perms@.dom().contains(page_ptr) ==> self.page_perms@[page_ptr]@.pptr == page_ptr)
         &&
@@ -257,27 +257,27 @@ impl PageAllocator {
     {
         //The first three ensure no memory corruption bug in our kernel or in userspace, these three are needed.
         &&&
-        (self.allocated_pages().disjoint(self.mapped_pages()))
+        (self.get_allocated_pages().disjoint(self.get_mapped_pages()))
         &&&
-        (self.allocated_pages().disjoint(self.free_pages_as_set()))
+        (self.get_allocated_pages().disjoint(self.get_free_pages_as_set()))
         &&&
-        (self.allocated_pages().disjoint(self.page_table_pages()))
+        (self.get_allocated_pages().disjoint(self.get_page_table_pages()))
         &&&
-        (self.free_pages_as_set().disjoint(self.mapped_pages()))
+        (self.get_free_pages_as_set().disjoint(self.get_mapped_pages()))
         &&&
-        (self.free_pages_as_set().disjoint(self.page_table_pages()))
+        (self.get_free_pages_as_set().disjoint(self.get_page_table_pages()))
         &&&
-        (self.mapped_pages().disjoint(self.page_table_pages()))
+        (self.get_mapped_pages().disjoint(self.get_page_table_pages()))
         //Not sure if we can prove this, but this ensures exact 1 ownership of all pages, 
         //hence No memory leak. 
         &&&
-        ((self.allocated_pages() + self.mapped_pages() + self.free_pages_as_set() + self.page_table_pages()) =~= self.available_pages()) 
+        ((self.get_allocated_pages() + self.get_mapped_pages() + self.get_free_pages_as_set() + self.get_page_table_pages()) =~= self.get_available_pages()) 
     }
 
     pub open spec fn rf_wf(&self) -> bool{
-        forall|page_ptr:PagePtr| #![auto] self.mapped_pages().contains(page_ptr) ==>
+        forall|page_ptr:PagePtr| #![auto] self.get_mapped_pages().contains(page_ptr) ==>
             (
-                self.page_rf_counter(page_ptr) == self.get_page_mappings(page_ptr).len() + self.get_page_io_mappings(page_ptr).len()
+                self.get_page_rf_counter(page_ptr) == self.get_page_mappings(page_ptr).len() + self.get_page_io_mappings(page_ptr).len()
             )
     }
 
@@ -314,7 +314,7 @@ impl PageAllocator {
     #[verifier(inline)]
     pub open spec fn get_page(&self, page_ptr:PagePtr) -> Page
         recommends
-            self.available_pages().contains(page_ptr),
+            self.get_available_pages().contains(page_ptr),
     {
         self.page_array@[page_ptr2page_index(page_ptr) as int]
     }
@@ -322,7 +322,7 @@ impl PageAllocator {
     #[verifier(inline)]
     pub open spec fn get_page_mappings(&self, page_ptr: PagePtr) -> Set<(Pcid,VAddr)>
         recommends
-            self.available_pages().contains(page_ptr),
+            self.get_available_pages().contains(page_ptr),
     {
         self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom()
     }
@@ -330,13 +330,13 @@ impl PageAllocator {
     #[verifier(inline)]
     pub open spec fn get_page_io_mappings(&self, page_ptr: PagePtr) -> Set<(Pcid,VAddr)>
         recommends
-            self.available_pages().contains(page_ptr),
+            self.get_available_pages().contains(page_ptr),
     {
         self.page_array@[page_ptr2page_index(page_ptr) as int].io_mappings@.dom()
     }
 
     #[verifier(inline)]
-    pub open spec fn page_rf_counter(&self, page_ptr: PagePtr) -> usize
+    pub open spec fn get_page_rf_counter(&self, page_ptr: PagePtr) -> usize
         recommends
             page_ptr_valid(page_ptr),
     {
@@ -344,7 +344,7 @@ impl PageAllocator {
     }
 
     #[verifier(inline)]
-    pub open spec fn page_is_io_page(&self, page_ptr: PagePtr) -> bool
+    pub open spec fn get_page_is_io_page(&self, page_ptr: PagePtr) -> bool
         recommends
             page_ptr_valid(page_ptr),
     {

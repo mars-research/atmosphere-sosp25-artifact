@@ -9,108 +9,19 @@ use vstd::set_lib::lemma_set_properties;
 verus!{
 impl PageTable{
 
-
-    #[verifier(external_body)]
-    pub fn tmp_init(&mut self, kernel_pml3_entry: usize)
-        ensures
-            self.tmp_get_mem_mappings() =~= Map::empty(),
-            self.tmp_page_table_page_closure() =~= Set::empty(),
-    {
-
-    }
-
-    #[verifier(external_body)]
-    pub fn tmp_adopt(&mut self, addr_spa: &PageTable)
-        ensures
-            self.tmp_get_mem_mappings() =~= addr_spa.tmp_get_mem_mappings(),
-            self.tmp_page_table_page_closure() =~= addr_spa.tmp_page_table_page_closure(),
-    {
-
-    }
-
-    #[verifier(external_body)]
-    #[verifier(when_used_as_spec(spec_va_entry_exists))]
-    pub fn va_entry_exists(&self, va:VAddr) -> (ret: bool)
-        ensures
-            ret == self.va_entry_exists(va),
-    {
-        arbitrary()
-    }
-
-
-    pub closed spec fn spec_va_entry_exists(&self, va:VAddr) -> bool
-    {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn create_va_entry(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
-        requires
-            old(self).wf(),
-            old(page_alloc).wf(),
-            old(page_alloc).free_pages.len() >= 4,
-        ensures
-            self.wf(),
-            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings(),
-            page_alloc.wf(),
-            self.tmp_page_table_page_closure() =~= old(self).tmp_page_table_page_closure() + ret@,
-            ret@.subset_of(old(page_alloc).free_pages_as_set()),
-            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
-            self.va_entry_exists(va) == true,
-    {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn resolve(&self, va:VAddr) -> (ret: Option<PAddr>)
-        ensures
-            ret.is_None() ==> self.tmp_get_mem_mappings().dom().contains(va) == false,
-            ret.is_Some() ==> self.tmp_get_mem_mappings().dom().contains(va) && self.tmp_get_mem_mappings()[va] == ret.unwrap(),
-    {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn map(&mut self, va:VAddr, pa:PAddr)
-        requires
-            old(self).wf(),
-            old(self).tmp_get_mem_mappings().dom().contains(va) == false,
-        ensures
-            self.wf(),
-            self.tmp_get_mem_mappings().dom().contains(va) == true,
-            self.tmp_get_mem_mappings()[va] == pa,
-            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings().insert(va,pa),
-    {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn unmap(&mut self, va:VAddr) -> (ret: PAddr)
-        requires
-            old(self).wf(),
-            old(self).tmp_get_mem_mappings().dom().contains(va),
-        ensures
-            self.wf(),
-            self.tmp_get_mem_mappings().dom().contains(va) == false,
-            old(self).tmp_get_mem_mappings()[va] == ret,
-            self.tmp_get_mem_mappings() =~= old(self).tmp_get_mem_mappings().remove(va),
-    {
-        arbitrary()
-    }
-
-    pub fn add_mapping(&mut self, va:VAddr, dst:PAddr) -> (ret: bool)
+    pub fn map(&mut self, va:VAddr, dst:PAddr) -> (ret: bool)
         requires 
             old(self).wf(),
             spec_va_valid(va),
-            //old(self).va_exists(va),
+            //old(self).is_va_entry_exist(va),
             old(self).get_pagetable_page_closure().contains(dst) == false,
             old(self).mapping@[va] == 0,
         ensures
             self.wf(),
-            old(self).va_exists(va) == ret ,
-            old(self).va_exists(va) ==> 
+            old(self).is_va_entry_exist(va) == ret ,
+            old(self).is_va_entry_exist(va) ==> 
                 self.mapping@ =~= old(self).mapping@.insert(va,dst),
-            !old(self).va_exists(va) ==> 
+            !old(self).is_va_entry_exist(va) ==> 
                 self.mapping@ =~= old(self).mapping@,
     {
         let (l4i,l3i,l2i,l1i) = va2index(va);
@@ -119,7 +30,7 @@ impl PageTable{
         let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let l3_ptr = *l4_tbl.table.get(l4i);
         if(l3_ptr == 0){
-            assert(!old(self).va_exists(va));
+            assert(!old(self).is_va_entry_exist(va));
             return false;
         }
         assert(self.l4_table@[self.cr3]@.value.get_Some_0().table@.contains(l3_ptr));
@@ -128,7 +39,7 @@ impl PageTable{
         let l3_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let l2_ptr = *l3_tbl.table.get(l3i);
         if(l2_ptr == 0){
-            assert(!old(self).va_exists(va));
+            assert(!old(self).is_va_entry_exist(va));
             return false;
         }
 
@@ -141,11 +52,11 @@ impl PageTable{
         let l2_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let l1_ptr = *l2_tbl.table.get(l2i);
         if(l1_ptr == 0){
-            assert(!old(self).va_exists(va));
+            assert(!old(self).is_va_entry_exist(va));
             return false;
         }
-        assert(self.va_exists(va));
-        assert(old(self).va_exists(va));
+        assert(self.is_va_entry_exist(va));
+        assert(old(self).is_va_entry_exist(va));
 
         assert(self.l2_tables@.dom().contains(l2_ptr));
         assert(self.l2_tables@[l2_ptr]@.value.get_Some_0().table@.contains(l1_ptr));
@@ -223,16 +134,16 @@ impl PageTable{
         return true;
 
     }
-    pub fn remove_mapping(&mut self, va:VAddr) -> (ret: PAddr)
+    pub fn unmap(&mut self, va:VAddr) -> (ret: PAddr)
         requires 
             old(self).wf(),
             spec_va_valid(va),
             old(self).mapping@[va] != 0,
         ensures
             self.wf(),
-            old(self).va_exists(va) ==> 
+            old(self).is_va_entry_exist(va) ==> 
                 self.mapping@ =~= old(self).mapping@.insert(va,0),
-            !old(self).va_exists(va) ==> 
+            !old(self).is_va_entry_exist(va) ==> 
                 self.mapping@ =~= old(self).mapping@,
             ret == old(self).mapping@[va],
     {
@@ -245,7 +156,7 @@ impl PageTable{
         let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let l3_ptr = *l4_tbl.table.get(l4i);
         if(l3_ptr == 0){
-            assert(!old(self).va_exists(va));
+            assert(!old(self).is_va_entry_exist(va));
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i)==0);
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==0);
             assert(self.mapping@[va]==0);
@@ -257,7 +168,7 @@ impl PageTable{
         let l3_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let l2_ptr = *l3_tbl.table.get(l3i);
         if(l2_ptr == 0){
-            assert(!old(self).va_exists(va));
+            assert(!old(self).is_va_entry_exist(va));
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i)==0);
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==0);
             assert(self.mapping@[va]==0);
@@ -273,14 +184,14 @@ impl PageTable{
         let l2_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let l1_ptr = *l2_tbl.table.get(l2i);
         if(l1_ptr == 0){
-            assert(!old(self).va_exists(va));
+            assert(!old(self).is_va_entry_exist(va));
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i)==0);
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==0);
             assert(self.mapping@[va]==0);
             return 0;
         }
-        assert(self.va_exists(va));
-        assert(old(self).va_exists(va));
+        assert(self.is_va_entry_exist(va));
+        assert(old(self).is_va_entry_exist(va));
 
         assert(l1_ptr != 0);
         assert(self.l1_tables@.dom().contains(l1_ptr));
@@ -363,8 +274,8 @@ impl PageTable{
             self.wf(),
             spec_va_valid(va),
         ensures
-            self.va_exists(va) == ret.is_Some(),
-            self.va_exists(va) ==> self.mapping@[va] == ret.unwrap(),
+            self.is_va_entry_exist(va) == ret.is_Some(),
+            self.is_va_entry_exist(va) ==> self.mapping@[va] == ret.unwrap(),
     {
         proof{
             lemma_1();    
@@ -375,7 +286,7 @@ impl PageTable{
         let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let l3_ptr = *l4_tbl.table.get(l4i);
         if(l3_ptr == 0){
-            assert(self.va_exists(va) == false);
+            assert(self.is_va_entry_exist(va) == false);
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i)==0);
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==0);
             assert(self.mapping@[va]==0);
@@ -387,7 +298,7 @@ impl PageTable{
         let l3_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let l2_ptr = *l3_tbl.table.get(l3i);
         if(l2_ptr == 0){
-            assert(self.va_exists(va) == false);
+            assert(self.is_va_entry_exist(va) == false);
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i)==0);
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==0);
             assert(self.mapping@[va]==0);
@@ -403,13 +314,13 @@ impl PageTable{
         let l2_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let l1_ptr = *l2_tbl.table.get(l2i);
         if(l1_ptr == 0){
-            assert(self.va_exists(va) == false);
+            assert(self.is_va_entry_exist(va) == false);
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i)==0);
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==0);
             assert(self.mapping@[va]==0);
             return None;
         }
-        assert(self.va_exists(va));
+        assert(self.is_va_entry_exist(va));
 
         assert(l1_ptr != 0);
         assert(self.l1_tables@.dom().contains(l1_ptr));
@@ -425,27 +336,27 @@ impl PageTable{
         return Some(dst);
     }
 
-    pub fn create_va_entry1(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+    pub fn create_va_entry(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
         requires
             old(self).wf(),
             old(page_alloc).wf(),
             old(page_alloc).free_pages.len() >= 4,
             spec_va_valid(va),
-            old(self).get_pagetable_page_closure().disjoint(old(page_alloc).free_pages_as_set()),
-            old(self).all_mapped_pages().disjoint(old(page_alloc).free_pages_as_set()),
+            old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
+            old(self).get_pagetable_get_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
         ensures
             self.wf(),
             self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@,
-            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
-            ret@.subset_of(old(page_alloc).free_pages_as_set()),
-            self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()),
             self.mapping@ =~= old(self).mapping@,
             self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@,
-            self.va_exists(va),
+            self.is_va_entry_exist(va),
             page_alloc.wf(),
-            page_alloc.mapped_pages() =~= old(page_alloc).mapped_pages(),
-            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
-            page_alloc.page_table_pages() =~= old(page_alloc).page_table_pages() + ret@,
+            page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
     {
         let mut ret:Ghost<Set<PagePtr>> = Ghost(Set::empty());
         proof{
@@ -459,7 +370,7 @@ impl PageTable{
         let l4_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let mut l3_ptr = *l4_tbl.table.get(l4i);
         if(l3_ptr == 0){
-            assert(self.va_exists(va) == false);
+            assert(self.is_va_entry_exist(va) == false);
             //alloc new page for l3 page
             let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
             assume(page_ptr != 0);
@@ -509,16 +420,16 @@ impl PageTable{
             l3_ptr = l3_ptr_tmp;
             proof{ret@ = ret@.insert(l3_ptr_tmp);}
             assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
-            assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
-            assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-            assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
+            assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@);
+            assert(ret@.subset_of(old(page_alloc).get_free_pages_as_set()));
+            assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
         }
         assert(self.wf());
         assert(self.resolve_mapping_l4(l4i) == l3_ptr);
         assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
-        assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
-        assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-        assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
+        assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@);
+        assert(ret@.subset_of(old(page_alloc).get_free_pages_as_set()));
+        assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
 
         assert(self.l4_table@[self.cr3]@.value.get_Some_0().table@.contains(l3_ptr));
         let tracked l3_perm = self.l3_tables.borrow().tracked_borrow(l3_ptr);
@@ -526,7 +437,7 @@ impl PageTable{
         let l3_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let mut l2_ptr = *l3_tbl.table.get(l3i);
         if(l2_ptr == 0){
-            assert(self.va_exists(va) == false);
+            assert(self.is_va_entry_exist(va) == false);
             //alloc new page for l2 page
             let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
             assume(page_ptr != 0);
@@ -577,23 +488,23 @@ impl PageTable{
             l2_ptr = l2_ptr_tmp;
             proof{ret@ = ret@.insert(l2_ptr_tmp);}
             assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
-            assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
-            assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-            assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
+            assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@);
+            assert(ret@.subset_of(old(page_alloc).get_free_pages_as_set()));
+            assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
         }
         assert(self.wf());
         assert(self.resolve_mapping_l3(l4i,l3i) == l2_ptr);
         assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
-        assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
-        assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-        assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
+        assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@);
+        assert(ret@.subset_of(old(page_alloc).get_free_pages_as_set()));
+        assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
 
         let tracked l2_perm = self.l2_tables.borrow().tracked_borrow(l2_ptr);
         assert(l2_ptr == l2_perm@.pptr);
         let l2_tbl : &LookUpTable = PPtr::<LookUpTable>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let mut l1_ptr = *l2_tbl.table.get(l2i);
         if(l1_ptr == 0){
-            assert(self.va_exists(va) == false);
+            assert(self.is_va_entry_exist(va) == false);
             //alloc new page for l2 page
             let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
             assume(page_ptr != 0);
@@ -644,25 +555,25 @@ impl PageTable{
             l1_ptr = l1_ptr_tmp;
             proof{ret@ = ret@.insert(l1_ptr_tmp);}
             assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
-            assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
-            assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-            assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
+            assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@);
+            assert(ret@.subset_of(old(page_alloc).get_free_pages_as_set()));
+            assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
         }
         assert(self.wf());
         assert(self.resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr);
         assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
-        assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
-        assert(ret@.subset_of(old(page_alloc).free_pages_as_set()));
-        assert(self.get_pagetable_page_closure().disjoint(page_alloc.free_pages_as_set()));
+        assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@);
+        assert(ret@.subset_of(old(page_alloc).get_free_pages_as_set()));
+        assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
 
         assert(self.mapping@ =~= old(self).mapping@);
         assert(self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@);
-        assert(self.va_exists(va));
+        assert(self.is_va_entry_exist(va));
 
         assert(page_alloc.wf());
-        assert(page_alloc.mapped_pages() =~= old(page_alloc).mapped_pages());
-        assert(page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@);
-        assert(page_alloc.page_table_pages() =~= old(page_alloc).page_table_pages() + ret@);
+        assert(page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages());
+        assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@);
+        assert(page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@);
         return ret;
     }
 

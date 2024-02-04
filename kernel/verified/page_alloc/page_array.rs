@@ -46,7 +46,7 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_page_is_io_page(&mut self, index: usize, is_io_page: bool) 
+    pub fn set_get_page_is_io_page(&mut self, index: usize, is_io_page: bool) 
         requires 
             0 <= index < N,
             old(self).wf(),

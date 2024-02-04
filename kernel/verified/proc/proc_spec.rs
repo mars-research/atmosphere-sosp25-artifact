@@ -122,6 +122,7 @@ impl ProcessManager {
             self.endpoint_ptrs@ =~= Set::empty(),
             self.endpoint_perms@ =~= Map::empty(),
             self.pcid_closure@ =~= Set::empty(),
+            self.ioid_closure@ =~= Set::empty(),
             forall|thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==> self.get_thread(thread_ptr).state != TRANSIT,
         {
             self.proc_ptrs.init();
@@ -566,13 +567,8 @@ impl ProcessManager {
 
     }
 
-    pub open spec fn local_page_closure(&self) -> Set<PagePtr>
-    {
-        Set::empty()
-    }
-
     #[verifier(inline)]
-    pub open spec fn page_closure(&self) -> Set<PagePtr>
+    pub open spec fn get_proc_man_page_closure(&self) -> Set<PagePtr>
     {
         // self.local_page_closure()
         // +
@@ -592,13 +588,13 @@ impl ProcessManager {
     }
 
     #[verifier(inline)]
-    pub open spec fn pcid_closure(&self) -> Set<Pcid>
+    pub open spec fn get_pcid_closure(&self) -> Set<Pcid>
     {
         self.pcid_closure@
     }
 
     #[verifier(inline)]
-    pub open spec fn ioid_closure(&self) -> Set<IOid>
+    pub open spec fn get_ioid_closure(&self) -> Set<IOid>
     {
         self.ioid_closure@
     }
@@ -627,7 +623,7 @@ impl ProcessManager {
 
     pub open spec fn wf_pcid_closure(&self) -> bool{
         (
-            self.pcid_closure().finite()
+            self.get_pcid_closure().finite()
         )
         &&
         (
@@ -637,11 +633,11 @@ impl ProcessManager {
         &&
         (
             forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr)
-                ==>  self.pcid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().get_pcid())
+                ==>  self.get_pcid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().get_pcid())
         )
         &&
         (
-            self.proc_ptrs@.len() == self.pcid_closure().len()
+            self.proc_ptrs@.len() == self.get_pcid_closure().len()
         )
     }
 
@@ -658,7 +654,7 @@ impl ProcessManager {
         &&
         (
             forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) && self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.is_Some()
-                ==>  self.ioid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.unwrap())
+                ==>  self.get_ioid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.unwrap())
         )
     }
 

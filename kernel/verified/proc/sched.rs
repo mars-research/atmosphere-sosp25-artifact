@@ -84,7 +84,7 @@ impl ProcessManager {
             self.get_thread(ret).endpoint_descriptors == old(self).get_thread(ret).endpoint_descriptors,
             self.get_thread(ret).parent_rf == old(self).get_thread(ret).parent_rf,
             ret == old(self).scheduler@[0],
-            self.page_closure() =~= old(self).page_closure(),
+            self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
     {
         let ret = self.scheduler.pop();
         let thread_pptr = PPtr::<Thread>::from_usize(ret);

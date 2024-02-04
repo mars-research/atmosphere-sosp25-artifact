@@ -25,25 +25,6 @@ pub struct PageTable{
     
 
 impl PageTable{
-
-    // pub open spec fn wf(&self) -> bool{
-    //     arbitrary()
-    // }
-
-    pub open spec fn tmp_wf(&self)->bool{
-        &&&
-        (forall|va:VAddr| #![auto] self.tmp_get_mem_mappings().dom().contains(va) ==> page_ptr_valid(self.tmp_get_mem_mappings()[va] as usize))
-
-    }
-
-    pub closed spec fn tmp_page_table_page_closure(&self) -> Set<PagePtr> {
-        Set::empty()
-    }
-
-    pub closed spec fn tmp_get_mem_mappings(&self) -> Map<VAddr,PAddr> {
-        Map::empty()
-    }
-
     #[verifier(inline)]
     pub open spec fn get_pagetable_page_closure(&self) -> Set<PagePtr>{
         (self.l3_tables@.dom() + self.l2_tables@.dom() + self.l1_tables@.dom()).insert(self.cr3)
@@ -55,12 +36,12 @@ impl PageTable{
     }
     
     #[verifier(inline)]
-    pub open spec fn all_mapped_pages(&self) -> Set<PagePtr>{
-        Set::<PagePtr>::new(|pa: PagePtr| self.pa_mapped(pa))
+    pub open spec fn get_pagetable_get_mapped_pages(&self) -> Set<PagePtr>{
+        Set::<PagePtr>::new(|pa: PagePtr| self.is_pa_mapped(pa))
     }
     
     #[verifier(inline)]
-    pub open spec fn pa_mapped(&self, pa:PAddr) -> bool
+    pub open spec fn is_pa_mapped(&self, pa:PAddr) -> bool
     {
         (pa != 0)
         &&
@@ -427,7 +408,7 @@ impl PageTable{
                 ]@.value.get_Some_0().table@[l2i as int] != 0
     }
 
-    pub open spec fn va_exists(&self, va:VAddr) -> bool
+    pub open spec fn is_va_entry_exist(&self, va:VAddr) -> bool
         recommends spec_va_valid(va),    
     {
         let (l4i,l3i,l2i,_) = spec_va2index(va);

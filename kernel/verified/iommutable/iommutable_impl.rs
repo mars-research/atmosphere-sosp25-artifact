@@ -27,16 +27,16 @@ impl IOMMUTable{
     }
 
     #[verifier(external_body)]
-    #[verifier(when_used_as_spec(spec_va_entry_exists))]
-    pub fn va_entry_exists(&self, va:usize) -> (ret: bool)
+    #[verifier(when_used_as_spec(spec_is_va_entry_exist))]
+    pub fn is_va_entry_exist(&self, va:usize) -> (ret: bool)
         ensures
-            ret == self.va_entry_exists(va),
+            ret == self.is_va_entry_exist(va),
     {
         arbitrary()
     }
 
 
-    pub closed spec fn spec_va_entry_exists(&self, va:usize) -> bool
+    pub closed spec fn spec_is_va_entry_exist(&self, va:usize) -> bool
     {
         arbitrary()
     }
@@ -52,9 +52,9 @@ impl IOMMUTable{
             self.get_iommutable_mappings() =~= old(self).get_iommutable_mappings(),
             page_alloc.wf(),
             self.get_iommutable_page_closure() =~= old(self).get_iommutable_page_closure() + ret@,
-            ret@.subset_of(old(page_alloc).free_pages_as_set()),
-            page_alloc.free_pages_as_set() =~= old(page_alloc).free_pages_as_set() - ret@,
-            self.va_entry_exists(va) == true,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            self.is_va_entry_exist(va) == true,
     {
         arbitrary()
     }

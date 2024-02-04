@@ -40,7 +40,7 @@ pub struct Thread{
 }
 
 impl Thread {
-    pub open spec fn page_closure(&self) -> Set<PagePtr>
+    pub open spec fn get_proc_man_page_closure(&self) -> Set<PagePtr>
     {
         Set::empty()
     }
@@ -209,7 +209,7 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
             old(self).get_proc_ptrs().contains(parent_ptr),
             page_perm@@.pptr == page_ptr,
             page_perm@@.value.is_Some(),
-            old(self).page_closure().contains(page_ptr) == false,
+            old(self).get_proc_man_page_closure().contains(page_ptr) == false,
             old(self).scheduler.len() < MAX_NUM_THREADS,
             old(self).proc_perms@[parent_ptr]@.value.get_Some_0().owned_threads.len()<MAX_NUM_THREADS_PER_PROC,
         ensures
@@ -218,7 +218,7 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
             self.scheduler@ =~= old(self).scheduler@.push(ret),
             self.get_thread(ret).state == SCHEDULED,
             self.get_thread_ptrs() =~= old(self).get_thread_ptrs().insert(ret),
-            self.page_closure() =~= old(self).page_closure().insert(ret),
+            self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(ret),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
     {
         assert(self.thread_ptrs@.contains(page_ptr) == false);
@@ -330,7 +330,7 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
         forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().callee.is_None(),  
         forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().caller.is_None(),     
     ensures
-        ret@ + self.page_closure() =~= old(self).page_closure(),
+        ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
         self.wf(),
     {
         let mut ret = Ghost(Set::<PagePtr>::empty());
@@ -355,12 +355,12 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
                 forall|i:int| #![auto] 0<=i< self.get_proc(proc_ptr).owned_threads.len() ==> self.thread_perms@[self.get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().state == TRANSIT,
                 forall|i:int| #![auto] 0<=i< self.get_proc(proc_ptr).owned_threads.len() ==> self.thread_perms@[self.get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().callee.is_None(),
                 forall|i:int| #![auto] 0<=i< self.get_proc(proc_ptr).owned_threads.len() ==> self.thread_perms@[self.get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().caller.is_None(),
-                self.page_closure().finite(),
-                old(self).page_closure().finite(),
+                self.get_proc_man_page_closure().finite(),
+                old(self).get_proc_man_page_closure().finite(),
                 ret@.finite(),
-                ret@.disjoint(self.page_closure()),
-                ret@ + self.page_closure() =~= old(self).page_closure(),
-                self.page_closure().subset_of(old(self).page_closure()),
+                ret@.disjoint(self.get_proc_man_page_closure()),
+                ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
+                self.get_proc_man_page_closure().subset_of(old(self).get_proc_man_page_closure()),
             ensures
                 self.wf(),
                 old(self).get_proc_ptrs().contains(proc_ptr),
@@ -371,12 +371,12 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
                 self.get_proc(proc_ptr).owned_threads.wf(),
                 old(self).get_proc(proc_ptr).owned_threads.wf(),
                 self.get_proc(proc_ptr).owned_threads@ =~= Seq::empty(),
-                self.page_closure().finite(),
-                old(self).page_closure().finite(),
+                self.get_proc_man_page_closure().finite(),
+                old(self).get_proc_man_page_closure().finite(),
                 ret@.finite(),
-                ret@.disjoint(self.page_closure()),
-                ret@ + self.page_closure() =~= old(self).page_closure(),
-                self.page_closure().subset_of(old(self).page_closure()),
+                ret@.disjoint(self.get_proc_man_page_closure()),
+                ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
+                self.get_proc_man_page_closure().subset_of(old(self).get_proc_man_page_closure()),
 
         {
             let thread_ptr = self.get_proc_owned_thread_head(proc_ptr);
