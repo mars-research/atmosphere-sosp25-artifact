@@ -60,20 +60,23 @@ impl PageTable{
         self.l4_table@[self.cr3]@.value.get_Some_0().table.wf()
         //L4 table only maps to L3
         &&
-        (forall|i: L4Index, j: L4Index| #![auto] i != j && 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 && 0 <= j < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[j as int] != 0 ==> 
+        (forall|i: L4Index, j: L4Index| #![auto] i != j && KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 && KERNEL_MEM_END_L4INDEX <= j < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[j as int] != 0 ==> 
             self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != self.l4_table@[self.cr3]@.value.get_Some_0().table@[j as int])
         &&
-        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> self.l2_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int]) == false)
+        (forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> self.l2_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int]) == false)
         &&
-        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> self.l1_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int]) == false)
+        (forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> self.l1_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int]) == false)
         &&
-        (forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0  ==> self.cr3 != self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int])
+        (forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0  ==> self.cr3 != self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int])
+        //hack @Xiangdong We are just to trying to make sure that the kernel PML4Entry is never changed
+        &&
+        (forall|i: L4Index| #![auto] 0 <= i < KERNEL_MEM_END_L4INDEX ==> self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] == KERNEL_PML4_SIG)
     }
 
     pub open spec fn wf_l3(&self) -> bool{
         //all l4 mappings exist in l3
         (
-            forall|i: L4Index| #![auto] 0 <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> 
+            forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] != 0 ==> 
                 self.l3_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int])
         )
         &&
@@ -264,14 +267,14 @@ impl PageTable{
     #[verifier(inline)]
     pub open spec fn resolve_mapping_l4(&self, l4i: L4Index) -> PAddr
         recommends
-            0<= l4i < 512, 
+            KERNEL_MEM_END_L4INDEX <= l4i < 512, 
     {
         self.l4_table@[self.cr3]@.value.get_Some_0().table@[l4i as int]
     }
 
     pub open spec fn resolve_mapping_l3(&self, l4i: L4Index, l3i: L3Index) -> PAddr
     recommends
-        0<= l4i < 512,
+        KERNEL_MEM_END_L4INDEX<= l4i < 512,
         0<= l3i < 512,
     {
         if self.resolve_mapping_l4(l4i) == 0 {
@@ -283,7 +286,7 @@ impl PageTable{
 
     pub open spec fn resolve_mapping_l2(&self, l4i: L4Index, l3i: L3Index, l2i: L2Index) -> PAddr
     recommends
-        0<= l4i < 512,
+        KERNEL_MEM_END_L4INDEX<= l4i < 512,
         0<= l3i < 512,
         0<= l2i < 512,
     {
@@ -296,7 +299,7 @@ impl PageTable{
 
     pub open spec fn resolve_mapping_l1(&self, l4i: L4Index, l3i: L3Index, l2i: L2Index, l1i: L1Index) -> PAddr
     recommends
-        0<= l4i < 512,
+        KERNEL_MEM_END_L4INDEX<= l4i < 512,
         0<= l3i < 512,
         0<= l2i < 512,
         0<= l1i < 512,
@@ -325,21 +328,21 @@ impl PageTable{
 
     
     pub open spec fn wf_l4_mapping(&self) -> bool{
-        forall|l4i: L4Index, l4j: L4Index| #![auto] (0<= l4i < 512) && (0<= l4j < 512) && !(l4i == l4j) ==> 
+        forall|l4i: L4Index, l4j: L4Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512) && (KERNEL_MEM_END_L4INDEX<= l4j < 512) && !(l4i == l4j) ==> 
         (self.resolve_mapping_l4(l4i) == 0 || self.resolve_mapping_l4(l4j) == 0 || self.resolve_mapping_l4(l4i) != self.resolve_mapping_l4(l4j))
     }
 
     pub open spec fn wf_l3_mapping(&self) -> bool{
-        forall|l4i: L4Index, l3i: L3Index, l4j: L4Index,l3j: L3Index| #![auto] (0<= l4i < 512 && 0<= l3i < 512) 
-            && (0<= l4j < 512 && 0<= l3j < 512) 
+        forall|l4i: L4Index, l3i: L3Index, l4j: L4Index,l3j: L3Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512) 
+            && (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512) 
             && !(l4i == l4j && l3i == l3j) ==> 
                 (self.resolve_mapping_l3(l4i,l3i) == 0 || self.resolve_mapping_l3(l4j,l3j) == 0 || self.resolve_mapping_l3(l4i,l3i) != self.resolve_mapping_l3(l4j,l3j))
     }
 
 
     pub open spec fn wf_l2_mapping(&self) -> bool{
-        forall|l4i: L4Index,l3i: L3Index,l2i: L2Index,l4j: L4Index,l3j: L3Index,l2j: L2Index| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512) 
-        && (0<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512) 
+        forall|l4i: L4Index,l3i: L3Index,l2i: L2Index,l4j: L4Index,l3j: L3Index,l2j: L2Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512) 
+        && (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512) 
         && !(l4i == l4j && l3i == l3j && l2i == l2j ) ==> 
         self.resolve_mapping_l2(l4i,l3i,l2i) == 0 || self.resolve_mapping_l2(l4j,l3j,l2j) == 0 || self.resolve_mapping_l2(l4i,l3i,l2i) != self.resolve_mapping_l2(l4j,l3j,l2j)
             
@@ -353,7 +356,7 @@ impl PageTable{
         // &&
         // (forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@[va] == self.resolve_mapping_l1(spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va)))
         &&
-        (forall|l4i: L4Index,l3i: L3Index,l2i: L2Index, l1i: L1Index| #![auto] (0<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512) 
+        (forall|l4i: L4Index,l3i: L3Index,l2i: L2Index, l1i: L1Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512) 
         ==> self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))] == self.resolve_mapping_l1(l4i,l3i,l2i,l1i))
         
     }

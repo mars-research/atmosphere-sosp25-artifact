@@ -82,4 +82,6 @@ pub type L1Index = usize;
 pub const VA_MASK:u64 = 0x0000_ffff_ffff_f000;
 
 pub const NUM_CPUS:usize = 32;
+
+pub const KERNEL_PML4_SIG :usize = 0; // hack @Xiangdong
 }

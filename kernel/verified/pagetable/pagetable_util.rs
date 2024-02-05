@@ -146,7 +146,7 @@ pub fn va2index(va: usize) -> (ret : (L4Index,L3Index,L2Index,L1Index))
 pub proof fn lemma_1()
     ensures
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize|  #![auto] (
-            l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff 
+            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff 
             ) ==>
                 spec_va_valid(spec_index2va((l4i,l3i,l2i,l1i)))
                 &&
@@ -159,7 +159,7 @@ pub proof fn lemma_1()
                 spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).3 == l1i
         ),
         (forall|va_1:usize| #![auto] spec_va_valid(va_1) ==> (
-            spec_va2index(va_1).0 <= 0x1ff
+            KERNEL_MEM_END_L4INDEX <= spec_va2index(va_1).0 <= 0x1ff
             &&
             spec_va2index(va_1).1 <= 0x1ff
             &&
@@ -188,13 +188,13 @@ pub proof fn lemma_1()
             spec_va2index(va_1).3 != spec_va2index(va_2).3
         )),
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
-            l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
+            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
             l4i == l4j && l3i == l3j && l2i == l2j && l1i == l1j  
         ) ==>
             spec_index2va((l4i,l3i,l2i,l1i)) == spec_index2va((l4j,l3j,l2j,l1j))
         ),
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
-            l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
+            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
             l4i != l4j || l3i != l3j || l2i != l2j || l1i != l1j  
         ) ==>
             spec_index2va((l4i,l3i,l2i,l1i)) != spec_index2va((l4j,l3j,l2j,l1j))
