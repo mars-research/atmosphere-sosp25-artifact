@@ -13,6 +13,12 @@ use crate::kernel::*;
 
 verus! {
 
+// pub proof fn va_derive(va:VAddr)
+//     requires spec_va_valid(va)
+// {
+//     assert(va != 0);
+// }
+
 impl Kernel{
     pub fn kernel_map_pagetable_page(&mut self, pcid:Pcid, va: usize, dst:usize)
         requires
@@ -29,12 +35,6 @@ impl Kernel{
             old(self).page_alloc.page_array@[page_ptr2page_index(dst) as int].rf_count < usize::MAX,
             old(self).mmu_man.get_pagetable_by_pcid(pcid).is_va_entry_exist(va)
     {
-        assert(
-            forall|ioid:IOid, va:usize| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] != 0 ==>
-            (
-                page_ptr_valid(self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va])
-            )
-        );
         let result = self.mmu_man.map_pagetable_page(pcid,va,dst);
         assert(result == true);
         assert(old(self).page_alloc.get_available_pages().contains(dst));
@@ -44,6 +44,7 @@ impl Kernel{
         proof{page_ptr_lemma();}
         assert(self.kernel_mmu_page_alloc_iommutable_wf());
         assert(self.kernel_mmu_page_alloc_pagetable_wf());
+        assert(self.kernel_tlb_wf());
         assert(self.wf());
     }  
 }

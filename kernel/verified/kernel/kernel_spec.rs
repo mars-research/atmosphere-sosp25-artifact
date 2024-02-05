@@ -4,7 +4,7 @@ use crate::array_vec::*;
 use crate::proc::*;
 use crate::page_alloc::*;
 use crate::mmu::*;
-use crate::cpu::{Cpu,CPUID};
+use crate::cpu::*;
 use crate::mars_array::MarsArray;
 use crate::pagetable::*;
 use crate::define::*;
@@ -52,12 +52,67 @@ impl Kernel{
         (forall|thread_ptr:ThreadPtr|#![auto] self.proc_man.get_thread_ptrs().contains(thread_ptr) ==> 
             self.proc_man.get_thread(thread_ptr).state != TRANSIT)
     }
+
     pub open spec fn kernel_mem_layout_wf(&self) -> bool {
         // all pages used to construct pagetable/iommutables are marked correctly in page allocator 
         &&&
         (self.page_alloc.get_page_table_pages() =~= self.mmu_man.get_mmu_page_closure())
         &&&
         (self.page_alloc.get_allocated_pages() =~= self.proc_man.get_proc_man_page_closure())
+    }
+
+    pub open spec fn kernel_cpu_list_wf(&self) -> bool {
+        &&&
+        (
+            forall|cpu_id:CPUID| #![auto] 0 <= cpu_id < NUM_CPUS 
+                ==> (
+                    self.cpu_list[cpu_id as int].wf()
+                    )
+        )
+        &&&
+        (
+            forall|cpu_id:CPUID| #![auto] 0 <= cpu_id < NUM_CPUS
+                ==> (
+                    self.cpu_list[cpu_id as int].get_is_idle() <==> self.cpu_list[cpu_id as int].get_current_thread().is_None()
+                    )
+        )
+        &&&
+        (
+            forall|cpu_id:CPUID| #![auto] 0 <= cpu_id < NUM_CPUS && self.cpu_list[cpu_id as int].get_is_idle() == false
+                ==> (
+                    self.proc_man.get_thread_ptrs().contains(self.cpu_list[cpu_id as int].get_current_thread().unwrap())
+                    &&
+                    self.proc_man.get_thread(self.cpu_list[cpu_id as int].get_current_thread().unwrap()).state == RUNNING
+                    )
+        )
+    }
+    pub open spec fn kernel_tlb_wf(&self) -> bool {
+        &&&
+        (
+            forall|cpu_id:CPUID, pcid:Pcid| #![auto] 0 <= cpu_id < NUM_CPUS && 0<=pcid<PCID_MAX && self.mmu_man.get_free_pcids_as_set().contains(pcid) 
+                ==> (
+                    self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid) =~= Map::empty()
+                )
+        )
+        &&&
+        (
+            forall|cpu_id:CPUID, pcid:Pcid, va:VAddr| #![auto] 0 <= cpu_id < NUM_CPUS && 0<=pcid<PCID_MAX && self.mmu_man.get_free_pcids_as_set().contains(pcid) == false
+                && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] == 0
+                ==> (
+                    self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid).dom().contains(va) == false
+
+                )
+        )        
+        &&&
+        (
+            forall|cpu_id:CPUID, pcid:Pcid, va:VAddr| #![auto] 0 <= cpu_id < NUM_CPUS && 0<=pcid<PCID_MAX && self.mmu_man.get_free_pcids_as_set().contains(pcid) == false
+                && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] != 0
+                ==> (
+                    (self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid).dom().contains(va) == false)
+                    ||
+                    (self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid)[va] =~= self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va])
+                )
+        )
     }
 
     pub proof fn pagetable_mem_wf_derive(&self)
@@ -94,6 +149,14 @@ impl Kernel{
         )
         &&&
         (
+            self.cpu_list.wf()
+        )
+        &&&
+        (
+            self.kernel_cpu_list_wf()
+        )
+        &&&
+        (
             self.kernel_mem_layout_wf()
         )
         &&&
@@ -108,6 +171,8 @@ impl Kernel{
         (self.kernel_proc_mmu_wf())
         &&&
         (self.kernel_proc_no_thread_in_transit())
+        &&&
+        (self.kernel_tlb_wf())
     }
 
 }

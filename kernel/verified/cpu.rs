@@ -61,7 +61,7 @@ impl Cpu {
         self.current_t
     }
 
-    pub open spec fn is_idle(&self) -> bool{
+    pub open spec fn get_is_idle(&self) -> bool{
         self.current_t.is_Some() == false
     }
     
@@ -85,7 +85,7 @@ impl MarsArray<Cpu,NUM_CPUS>{
             old(self).wf(),
         ensures
             self.wf(),
-            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].is_idle(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].get_is_idle(),
     {
         let mut i = 0;
         while i != NUM_CPUS
