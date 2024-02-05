@@ -135,5 +135,33 @@ impl MarsArray<PageTable,PCID_MAX>{
         return self.ar[pcid].map(va, dst);
     }
 
+    #[verifier(external_body)]
+    pub fn unmap_pagetable_page_by_pcid(&mut self, pcid:Pcid, va: VAddr) -> (ret: PAddr)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self)@[pcid as int].wf(),
+            spec_va_valid(va),
+            // old(self)@[pcid as int].mapping@[va] != 0,
+        ensures
+            self.wf(),
+            self@[pcid as int].wf(),
+            old(self)@[pcid as int].is_va_entry_exist(va) ==> 
+                self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@.insert(va,0),
+            !old(self)@[pcid as int].is_va_entry_exist(va) ==> 
+                self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@,
+            old(self)@[pcid as int].mapping@[va] != 0 ==> 
+                self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@.insert(va,0),
+            !old(self)@[pcid as int].mapping@[va] == 0 ==> 
+                self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@,
+            ret == old(self)@[pcid as int].mapping@[va],
+            self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int].get_pagetable_mapping() =~= old(self)@[i as int].get_pagetable_mapping(),
+
+    {
+        return self.ar[pcid].unmap(va);
+    }
+
 }
 }

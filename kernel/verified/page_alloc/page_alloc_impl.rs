@@ -173,6 +173,19 @@ impl PageAllocator {
             old(self).page_alloc_wf(),
             old(self).get_mapped_pages().contains(page_ptr),
             old(self).get_page_mappings(page_ptr).contains(target) == true,
+        ensures
+            self.wf(),
+            // self.free_pages =~= old(self).free_pages,
+            self.page_table_pages =~= old(self).page_table_pages,
+            self.allocated_pages =~= old(self).allocated_pages,
+            // self.mapped_pages =~= old(self).mapped_pages,
+            // self.available_pages =~= old(self).available_pages,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(page_ptr) ==> self.page_array@[i] =~= old(self).page_array@[i],
+            self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@ =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].mappings@.remove(target),
+            self.page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom() =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].mappings@.dom().remove(target),
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].io_mappings@ =~= old(self).page_array@[i].io_mappings@,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].io_mappings@.dom() =~= old(self).page_array@[i].io_mappings@.dom(),
+
     {
         assert(self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count > 0);
         let old_rf_count = self.page_array.get(page_ptr2page_index(page_ptr)).rf_count;

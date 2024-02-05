@@ -91,7 +91,7 @@ impl PageTable{
 
         proof{
             self.wf_to_wf_mapping();
-            lemma_1();    
+            pagetable_virtual_mem_lemma();    
         }
 
         assert(self.no_self_mapping());
@@ -138,17 +138,21 @@ impl PageTable{
         requires 
             old(self).wf(),
             spec_va_valid(va),
-            old(self).mapping@[va] != 0,
+            // old(self).mapping@[va] != 0,
         ensures
             self.wf(),
             old(self).is_va_entry_exist(va) ==> 
                 self.mapping@ =~= old(self).mapping@.insert(va,0),
             !old(self).is_va_entry_exist(va) ==> 
                 self.mapping@ =~= old(self).mapping@,
+            old(self).mapping@[va] != 0 ==> 
+                self.mapping@ =~= old(self).mapping@.insert(va,0),
+            old(self).mapping@[va] == 0 ==> 
+                self.mapping@ =~= old(self).mapping@,
             ret == old(self).mapping@[va],
     {
         proof{
-            lemma_1();    
+            pagetable_virtual_mem_lemma();    
         }
         let (l4i,l3i,l2i,l1i) = va2index(va);
         assert(self.cr3 == self.l4_table@[self.cr3]@.pptr);
@@ -266,6 +270,7 @@ impl PageTable{
         assert(self.wf_mapping());
 
         assert(self.wf());
+        // assert(false);
 
         return dst;
     }
@@ -278,7 +283,7 @@ impl PageTable{
             self.is_va_entry_exist(va) ==> self.mapping@[va] == ret.unwrap(),
     {
         proof{
-            lemma_1();    
+            pagetable_virtual_mem_lemma();    
         }
         let (l4i,l3i,l2i,l1i) = va2index(va);
         assert(self.cr3 == self.l4_table@[self.cr3]@.pptr);
@@ -360,7 +365,7 @@ impl PageTable{
     {
         let mut ret:Ghost<Set<PagePtr>> = Ghost(Set::empty());
         proof{
-            lemma_1();  
+            pagetable_virtual_mem_lemma();  
             lemma_set_properties::<Set<PagePtr>>();  
         }
         let (l4i,l3i,l2i,l1i) = va2index(va);
@@ -610,7 +615,7 @@ impl PageTable{
 
     {
         proof{
-            lemma_1();
+            pagetable_virtual_mem_lemma();
         }
         assert(self.l1_tables@.dom().contains(l1_ptr));
         let tracked mut l1_perm = self.l1_tables.borrow_mut().tracked_remove(l1_ptr);

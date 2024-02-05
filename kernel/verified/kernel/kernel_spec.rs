@@ -71,13 +71,6 @@ impl Kernel{
         )
         &&&
         (
-            forall|cpu_id:CPUID| #![auto] 0 <= cpu_id < NUM_CPUS
-                ==> (
-                    self.cpu_list[cpu_id as int].get_is_idle() <==> self.cpu_list[cpu_id as int].get_current_thread().is_None()
-                    )
-        )
-        &&&
-        (
             forall|cpu_id:CPUID| #![auto] 0 <= cpu_id < NUM_CPUS && self.cpu_list[cpu_id as int].get_is_idle() == false
                 ==> (
                     self.proc_man.get_thread_ptrs().contains(self.cpu_list[cpu_id as int].get_current_thread().unwrap())

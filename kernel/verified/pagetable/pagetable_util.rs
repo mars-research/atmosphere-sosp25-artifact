@@ -143,7 +143,7 @@ pub fn va2index(va: usize) -> (ret : (L4Index,L3Index,L2Index,L1Index))
 
 
 #[verifier(external_body)]
-pub proof fn lemma_1()
+pub proof fn pagetable_virtual_mem_lemma()
     ensures
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize|  #![auto] (
             KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff 

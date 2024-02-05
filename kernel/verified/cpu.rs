@@ -65,6 +65,7 @@ impl Cpu {
         self.current_t.is_Some() == false
     }
     
+    #[verifier(inline)]
     pub open spec fn get_tlb_for_pcid(&self, pcid:Pcid) -> Map<VAddr,PAddr>
         recommends self.wf(),
             0 <= pcid< PCID_MAX,
@@ -116,14 +117,18 @@ impl MarsArray<Cpu,NUM_CPUS>{
             old(self).wf(),
         ensures
             self.wf(),
-            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].iotlb@.dom() =~= old(self)@[i as int].iotlb@.dom(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].iotlb =~= old(self)@[i as int].iotlb,
             forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].current_t =~= old(self)@[i as int].current_t,
-            forall|i:CPUID, _pcid:Pcid, _va:VAddr| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid && self@[i as int].tlb@.dom().contains(_pcid) && self@[i as int].tlb@[_pcid].dom().contains(_va) && _va != va
-                ==> self@[i as int].tlb@[_pcid][_va] =~= old(self)@[i as int].tlb@[_pcid][_va],
-            forall|i:CPUID, _ioid:IOid| #![auto] 0<=i<NUM_CPUS && self@[i as int].iotlb@.dom().contains(_ioid) ==> 
-                self@[i as int].iotlb@[_ioid] =~= old(self)@[i as int].iotlb@[_ioid],
             forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid 
+                ==> self@[i as int].tlb@[_pcid] =~= old(self)@[i as int].tlb@[_pcid],
+            forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid != pcid 
+                ==> self@[i as int].tlb@[_pcid].dom() =~= old(self)@[i as int].tlb@[_pcid].dom(),
+            forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid == pcid 
+                ==> self@[i as int].tlb@[_pcid] =~= old(self)@[i as int].tlb@[_pcid].remove(va),
+            forall|i:CPUID, _pcid:Pcid| #![auto] 0<=i<NUM_CPUS && 0<=_pcid<PCID_MAX && _pcid == pcid 
                 ==> self@[i as int].tlb@[_pcid].dom().contains(va) == false,
+
     {
 
     }

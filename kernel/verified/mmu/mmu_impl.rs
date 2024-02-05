@@ -41,6 +41,32 @@ impl MMUManager{
         assert(self.wf());
         return ret;
     }
+
+    pub fn unmap_pagetable_page(&mut self, pcid:Pcid, va: usize) -> (ret: PAddr)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self).get_free_pcids_as_set().contains(pcid) == false,
+            spec_va_valid(va),
+        ensures
+            self.wf(),
+            self.free_pcids =~= old(self).free_pcids,
+            // self.page_tables =~= old(self).page_tables,
+            self.page_table_pages =~= old(self).page_table_pages,
+            self.iommu_ids =~= old(self).iommu_ids,
+            self.iommu_perms =~= old(self).iommu_perms,
+            self.iommu_table_pages =~= old(self).iommu_table_pages,
+            forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> self.get_pagetable_by_pcid(_pcid) =~= old(self).get_pagetable_by_pcid(_pcid),
+            self.get_pagetable_page_closure_by_pcid(pcid) =~= old(self).get_pagetable_page_closure_by_pcid(pcid),
+            old(self).get_pagetable_mapping_by_pcid(pcid)[va] == ret,
+            ret == 0 ==> self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid),
+            ret != 0 ==> self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid).insert(va,0),
+    {
+        let ret = self.page_tables.unmap_pagetable_page_by_pcid(pcid,va);
+        assert(self.wf());
+        return ret;
+    }
+
 }
 
 }
