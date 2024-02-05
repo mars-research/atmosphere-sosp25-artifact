@@ -37,7 +37,9 @@ impl MMUManager{
             forall|_ioid:IOid| #![auto] self.get_iommu_ids().contains(_ioid) ==> self.get_iommutable_by_ioid(_ioid) =~= old(self).get_iommutable_by_ioid(_ioid),
             forall|_ioid:IOid| #![auto] self.get_iommu_ids().contains(_ioid) ==> self.get_iommutable_mapping_by_ioid(_ioid) =~= old(self).get_iommutable_mapping_by_ioid(_ioid),
     {
-        return self.page_tables.map_pagetable_page_by_pcid(pcid,va,dst);
+        let ret = self.page_tables.map_pagetable_page_by_pcid(pcid,va,dst);     
+        assert(self.wf());
+        return ret;
     }
 }
 

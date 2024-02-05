@@ -234,6 +234,13 @@ impl PageTable{
         (
             forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.value.get_Some_0().table.wf()
         )
+        &&
+        (
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> 
+                (
+                    exists|j:PAddr| #![auto] self.l2_tables@.dom().contains(j) && self.l2_tables@[j]@.value.get_Some_0().table@.contains(i)
+                )
+        )
     }
 
     pub open spec fn no_self_mapping(&self) -> bool
@@ -422,6 +429,17 @@ impl PageTable{
         &&
         self.l2_entry_exists(l4i,l3i,l2i)
     }
+
+    pub proof fn l4_empty_derive(&self)
+        requires 
+            self.wf(),
+            forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0().table@[i as int] == 0
+    {
+        assert(self.l3_tables@.dom() =~= Set::empty());
+        assert(self.l2_tables@.dom() =~= Set::empty());
+        assert(self.l1_tables@.dom() =~= Set::empty());
+    }   
+
 
 }
 

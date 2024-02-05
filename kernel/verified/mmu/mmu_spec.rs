@@ -77,6 +77,7 @@ impl MMUManager{
         self.get_iommutable_by_ioid(ioid).get_iommutable_page_closure()
     }
 
+    #[verifier(inline)]
     pub open spec fn pagetables_wf(&self) -> bool{
         &&&
         self.free_pcids.wf()
@@ -123,6 +124,7 @@ impl MMUManager{
         )
     }
 
+    #[verifier(inline)]
     pub open spec fn iommutables_wf(&self) -> bool{
         &&&
         (self.iommu_ids@ =~= self.iommu_perms@.dom())
@@ -158,11 +160,13 @@ impl MMUManager{
         )
     }
 
+    #[verifier(inline)]
     pub open spec fn pagetable_iommutable_disjoint(&self) -> bool
     {
         self.page_table_pages@.disjoint(self.iommu_table_pages@)
     }
 
+    #[verifier(inline)]
     pub open spec fn wf(&self) -> bool
     {
         &&&

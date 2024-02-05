@@ -130,6 +130,7 @@ impl MarsArray<PageTable,PCID_MAX>{
                 self@[pcid as int].mapping@ =~=old(self)@[pcid as int].mapping@,
             self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure(),
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int].get_pagetable_mapping() =~= old(self)@[i as int].get_pagetable_mapping(),
     {
         return self.ar[pcid].map(va, dst);
     }
