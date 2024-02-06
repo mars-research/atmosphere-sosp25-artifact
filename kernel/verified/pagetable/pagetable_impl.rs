@@ -348,7 +348,7 @@ impl PageTable{
             old(page_alloc).free_pages.len() >= 4,
             spec_va_valid(va),
             old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
-            old(self).get_pagetable_get_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
+            // old(self).get_pagetable_get_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
         ensures
             self.wf(),
             self.get_pagetable_page_closure() =~= old(self).get_pagetable_page_closure() + ret@,
@@ -362,11 +362,13 @@ impl PageTable{
             page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
             page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
             page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
+            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
     {
         let mut ret:Ghost<Set<PagePtr>> = Ghost(Set::empty());
         proof{
             pagetable_virtual_mem_lemma();  
-            lemma_set_properties::<Set<PagePtr>>();  
+            page_ptr_lemma();
+            // lemma_set_properties::<Set<PagePtr>>();  
         }
         let (l4i,l3i,l2i,l1i) = va2index(va);
         assert(l4i >= KERNEL_MEM_END_L4INDEX);

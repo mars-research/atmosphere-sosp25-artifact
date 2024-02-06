@@ -67,6 +67,18 @@ impl MMUManager{
         return ret;
     }
 
+    // pub fn create_pagetable_va_entry(&mut self, pcid:Pcid, va:VAddr, page_alloc:&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+    //     requires
+    //         0<=pcid<PCID_MAX,
+    //         old(self).wf(),
+    //         old(self).get_free_pcids_as_set().contains(pcid) == false,
+    //         spec_va_valid(va),
+    //         old(page_alloc).wf(),
+    //         old(page_alloc).free_pages.len() >= 4,
+    //         spec_va_valid(va),
+    //         old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
+    //         old(self).get_pagetable_get_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
+
 }
 
 }

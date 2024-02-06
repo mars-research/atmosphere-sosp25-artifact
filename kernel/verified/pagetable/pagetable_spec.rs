@@ -35,18 +35,18 @@ impl PageTable{
         self.mapping@
     }
     
-    #[verifier(inline)]
-    pub open spec fn get_pagetable_get_mapped_pages(&self) -> Set<PagePtr>{
-        Set::<PagePtr>::new(|pa: PagePtr| self.is_pa_mapped(pa))
-    }
+    // #[verifier(inline)]
+    // pub open spec fn get_pagetable_get_mapped_pages(&self) -> Set<PagePtr>{
+    //     Set::<PagePtr>::new(|pa: PagePtr| self.is_pa_mapped(pa))
+    // }
     
-    #[verifier(inline)]
-    pub open spec fn is_pa_mapped(&self, pa:PAddr) -> bool
-    {
-        (pa != 0)
-        &&
-        (exists|l1_ptr: PAddr, l1index: L1Index| #![auto] self.l1_tables@.dom().contains(l1_ptr) && 0 <= l1index < 512 && self.l1_tables@[l1_ptr]@.value.get_Some_0().table@[l1index as int] == pa)
-    }
+    // #[verifier(inline)]
+    // pub open spec fn is_pa_mapped(&self, pa:PAddr) -> bool
+    // {
+    //     (pa != 0)
+    //     &&
+    //     (exists|l1_ptr: PAddr, l1index: L1Index| #![auto] self.l1_tables@.dom().contains(l1_ptr) && 0 <= l1index < 512 && self.l1_tables@[l1_ptr]@.value.get_Some_0().table@[l1index as int] == pa)
+    // }
 
     pub open spec fn wf_l4(&self) -> bool{
         self.cr3 != 0
