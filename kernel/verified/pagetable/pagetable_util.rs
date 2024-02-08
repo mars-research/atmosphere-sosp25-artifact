@@ -6,40 +6,84 @@ use vstd::ptr::PPtr;
 use core::mem::MaybeUninit;
 
 use crate::pagetable::*;
+use crate::page_alloc::*;
 
 verus!{
 
+pub open spec fn va_perm_bits_valid(perm:usize) -> bool{
+    (perm ^ VA_PERM_MASK as usize) == 0
+}
+
+// #[verifier(external_body)]
+// pub fn LookUpTable_set(pptr:&PPtr<LookUpTable>, Tracked(perm): Tracked<&mut PointsTo<LookUpTable>>, i: usize, value:usize) 
+//     requires 
+//         pptr.id() == old(perm)@.pptr,
+//         old(perm)@.value.is_Some(),
+//         old(perm)@.value.get_Some_0().table.wf(),
+//         0<=i<512,
+//     ensures
+//         pptr.id() == perm@.pptr,
+//         perm@.value.is_Some(),
+//         perm@.value.get_Some_0().table.wf(),
+//         forall|j:usize| 0<=j<512 && j != i ==> 
+//             perm@.value.get_Some_0().table@[j as int] == old(perm)@.value.get_Some_0().table@[j as int],
+//         perm@.value.get_Some_0().table@[i as int] == value,
+// {
+//     unsafe {
+//         let uptr = pptr.to_usize() as *mut MaybeUninit<LookUpTable>;
+//         (*uptr).assume_init_mut().table.set(i,value);
+//     }
+// }
+
+
+// #[verifier(external_body)]
+// pub fn page_to_lookuptable(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tracked<PointsTo<LookUpTable>>))
+//     requires page.0 == page.1@@.pptr,
+//             page.1@@.value.is_Some(),
+//     ensures ret.0 == ret.1@@.pptr,
+//             ret.0 == page.0,
+//             ret.1@@.value.is_Some(),
+//             ret.1@@.value.get_Some_0().table.wf(),
+//             forall|i:usize| 0<=i<512 ==> ret.1@@.value.get_Some_0().table@[i as int] == 0,
+
+// {
+//     (page.0, Tracked::assume_new())
+// }
+
 #[verifier(external_body)]
-pub fn LookUpTable_set(pptr:&PPtr<LookUpTable>, Tracked(perm): Tracked<&mut PointsTo<LookUpTable>>, i: usize, value:usize) 
+pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>) 
     requires 
         pptr.id() == old(perm)@.pptr,
         old(perm)@.value.is_Some(),
-        old(perm)@.value.get_Some_0().table.wf(),
+        old(perm)@.value.get_Some_0().wf(),
         0<=i<512,
+        value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
+        value.is_Some() ==> va_perm_bits_valid(value.unwrap().perm),
     ensures
         pptr.id() == perm@.pptr,
         perm@.value.is_Some(),
-        perm@.value.get_Some_0().table.wf(),
+        perm@.value.get_Some_0().wf(),
         forall|j:usize| 0<=j<512 && j != i ==> 
-            perm@.value.get_Some_0().table@[j as int] == old(perm)@.value.get_Some_0().table@[j as int],
-        perm@.value.get_Some_0().table@[i as int] == value,
+            perm@.value.get_Some_0()[j] =~= old(perm)@.value.get_Some_0()[j],
+        perm@.value.get_Some_0()[i] =~= value,
+        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().addr =~= value.get_Some_0().addr,
+        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().perm =~= value.get_Some_0().perm,
 {
     unsafe {
-        let uptr = pptr.to_usize() as *mut MaybeUninit<LookUpTable>;
-        (*uptr).assume_init_mut().table.set(i,value);
+        let uptr = pptr.to_usize() as *mut MaybeUninit<PageMap>;
+        (*uptr).assume_init_mut().set(i,value);
     }
 }
 
-
 #[verifier(external_body)]
-pub fn page_to_lookuptable(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tracked<PointsTo<LookUpTable>>))
+pub fn page_to_pagemap(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tracked<PointsTo<PageMap>>))
     requires page.0 == page.1@@.pptr,
             page.1@@.value.is_Some(),
     ensures ret.0 == ret.1@@.pptr,
             ret.0 == page.0,
             ret.1@@.value.is_Some(),
-            ret.1@@.value.get_Some_0().table.wf(),
-            forall|i:usize| 0<=i<512 ==> ret.1@@.value.get_Some_0().table@[i as int] == 0,
+            ret.1@@.value.get_Some_0().wf(),
+            forall|i:usize| 0<=i<512 ==> ret.1@@.value.get_Some_0()[i].is_None(),
 
 {
     (page.0, Tracked::assume_new())
@@ -203,5 +247,37 @@ pub proof fn pagetable_virtual_mem_lemma()
 {
 
 }
+
+#[verifier(external_body)]
+pub proof fn pagemap_permission_bits_lemma()
+    ensures
+        (0usize & (PAGE_ENTRY_PRESENT_MASK as usize) == 0),
+        (forall|i:usize| #![auto] (i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (PAGE_ENTRY_PRESENT_MASK as usize) == 1),
+        (forall|i:usize| #![auto] page_ptr_valid(i) ==> 
+            ((i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_MASK as usize)) == i),
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+            (
+                ((((i | j) | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_MASK as usize)) == i)
+            )
+        ),
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+            (
+                ((((i | j) | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_PERM_MASK as usize)) == j)
+            )
+        ),
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+            (
+                (((i | j)  & (VA_MASK as usize)) == i)
+            )
+        ),
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+            (
+                (((i | j)  & (VA_PERM_MASK as usize)) == j)
+            )
+        ),
+        va_perm_bits_valid(0usize) == true,
+    {
+
+    }
 
 }

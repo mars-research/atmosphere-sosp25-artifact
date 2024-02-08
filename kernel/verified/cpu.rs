@@ -2,6 +2,7 @@ use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
 
 use crate::mars_array::MarsArray;
+use crate::pagetable::PageEntry;
 use crate::define::*;
 
 use core::mem::MaybeUninit;
@@ -49,7 +50,7 @@ impl CPUStackList{
 
 pub struct Cpu{
     pub current_t: Option<ThreadPtr>,
-    pub tlb: Ghost<Map<Pcid,Map<VAddr,PAddr>>>,
+    pub tlb: Ghost<Map<Pcid,Map<VAddr,PageEntry>>>,
     pub iotlb: Ghost<Map<IOid,Map<VAddr,PAddr>>>,
 }
 impl Cpu {
@@ -66,7 +67,7 @@ impl Cpu {
     }
     
     #[verifier(inline)]
-    pub open spec fn get_tlb_for_pcid(&self, pcid:Pcid) -> Map<VAddr,PAddr>
+    pub open spec fn get_tlb_for_pcid(&self, pcid:Pcid) -> Map<VAddr,PageEntry>
         recommends self.wf(),
             0 <= pcid< PCID_MAX,
     {

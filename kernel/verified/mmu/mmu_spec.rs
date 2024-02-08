@@ -39,7 +39,7 @@ impl MMUManager{
         self.page_tables[pcid as int]
     }
     #[verifier(inline)]
-    pub open spec fn get_pagetable_mapping_by_pcid(&self, pcid: Pcid) -> Map<usize,usize>
+    pub open spec fn get_pagetable_mapping_by_pcid(&self, pcid: Pcid) -> Map<VAddr,Option<PageEntry>>
         recommends 0<=pcid<PCID_MAX,
     {   
         self.page_tables[pcid as int].get_pagetable_mapping()
@@ -49,6 +49,12 @@ impl MMUManager{
         recommends 0<=pcid<PCID_MAX,
     {   
         self.page_tables[pcid as int].get_pagetable_page_closure()
+    }
+    #[verifier(inline)]
+    pub open spec fn get_pagetable_mapped_pages_by_pcid(&self, pcid: Pcid) -> Set<PagePtr>
+        recommends 0<=pcid<PCID_MAX,
+    {   
+        self.page_tables[pcid as int].get_pagetable_mapped_pages()
     }
 
     #[verifier(inline)]
@@ -101,9 +107,14 @@ impl MMUManager{
         )
         &&&
         (
-            forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && self.page_tables[i].get_pagetable_mapping().dom().contains(va) ==> 
-                page_ptr_valid(self.page_tables[i].get_pagetable_mapping()[va])
-        )        
+            forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) && self.page_tables[i].get_pagetable_mapping()[va].is_Some() ==> 
+                page_ptr_valid(self.page_tables[i].get_pagetable_mapping()[va].get_Some_0().addr)
+        )           
+        &&&
+        (
+            forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) && self.page_tables[i].get_pagetable_mapping()[va].is_Some() ==> 
+                va_perm_bits_valid(self.page_tables[i].get_pagetable_mapping()[va].get_Some_0().perm)
+        )     
         &&&
         (
             forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> 

@@ -9,6 +9,7 @@ use crate::mars_array::MarsArray;
 use crate::pagetable::*;
 use crate::define::*;
 
+use vstd::set_lib::lemma_set_properties;
 verus! {
 pub struct Kernel{
     pub proc_man : ProcessManager,
@@ -22,9 +23,9 @@ impl Kernel{
     pub open spec fn kernel_mmu_page_alloc_pagetable_wf(&self) -> bool{
         &&&
         (
-            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] != 0 ==>
+            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() ==>
             (
-                self.page_alloc.get_page_mappings(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]).contains((pcid,va))
+                self.page_alloc.get_page_mappings(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr).contains((pcid,va))
             )
         )
     }
@@ -90,7 +91,7 @@ impl Kernel{
         &&&
         (
             forall|cpu_id:CPUID, pcid:Pcid, va:VAddr| #![auto] 0 <= cpu_id < NUM_CPUS && 0<=pcid<PCID_MAX && self.mmu_man.get_free_pcids_as_set().contains(pcid) == false
-                && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] == 0
+                && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_None()
                 ==> (
                     self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid).dom().contains(va) == false
 
@@ -99,32 +100,13 @@ impl Kernel{
         &&&
         (
             forall|cpu_id:CPUID, pcid:Pcid, va:VAddr| #![auto] 0 <= cpu_id < NUM_CPUS && 0<=pcid<PCID_MAX && self.mmu_man.get_free_pcids_as_set().contains(pcid) == false
-                && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] != 0
+                && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some()
                 ==> (
                     (self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid).dom().contains(va) == false)
                     ||
-                    (self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid)[va] =~= self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va])
+                    (self.cpu_list[cpu_id as int].get_tlb_for_pcid(pcid)[va] =~= self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0())
                 )
         )
-    }
-
-    pub proof fn pagetable_mem_wf_derive(&self)
-        requires
-            self.wf(),
-            self.kernel_mmu_page_alloc_pagetable_wf(),
-    {
-        assert(
-            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] != 0 ==>
-            (
-                self.page_alloc.get_page_mappings(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]).len() > 0
-            )
-        );
-        assert(
-            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] != 0 ==>
-            (
-                self.page_alloc.get_page(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]).state == MAPPED
-            )
-        );
     }
 
     pub open spec fn wf(&self) -> bool{        
@@ -166,6 +148,53 @@ impl Kernel{
         (self.kernel_proc_no_thread_in_transit())
         &&&
         (self.kernel_tlb_wf())
+    }
+
+    pub proof fn pagetable_mem_wf_derive(&self)
+        requires
+            self.wf(),
+            self.kernel_mmu_page_alloc_pagetable_wf(),
+        ensures
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).subset_of(self.page_alloc.get_mapped_pages()),
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_page_table_pages()),
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_free_pages_as_set()),
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_allocated_pages()),
+    {
+        lemma_set_properties::<Set<PagePtr>>();  
+        assert(
+            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() ==>
+            (
+                self.page_alloc.get_page_mappings(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr).len() > 0
+            )
+        );
+        assert(
+            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() ==>
+            (
+                self.page_alloc.get_page(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr).state == MAPPED
+            )
+        );
+        assert(
+            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() ==>
+            (
+                self.page_alloc.get_mapped_pages().contains(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr)
+            )
+        );
+        assert(
+            forall|pcid:Pcid, pa:PAddr| #![auto] 0<=pcid<PCID_MAX && page_ptr_valid(pa) && self.mmu_man.get_pagetable_by_pcid(pcid).get_pagetable_mapped_pages().contains(pa) ==>
+            (
+                exists|va:usize| #![auto] spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr =~= pa
+            )
+        );
+        assert(
+            forall|pcid:Pcid, pa:PAddr| #![auto] 0<=pcid<PCID_MAX && page_ptr_valid(pa) && self.mmu_man.get_pagetable_by_pcid(pcid).get_pagetable_mapped_pages().contains(pa) ==>
+            (
+                self.page_alloc.get_mapped_pages().contains(pa)
+            )
+        );
+        assert(forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).subset_of(self.page_alloc.get_mapped_pages()));
+        assert(forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_page_table_pages()));
+        assert(forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_free_pages_as_set()));
+        assert(forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_allocated_pages()));
     }
 
 }

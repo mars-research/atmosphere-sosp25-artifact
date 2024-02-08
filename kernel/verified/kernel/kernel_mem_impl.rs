@@ -20,25 +20,26 @@ verus! {
 // }
 
 impl Kernel{
-    pub fn kernel_map_pagetable_page(&mut self, pcid:Pcid, va: usize, dst:usize)
+    pub fn kernel_map_pagetable_page(&mut self, pcid:Pcid, va: usize, dst:PageEntry)
         requires
             old(self).wf(), 
             old(self).kernel_mmu_page_alloc_pagetable_wf(),
             0<=pcid<PCID_MAX,
             old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
             spec_va_valid(va),
-            old(self).mmu_man.get_mmu_page_closure().contains(dst) == false,
-            old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] == 0,
-            page_ptr_valid(dst),
-            old(self).page_alloc.get_mapped_pages().contains(dst),
-            old(self).page_alloc.get_page_mappings(dst).contains((pcid,va)) == false,
-            old(self).page_alloc.page_array@[page_ptr2page_index(dst) as int].rf_count < usize::MAX,
+            old(self).mmu_man.get_mmu_page_closure().contains(dst.addr) == false,
+            old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_None(),
+            page_ptr_valid(dst.addr),
+            va_perm_bits_valid(dst.perm),
+            old(self).page_alloc.get_mapped_pages().contains(dst.addr),
+            old(self).page_alloc.get_page_mappings(dst.addr).contains((pcid,va)) == false,
+            old(self).page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count < usize::MAX,
             old(self).mmu_man.get_pagetable_by_pcid(pcid).is_va_entry_exist(va),
     {
         let result = self.mmu_man.map_pagetable_page(pcid,va,dst);
         assert(result == true);
-        assert(old(self).page_alloc.get_available_pages().contains(dst));
-        self.page_alloc.map_user_page(dst,(pcid,va),RWX);
+        assert(old(self).page_alloc.get_available_pages().contains(dst.addr));
+        self.page_alloc.map_user_page(dst.addr,(pcid,va),RWX);
         // assert(self.page_alloc.get_page_table_pages() =~= self.mmu_man.get_mmu_page_closure());
 
         proof{page_ptr_lemma();}
@@ -48,7 +49,7 @@ impl Kernel{
         assert(self.wf());
     }  
 
-    pub fn kernel_unmap_pagetable_page(&mut self, pcid:Pcid, va: usize) -> (ret:PAddr)
+    pub fn kernel_unmap_pagetable_page(&mut self, pcid:Pcid, va: usize) -> (ret:Option<PageEntry>)
         requires
             old(self).wf(), 
             old(self).kernel_mmu_page_alloc_pagetable_wf(),
@@ -57,14 +58,15 @@ impl Kernel{
             old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
     {
         let ret = self.mmu_man.unmap_pagetable_page(pcid,va);   
-        if ret == 0 {
-            assert(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] == 0);
+        if ret.is_none() {
+            assert(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_None());
             assert(self.wf());
         }
         else{
-            assert(page_ptr_valid(ret));
-            assert(self.page_alloc.get_page_mappings(ret).contains((pcid,va)));
-            self.page_alloc.unmap_user_page(ret,(pcid,va));
+            assert(page_ptr_valid(ret.get_Some_0().addr));
+            assert(va_perm_bits_valid(ret.get_Some_0().perm));
+            assert(self.page_alloc.get_page_mappings(ret.get_Some_0().addr).contains((pcid,va)));
+            self.page_alloc.unmap_user_page(ret.unwrap().addr,(pcid,va));
             self.cpu_list.flush_address(pcid,va);
 
             assert(

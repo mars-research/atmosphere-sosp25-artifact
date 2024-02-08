@@ -19,6 +19,13 @@ impl Kernel {
             old(self).kernel_wf(),
             0 <= cpu_id <NUM_CPUS,
             old(self).proc_man.scheduler.len() < MAX_NUM_THREADS,
+        ensures
+            self.kernel_wf(),
+            self.cpu_list[cpu_id].get_thread() == old(self).proc_man.scheduler@[0],
+            self.proc_man.scheduler@ =~= old(self).proc_man.scheduler@.subrange(1,len(old(self).proc_man.scheduler@)).push(old(self).cpu_list[cpu_id].get_thread()),
+            self.page_alloc =~= old(self).page_alloc,
+            ...
+            /// lot of other specs showing that other kernel components are not changed
     {
         assert(0 <= cpu_id <NUM_CPUS);
         let thread_ptr_option = self.cpu_list.get(cpu_id).current_t;
