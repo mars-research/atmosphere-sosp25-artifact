@@ -322,6 +322,47 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
         assert(self.wf());
     }
 
+    pub fn wake_up_to_caller(&mut self, thread_ptr: ThreadPtr)
+        requires
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(thread_ptr),
+            old(self).get_thread(thread_ptr).caller.is_Some(),
+            old(self).get_thread(thread_ptr).state == TRANSIT,
+    {
+        assert(self.get_thread_ptrs().contains(self.get_thread(thread_ptr).caller.get_Some_0()));
+        assert(self.get_thread(self.get_thread(thread_ptr).caller.get_Some_0()).state == CALLING);
+        assert(self.get_thread(self.get_thread(thread_ptr).caller.get_Some_0()).callee.get_Some_0() == thread_ptr);
+
+        let callee_thread_ptr = thread_ptr;
+
+        let tracked callee_thread_perm = self.thread_perms.borrow().tracked_borrow(callee_thread_ptr);
+        let callee_thread : &Thread = PPtr::<Thread>::from_usize(callee_thread_ptr).borrow(Tracked(callee_thread_perm));
+        let caller_thread_ptr = callee_thread.caller.unwrap();
+
+        let mut callee_thread_perm: Tracked<PointsTo<Thread>>=
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee_thread_ptr));
+
+        thread_set_caller(&PPtr::<Thread>::from_usize(callee_thread_ptr), &mut callee_thread_perm, None);
+        proof{
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(callee_thread_ptr, callee_thread_perm.get());
+        }
+
+        let mut caller_thread_perm: Tracked<PointsTo<Thread>>=
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller_thread_ptr));
+
+        thread_set_callee(&PPtr::<Thread>::from_usize(caller_thread_ptr), &mut caller_thread_perm, None);
+        thread_set_state(&PPtr::<Thread>::from_usize(caller_thread_ptr), &mut caller_thread_perm, TRANSIT);
+        proof{
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(caller_thread_ptr, caller_thread_perm.get());
+        }
+        
+        assert(self.wf_ipc());
+
+        assert(self.wf());
+    }
+
     pub fn remove_process_threads(&mut self, proc_ptr:ProcPtr) -> (ret: Ghost<Set<PagePtr>>)
     requires
         old(self).wf(),
