@@ -21,8 +21,8 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
             ret.1@@.value.get_Some_0().endpoint_descriptors.wf(),
             ret.1@@.value.get_Some_0().endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {0}),
             ret.1@@.value.get_Some_0().ipc_payload.wf(),
-            ret.1@@.value.get_Some_0().ipc_payload.message@ =~= Seq::new(IPC_MESSAGE_LEN as nat, |i:int| {0}),
-            ret.1@@.value.get_Some_0().ipc_payload.page_payload@ =~= (0,0),
+            ret.1@@.value.get_Some_0().ipc_payload.message =~= None,
+            ret.1@@.value.get_Some_0().ipc_payload.page_payload =~= None,
             ret.1@@.value.get_Some_0().ipc_payload.endpoint_payload =~= None,
             ret.1@@.value.get_Some_0().callee =~= None,
             ret.1@@.value.get_Some_0().caller =~= None,
@@ -30,8 +30,8 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
 {
     let uptr = page.0.to_usize() as *mut MaybeUninit<Thread>;
     (*uptr).assume_init_mut().endpoint_descriptors.init2zero();
-    (*uptr).assume_init_mut().ipc_payload.message.init2zero();
-    (*uptr).assume_init_mut().ipc_payload.page_payload = (0,0);
+    (*uptr).assume_init_mut().ipc_payload.message = None;
+    (*uptr).assume_init_mut().ipc_payload.page_payload = None;
     (*uptr).assume_init_mut().callee = None;
     (*uptr).assume_init_mut().caller = None;
     (*uptr).assume_init_mut().is_receiving_call = false;

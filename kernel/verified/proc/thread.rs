@@ -3,6 +3,7 @@ use super::*;
 use vstd::prelude::*;
 
 use crate::mars_staticlinkedlist::*;
+use crate::pagetable::*;
 use crate::mars_array::*;
 use crate::define::*;
 use crate::trap::*;
@@ -47,15 +48,17 @@ impl Thread {
 }
 
 pub struct IPCPayLoad{
-    pub message: MarsArray<u8, IPC_MESSAGE_LEN>,
-    pub page_payload: (VAddr, usize),
+    pub message: Option<(VAddr,usize)>,
+    pub page_payload: Option<(VAddr, usize)>,
     pub endpoint_payload: Option<EndpointIdx>,
 }
 
 impl IPCPayLoad{
     pub open spec fn wf(&self) -> bool{
         &&& 
-        self.message.wf()
+        (
+            self.message.is_Some() ==> (spec_va_valid(self.message.get_Some_0().0) && self.message.get_Some_0().1 <= 4096)
+        )
         &&&
         (
             self.endpoint_payload.is_Some() == true ==> self.endpoint_payload.unwrap() < MAX_NUM_ENDPOINT_DESCRIPTORS
