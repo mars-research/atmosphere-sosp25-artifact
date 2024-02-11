@@ -84,6 +84,13 @@ impl MMUManager{
     }
 
     #[verifier(inline)]
+    pub open spec fn get_iommutable_mapped_pages_by_ioid(&self, ioid: IOid) -> Set<PagePtr>
+        recommends self.get_iommu_ids().contains(ioid),
+    {   
+        self.get_iommutable_by_ioid(ioid).get_iommutable_mapped_pages()
+    }
+
+    #[verifier(inline)]
     pub open spec fn pagetables_wf(&self) -> bool{
         &&&
         self.free_pcids.wf()

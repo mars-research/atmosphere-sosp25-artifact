@@ -197,6 +197,54 @@ impl Kernel{
         assert(forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_allocated_pages()));
     }
 
+    
+    pub proof fn iommutable_mem_wf_derive(&self)
+        requires
+            self.wf(),
+            self.kernel_mmu_page_alloc_iommutable_wf(),
+        ensures
+            forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).subset_of(self.page_alloc.get_mapped_pages()),
+            forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_page_table_pages()),
+            forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_free_pages_as_set()),
+            forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_allocated_pages()),
+    {
+        lemma_set_properties::<Set<PagePtr>>();  
+        assert(
+            forall|ioid:IOid, va:usize| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].is_Some() ==>
+            (
+                self.page_alloc.get_page_io_mappings(self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].get_Some_0().addr).len() > 0
+            )
+        );
+        assert(
+            forall|ioid:IOid, va:usize| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].is_Some() ==>
+            (
+                self.page_alloc.get_page(self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].get_Some_0().addr).state == MAPPED
+            )
+        );
+        assert(
+            forall|ioid:IOid, va:usize| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].is_Some() ==>
+            (
+                self.page_alloc.get_mapped_pages().contains(self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].get_Some_0().addr)
+            )
+        );
+        assert(
+            forall|ioid:IOid, pa:PAddr| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && page_ptr_valid(pa) && self.mmu_man.get_iommutable_by_ioid(ioid).get_iommutable_mapped_pages().contains(pa) ==>
+            (
+                exists|va:usize| #![auto] spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].is_Some() && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].get_Some_0().addr =~= pa
+            )
+        );
+        assert(
+            forall|ioid:IOid, pa:PAddr| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && page_ptr_valid(pa) && self.mmu_man.get_iommutable_by_ioid(ioid).get_iommutable_mapped_pages().contains(pa) ==>
+            (
+                self.page_alloc.get_mapped_pages().contains(pa)
+            )
+        );
+        assert(forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).subset_of(self.page_alloc.get_mapped_pages()));
+        assert(forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_page_table_pages()));
+        assert(forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_free_pages_as_set()));
+        assert(forall|ioid:IOid| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_allocated_pages()));
+    }
+
 }
 
 }

@@ -30,6 +30,10 @@ impl IOMMUTable{
         self.dummy.get_pagetable_mapping()
     }
 
+    pub open spec fn get_iommutable_mapped_pages(&self) -> Set<PagePtr>{
+        self.dummy.get_pagetable_mapped_pages()
+    }
+
 }
 
 }
