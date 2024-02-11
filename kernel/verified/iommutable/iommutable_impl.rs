@@ -2,98 +2,86 @@ use vstd::prelude::*;
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::page_alloc::*;
+use crate::pagetable::*;
 
 use crate::iommutable::*;
 
 verus!{
 impl IOMMUTable{
-
-    #[verifier(external_body)]
-    pub fn init(&mut self)
+    pub fn map(&mut self, va:VAddr, dst:PageEntry) -> (ret: bool)
+        requires 
+            old(self).dummy.wf(),
+            spec_va_valid(va),
+            //old(self).dummy.is_va_entry_exist(va),
+            old(self).dummy.get_pagetable_page_closure().contains(dst.addr) == false,
+            old(self).dummy.mapping@[va].is_None(),
+            page_ptr_valid(dst.addr),
+            va_perm_bits_valid(dst.perm),
         ensures
-            self.get_iommutable_mappings() =~= Map::empty(),
-            self.get_iommutable_page_closure() =~= Set::empty(),
+            self.dummy.wf(),
+            old(self).dummy.is_va_entry_exist(va) == ret ,
+            old(self).dummy.is_va_entry_exist(va) ==> 
+                self.dummy.mapping@ =~= old(self).dummy.mapping@.insert(va,Some(dst)),
+            !old(self).dummy.is_va_entry_exist(va) ==> 
+                self.dummy.mapping@ =~= old(self).dummy.mapping@,
     {
-
+        return self.dummy.map(va,dst);
     }
 
-    #[verifier(external_body)]
-    pub fn adopt(&mut self, io_table: &IOMMUTable)
+    pub fn unmap(&mut self, va:VAddr) -> (ret: Option<PageEntry>)
+        requires 
+            old(self).dummy.wf(),
+            spec_va_valid(va),
+            // old(self).dummy.mapping@[va] != 0,
         ensures
-            self.get_iommutable_mappings() =~= io_table.get_iommutable_mappings(),
-            self.get_iommutable_page_closure() =~= io_table.get_iommutable_page_closure(),
+            self.dummy.wf(),
+            old(self).dummy.is_va_entry_exist(va) ==> 
+                self.dummy.mapping@ =~= old(self).dummy.mapping@.insert(va,None),
+            !old(self).dummy.is_va_entry_exist(va) ==> 
+                self.dummy.mapping@ =~= old(self).dummy.mapping@,
+            old(self).dummy.mapping@[va].is_Some() ==> 
+                self.dummy.mapping@ =~= old(self).dummy.mapping@.insert(va,None),
+            old(self).dummy.mapping@[va].is_None() ==> 
+                self.dummy.mapping@ =~= old(self).dummy.mapping@,
+            ret == old(self).dummy.mapping@[va],
     {
-
+        return self.dummy.unmap(va);
     }
-
-    #[verifier(external_body)]
-    #[verifier(when_used_as_spec(spec_is_va_entry_exist))]
-    pub fn is_va_entry_exist(&self, va:usize) -> (ret: bool)
-        ensures
-            ret == self.is_va_entry_exist(va),
-    {
-        arbitrary()
-    }
-
-
-    pub closed spec fn spec_is_va_entry_exist(&self, va:usize) -> bool
-    {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn create_va_entry(&mut self, va:usize,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+    pub fn get_va_entry(&self, va:VAddr) -> (ret:Option<PageEntry>)
         requires
-            old(self).wf(),
+            self.dummy.wf(),
+            spec_va_valid(va),
+        ensures
+            self.dummy.mapping@[va] == ret,
+    {
+        return self.dummy.get_va_entry(va);
+    }
+
+    pub fn create_va_entry(&mut self, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            old(self).dummy.wf(),
             old(page_alloc).wf(),
             old(page_alloc).free_pages.len() >= 4,
+            spec_va_valid(va),
+            old(self).dummy.get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
+            old(self).dummy.get_pagetable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
         ensures
-            self.wf(),
-            self.get_iommutable_mappings() =~= old(self).get_iommutable_mappings(),
-            page_alloc.wf(),
-            self.get_iommutable_page_closure() =~= old(self).get_iommutable_page_closure() + ret@,
-            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            self.dummy.wf(),
+            self.dummy.get_pagetable_page_closure() =~= old(self).dummy.get_pagetable_page_closure() + ret@,
             page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
-            self.is_va_entry_exist(va) == true,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            self.dummy.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()),
+            self.dummy.mapping@ =~= old(self).dummy.mapping@,
+            self.dummy.get_pagetable_page_closure() =~= old(self).dummy.get_pagetable_page_closure() + ret@,
+            // self.dummy.resolve_mapping_l2(l4i,l3i,l2i).is_Some(),
+            self.dummy.is_va_entry_exist(va),
+            page_alloc.wf(),
+            page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
+            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
     {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn resolve(&self, va:usize) -> (ret: Option<usize>)
-        ensures
-            ret.is_None() ==> self.get_iommutable_mappings().dom().contains(va) == false,
-            ret.is_Some() ==> self.get_iommutable_mappings().dom().contains(va) && self.get_iommutable_mappings()[va] == ret.unwrap(),
-    {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn map(&mut self, va:usize, pa:usize)
-        requires
-            old(self).wf(),
-            old(self).get_iommutable_mappings().dom().contains(va) == false,
-        ensures
-            self.wf(),
-            self.get_iommutable_mappings().dom().contains(va) == true,
-            self.get_iommutable_mappings()[va] == pa,
-            self.get_iommutable_mappings() =~= old(self).get_iommutable_mappings().insert(va,pa),
-    {
-        arbitrary()
-    }
-
-    #[verifier(external_body)]
-    pub fn unmap(&mut self, va:usize) -> (ret: usize)
-        requires
-            old(self).wf(),
-            old(self).get_iommutable_mappings().dom().contains(va),
-        ensures
-            self.wf(),
-            self.get_iommutable_mappings().dom().contains(va) == false,
-            old(self).get_iommutable_mappings()[va] == ret,
-            self.get_iommutable_mappings() =~= old(self).get_iommutable_mappings().remove(va),
-    {
-        arbitrary()
+        return self.dummy.create_va_entry(va,page_alloc);
     }
 }
 

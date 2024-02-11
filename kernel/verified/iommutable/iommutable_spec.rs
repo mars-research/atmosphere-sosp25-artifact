@@ -5,30 +5,29 @@ use crate::define::*;
 use crate::pagetable::*;
 
 verus!{
+
+// TODO: @Xiangdong create real IOMMUTable impl. But it is OK to re-use our pagetable for now.
 pub struct IOMMUTable{
-    pub mapping: Ghost<Map<VAddr,PAddr>>,
+    pub dummy: PageTable,
 }
 
 impl IOMMUTable{
     pub open spec fn wf(&self) -> bool{
-        &&&
-        self.wf_mapping()
+        self.dummy.wf()
     }
 
     pub open spec fn wf_mapping(&self) -> bool{
-        (
-            forall|va: VAddr| #![auto] spec_va_valid(va) ==> self.mapping@.dom().contains(va) 
-        )
+        self.dummy.wf_mapping()
     }
 
 
-    pub closed spec fn get_iommutable_page_closure(&self) -> Set<PagePtr> {
-        Set::empty()
+    pub open spec fn get_iommutable_page_closure(&self) -> Set<PagePtr> {
+        self.dummy.get_pagetable_page_closure()
     }
 
     
-    pub open spec fn get_iommutable_mappings(&self) -> Map<usize,usize> {
-        self.mapping@
+    pub open spec fn get_iommutable_mapping(&self) -> Map<usize,Option<PageEntry>> {
+        self.dummy.get_pagetable_mapping()
     }
 
 }

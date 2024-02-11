@@ -71,10 +71,10 @@ impl MMUManager{
     }
 
     #[verifier(inline)]
-    pub open spec fn get_iommutable_mapping_by_ioid(&self, ioid: IOid) -> Map<usize,usize>
+    pub open spec fn get_iommutable_mapping_by_ioid(&self, ioid: IOid) -> Map<usize,Option<PageEntry>>
         recommends self.get_iommu_ids().contains(ioid),
     {   
-        self.get_iommutable_by_ioid(ioid).get_iommutable_mappings()
+        self.get_iommutable_by_ioid(ioid).get_iommutable_mapping()
     }
     #[verifier(inline)]
     pub open spec fn get_iommutable_page_closure_by_ioid(&self, ioid: IOid) -> Set<PagePtr>
@@ -157,8 +157,13 @@ impl MMUManager{
         )
         &&&
         (
-            forall|ioid: IOid,va:usize| #![auto] self.iommu_ids@.contains(ioid) && self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mappings().dom().contains(va) ==> 
-                page_ptr_valid(self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mappings()[va])
+            forall|ioid: IOid,va:usize| #![auto] self.iommu_ids@.contains(ioid) && spec_va_valid(va) && self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mapping()[va].is_Some()==> 
+                page_ptr_valid(self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().addr)
+        )
+        &&&
+        (
+            forall|ioid: IOid,va:usize| #![auto] self.iommu_ids@.contains(ioid) && spec_va_valid(va) && self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mapping()[va].is_Some()==> 
+                va_perm_bits_valid(self.iommu_perms@[ioid]@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().perm)
         )
         &&&
         (

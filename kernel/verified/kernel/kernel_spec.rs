@@ -33,9 +33,9 @@ impl Kernel{
     pub open spec fn kernel_mmu_page_alloc_iommutable_wf(&self) -> bool{
         &&&
         (
-            forall|ioid:IOid, va:usize| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] != 0 ==>
+            forall|ioid:IOid, va:usize| #![auto] self.mmu_man.get_iommu_ids().contains(ioid) && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].is_Some() ==>
             (
-                self.page_alloc.get_page_io_mappings(self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]).contains((ioid,va))
+                self.page_alloc.get_page_io_mappings(self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].get_Some_0().addr).contains((ioid,va))
             )
         )
     }
