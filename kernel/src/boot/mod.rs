@@ -19,6 +19,10 @@ pub unsafe fn init(boot_info: *const BootInfo) {
     command_line::init(BOOT_INFO.command_line.as_str()).expect("Invalid kernel command-line");
 }
 
+pub fn get_boot_info() -> &'static BootInfo {
+    unsafe { &BOOT_INFO }
+}
+
 /// Returns the raw kernel command line.
 pub fn get_raw_command_line() -> &'static str {
     unsafe { BOOT_INFO.command_line.as_str() }

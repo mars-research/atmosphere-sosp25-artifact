@@ -2,11 +2,20 @@
 #![no_main]
 #![feature(start)]
 
+use core::arch::asm;
 use core::panic::PanicInfo;
 
 #[start]
 #[no_mangle]
 fn main() -> isize {
+    unsafe {
+        asm!(
+            "syscall",
+            "2:",
+            //"hlt",
+            "jmp 2b",
+        );
+    }
     42
 }
 
