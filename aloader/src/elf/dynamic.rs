@@ -2,6 +2,7 @@
 
 use core::mem;
 use core::slice;
+use core::ptr;
 
 use super::{
     elf_types,
@@ -88,9 +89,12 @@ impl Dynamic {
                     panic!("Unsupported relocation type");
                 }
 
+                let relocated = self.load_offset.wrapping_add(reloc.r_addend as usize);
                 let ptr = self.load_offset.wrapping_add(reloc.r_offset as usize) as *mut usize;
+                //log::debug!("ptr={:?}, offset=0x{:x}, addend=0x{:x}, actual=0x{:x}", ptr, reloc.r_offset, reloc.r_addend, relocated);
+
                 unsafe {
-                    *ptr = self.load_offset.wrapping_add(reloc.r_addend as usize);
+                    ptr::write_unaligned(ptr, relocated);
                 }
             }
         }
