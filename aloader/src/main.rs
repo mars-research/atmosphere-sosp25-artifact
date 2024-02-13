@@ -1,8 +1,8 @@
 //! The Atmosphere early loader.
 
-#![no_std]
-#![no_main]
-#![feature(start, alloc_error_handler, strict_provenance, abi_x86_interrupt)]
+#![cfg_attr(not(test), no_std, no_main, feature(start))]
+//#![no_main]
+#![feature(alloc_error_handler, strict_provenance, abi_x86_interrupt, const_maybe_uninit_zeroed)]
 #![deny(
     asm_sub_register,
     deprecated,
@@ -23,6 +23,7 @@ pub mod console;
 pub mod elf;
 pub mod logging;
 pub mod memory;
+pub mod paging;
 
 use core::arch::asm;
 
@@ -30,15 +31,16 @@ use core::arch::asm;
 use core::panic::PanicInfo;
 
 use astd::boot::{BootInfo, DomainMapping};
-use astd::io::{Cursor, Seek, SeekFrom};
+use astd::io::{Cursor, Read, Seek, SeekFrom};
 
-use elf::ElfHandle;
+use elf::{ElfHandle, ElfMapping};
 
 const DOM0_RESERVATION: usize = 128 * 1024 * 1024; // 128 MiB
+const PAGE_SIZE: usize = 4096;
 
 /// Loader entry point.
-#[start]
-#[no_mangle]
+#[cfg_attr(not(test), start, no_mangle)]
+//#[no_mangle]
 fn main(_argc: isize, _argv: *const *const u8) -> ! {
     unsafe {
         console::init();
@@ -69,21 +71,8 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     let mut boot_info = BootInfo::empty(); // stays on stack
 
-    match ElfHandle::parse(kernel_file, 4096) {
-        Ok(dom0_elf) => {
-            log::info!("Loading Dom0...");
-
-            let (reserved_start, mut memory) = memory::reserve(DOM0_RESERVATION);
-            let (dom0_map, _) = dom0_elf.load(&mut memory).expect("Failed to map Dom0");
-
-            let dom0 = DomainMapping {
-                reserved_start,
-                reserved_size: DOM0_RESERVATION,
-                entry_point: dom0_map.entry_point,
-                load_bias: dom0_map.load_bias,
-            };
-            log::info!("Loaded Dom0: {:?}", dom0);
-
+    match load_domain(kernel_file, &kernel_map) {
+        Ok(dom0) => {
             boot_info.dom0 = Some(dom0);
         }
         Err(e) => {
@@ -130,6 +119,56 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     log::info!("Returned from kernel: 0x{:x}", ret);
 
     loop {}
+}
+
+fn load_domain<T>(elf: T, kernel_map: &ElfMapping) -> Result<DomainMapping, elf::Error>
+    where
+        T: Read + Seek,
+        T::Error: Into<elf::Error>,
+{
+    let parsed = ElfHandle::parse(elf, PAGE_SIZE)?;
+    log::info!("Loading Dom0...");
+
+    // TODO: Relocate to fixed virtual address
+    let (reserved_start, mut memory) = memory::reserve(DOM0_RESERVATION);
+    let (dom_map, _) = parsed.load(&mut memory).expect("Failed to map Dom0");
+
+    let mut address_space = paging::AddressSpace::new();
+
+    log::info!("Mapping Dom0 pages...");
+    let mut cur = reserved_start;
+    while cur.addr() < reserved_start.addr() + DOM0_RESERVATION {
+        unsafe {
+            address_space.map(cur as u64, cur as u64, true);
+            cur = cur.add(PAGE_SIZE);
+        }
+    }
+
+    // Set up kernel mapping
+    let mut cur = kernel_map.load_bias;
+    while cur < kernel_map.max_vaddr {
+        unsafe {
+            address_space.map(cur as u64, cur as u64, false);
+            cur = cur + PAGE_SIZE;
+        }
+    }
+
+    // Set up system mapping
+    let mut cur = 0x0;
+    while cur < 1 * 1024 * 1024 {
+        unsafe {
+            address_space.map(cur as u64, cur as u64, false);
+            cur = cur + PAGE_SIZE;
+        }
+    }
+
+    Ok(DomainMapping {
+        reserved_start,
+        reserved_size: DOM0_RESERVATION,
+        entry_point: dom_map.entry_point,
+        pml4: address_space.pml4(),
+        load_bias: dom_map.load_bias,
+    })
 }
 
 /// The kernel panic handler.

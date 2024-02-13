@@ -18,9 +18,22 @@ static RESERVED_MEMORY_REGION: Mutex<Option<MemoryRange>> = Mutex::new(None);
 /// The kernel image passed by the bootloader.
 static KERNEL_IMAGE: Mutex<Option<&'static [u8]>> = Mutex::new(None);
 
+#[cfg(not(test))]
+//#[link(name = "crt0")]
 extern "C" {
     static bootinfo: u64;
+    static __loader_start: u8;
+    static __loader_end: u8;
 }
+
+#[cfg(test)]
+static mut bootinfo: u64 = 0;
+
+#[cfg(test)]
+static mut __loader_start: u8 = 0;
+
+#[cfg(test)]
+static mut __loader_end: u8 = 0;
 
 /// A type of bootloader.
 #[derive(Debug)]
@@ -34,11 +47,6 @@ enum Bootloader {
 
 /// Returns the range of the loader itself.
 pub fn get_loader_image_range() -> MemoryRange {
-    extern "C" {
-        static __loader_start: u8;
-        static __loader_end: u8;
-    }
-
     let start = unsafe { &__loader_start as *const _ as u64 };
     let end_exclusive = unsafe { &__loader_end as *const _ as u64 };
     let size = end_exclusive - start;

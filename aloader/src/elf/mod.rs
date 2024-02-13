@@ -97,6 +97,7 @@ pub struct ElfHandle<F: Read + Seek> {
 pub struct ElfMapping {
     pub load_bias: usize,
     pub entry_point: *const c_void,
+    pub max_vaddr: usize,
 }
 
 struct DisplayPFlags<'ph>(&'ph ProgramHeader);
@@ -239,6 +240,7 @@ where
         //
         //     load_addr + page_offset(ph.p_vaddr)
         let load_bias = (load_addr as usize).wrapping_sub(self.page_start(summary.first_vaddr));
+        let max_vaddr = load_addr as usize + summary.total_mapping_size;
         let entry_point = (load_bias + self.header.e_entry as usize) as *const c_void;
 
         log::debug!("   Total Size: 0x{:x}", summary.total_mapping_size);
@@ -345,6 +347,7 @@ where
             ElfMapping {
                 load_bias,
                 entry_point,
+                max_vaddr,
             },
             self.file,
         ))
