@@ -35,6 +35,9 @@ pub struct DomainMapping {
 
     /// The entry point.
     pub entry_point: *const c_void,
+
+    /// The page table.
+    pub pml4: *const c_void,
 }
 
 impl BootInfo {
