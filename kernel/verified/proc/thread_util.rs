@@ -1,5 +1,5 @@
 use core::mem::MaybeUninit;
-
+use crate::trap::PtRegs;
 use vstd::prelude::*;
 use vstd::ptr::{
     PPtr, PointsTo,
@@ -335,6 +335,32 @@ ensures pptr.id() == perm@@.pptr,
         (*uptr).assume_init_mut().caller = caller;
     }
 }
+
+#[verifier(external_body)]
+pub fn thread_set_trap_frame(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, trap_frame: PtRegs)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().trap_frame = trap_frame;
+    }
+}
+
 #[verifier(external_body)]
 pub fn endpoint_remove_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, rf: Index) -> (ret: ThreadPtr)
     requires 

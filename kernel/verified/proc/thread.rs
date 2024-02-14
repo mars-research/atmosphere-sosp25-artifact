@@ -206,7 +206,7 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
     assert(self.wf_mem_closure());
     assert(self.wf_pcid_closure());
 }
-    pub fn new_thread(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr) -> (ret: ThreadPtr)
+    pub fn new_thread(&mut self, pt_regs:PtRegs, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr) -> (ret: ThreadPtr)
         requires
             old(self).wf(),
             old(self).get_proc_ptrs().contains(parent_ptr),

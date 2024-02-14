@@ -111,6 +111,7 @@ impl<T, const N: usize> ArrayVec<T, N> {
         self.unique(),
         forall|t:T| #![auto] !( t =~= value) ==> old(self)@.contains(t) == self@.contains(t),
         self@.contains(value),
+        self@.to_set() =~= old(self)@.to_set().insert(value),
     {
         let index = self.len;
         let ret = self.data.insert(index, value);
@@ -156,6 +157,7 @@ impl<T, const N: usize> ArrayVec<T, N> {
             self.unique(),
             self@.contains(ret) == false,
             forall|t:T| #![auto] !( t =~= ret) ==> old(self)@.contains(t) == self@.contains(t),
+            self@.to_set() =~= old(self)@.to_set().remove(ret),
     {
         let index = self.len() - 1;
         let ret = self.data.take(index);

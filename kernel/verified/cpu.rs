@@ -55,7 +55,10 @@ pub struct Cpu{
 }
 impl Cpu {
     pub open spec fn wf(&self) -> bool{
+        &&&
         self.tlb@.dom() =~= Set::new(|pcid: Pcid| {0 <= pcid< PCID_MAX})
+        &&&
+        self.iotlb@.dom() =~= Set::new(|ioid: IOid| {true} )
     }
     pub open spec fn get_current_thread(&self) -> Option<ThreadPtr>
     {
@@ -87,23 +90,26 @@ impl MarsArray<Cpu,NUM_CPUS>{
             old(self).wf(),
         ensures
             self.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].wf(),
             forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].get_is_idle(),
+            forall|i:CPUID, pcid: Pcid| #![auto] 0<=i<NUM_CPUS && 0 <= pcid< PCID_MAX ==> self@[i as int].tlb@[pcid] =~= Map::empty(),
+            forall|i:CPUID, ioid: IOid| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].iotlb@[ioid] =~= Map::empty(),
     {
         let mut i = 0;
         while i != NUM_CPUS
             invariant
                 0<= i <= NUM_CPUS,
                 self.wf(),
-                forall |j:int| #![auto] 0<=j<i ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
+                forall |j:int| #![auto] 0<=j<i ==> self@[j].current_t.is_None() && self@[j].wf(),
             ensures
                 i == NUM_CPUS,
                 self.wf(),
-                forall |j:int| #![auto] 0<=j<NUM_CPUS ==> self@[j].current_t.is_None() && self@[j].tlb@ =~= Map::empty() ,
+                forall |j:int| #![auto] 0<=j<NUM_CPUS ==> self@[j].current_t.is_None() && self@[j].wf(),
         {
             let cpu = Cpu{
                 current_t: None,
-                tlb: Ghost(Map::empty()),
-                iotlb: Ghost(Map::empty()),
+                tlb: Ghost(Map::new(|pcid: Pcid| {0 <= pcid< PCID_MAX}, |pcid: Pcid| {Map::empty()})),
+                iotlb: Ghost(Map::new(|ioid: IOid| { true }, |ioid: IOid| {Map::empty()})),
             };
             let tmp:Ghost<Seq<Cpu>> = Ghost(self@); 
             self.set(i,cpu);

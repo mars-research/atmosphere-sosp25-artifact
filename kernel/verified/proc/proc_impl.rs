@@ -16,7 +16,7 @@ use crate::define::*;
 verus! {
 
 impl ProcessManager {
-    pub fn new_proc(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, new_pcid: Pcid) -> (ret: ProcPtr)
+    pub fn new_proc(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, new_pcid: Pcid, new_ioid: Option<IOid>) -> (ret: ProcPtr)
         requires
             old(self).wf(),
             page_perm@@.pptr == page_ptr,
@@ -24,10 +24,12 @@ impl ProcessManager {
             old(self).get_proc_ptrs().len() < MAX_NUM_PROCS,
             old(self).get_proc_man_page_closure().contains(page_ptr) == false,
             old(self).get_pcid_closure().contains(new_pcid) == false,
+            new_ioid.is_Some() ==> old(self).get_ioid_closure().contains(new_ioid.get_Some_0()) == false,
         ensures
             self.wf(),
             self.scheduler =~= old(self).scheduler,
             self.get_pcid_closure() =~= old(self).get_pcid_closure().insert(new_pcid),
+            new_ioid.is_Some() ==> self.get_ioid_closure() =~= old(self).get_ioid_closure().insert(new_ioid.get_Some_0()),
             self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(page_ptr),
             self.get_proc_ptrs() =~= old(self).get_proc_ptrs().push(ret),
             self.get_proc_ptrs().contains(ret),
@@ -61,7 +63,14 @@ impl ProcessManager {
         
         proc_set_pl_rf(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, pl_rf);
         proc_set_pcid(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, new_pcid);
-        proc_set_ioid(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, None);
+        if new_ioid.is_none(){
+            proc_set_ioid(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, None);
+        }else{
+            proc_set_ioid(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, new_ioid);
+            proof{
+                self.ioid_closure@ = self.ioid_closure@.insert(new_ioid.get_Some_0());
+            }
+        }
 
 
         assert(self.proc_perms@.dom().contains(ret) == false);
@@ -78,6 +87,8 @@ impl ProcessManager {
         assert(self.wf_scheduler());
         assert(self.wf_mem_closure());
         assert(self.wf_pcid_closure());
+        assert(self.wf_ipc());
+        assert(self.wf_ioid_closure());
         assert(self.endpoint_ptrs@ =~= self.endpoint_perms@.dom());
         assert(self.endpoint_perms@.dom().contains(0) == false);
         assert(self.wf_endpoints());

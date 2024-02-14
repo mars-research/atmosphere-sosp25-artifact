@@ -5,6 +5,7 @@ use crate::pagetable::*;
 use crate::page_alloc::*;
 use crate::define::*;
 use crate::iommutable::*;
+use vstd::ptr::PointsTo;
 
 use crate::mmu::*;
 verus! {
@@ -67,6 +68,71 @@ impl MMUManager{
         assert(self.wf());
         return ret;
     }
+
+    pub fn adopt_dom0(&mut self, pagetable: PageTable, ioid: IOid, iommutable_perm: PointsTo<IOMMUTable>)
+        requires
+            old(self).wf(),
+            old(self).free_pcids.wf(),
+            old(self).free_pcids.unique(),
+            old(self).free_pcids.len() == PCID_MAX,
+            old(self).free_pcids@ =~= Seq::new(PCID_MAX as nat, |i:int| {(PCID_MAX - i - 1) as usize}),
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> old(self).get_free_pcids_as_set().contains(pcid),
+            old(self).page_tables.wf(),
+            old(self).page_table_pages@ =~= Set::empty(),
+            old(self).iommu_ids@ =~= Set::empty(),
+            old(self).iommu_perms@ =~= Map::empty(),
+            old(self).iommu_table_pages@ =~= Set::empty(),
+            forall|i:usize, va: VAddr|#![auto] 0<=i<PCID_MAX && spec_va_valid(va) ==>  old(self).get_pagetable_mapping_by_pcid(i)[va].is_None(),
+            forall|i:int|#![auto] 0<=i<PCID_MAX ==>  old(self).page_tables[i].cr3 == 0,
+            forall|i:int|#![auto] 0<=i<PCID_MAX ==>  old(self).page_tables[i].l4_table@ =~= Map::empty(),
+            forall|i:int|#![auto] 0<=i<PCID_MAX ==>  old(self).page_tables[i].l3_tables@ =~= Map::empty(),
+            forall|i:int|#![auto] 0<=i<PCID_MAX ==>  old(self).page_tables[i].l2_tables@ =~= Map::empty(),
+            forall|i:int|#![auto] 0<=i<PCID_MAX ==>  old(self).page_tables[i].l1_tables@ =~= Map::empty(),
+
+            pagetable.wf(),
+            forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==> 
+                page_ptr_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
+            forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==> 
+                va_perm_bits_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
+            iommutable_perm@.pptr == ioid,
+            iommutable_perm@.value.is_Some(),
+            iommutable_perm@.value.get_Some_0().wf(),
+            forall|va:usize| #![auto] spec_va_valid(va) && iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
+                page_ptr_valid(iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().addr),
+            forall|va:usize| #![auto] spec_va_valid(va) && iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
+                va_perm_bits_valid(iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().perm),
+            pagetable.get_pagetable_page_closure().disjoint(iommutable_perm@.value.get_Some_0().get_iommutable_page_closure()),
+        ensures
+            self.wf(),
+            forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].cr3 == 0,
+            forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].l4_table@ =~= Map::empty(),
+            forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].l3_tables@ =~= Map::empty(),
+            forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].l2_tables@ =~= Map::empty(),
+            forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].l1_tables@ =~= Map::empty(),
+            self.get_pagetable_by_pcid(0) =~= pagetable,
+            self.get_iommutable_by_ioid(ioid) =~= iommutable_perm@.value.get_Some_0(),
+            self.get_pagetable_mapping_by_pcid(0) =~= pagetable.get_pagetable_mapping(),
+            self.get_iommutable_mapping_by_ioid(ioid) =~= iommutable_perm@.value.get_Some_0().get_iommutable_mapping(),
+            self.get_mmu_page_closure() =~= pagetable.get_pagetable_page_closure() + iommutable_perm@.value.get_Some_0().get_iommutable_page_closure(),
+            forall|i:usize, va: VAddr|#![auto] 1<=i<PCID_MAX && spec_va_valid(va) ==>  self.get_pagetable_mapping_by_pcid(i)[va].is_None(),
+            self.get_iommu_ids() =~= Set::empty().insert(ioid),
+            self.get_free_pcids_as_set().contains(0) == false,
+        {
+            let pcid = self.free_pcids.pop_unique();
+            assert(pcid == 0);
+            proof{
+                self.page_table_pages@ = pagetable.get_pagetable_page_closure();
+            }
+            self.page_tables.set(pcid, pagetable);
+            assert(self.pagetables_wf());
+            proof{
+                self.iommu_table_pages@ = iommutable_perm@.value.get_Some_0().get_iommutable_page_closure();
+                self.iommu_ids@ = self.iommu_ids@.insert(ioid);
+                (self.iommu_perms.borrow_mut())
+                    .tracked_insert(ioid, iommutable_perm);
+            }
+            assert(self.iommutables_wf());
+        }
 
     // pub fn create_pagetable_va_entry(&mut self, pcid:Pcid, va:VAddr, page_alloc:&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
     //     requires

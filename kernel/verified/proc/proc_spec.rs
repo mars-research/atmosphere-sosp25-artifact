@@ -96,10 +96,9 @@ impl ProcessManager {
         ret
     }
 
-    pub fn init(&mut self)
+    pub fn proc_man_init(&mut self)
         requires 
             old(self).proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
-            old(self).proc_ptrs@ =~= Seq::empty(),
             old(self).proc_perms@ =~= Map::empty(),
             old(self).thread_ptrs@ =~= Set::empty(),
             old(self).thread_perms@ =~= Map::empty(),

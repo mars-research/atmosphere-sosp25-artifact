@@ -8,7 +8,36 @@ use crate::pagetable::*;
 verus!{
 
 impl MarsArray<PageTable,PCID_MAX>{
+    
     // new
+
+    #[verifier(external_body)]
+    pub fn init_all_pagetables(&mut self)
+        requires
+            old(self).wf(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> old(self)@[i].l4_table@ =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> old(self)@[i].l3_tables@ =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> old(self)@[i].l2_tables@ =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> old(self)@[i].l1_tables@ =~= Map::empty(),
+        ensures
+            self.wf(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i].wf_mapping(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i].get_pagetable_page_closure() =~= Set::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i].cr3 == 0,
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i].l4_table@ =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i].l3_tables@ =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i].l2_tables@ =~= Map::empty(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i].l1_tables@ =~= Map::empty(),
+            forall|i:int, va:VAddr|#![auto] 0<=i<PCID_MAX && spec_va_valid(va) ==> self@[i].mapping@.dom().contains(va),
+            forall|i:int, va:VAddr|#![auto] 0<=i<PCID_MAX && spec_va_valid(va) ==> self@[i].mapping@[va].is_None(),
+        {
+            let mut i = 0;
+            while i != PCID_MAX{
+                self.ar[i].init();
+                i = i + 1;
+            }
+        }
+
     #[verifier(external_body)]
     pub fn map_pagetable_page_by_pcid(&mut self, pcid:Pcid, va: VAddr, dst:PageEntry) -> (ret: bool)
         requires

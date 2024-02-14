@@ -135,6 +135,11 @@ impl PageAllocator {
             ret.page_array.wf(),
             ret.free_pages.wf(),
             ret.free_pages.len() == 0,
+            ret.page_table_pages@ =~= Set::empty(),
+            ret.allocated_pages@ =~= Set::empty(),
+            ret.mapped_pages@ =~= Set::empty(),
+            ret.available_pages@ =~= Set::empty(),
+            ret.page_perms@.dom() =~= Set::empty(),
     {
         let ret = Self {
             page_array: MarsArray::<Page,NUM_PAGES>::new(),
