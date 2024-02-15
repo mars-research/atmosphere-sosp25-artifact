@@ -101,10 +101,14 @@ impl MarsArray<Cpu,NUM_CPUS>{
                 0<= i <= NUM_CPUS,
                 self.wf(),
                 forall |j:int| #![auto] 0<=j<i ==> self@[j].current_t.is_None() && self@[j].wf(),
+                forall|j:CPUID, pcid: Pcid| #![auto] 0<=j<i && 0 <= pcid< PCID_MAX ==> self@[j as int].tlb@[pcid] =~= Map::empty(),
+                forall|j:CPUID, ioid: IOid| #![auto] 0<=j<i ==> self@[j as int].iotlb@[ioid] =~= Map::empty(),
             ensures
                 i == NUM_CPUS,
                 self.wf(),
                 forall |j:int| #![auto] 0<=j<NUM_CPUS ==> self@[j].current_t.is_None() && self@[j].wf(),
+                forall|j:CPUID, pcid: Pcid| #![auto] 0<=j<i && 0 <= pcid< PCID_MAX ==> self@[j as int].tlb@[pcid] =~= Map::empty(),
+                forall|j:CPUID, ioid: IOid| #![auto] 0<=j<i ==> self@[j as int].iotlb@[ioid] =~= Map::empty(),
         {
             let cpu = Cpu{
                 current_t: None,
