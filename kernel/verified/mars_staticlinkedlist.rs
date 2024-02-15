@@ -41,20 +41,20 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     {
         let ret = Self {
 
-            spec_seq: arbitrary(),
+            spec_seq: Ghost(Seq::empty()),
 
-            value_list: arbitrary(),
+            value_list: Ghost(Seq::empty()),
             value_list_head: -1,
             value_list_tail: -1,
             value_list_len: 0,
-            free_list: arbitrary(),
+            free_list: Ghost(Seq::empty()),
             free_list_head: -1,
             free_list_tail: -1,
             free_list_len: 0,
 
             size: N,
 
-            arr_seq: arbitrary(),
+            arr_seq: Ghost(Seq::empty()),
             ar: MaybeUninit::uninit().assume_init(),
         };
 

@@ -81,7 +81,7 @@ impl<A, const N: usize> MarsArray<A, N> {
     {
         let ret = Self {
             ar: MaybeUninit::uninit().assume_init(),
-            seq: arbitrary(),
+            seq: Ghost(Seq::empty()),
         };
 
         ret

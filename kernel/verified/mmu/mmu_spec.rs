@@ -44,10 +44,10 @@ impl MMUManager{
         let ret = Self{
             free_pcids: ArrayVec::<Pcid,PCID_MAX>::new(),
             page_tables: MarsArray::<PageTable,PCID_MAX>::new(),
-            page_table_pages: arbitrary(),
-            iommu_ids: arbitrary(),
-            iommu_perms: arbitrary(),
-            iommu_table_pages: arbitrary(),
+            page_table_pages:  Ghost(Set::empty()),
+            iommu_ids:  Ghost(Set::empty()),
+            iommu_perms: Tracked(Map::tracked_empty()),
+            iommu_table_pages: Ghost(Set::empty()),
         };
         ret
     }

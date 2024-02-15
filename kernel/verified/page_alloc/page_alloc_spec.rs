@@ -72,7 +72,7 @@ pub fn page_index2page_ptr(i: usize) -> (ret:usize)
     proof{
         lemma_usize_u64(MAX_USIZE);
     }
-    (i * 4096usize) 
+    i * 4096usize 
 }
 
 #[verifier(inline)]
@@ -145,12 +145,12 @@ impl PageAllocator {
             page_array: MarsArray::<Page,NUM_PAGES>::new(),
             free_pages: ArrayVec::<PagePtr,NUM_PAGES>::new(),
 
-            page_table_pages: arbitrary(),
-            allocated_pages: arbitrary(),
-            mapped_pages: arbitrary(),
+            page_table_pages: Ghost(Set::empty()),
+            allocated_pages: Ghost(Set::empty()),
+            mapped_pages: Ghost(Set::empty()),
 
-            available_pages: arbitrary(),
-            page_perms: arbitrary(),
+            available_pages: Ghost(Set::empty()),
+            page_perms: Tracked(Map::tracked_empty()),
 
             // free_pcids: ArrayVec::<Pcid,PCID_MAX>::new(),
             // page_tables: MarsArray::<PageTable,PCID_MAX>::new(),

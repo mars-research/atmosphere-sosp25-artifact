@@ -80,9 +80,9 @@ impl ProcessManager {
     {
         let ret = Self {
             proc_ptrs: MarsStaticLinkedList::<MAX_NUM_PROCS>::new(),
-            proc_perms: arbitrary(),
+            proc_perms: Tracked(Map::tracked_empty()),
         
-            thread_ptrs: arbitrary(),
+            thread_ptrs: Set::empty(),
             thread_perms: arbitrary(),
             
             scheduler: MarsStaticLinkedList::<MAX_NUM_THREADS>::new(),
