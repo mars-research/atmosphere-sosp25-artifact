@@ -42,6 +42,7 @@ mod logging;
 mod scripts;
 mod syscalls;
 mod utils;
+mod kernel;
 
 use core::{panic::PanicInfo, ffi::c_void};
 use core::arch::asm;
@@ -76,7 +77,10 @@ fn main(boot_info: *const BootInfo) -> isize {
     if !cmdline.nologo {
         print_logo();
     }
+
     log::info!("hello_world from verified={:?}",verified::kernel::hello_world());
+    kernel::kernel_test();
+    kernel::kernel_new();
 
     log::info!("Command line: {}", boot::get_raw_command_line());
     #[cfg(debug_assertions)]

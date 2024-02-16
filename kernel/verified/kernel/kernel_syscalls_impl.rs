@@ -19,6 +19,6 @@ impl Kernel {
 }
 
 pub fn hello_world() -> (ret:usize){
-    return 1;
+    return 233;
 }
 }
