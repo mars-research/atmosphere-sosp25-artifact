@@ -92,7 +92,7 @@ impl MarsArray<Cpu,NUM_CPUS>{
         ensures
             self.wf(),
             forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].wf(),
-            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].get_is_idle(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].get_is_idle() == true,
             forall|i:CPUID, pcid: Pcid| #![auto] 0<=i<NUM_CPUS && 0 <= pcid< PCID_MAX ==> self@[i as int].tlb@[pcid] =~= Map::empty(),
             forall|i:CPUID, ioid: IOid| #![auto] 0<=i<NUM_CPUS ==> self@[i as int].iotlb@[ioid] =~= Map::empty(),
     {

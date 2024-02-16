@@ -14,7 +14,7 @@ impl PageAllocator {
 
     pub fn get_num_free_pages(&self) -> (ret: usize)
         requires
-            self.page_alloc_wf(),
+            self.wf(),
         ensures 
             ret == self.free_pages.len(),
     {
@@ -23,10 +23,10 @@ impl PageAllocator {
 
     pub fn alloc_kernel_mem(&mut self) -> (ret : (PagePtr,Tracked<PagePerm>))
         requires 
-            old(self).page_alloc_wf(),
+            old(self).wf(),
             old(self).free_pages.len() > 0,
         ensures
-            self.page_alloc_wf(),
+            self.wf(),
             old(self).get_free_pages_as_set().contains(ret.0),
             self.get_free_pages_as_set().contains(ret.0) == false,
             self.get_free_pages_as_set() =~= self.get_free_pages_as_set().remove(ret.0),
@@ -38,7 +38,7 @@ impl PageAllocator {
             ret.1@@.pptr == ret.0,
             ret.1@@.value.is_Some(),
             self.free_pages.len() as int =~= old(self).free_pages.len() as int - 1,
-            forall|page_ptr:PagePtr| #![auto] self.available_pages@.contains(page_ptr) ==> self.get_page_mappings(page_ptr) =~= old(self).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.get_page_mappings(page_ptr) =~= old(self).get_page_mappings(page_ptr),
     {
         proof{
             self.page_array_wf_derive();
@@ -77,13 +77,13 @@ impl PageAllocator {
 
     pub fn free_kernel_mem(&mut self, ptr : PagePtr, perm: Tracked<PagePerm>)
         requires 
-            old(self).page_alloc_wf(),
+            old(self).wf(),
             old(self).get_allocated_pages().contains(ptr),
             old(self).free_pages.len() < NUM_PAGES,
             perm@@.pptr == ptr,
             perm@@.value.is_Some(),
         ensures
-            self.page_alloc_wf(),
+            self.wf(),
     {
         assert(page_ptr_valid(ptr));
         proof{self.allocated_pages@ = self.allocated_pages@.remove(ptr);}
@@ -97,15 +97,15 @@ impl PageAllocator {
             (self.page_perms.borrow_mut())
                 .tracked_insert(ptr, perm.get());
         }
-        assert(self.page_alloc_wf());
+        assert(self.wf());
     }
 
     pub fn alloc_page_and_map(&mut self, target: (Pcid,VAddr), page_type: PageType) -> (ret : PagePtr)
         requires
-            old(self).page_alloc_wf(),
+            old(self).wf(),
             old(self).free_pages.len() > 0,
         ensures
-            self.page_alloc_wf(),
+            self.wf(),
     {
         let ret = self.free_pages.pop_unique();
         self.page_array.set_page_state(page_ptr2page_index(ret),MAPPED);
@@ -128,12 +128,12 @@ impl PageAllocator {
     pub fn map_user_page(&mut self, page_ptr : PagePtr, target: (Pcid,VAddr), page_type: PageType)
         requires
             page_ptr_valid(page_ptr),
-            old(self).page_alloc_wf(),
+            old(self).wf(),
             old(self).get_mapped_pages().contains(page_ptr),
             old(self).get_page_mappings(page_ptr).contains(target) == false,
             old(self).page_array@[page_ptr2page_index(page_ptr) as int].rf_count < usize::MAX,
         ensures
-            self.page_alloc_wf(),
+            self.wf(),
             self.free_pages =~= old(self).free_pages,
             self.page_table_pages =~= old(self).page_table_pages,
             self.allocated_pages =~= old(self).allocated_pages,
@@ -171,7 +171,7 @@ impl PageAllocator {
     pub fn unmap_user_page(&mut self, page_ptr : PagePtr, target: (Pcid,VAddr))
         requires
             page_ptr_valid(page_ptr),
-            old(self).page_alloc_wf(),
+            old(self).wf(),
             old(self).get_mapped_pages().contains(page_ptr),
             old(self).get_page_mappings(page_ptr).contains(target) == true,
         ensures
@@ -261,10 +261,10 @@ impl PageAllocator {
 
         pub fn alloc_pagetable_mem(&mut self) -> (ret : (PagePtr,Tracked<PagePerm>))
         requires 
-            old(self).page_alloc_wf(),
+            old(self).wf(),
             old(self).free_pages.len() > 0,
         ensures
-            self.page_alloc_wf(),
+            self.wf(),
             old(self).get_free_pages_as_set().contains(ret.0),
             self.get_free_pages_as_set().contains(ret.0) == false,
             self.get_free_pages_as_set() =~= old(self).get_free_pages_as_set().remove(ret.0),
@@ -315,13 +315,13 @@ impl PageAllocator {
 
     pub fn free_pagetable_mem(&mut self, ptr : PagePtr, perm: Tracked<PagePerm>)
         requires 
-            old(self).page_alloc_wf(),
+            old(self).wf(),
             old(self).get_page_table_pages().contains(ptr),
             old(self).free_pages.len() < NUM_PAGES,
             perm@@.pptr == ptr,
             perm@@.value.is_Some(),
         ensures
-            self.page_alloc_wf(),
+            self.wf(),
     {
         assert(page_ptr_valid(ptr));
         proof{self.page_table_pages@ = self.page_table_pages@.remove(ptr);}
@@ -335,10 +335,10 @@ impl PageAllocator {
             (self.page_perms.borrow_mut())
                 .tracked_insert(ptr, perm.get());
         }
-        assert(self.page_alloc_wf());
+        assert(self.wf());
     }
-
-    pub fn init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, ioid:IOid)
+    // #[verifier(external_body)]
+    pub fn init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>)
     requires
         old(self).page_array.wf(),
         old(self).free_pages.wf(),
@@ -370,9 +370,6 @@ impl PageAllocator {
         forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == MAPPED ==> self.get_mapped_pages().contains(page_index2page_ptr(i)),
         forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[i as int].1)),
         forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_mappings(page_index2page_ptr(i)).contains((0,boot_page_ptrs@[i as int].1)),
-        forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_io_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty().insert((ioid,boot_page_ptrs@[i as int].1)),
-        forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_io_mappings(page_index2page_ptr(i)).contains((ioid,boot_page_ptrs@[i as int].1)),
-
         forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_mapped_pages().contains(page_index2page_ptr(i)),
         forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == PAGETABLE ==> self.get_page_table_pages().contains(page_index2page_ptr(i)),
         forall|page_ptr:PagePtr| #![auto] self.page_table_pages@.contains(page_ptr) ==> page_ptr_valid(page_ptr),
@@ -469,7 +466,7 @@ impl PageAllocator {
                 forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == MAPPED ==> self.mapped_pages@.contains(self.page_array@[j as int].start),
                 forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == MAPPED ==> self.mapped_pages@.contains(page_index2page_ptr(j)), 
                 forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == MAPPED ==> self.get_page_mappings(page_index2page_ptr(j)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[j as int].1)),
-                forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == MAPPED && self.page_array@[j as int].is_io_page == true ==> self.get_page_io_mappings(page_index2page_ptr(j)) =~= Set::<(Pcid,VAddr)>::empty().insert((ioid,boot_page_ptrs@[j as int].1)),
+                forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].state == MAPPED && self.page_array@[j as int].is_io_page == true ==> self.get_page_io_mappings(page_index2page_ptr(j)) =~= Set::<(Pcid,VAddr)>::empty(),
 
                 forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].is_io_page == true ==>  (self.page_array@[j as int].state == MAPPED),
                 forall|j:usize| #![auto] 0<=j<i && self.page_array@[j as int].is_io_page == false ==>  (self.page_array@[j as int].io_mappings@.dom().len() == 0),
@@ -530,7 +527,7 @@ impl PageAllocator {
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == MAPPED ==> self.get_page_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[i as int].1)),
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == MAPPED ==> self.get_mapped_pages().contains(page_index2page_ptr(i)),
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[i as int].1)),
-                forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_io_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty().insert((ioid,boot_page_ptrs@[i as int].1)),
+                forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_io_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty(),
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_mapped_pages().contains(page_index2page_ptr(i)),
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == PAGETABLE ==> self.get_page_table_pages().contains(page_index2page_ptr(i)),
                 forall|page_ptr:PagePtr| #![auto] self.page_table_pages@.contains(page_ptr) ==> page_ptr_valid(page_ptr),
@@ -630,9 +627,9 @@ impl PageAllocator {
             //     self.page_array[j as int].mappings@.dom().finite()
             //     ));
             self.page_array.set_page_start(i, page_index2page_ptr(i));
-            self.page_array.set_page_rf_count(i, 2);
+            self.page_array.set_page_rf_count(i, 1);
             self.page_array.set_page_mappings(i, Ghost(Map::<(Pcid,VAddr),PageType>::empty().insert((0,pair.1),0)));
-            self.page_array.set_page_io_mappings(i, Ghost(Map::<(Pcid,VAddr),PageType>::empty().insert((ioid,pair.1),0)));
+            self.page_array.set_page_io_mappings(i, Ghost(Map::<(Pcid,VAddr),PageType>::empty()));
             self.page_array.set_page_state(i, MAPPED);
             self.page_array.set_get_page_is_io_page(i, true);
 

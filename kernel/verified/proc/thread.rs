@@ -224,6 +224,8 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
             self.get_thread_ptrs() =~= old(self).get_thread_ptrs().insert(ret),
             self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(ret),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+            self.get_ioid_closure() =~= old(self).get_ioid_closure(),
+            self.get_pcid_closure() =~= old(self).get_pcid_closure(),
     {
         assert(self.thread_ptrs@.contains(page_ptr) == false);
         assert(forall|_proc_ptr: usize| #![auto] self.proc_perms@.dom().contains(_proc_ptr) ==> self.proc_perms@[_proc_ptr]@.value.get_Some_0().owned_threads@.contains(page_ptr) == false);

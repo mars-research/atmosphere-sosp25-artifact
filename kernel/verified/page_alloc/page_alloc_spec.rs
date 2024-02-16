@@ -244,10 +244,6 @@ impl PageAllocator {
 
     pub open spec fn io_pages_wf(&self) -> bool{
         (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> (self.page_array@[i].is_io_page == true ==> (self.page_array@[i].state == MAPPED || self.page_array@[i].state == UNAVAILABLE)))
-        &&
-        (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> (self.page_array@[i].is_io_page == false ==> (self.page_array@[i].io_mappings@.dom().len() == 0)))
-        &&
-        (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> (self.page_array@[i].is_io_page == false ==> (self.page_array@[i].mappings@.dom().len() == self.page_array@[i].rf_count)))
     }
 
     pub open spec fn available_pages_wf(&self) -> bool{
@@ -287,7 +283,7 @@ impl PageAllocator {
             )
     }
 
-    pub open spec fn page_alloc_wf(&self) -> bool
+    pub open spec fn wf(&self) -> bool
     {
         self.mem_wf()
         &&
@@ -311,11 +307,6 @@ impl PageAllocator {
            
     }
 
-
-    pub open spec fn wf(&self) -> bool
-    {
-        self.page_alloc_wf()
-    }
     
     #[verifier(inline)]
     pub open spec fn get_page(&self, page_ptr:PagePtr) -> Page

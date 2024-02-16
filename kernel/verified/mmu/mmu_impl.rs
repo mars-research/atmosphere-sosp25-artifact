@@ -70,7 +70,7 @@ impl MMUManager{
         return ret;
     }
 
-    pub fn adopt_dom0(&mut self, pagetable: PageTable, ioid: IOid, iommutable_perm: PointsTo<IOMMUTable>)
+    pub fn adopt_dom0(&mut self, pagetable: PageTable)
         requires
             old(self).wf(),
             old(self).free_pcids.wf(),
@@ -95,14 +95,6 @@ impl MMUManager{
                 page_ptr_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
             forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 va_perm_bits_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
-            iommutable_perm@.pptr == ioid,
-            iommutable_perm@.value.is_Some(),
-            iommutable_perm@.value.get_Some_0().wf(),
-            forall|va:usize| #![auto] spec_va_valid(va) && iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
-                page_ptr_valid(iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().addr),
-            forall|va:usize| #![auto] spec_va_valid(va) && iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
-                va_perm_bits_valid(iommutable_perm@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().perm),
-            pagetable.get_pagetable_page_closure().disjoint(iommutable_perm@.value.get_Some_0().get_iommutable_page_closure()),
         ensures
             self.wf(),
             forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].cr3 == 0,
@@ -111,12 +103,10 @@ impl MMUManager{
             forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].l2_tables@ =~= Map::empty(),
             forall|i:int|#![auto] 1<=i<PCID_MAX ==>  self.page_tables[i].l1_tables@ =~= Map::empty(),
             self.get_pagetable_by_pcid(0) =~= pagetable,
-            self.get_iommutable_by_ioid(ioid) =~= iommutable_perm@.value.get_Some_0(),
             self.get_pagetable_mapping_by_pcid(0) =~= pagetable.get_pagetable_mapping(),
-            self.get_iommutable_mapping_by_ioid(ioid) =~= iommutable_perm@.value.get_Some_0().get_iommutable_mapping(),
-            self.get_mmu_page_closure() =~= pagetable.get_pagetable_page_closure() + iommutable_perm@.value.get_Some_0().get_iommutable_page_closure(),
+            self.get_mmu_page_closure() =~= pagetable.get_pagetable_page_closure(),
             forall|i:usize, va: VAddr|#![auto] 1<=i<PCID_MAX && spec_va_valid(va) ==>  self.get_pagetable_mapping_by_pcid(i)[va].is_None(),
-            self.get_iommu_ids() =~= Set::empty().insert(ioid),
+            self.get_iommu_ids() =~= Set::empty(),
             self.get_free_pcids_as_set().contains(0) == false,
         {
             let pcid = self.free_pcids.pop_unique();
@@ -126,12 +116,6 @@ impl MMUManager{
             }
             self.page_tables.set(pcid, pagetable);
             assert(self.pagetables_wf());
-            proof{
-                self.iommu_table_pages@ = iommutable_perm@.value.get_Some_0().get_iommutable_page_closure();
-                self.iommu_ids@ = self.iommu_ids@.insert(ioid);
-                (self.iommu_perms.borrow_mut())
-                    .tracked_insert(ioid, iommutable_perm);
-            }
             assert(self.iommutables_wf());
         }
 

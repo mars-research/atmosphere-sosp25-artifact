@@ -82,7 +82,7 @@ impl Kernel{
 
     // #[verifier(external_body)]
     pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, 
-                        dom0_pagetable: PageTable, dom0_iommu_cr3:usize,dom0_iommutable: PointsTo<IOMMUTable>, kernel_pml4_entry: usize, dom0_pt_regs: PtRegs) -> (ret: isize)
+                        dom0_pagetable: PageTable, kernel_pml4_entry: usize, dom0_pt_regs: PtRegs) -> (ret: isize)
         requires
             old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
             old(self).proc_man.proc_perms@ =~= Map::empty(),
@@ -141,26 +141,14 @@ impl Kernel{
                 page_ptr_valid(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
             forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 va_perm_bits_valid(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
-            dom0_iommutable@.pptr == dom0_iommu_cr3,
-            dom0_iommutable@.value.is_Some(),
-            dom0_iommutable@.value.get_Some_0().wf(),
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
-                page_ptr_valid(dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().addr),
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
-                va_perm_bits_valid(dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().perm),
-            dom0_pagetable.get_pagetable_page_closure().disjoint(dom0_iommutable@.value.get_Some_0().get_iommutable_page_closure()),
             
             forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == MAPPED 
                 ||
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == IO,
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
-                boot_page_ptrs[page_ptr2page_index(dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().addr) as int].0 == IO,
             forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].1 == va,
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].is_Some() ==> 
-                boot_page_ptrs[page_ptr2page_index(dom0_iommutable@.value.get_Some_0().get_iommutable_mapping()[va].get_Some_0().addr) as int].1 == va,
-            forall|page_ptr:PagePtr|#![auto] (dom0_pagetable.get_pagetable_page_closure() + dom0_iommutable@.value.get_Some_0().get_iommutable_page_closure()).contains(page_ptr)
+            forall|page_ptr:PagePtr|#![auto] dom0_pagetable.get_pagetable_page_closure().contains(page_ptr)
                  <==>
                  (
                     page_ptr_valid(page_ptr)
@@ -176,20 +164,53 @@ impl Kernel{
         self.mmu_man.mmu_man_init();
         assert(self.proc_man.wf());
         assert(self.mmu_man.wf());
-        self.page_alloc.init(boot_page_ptrs,boot_page_perms, dom0_iommu_cr3);
+        self.page_alloc.init(boot_page_ptrs,boot_page_perms);
         assert(self.page_alloc.wf());
-        self.mmu_man.adopt_dom0(dom0_pagetable,dom0_iommu_cr3,dom0_iommutable);
+        self.mmu_man.adopt_dom0(dom0_pagetable);
         assert(self.kernel_mmu_page_alloc_pagetable_wf());
-        assert(self.mmu_man.get_iommu_ids() =~= Set::empty().insert(dom0_iommu_cr3));
         assert(self.kernel_mmu_page_alloc_iommutable_wf());
         assert(self.kernel_mem_layout_wf());
+        return self.kernel_init_helper(dom0_pt_regs);
+
+    }
+
+    fn kernel_init_helper(&mut self, dom0_pt_regs: PtRegs) -> isize
+        requires
+            old(self).proc_man.wf(),
+            old(self).mmu_man.wf(),
+            old(self).mmu_man.get_iommu_ids() =~= Set::empty(),
+            old(self).mmu_man.get_free_pcids_as_set().contains(0) == false,
+            old(self).page_alloc.wf(),
+            old(self).kernel_mmu_page_alloc_pagetable_wf(),
+            old(self).kernel_mmu_page_alloc_iommutable_wf(),
+            old(self).kernel_mem_layout_wf(),
+            old(self).proc_man.wf(),
+            old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
+            old(self).proc_man.proc_ptrs@ =~= Seq::empty(),
+            old(self).proc_man.proc_perms@ =~= Map::empty(),
+            old(self).proc_man.thread_ptrs@ =~= Set::empty(),
+            old(self).proc_man.thread_perms@ =~= Map::empty(),
+            old(self).proc_man.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            old(self).proc_man.scheduler@ =~= Seq::empty(),
+            old(self).proc_man.scheduler.len() =~= 0,
+            old(self).proc_man.endpoint_ptrs@ =~= Set::empty(),
+            old(self).proc_man.endpoint_perms@ =~= Map::empty(),
+            old(self).proc_man.get_pcid_closure() =~= Set::empty(),
+            old(self).proc_man.ioid_closure@ =~= Set::empty(),
+            old(self).cpu_list.wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> old(self).cpu_list@[i as int].wf(),
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS ==> old(self).cpu_list@[i as int].get_is_idle() == true,
+            forall|i:CPUID, pcid: Pcid| #![auto] 0<=i<NUM_CPUS && 0 <= pcid< PCID_MAX ==> old(self).cpu_list@[i as int].tlb@[pcid] =~= Map::empty(),
+            forall|i:CPUID, ioid: IOid| #![auto] 0<=i<NUM_CPUS ==> old(self).cpu_list@[i as int].iotlb@[ioid] =~= Map::empty(),
+            forall|thread_ptr:ThreadPtr| #![auto] old(self).proc_man.get_thread_ptrs().contains(thread_ptr) ==> old(self).proc_man.get_thread(thread_ptr).state != TRANSIT,
+    {
         if self.page_alloc.free_pages.len() < 2{
             return -1;
         }
         else{
             let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem(); 
             let (page_ptr2, page_perm2) = self.page_alloc.alloc_kernel_mem();
-            let new_proc = self.proc_man.new_proc(page_ptr1, page_perm1, 0, Some(dom0_iommu_cr3));
+            let new_proc = self.proc_man.new_proc(page_ptr1, page_perm1, 0, None);
             let new_thread = self.proc_man.new_thread(dom0_pt_regs,page_ptr2, page_perm2,new_proc);
             assert(
                 self.proc_man.wf());
@@ -219,9 +240,9 @@ impl Kernel{
             assert(self.kernel_tlb_wf());
             return 0;
         }
-
-
     }
+            
+
     pub open spec fn kernel_mmu_page_alloc_pagetable_wf(&self) -> bool{
         &&&
         (

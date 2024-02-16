@@ -31,6 +31,7 @@ impl ProcessManager {
             self.scheduler =~= old(self).scheduler,
             self.get_pcid_closure() =~= old(self).get_pcid_closure().insert(new_pcid),
             new_ioid.is_Some() ==> self.get_ioid_closure() =~= old(self).get_ioid_closure().insert(new_ioid.get_Some_0()),
+            new_ioid.is_None() ==> self.get_ioid_closure() =~= old(self).get_ioid_closure(),
             self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(page_ptr),
             self.get_proc_ptrs() =~= old(self).get_proc_ptrs().push(ret),
             self.get_proc_ptrs().contains(ret),

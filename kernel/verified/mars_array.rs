@@ -76,7 +76,7 @@ impl<const N: usize> MarsArray<usize, N> {
 impl<A, const N: usize> MarsArray<A, N> {
 
     #[verifier(external_body)]
-    pub fn new() -> (ret: Self)
+    pub const fn new() -> (ret: Self)
         ensures
             ret.wf(),
     {
@@ -121,6 +121,7 @@ impl<A, const N: usize> MarsArray<A, N> {
         self.seq@[i]
     }
 
+    #[verifier(inline)]
     pub open spec fn view(&self) -> Seq<A>{
         self.seq@
     }
