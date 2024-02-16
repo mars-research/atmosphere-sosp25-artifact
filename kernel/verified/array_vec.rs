@@ -1,7 +1,8 @@
 use vstd::prelude::*;
+verus!{
 use crate::array::Array;
 
-verus! {
+
 
 /// A preallocated vector.
 pub struct ArrayVec<T, const N: usize> {

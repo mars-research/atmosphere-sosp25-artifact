@@ -1,12 +1,14 @@
+
 use vstd::prelude::*;
+verus!{
+
+
 use vstd::ptr::*;
 use crate::define::*;
 use crate::page_alloc::*;
-
 use crate::pagetable::*;
-use vstd::set_lib::lemma_set_properties;
-
-verus!{
+// use vstd::set_lib::*;
+    
 impl PageTable{
 
     pub fn map(&mut self, va:VAddr, dst:PageEntry) -> (ret: bool)
@@ -31,7 +33,7 @@ impl PageTable{
         let tracked l4_perm = self.l4_table.borrow().tracked_borrow(self.cr3);
         let l4_tbl : &PageMap = PPtr::<PageMap>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let l3_option = l4_tbl.get(l4i);
-        if(l3_option.is_none()){
+        if l3_option.is_none(){
             assert(!old(self).is_va_entry_exist(va));
             return false;
         }else{
@@ -43,7 +45,7 @@ impl PageTable{
         assert(l3_ptr == l3_perm@.pptr);
         let l3_tbl : &PageMap = PPtr::<PageMap>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let l2_option = l3_tbl.get(l3i);
-        if(l2_option.is_none()){
+        if l2_option.is_none(){
             assert(!old(self).is_va_entry_exist(va));
             return false;
         }
@@ -55,7 +57,7 @@ impl PageTable{
         assert(l2_ptr == l2_perm@.pptr);
         let l2_tbl : &PageMap = PPtr::<PageMap>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let l1_option = l2_tbl.get(l2i);
-        if(l1_option.is_none()){
+        if l1_option.is_none(){
             assert(!old(self).is_va_entry_exist(va));
             return false;
         }
@@ -169,7 +171,7 @@ impl PageTable{
         let tracked l4_perm = self.l4_table.borrow().tracked_borrow(self.cr3);
         let l4_tbl : &PageMap = PPtr::<PageMap>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let l3_option = l4_tbl.get(l4i);
-        if(l3_option.is_none()){
+        if l3_option.is_none() {
             assert(!old(self).is_va_entry_exist(va));
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i).is_None());
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))].is_None());
@@ -181,7 +183,7 @@ impl PageTable{
         assert(l3_ptr == l3_perm@.pptr);
         let l3_tbl : &PageMap = PPtr::<PageMap>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let l2_option = l3_tbl.get(l3i);
-        if(l2_option.is_none()){
+        if l2_option.is_none() {
             assert(!old(self).is_va_entry_exist(va));
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i).is_None());
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))].is_None());
@@ -196,7 +198,7 @@ impl PageTable{
         assert(l2_ptr == l2_perm@.pptr);
         let l2_tbl : &PageMap = PPtr::<PageMap>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let l1_option = l2_tbl.get(l2i);
-        if(l1_option.is_none()){
+        if l1_option.is_none() {
             assert(!old(self).is_va_entry_exist(va));
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i).is_None());
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))].is_None());
@@ -308,7 +310,7 @@ impl PageTable{
         let tracked l4_perm = self.l4_table.borrow().tracked_borrow(self.cr3);
         let l4_tbl : &PageMap = PPtr::<PageMap>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let l3_option = l4_tbl.get(l4i);
-        if(l3_option.is_none()){
+        if l3_option.is_none() {
             assert(self.is_va_entry_exist(va) == false);
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i).is_None());
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))].is_None());
@@ -320,7 +322,7 @@ impl PageTable{
         assert(l3_ptr == l3_perm@.pptr);
         let l3_tbl : &PageMap = PPtr::<PageMap>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let l2_option = l3_tbl.get(l3i);
-        if(l2_option.is_none()){
+        if l2_option.is_none() {
             assert(self.is_va_entry_exist(va) == false);
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i).is_None());
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))].is_None());
@@ -334,7 +336,7 @@ impl PageTable{
         assert(l2_ptr == l2_perm@.pptr);
         let l2_tbl : &PageMap = PPtr::<PageMap>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let l1_option = l2_tbl.get(l2i);
-        if(l1_option.is_none()){
+        if l1_option.is_none() {
             assert(self.is_va_entry_exist(va) == false);
             assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i).is_None());
             assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))].is_None());
@@ -400,7 +402,7 @@ impl PageTable{
         let l4_tbl : &PageMap = PPtr::<PageMap>::from_usize(self.cr3).borrow(Tracked(l4_perm));
         let mut l3_option = l4_tbl.get(l4i);
         let mut l3_ptr = 0;
-        if(l3_option.is_none()){
+        if l3_option.is_none() {
             assert(self.is_va_entry_exist(va) == false);
             //alloc new page for l3 page
             let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
@@ -516,7 +518,7 @@ impl PageTable{
         let l3_tbl : &PageMap = PPtr::<PageMap>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
         let mut l2_option = l3_tbl.get(l3i);
         let mut l2_ptr:PAddr = 0;
-        if(l2_option.is_none()){
+        if l2_option.is_none() {
             assert(self.is_va_entry_exist(va) == false);
             //alloc new page for l2 page
             let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
@@ -625,7 +627,7 @@ proof{
         let l2_tbl : &PageMap = PPtr::<PageMap>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
         let mut l1_option = l2_tbl.get(l2i);
         let mut l1_ptr:usize = 0;
-        if(l1_option.is_none()){
+        if l1_option.is_none() {
             assert(self.is_va_entry_exist(va) == false);
             //alloc new page for l2 page
             let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
@@ -788,7 +790,7 @@ proof{
     //     let l4_tbl : &PageMap = PPtr::<PageMap>::from_usize(self.cr3).borrow(Tracked(l4_perm));
     //     let mut l3_option = l4_tbl.get(l4i);
     //     let mut l3_ptr = 0;
-    //     if(l3_option.is_none()){
+    //     if l3_option.is_none() {
     //         assert(self.is_va_entry_exist(va) == false);
     //         //alloc new page for l3 page
     //         let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
@@ -864,7 +866,7 @@ proof{
     //     let l3_tbl : &PageMap = PPtr::<PageMap>::from_usize(l3_ptr).borrow(Tracked(l3_perm));
     //     let mut l2_option = l3_tbl.get(l3i);
     //     let mut l2_ptr:PAddr = 0;
-    //     if(l2_option.is_none()){
+    //     if l2_option.is_none() {
     //         assert(self.is_va_entry_exist(va) == false);
     //         //alloc new page for l2 page
     //         let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();
@@ -927,7 +929,7 @@ proof{
     //     let l2_tbl : &PageMap = PPtr::<PageMap>::from_usize(l2_ptr).borrow(Tracked(l2_perm));
     //     let mut l1_option = l2_tbl.get(l2i);
     //     let mut l1_ptr:usize = 0;
-    //     if(l1_option.is_none()){
+    //     if l1_option.is_none() {
     //         assert(self.is_va_entry_exist(va) == false);
     //         //alloc new page for l2 page
     //         let (page_ptr, page_perm) = page_alloc.alloc_pagetable_mem();

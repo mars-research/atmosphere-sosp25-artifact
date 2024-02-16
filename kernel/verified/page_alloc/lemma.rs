@@ -1,8 +1,9 @@
 use vstd::prelude::*;
+verus!{
 use crate::define::*;
 use crate::page_alloc::*;
 
-verus! {
+
 #[verifier(external_body)]
 pub proof fn lemma_usize_u64(x: u64)
     ensures

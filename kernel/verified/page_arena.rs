@@ -1,11 +1,12 @@
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::PPtr;
 
 use crate::mem::size_of;
 
 use crate::define::*;
 
-verus! {
+
 
 // Why 4096 instead of PAGE_SZ in some places?
 //

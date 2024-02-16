@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+verus!{
 
 use crate::array_vec::*;
 use crate::proc::*;
@@ -11,7 +12,7 @@ use crate::define::*;
 
 use crate::kernel::*;
 
-verus! {
+
 impl Kernel {
 
     pub fn sys_timer_int(&mut self, cpu_id: CPUID)

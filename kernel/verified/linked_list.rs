@@ -1,6 +1,7 @@
 use vstd::prelude::*;
+verus!{
 
-verus! {
+
 
 use crate::define::*;
 use crate::page_arena::{PageArena, PageElementPtr, PageMetadataPtr};

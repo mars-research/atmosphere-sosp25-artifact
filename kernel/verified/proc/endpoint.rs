@@ -1,12 +1,13 @@
 use super::*;
 
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::*;
 use crate::mars_staticlinkedlist::*;
 
 use crate::define::*;
 
-verus! {
+
 
 pub struct Endpoint{
     pub queue: MarsStaticLinkedList<MAX_NUM_THREADS_PER_ENDPOINT>,

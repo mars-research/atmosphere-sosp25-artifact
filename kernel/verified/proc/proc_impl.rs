@@ -3,6 +3,7 @@ use super::*;
 // use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::*;
 
 // use crate::mars_staticlinkedlist::*;
@@ -13,7 +14,7 @@ use crate::define::*;
 // use vstd::seq_lib::lemma_seq_properties;
 
 // use crate::proc::*;
-verus! {
+
 
 impl ProcessManager {
     pub fn new_proc(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, new_pcid: Pcid, new_ioid: Option<IOid>) -> (ret: ProcPtr)

@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+verus!{
 // use vstd::ptr::*;
 
 use crate::define::*;
@@ -7,7 +8,7 @@ use crate::page_alloc::*;
 use crate::mars_array::MarsArray;
 use crate::array_vec::ArrayVec;
 
-verus! {
+
 
 pub struct Page{
     pub start: PagePtr,

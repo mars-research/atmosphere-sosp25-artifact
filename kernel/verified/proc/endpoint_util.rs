@@ -1,6 +1,7 @@
 use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::{
     PPtr, PointsTo,
     // PAGE_SZ,
@@ -10,7 +11,7 @@ use crate::proc::*;
 use crate::define::*;
 
 use crate::mars_staticlinkedlist::*;
-verus!{
+
 
 #[verifier(external_body)]
 pub fn endpoint_remove_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr:ThreadPtr)
@@ -29,7 +30,7 @@ pub fn endpoint_remove_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_pe
 
 {
     let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
-    (*uptr).assume_init_mut().rf_counter = (*uptr).assume_init_mut().rf_counter - 1;
+    unsafe{(*uptr).assume_init_mut().rf_counter = (*uptr).assume_init_mut().rf_counter - 1;}
 }
 
 #[verifier(external_body)]
@@ -49,7 +50,7 @@ pub fn endpoint_add_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm:
 
 {
     let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
-    (*uptr).assume_init_mut().rf_counter = (*uptr).assume_init_mut().rf_counter + 1;
+    unsafe{(*uptr).assume_init_mut().rf_counter = (*uptr).assume_init_mut().rf_counter + 1;}
 }
 
 #[verifier(external_body)]
@@ -81,9 +82,9 @@ pub fn endpoint_pop_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut T
 
 {
     let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
-    let ret = (*uptr).assume_init_mut().queue.pop();
+    unsafe{let ret = (*uptr).assume_init_mut().queue.pop();
 
-    return ret;
+    return ret;}
 }
 
 #[verifier(external_body)]
@@ -117,8 +118,8 @@ pub fn endpoint_push_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut 
 
 {
     let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
-    let ret = (*uptr).assume_init_mut().queue.push(thread_ptr);
+    unsafe{let ret = (*uptr).assume_init_mut().queue.push(thread_ptr);
 
-    return ret;
+    return ret;}
 }
 }

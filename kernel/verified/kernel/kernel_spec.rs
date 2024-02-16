@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+verus!{
 
 use crate::array_vec::*;
 use crate::proc::*;
@@ -12,10 +13,11 @@ use vstd::ptr::*;
 use crate::trap::PtRegs;
 use crate::iommutable::*;
 
-use core::mem::MaybeUninit;
+// use core::mem::MaybeUninit;
 
+#[cfg(verus_keep_ghost)]
 use vstd::set_lib::lemma_set_properties;
-verus! {
+
 pub struct Kernel{
     pub proc_man : ProcessManager,
     pub page_alloc: PageAllocator,
@@ -80,7 +82,7 @@ impl Kernel{
 
     // #[verifier(external_body)]
     pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, 
-                        mut dom0_pagetable: PageTable, dom0_iommu_cr3:usize,mut dom0_iommutable: PointsTo<IOMMUTable>, kernel_pml4_entry: usize, dom0_pt_regs: PtRegs) -> (ret: isize)
+                        dom0_pagetable: PageTable, dom0_iommu_cr3:usize,dom0_iommutable: PointsTo<IOMMUTable>, kernel_pml4_entry: usize, dom0_pt_regs: PtRegs) -> (ret: isize)
         requires
             old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
             old(self).proc_man.proc_perms@ =~= Map::empty(),

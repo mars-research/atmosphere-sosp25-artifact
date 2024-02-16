@@ -1,6 +1,7 @@
 use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::{
     PPtr, PointsTo,
     // PAGE_SZ,
@@ -11,7 +12,7 @@ use crate::define::*;
 
 use crate::mars_staticlinkedlist::*;
 
-verus!{
+
 
 
 #[verifier(external_body)]
@@ -50,7 +51,7 @@ pub fn proc_perm_init(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsT
         proc_perm@@.value.get_Some_0().owned_threads@ =~= Seq::empty(),
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-    (*uptr).assume_init_mut().owned_threads.init();
+    unsafe{(*uptr).assume_init_mut().owned_threads.init();}
 }
 
 #[verifier(external_body)]
@@ -69,7 +70,7 @@ pub fn proc_set_pl_rf(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsT
         proc_perm@@.value.get_Some_0().pl_rf =~= pl_rf,
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-    (*uptr).assume_init_mut().pl_rf = pl_rf;
+    unsafe{(*uptr).assume_init_mut().pl_rf = pl_rf;}
 }
 
 #[verifier(external_body)]
@@ -89,7 +90,7 @@ pub fn proc_set_pcid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo
         proc_perm@@.value.get_Some_0().pcid =~= pcid,
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-    (*uptr).assume_init_mut().pcid = pcid;
+    unsafe{(*uptr).assume_init_mut().pcid = pcid;}
 }
 
 #[verifier(external_body)]
@@ -109,7 +110,7 @@ pub fn proc_set_ioid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo
         proc_perm@@.value.get_Some_0().ioid =~= ioid,
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-    (*uptr).assume_init_mut().ioid = ioid;
+    unsafe{(*uptr).assume_init_mut().ioid = ioid;}
 }
 
 
@@ -143,7 +144,7 @@ pub fn proc_push_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Point
         proc_perm@@.value.get_Some_0().owned_threads@.contains(thread_ptr),
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-    return (*uptr).assume_init_mut().owned_threads.push(thread_ptr);
+    unsafe{return (*uptr).assume_init_mut().owned_threads.push(thread_ptr);}
 }
 
 #[verifier(external_body)]
@@ -173,7 +174,7 @@ pub fn proc_remove_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Poi
 
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-    return (*uptr).assume_init_mut().owned_threads.remove(rf);
+    unsafe{return (*uptr).assume_init_mut().owned_threads.remove(rf);}
 }
 
 #[verifier(external_body)]
@@ -204,7 +205,7 @@ pub fn proc_pop_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Points
 
 {
     let uptr = proc_pptr.to_usize() as *mut MaybeUninit<Process>;
-    return (*uptr).assume_init_mut().owned_threads.pop();
+    unsafe{return (*uptr).assume_init_mut().owned_threads.pop();}
 }
 
 }

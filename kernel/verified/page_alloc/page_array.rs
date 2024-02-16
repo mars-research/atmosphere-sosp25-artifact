@@ -1,9 +1,10 @@
 use vstd::prelude::*;
+verus!{
 use crate::define::*;
 use crate::page_alloc::*;
 
 use crate::mars_array::*;
-verus! {
+
 impl<const N: usize> MarsArray<Page, N> {
 
     #[verifier(external_body)]

@@ -1,17 +1,18 @@
 use vstd::prelude::*;
+verus!{
 
-use crate::array_vec::*;
-use crate::proc::*;
+// use crate::array_vec::*;
+// use crate::proc::*;
 use crate::page_alloc::*;
-use crate::mmu::*;
-use crate::cpu::{Cpu,CPUID};
-use crate::mars_array::MarsArray;
+// use crate::mmu::*;
+// use crate::cpu::{Cpu,CPUID};
+// use crate::mars_array::MarsArray;
 use crate::pagetable::*;
 use crate::define::*;
 
 use crate::kernel::*;
 
-verus! {
+
 
 // pub proof fn va_derive(va:VAddr)
 //     requires spec_va_valid(va)

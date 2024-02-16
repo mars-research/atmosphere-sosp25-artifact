@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+verus!{
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use vstd::ptr::PointsTo;
@@ -8,7 +9,7 @@ use core::mem::MaybeUninit;
 use crate::pagetable::*;
 use crate::page_alloc::*;
 
-verus!{
+
 
 pub open spec fn va_perm_bits_valid(perm:usize) -> bool{
     (perm ^ VA_PERM_MASK as usize) == 0

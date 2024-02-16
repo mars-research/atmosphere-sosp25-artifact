@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+verus!{
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::page_alloc::*;
@@ -6,7 +7,7 @@ use crate::pagetable::*;
 
 use crate::iommutable::*;
 
-verus!{
+
 impl IOMMUTable{
     pub fn map(&mut self, va:VAddr, dst:PageEntry) -> (ret: bool)
         requires 

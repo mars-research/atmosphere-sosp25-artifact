@@ -1,6 +1,7 @@
 // use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::*;
 
 use super::*;
@@ -13,7 +14,7 @@ use crate::mars_staticlinkedlist::*;
 // use crate::setters::*;
 use crate::define::*;
 
-verus! {
+
 
 pub struct Process{
     // pub owned_threads: LinkedList<ThreadPtr>,
@@ -82,15 +83,15 @@ impl ProcessManager {
             proc_ptrs: MarsStaticLinkedList::<MAX_NUM_PROCS>::new(),
             proc_perms: Tracked(Map::tracked_empty()),
         
-            thread_ptrs: Set::empty(),
-            thread_perms: arbitrary(),
+            thread_ptrs: Ghost(Set::empty()),
+            thread_perms: Tracked(Map::tracked_empty()),
             
             scheduler: MarsStaticLinkedList::<MAX_NUM_THREADS>::new(),
-            endpoint_ptrs: arbitrary(),
-            endpoint_perms: arbitrary(),
+            endpoint_ptrs: Ghost(Set::empty()),
+            endpoint_perms: Tracked(Map::tracked_empty()),
         
-            pcid_closure : arbitrary(),
-            ioid_closure : arbitrary(),
+            pcid_closure : Ghost(Set::empty()),
+            ioid_closure : Ghost(Set::empty()),
         };
 
         ret

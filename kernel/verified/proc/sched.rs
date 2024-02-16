@@ -1,12 +1,13 @@
 use super::*;
 
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::*;
 
 use crate::define::*;
 
 
-verus! {
+
 impl ProcessManager {
     pub fn push_scheduler(&mut self, thread_ptr: ThreadPtr)
         requires 

@@ -1,18 +1,16 @@
 use vstd::prelude::*;
-// use vstd::ptr::PointsTo;
-use crate::define::*;
-use crate::mars_array::*;
-use crate::page_alloc::*;
-use vstd::ptr::PointsTo;
-
-use crate::pagetable::*;
 
 
 pub const KERNEL_PML4_SIG :Option<PageEntry> = None; // hack @Xiangdong
 
-
 verus!{
+// use vstd::ptr::PointsTo;
+use crate::define::*;
+use crate::mars_array::*;
+// use crate::page_alloc::*;
+use vstd::ptr::PointsTo;
 
+use crate::pagetable::*;
 
 
 pub struct LookUpTable{

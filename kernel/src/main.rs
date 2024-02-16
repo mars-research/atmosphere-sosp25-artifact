@@ -76,6 +76,7 @@ fn main(boot_info: *const BootInfo) -> isize {
     if !cmdline.nologo {
         print_logo();
     }
+    log::info!("hello_world from verified={:?}",verified::kernel::hello_world());
 
     log::info!("Command line: {}", boot::get_raw_command_line());
     #[cfg(debug_assertions)]
@@ -97,6 +98,8 @@ fn main(boot_info: *const BootInfo) -> isize {
     unsafe {
         try_sysret(dom0.entry_point, dom0.pml4, initial_sp as *mut _);
     }
+
+    
 
     unsafe {
         scripts::run_script_from_command_line();

@@ -1,7 +1,8 @@
 use vstd::prelude::*;
+verus!{
 use core::mem::MaybeUninit;
 
-verus! {
+
 
 pub struct MarsArray<A, const N: usize>{
     pub seq: Ghost<Seq<A>>,
@@ -79,12 +80,13 @@ impl<A, const N: usize> MarsArray<A, N> {
         ensures
             ret.wf(),
     {
+        unsafe{
         let ret = Self {
             ar: MaybeUninit::uninit().assume_init(),
             seq: Ghost(Seq::empty()),
         };
-
         ret
+        }
     }
 
     #[verifier(external_body)]

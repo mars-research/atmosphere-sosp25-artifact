@@ -1,6 +1,7 @@
 use vstd::prelude::*;
+verus!{
 
-verus! {
+
 
 // Idea: https://github.com/verus-lang/verus/pull/361
 pub spec fn spec_size_of<T>() -> usize;

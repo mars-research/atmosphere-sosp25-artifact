@@ -1,11 +1,12 @@
 use vstd::prelude::*;
+verus!{
 
 // use crate::proc::*;
 use crate::define::*;
 
 use crate::linked_list::*;
 
-verus! {
+
 pub struct Scheduler{
     queue: LinkedList<ThreadPtr>,
 }

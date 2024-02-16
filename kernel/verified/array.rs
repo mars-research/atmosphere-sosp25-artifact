@@ -1,8 +1,9 @@
 use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
+verus!{
 
-verus! {
+
 
 /// An array containing values that might not have been initialized.
 ///

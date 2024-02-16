@@ -1,8 +1,8 @@
 use vstd::prelude::*;
+verus!{
 use core::mem::MaybeUninit;
-use vstd::seq_lib::lemma_seq_contains_after_push;
 
-verus! {
+use vstd::seq_lib::*;
 
 pub type Index = isize;
 pub const NULL_POINTER: usize = 0;
@@ -39,7 +39,8 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         ensures
             ret.arr_seq@.len() == N,
     {
-        let ret = Self {
+        unsafe{
+            let ret = Self {
 
             spec_seq: Ghost(Seq::empty()),
 
@@ -59,6 +60,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         };
 
         ret
+        }
     }
 
     pub fn init(&mut self)

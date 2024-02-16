@@ -1,6 +1,7 @@
 use core::mem::MaybeUninit;
 use crate::trap::PtRegs;
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::{
     PPtr, PointsTo,
     // PAGE_SZ,
@@ -10,7 +11,7 @@ use crate::proc::*;
 use crate::define::*;
 
 use crate::mars_staticlinkedlist::*;
-verus!{
+
 #[verifier(external_body)]
 pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Thread>, Tracked<PointsTo<Thread>>))
     requires page.0.id() == page.1@@.pptr,
@@ -28,14 +29,14 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
             ret.1@@.value.get_Some_0().caller =~= None,
             ret.1@@.value.get_Some_0().is_receiving_call =~= false,
 {
-    let uptr = page.0.to_usize() as *mut MaybeUninit<Thread>;
+    unsafe{let uptr = page.0.to_usize() as *mut MaybeUninit<Thread>;
     (*uptr).assume_init_mut().endpoint_descriptors.init2zero();
     (*uptr).assume_init_mut().ipc_payload.message = None;
     (*uptr).assume_init_mut().ipc_payload.page_payload = None;
     (*uptr).assume_init_mut().callee = None;
     (*uptr).assume_init_mut().caller = None;
     (*uptr).assume_init_mut().is_receiving_call = false;
-    (PPtr::<Thread>::from_usize(page.0.to_usize()), Tracked::assume_new())
+    (PPtr::<Thread>::from_usize(page.0.to_usize()), Tracked::assume_new())}
 }
 
 
@@ -389,9 +390,9 @@ pub fn endpoint_remove_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mu
 
 {
     let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
-    let ret = (*uptr).assume_init_mut().queue.remove(rf);
+    unsafe{let ret = (*uptr).assume_init_mut().queue.remove(rf);
 
-    return ret;
+    return ret;}
 }
 
 }

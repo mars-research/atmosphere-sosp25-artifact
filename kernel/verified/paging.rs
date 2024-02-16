@@ -4,6 +4,7 @@
 //! refers to the least significant bit.
 
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::PointsTo;
 
 
@@ -12,7 +13,7 @@ use crate::mars_array::*;
 use crate::define::*;
 
 
-verus! {
+
 
 pub struct AddressSpace(pub PML4);
 

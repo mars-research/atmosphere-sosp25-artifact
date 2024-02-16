@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+verus!{
 
 use crate::array_vec::*;
 use crate::proc::*;
@@ -9,7 +10,7 @@ use crate::mars_array::MarsArray;
 use crate::pagetable::*;
 use crate::define::*;
 
-verus! {
+
 
 // #[verifier(external_body)]
 // proof fn lemma_usize_u64()

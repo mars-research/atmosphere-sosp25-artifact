@@ -1,6 +1,7 @@
 use vstd::prelude::*;
+verus!{
 
-verus! {
+
 /// Registers passed to the ISR.
 #[repr(C)]
 pub struct PtRegs {

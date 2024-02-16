@@ -1,6 +1,7 @@
 use super::*;
 
 use vstd::prelude::*;
+verus!{
 
 use crate::mars_staticlinkedlist::*;
 use crate::pagetable::*;
@@ -10,9 +11,9 @@ use crate::trap::*;
 
 use vstd::ptr::*;
 
-use crate::proc::*;
+// use crate::proc::*;
 
-verus! {
+
 pub struct Thread{
     pub parent: ProcPtr,
     pub state: ThreadState,

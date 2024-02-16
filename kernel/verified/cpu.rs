@@ -1,4 +1,5 @@
 use vstd::prelude::*;
+verus!{
 // use vstd::ptr::PointsTo;
 
 use crate::mars_array::MarsArray;
@@ -9,7 +10,7 @@ use core::mem::MaybeUninit;
 
 pub type CPUID = usize;
 
-verus! {
+
 pub struct CPUStack{
     pub kernel_stack: [u8;4096],
     pub tlb_stack: [u8;4096],
@@ -24,11 +25,11 @@ impl CPUStackList{
     #[verifier(external_body)]
     pub fn new() -> (ret: Self)
     {
-        let ret = Self {
+        unsafe{let ret = Self {
             stack_ar: MaybeUninit::uninit().assume_init(),
         };
 
-        ret
+        ret}
     }
 
     #[verifier(external_body)]

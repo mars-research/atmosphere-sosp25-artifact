@@ -1,13 +1,14 @@
 use vstd::prelude::*;
+verus!{
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::mars_array::*;
 use crate::page_alloc::*;
-use vstd::ptr::PointsTo;
+// use vstd::ptr::PointsTo;
 
 use crate::pagetable::*;
 
-verus!{
+
 // #[verifier(external_body)]
 // fn index_helper(value:usize) -> (ret:bool)   
 //     ensures 
@@ -99,7 +100,7 @@ impl PageMap{
                 return;
             }else{
                 let entry = value.unwrap();
-                self.ar.set(index, ((entry.addr | entry.perm) | (PAGE_ENTRY_PRESENT_MASK as usize)) );
+                self.ar.set(index, (entry.addr | entry.perm) | (PAGE_ENTRY_PRESENT_MASK as usize));
                 proof{
                     self.spec_seq@ = self.spec_seq@.update(index as int,value);
                 }

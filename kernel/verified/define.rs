@@ -1,6 +1,7 @@
 use vstd::prelude::*;
+verus!{
 use vstd::ptr::*;
-verus! {
+
 
 pub type ErrorCodeType = usize;
 pub const SUCCESS: ErrorCodeType = 0;
