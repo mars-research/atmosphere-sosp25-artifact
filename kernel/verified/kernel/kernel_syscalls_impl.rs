@@ -214,7 +214,7 @@ impl Kernel {
         assert(self.kernel_tlb_wf());
         assert(self.wf());
         
-        self.proc_man.pass_endpoint(current_thread_ptr, endpoint_index, new_thread, 0);
+        self.kernel_new_proc_endpoint_passer(current_thread_ptr, endpoint_index, new_thread, 0);
         return (SUCCESS,pcid,cr3,pt_regs);
 
     }
