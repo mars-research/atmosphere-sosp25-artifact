@@ -61,13 +61,29 @@ impl Cpu {
         &&&
         self.iotlb@.dom() =~= Set::new(|ioid: IOid| {true} )
     }
-    pub open spec fn get_current_thread(&self) -> Option<ThreadPtr>
+    pub open spec fn spec_get_current_thread(&self) -> Option<ThreadPtr>
     {
         self.current_t
     }
 
-    pub open spec fn get_is_idle(&self) -> bool{
+    #[verifier(when_used_as_spec(spec_get_current_thread))]
+    pub fn get_current_thread(&self) -> (ret:Option<ThreadPtr>)
+        ensures
+            ret =~= self.get_current_thread()
+    {
+        self.current_t
+    }
+
+    pub open spec fn spec_get_is_idle(&self) -> bool{
         self.current_t.is_Some() == false
+    }
+
+    #[verifier(when_used_as_spec(spec_get_is_idle))]
+    pub fn get_is_idle(&self) -> (ret:bool)
+        ensures
+            self.get_is_idle() == ret,
+    {
+        self.current_t.is_some() == false
     }
     
     #[verifier(inline)]

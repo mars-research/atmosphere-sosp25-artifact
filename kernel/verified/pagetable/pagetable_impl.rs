@@ -1100,6 +1100,53 @@ proof{
     // }
     */
 
+    pub fn init_to_wf(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, kernel_pml4_entry: Option<PageEntry>)
+        requires
+            old(self).wf_mapping(),
+            old(self).get_pagetable_page_closure() =~= Set::empty(),
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> old(self).get_pagetable_mapping()[va].is_None(),
+            page_ptr != 0,
+            page_perm@@.pptr == page_ptr,
+            page_perm@@.value.is_Some(),
+        ensures
+            self.wf(),
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> self.get_pagetable_mapping()[va].is_None(),
+            self.get_pagetable_page_closure() =~= Set::empty().insert(page_ptr),
+
+    {
+        proof{
+            pagetable_virtual_mem_lemma();
+        }
+        assert(self.l4_table@.dom() =~= Set::empty());
+        assert(self.l3_tables@.dom() =~= Set::empty());
+        assert(self.l2_tables@.dom() =~= Set::empty());
+        assert(self.l1_tables@.dom() =~= Set::empty());
+        self.cr3 = page_ptr;
+        let (l4_ptr,mut l4_perm) = page_to_pagemap((page_ptr,page_perm));
+        assume(kernel_pml4_entry.is_None());
+        
+        proof{
+            self.l4_table.borrow_mut().tracked_insert(l4_ptr, l4_perm.get());
+        }
+
+        let tracked mut l4_perm = self.l4_table.borrow_mut().tracked_remove(l4_ptr);
+
+        pagemap_set(&PPtr::<PageMap>::from_usize(l4_ptr),Tracked(&mut l4_perm),0,kernel_pml4_entry);
+
+        proof{self.l4_table.borrow_mut().tracked_insert(l4_ptr, l4_perm);}
+
+        assert(self.wf_l4());
+        assert(self.wf_l3());
+        assert(self.wf_l2());
+        assert(self.wf_l1());
+        assert(self.no_self_mapping());
+        assert(self.wf_mapping());
+        assert(self.l4_kernel_entries_reserved());
+
+        assert(self.wf());
+
+    }
+
 }
 
 }

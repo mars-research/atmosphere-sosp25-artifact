@@ -203,6 +203,15 @@ impl MMUManager{
         self.get_iommutable_by_ioid(ioid).get_iommutable_mapped_pages()
     }
 
+    pub fn get_cr3_by_pcid(&self, pcid:Pcid) -> (ret:usize)
+        requires
+            self.wf(),
+            0<=pcid<PCID_MAX,
+            self.get_free_pcids_as_set().contains(pcid) == false,
+        {
+            return self.page_tables.get(pcid).cr3;
+        }
+
     #[verifier(inline)]
     pub open spec fn pagetables_wf(&self) -> bool{
         &&&

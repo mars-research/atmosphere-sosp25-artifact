@@ -39,6 +39,7 @@ impl PageAllocator {
             ret.1@@.value.is_Some(),
             self.free_pages.len() as int =~= old(self).free_pages.len() as int - 1,
             forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.get_page_mappings(page_ptr) =~= old(self).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.get_page_io_mappings(page_ptr) =~= old(self).get_page_io_mappings(page_ptr),
     {
         proof{
             self.page_array_wf_derive();
@@ -277,6 +278,9 @@ impl PageAllocator {
             ret.1@@.value.is_Some(),
             self.free_pages.len() as int =~= old(self).free_pages.len() as int - 1,
             forall|page_ptr:PagePtr| #![auto] self.available_pages@.contains(page_ptr) ==> self.get_page_mappings(page_ptr) =~= old(self).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.get_page_mappings(page_ptr) =~= old(self).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.get_page_io_mappings(page_ptr) =~= old(self).get_page_io_mappings(page_ptr),
+            ret.0 != 0,
     {
         proof{
             self.page_array_wf_derive();
@@ -310,6 +314,7 @@ impl PageAllocator {
         let tracked mut page_perm: PagePerm =
             (self.page_perms.borrow_mut()).tracked_remove(ptr);
         assert(page_perm@.value.is_Some());
+        assume(ptr != 0); // TODO: @Xiangdong add this to spec.
         return (ptr,Tracked(page_perm));
     }
 

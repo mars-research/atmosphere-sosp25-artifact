@@ -141,6 +141,53 @@ impl ProcessManager {
         self.proc_perms@[proc_ptr]@.value.get_Some_0()
     }
 
+    pub fn get_thread_endpoint_ptr_by_endpoint_idx(&self, thread_ptr: ThreadPtr, endpoint_index:EndpointIdx) -> (ret :EndpointPtr)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+            0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
+        ensures
+            ret =~= self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]
+            
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        let ret = thread.endpoint_descriptors.get(endpoint_index);
+        return *ret;
+    }
+
+    pub fn get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Pcid)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+        ensures
+            ret =~= self.get_proc(self.get_thread(thread_ptr).parent).pcid,
+            self.get_pcid_closure().contains(ret),
+            0<=ret<PCID_MAX,
+    {
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        let proc_ptr = thread.parent;
+        let tracked proc_perm = self.proc_perms.borrow().tracked_borrow(proc_ptr);
+        let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
+        let ret = proc.pcid;
+        return ret;
+    }
+
+    pub fn get_endpoint_rf_counter_by_endpoint_ptr(&self, endpoint_ptr:EndpointPtr) -> (ret :usize)
+        requires
+            self.wf(),
+            self.get_endpoint_ptrs().contains(endpoint_ptr),
+        ensures
+            ret =~= self.get_endpoint(endpoint_ptr).rf_counter,
+    {
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr));
+        let tracked endpoint_perm = self.endpoint_perms.borrow().tracked_borrow(endpoint_ptr);
+        let endpoint : &Endpoint = PPtr::<Endpoint>::from_usize(endpoint_ptr).borrow(Tracked(endpoint_perm));
+        let ret = endpoint.rf_counter;
+        return ret;
+    }
     pub open spec fn get_thread(&self, thread_ptr: ThreadPtr) -> Thread
         recommends
             self.get_thread_ptrs().contains(thread_ptr),
@@ -624,6 +671,10 @@ impl ProcessManager {
     pub open spec fn wf_pcid_closure(&self) -> bool{
         (
             self.get_pcid_closure().finite()
+        )&&
+        (
+            forall|proc_ptr_i: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr_i) 
+                ==>  0<=self.proc_perms@[proc_ptr_i].view().value.get_Some_0().get_pcid()<PCID_MAX
         )
         &&
         (

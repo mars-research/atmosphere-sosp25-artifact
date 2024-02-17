@@ -119,6 +119,39 @@ impl MMUManager{
             assert(self.iommutables_wf());
         }
 
+    pub fn new_pagetable(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>,kernel_pml4_entry: Option<PageEntry>) -> (ret:Pcid)
+        requires
+            old(self).wf(),
+            old(self).free_pcids.len() > 0,
+            old(self).get_mmu_page_closure().contains(page_ptr) == false,
+            page_ptr != 0,
+            page_perm@@.pptr == page_ptr,
+            page_perm@@.value.is_Some(),
+        ensures
+            self.wf(),
+            self.get_free_pcids_as_set() =~= old(self).get_free_pcids_as_set().remove(ret),
+            old(self).get_free_pcids_as_set().contains(ret),
+            self.get_iommu_ids() =~= old(self).get_iommu_ids(),
+            self.get_mmu_page_closure() =~= old(self).get_mmu_page_closure().insert(page_ptr),
+            forall|i:Pcid|#![auto] 0<=i<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(i) =~= old(self).get_pagetable_mapping_by_pcid(i),
+            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> self.get_pagetable_mapping_by_pcid(pcid)[va] =~= old(self).get_pagetable_mapping_by_pcid(pcid)[va],
+            forall|i:IOid|#![auto] self.get_mmu_page_closure().contains(i) ==> self.get_iommutable_mapping_by_ioid(i) =~= old(self).get_iommutable_mapping_by_ioid(i),
+            forall|i:IOid, va:usize| #![auto] self.get_iommu_ids().contains(i) && spec_va_valid(va) ==> self.get_iommutable_mapping_by_ioid(i)[va] =~= old(self).get_iommutable_mapping_by_ioid(i)[va],
+    {
+        let ret = self.free_pcids.pop_unique();
+        assert(0<=ret<PCID_MAX);
+        assert(forall|va:VAddr| #![auto] spec_va_valid(va) ==> self.page_tables[ret as int].get_pagetable_mapping()[va].is_None());
+        assert(self.page_tables[ret as int].get_pagetable_page_closure() =~= Set::empty());
+
+        self.page_tables.init_into_wf_by_pcid(ret,page_ptr,page_perm,kernel_pml4_entry);
+
+        proof{
+            self.page_table_pages@ = self.page_table_pages@.insert(page_ptr);
+        }
+        assert(self.wf());
+        return ret;
+    }
+
     // pub fn create_pagetable_va_entry(&mut self, pcid:Pcid, va:VAddr, page_alloc:&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
     //     requires
     //         0<=pcid<PCID_MAX,

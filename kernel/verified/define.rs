@@ -14,6 +14,12 @@ pub const SCHEDULER_NO_SPACE:ErrorCodeType = 6;
 pub const SHARED_ENDPOINT_NOT_EXIST:ErrorCodeType = 7;
 pub const SHARED_ENDPOINT_REF_COUNT_OVERFLOW:ErrorCodeType = 8;
 pub const SHARED_ENDPOINT_SLOT_TAKEN:ErrorCodeType = 9;
+pub const NO_RUNNING_THREAD:ErrorCodeType = 10;
+pub const CPU_ID_INVALID:ErrorCodeType = 11;
+pub const ENDPOINT_INDEX_INVALID:ErrorCodeType = 12;
+pub const SYSTEM_OUT_OF_MEM:ErrorCodeType = 13;
+pub const PROCESS_LIST_NO_SPEC:ErrorCodeType = 14;
+pub const NO_FREE_PCID:ErrorCodeType = 15;
 
 
 pub type ThreadState = usize;

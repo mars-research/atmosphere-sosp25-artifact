@@ -25,7 +25,7 @@ pub struct Kernel{
     pub cpu_list: MarsArray<Cpu,NUM_CPUS>,
     pub cpu_stacks: CPUStackList,
 
-    pub kernel_pml4_entry: usize,
+    pub kernel_pml4_entry: PageEntry,
 }
 
 impl Kernel{
@@ -74,7 +74,7 @@ impl Kernel{
             mmu_man: MMUManager::new(),
             cpu_list: MarsArray::<Cpu,NUM_CPUS>::new(),
             cpu_stacks: CPUStackList::new(),
-            kernel_pml4_entry: 0,
+            kernel_pml4_entry: PageEntry{addr:0,perm:0},
         };
         ret
     }
@@ -82,7 +82,7 @@ impl Kernel{
 
     // #[verifier(external_body)]
     pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, 
-                        dom0_pagetable: PageTable, kernel_pml4_entry: usize, dom0_pt_regs: PtRegs) -> (ret: isize)
+                        dom0_pagetable: PageTable, kernel_pml4_entry: PageEntry, dom0_pt_regs: PtRegs) -> (ret: isize)
         requires
             old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
             old(self).proc_man.proc_perms@ =~= Map::empty(),
@@ -267,6 +267,9 @@ impl Kernel{
         &&&
         (forall|pcid:Pcid|#![auto] self.proc_man.get_pcid_closure().contains(pcid) ==> 
             (0 <= pcid< PCID_MAX && self.mmu_man.get_free_pcids_as_set().contains(pcid) == false))
+        &&&
+        (forall|pcid:Pcid|#![auto] self.mmu_man.get_free_pcids_as_set().contains(pcid) ==> 
+            (self.proc_man.get_pcid_closure().contains(pcid) == false))
         &&&
         (self.proc_man.get_ioid_closure() =~= self.mmu_man.get_iommu_ids())
     }

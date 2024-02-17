@@ -93,5 +93,28 @@ impl MarsArray<PageTable,PCID_MAX>{
         return self.ar[pcid].unmap(va);
     }
 
+    #[verifier(external_body)]
+    pub fn init_into_wf_by_pcid(&mut self, pcid:Pcid, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, kernel_pml4_entry: Option<PageEntry>)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self)@[pcid as int].wf_mapping(),
+            old(self)@[pcid as int].get_pagetable_page_closure() =~= Set::empty(),
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> old(self)@[pcid as int].get_pagetable_mapping()[va].is_None(),
+            page_ptr != 0,
+            page_perm@@.pptr == page_ptr,
+            page_perm@@.value.is_Some(),
+        ensures
+            self.wf(),
+            self@[pcid as int].wf(),
+            self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@,
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> self@[pcid as int].get_pagetable_mapping()[va].is_None(),
+            self@[pcid as int].get_pagetable_page_closure() =~= Set::empty().insert(page_ptr),
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int].get_pagetable_mapping() =~= old(self)@[i as int].get_pagetable_mapping(),
+    {
+        self.ar[pcid].init_to_wf(page_ptr,page_perm, kernel_pml4_entry);
+    }
+
 }
 }

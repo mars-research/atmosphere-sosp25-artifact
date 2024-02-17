@@ -87,6 +87,12 @@ pub fn page_to_pagemap(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tra
             forall|i:usize| 0<=i<512 ==> ret.1@@.value.get_Some_0()[i].is_None(),
 
 {
+    unsafe{
+        let uptr = page.0 as *mut MaybeUninit<[usize;512]>;
+        for i in 0..512{
+        (*uptr).assume_init_mut()[i] = 0;
+        }
+    }
     (page.0, Tracked::assume_new())
 }
 
@@ -280,5 +286,7 @@ pub proof fn pagemap_permission_bits_lemma()
     {
 
     }
+
+
 
 }

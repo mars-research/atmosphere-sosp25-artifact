@@ -344,6 +344,8 @@ impl ProcessManager{
             self.proc_ptrs =~= old(self).proc_ptrs,
             self.proc_perms =~= old(self).proc_perms,
             self.thread_ptrs =~= old(self).thread_ptrs,
+            self.get_pcid_closure() =~= old(self).get_pcid_closure(),
+            self.get_ioid_closure() =~= old(self).get_ioid_closure(),
             //self.thread_perms=@ =~= old(self).thread_perms@,
             self.scheduler =~= old(self).scheduler,
             self.endpoint_ptrs =~= old(self).endpoint_ptrs,

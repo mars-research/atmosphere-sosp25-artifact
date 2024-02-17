@@ -25,6 +25,7 @@ impl ProcessManager {
             old(self).get_proc_ptrs().len() < MAX_NUM_PROCS,
             old(self).get_proc_man_page_closure().contains(page_ptr) == false,
             old(self).get_pcid_closure().contains(new_pcid) == false,
+            0<=new_pcid<PCID_MAX,
             new_ioid.is_Some() ==> old(self).get_ioid_closure().contains(new_ioid.get_Some_0()) == false,
         ensures
             self.wf(),
@@ -38,6 +39,8 @@ impl ProcessManager {
             self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(ret),
             self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
             self.proc_perms@[ret]@.value.get_Some_0().owned_threads.len() == 0,
+            forall|thread_ptr:ThreadPtr|#![auto] self.get_thread_ptrs().contains(thread_ptr) ==> self.get_thread(thread_ptr) =~= old(self).get_thread(thread_ptr),
+            forall|endpoint_ptr:EndpointPtr|#![auto] self.get_endpoint_ptrs().contains(endpoint_ptr) ==> self.get_endpoint(endpoint_ptr) =~= old(self).get_endpoint(endpoint_ptr),
     {
         assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
     ==>  (forall|_thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().queue@.contains(_thread_ptr)
