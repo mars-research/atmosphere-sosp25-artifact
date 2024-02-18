@@ -1,8 +1,31 @@
 use vstd::prelude::*;
 verus!{
 use vstd::ptr::*;
+use crate::trap::PtRegs;
+pub struct SyscallReturnStruct{
+    pub error_code: ErrorCodeType,
+    pub pcid: Pcid,
+    pub cr3: usize,
+    pub pt_regs: PtRegs,
+}
 
+impl SyscallReturnStruct{
 
+    pub fn new(error_code:ErrorCodeType,pcid:Pcid,cr3:usize,pt_regs:PtRegs )->(ret:Self)
+        ensures
+            ret.error_code == error_code,
+            ret.pcid == pcid,
+            ret.cr3 == cr3,
+            ret.pt_regs == pt_regs,
+    {
+        return Self{
+            error_code:error_code,
+            pcid:pcid,
+            cr3:cr3,
+            pt_regs:pt_regs,
+        };
+    }
+}
 pub type ErrorCodeType = usize;
 pub const SUCCESS: ErrorCodeType = 0;
 pub const SENDER_ENDPOINT_NOT_EXIST: ErrorCodeType = 1;

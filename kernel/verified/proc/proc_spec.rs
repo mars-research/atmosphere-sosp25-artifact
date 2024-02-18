@@ -129,6 +129,7 @@ impl ProcessManager {
             self.scheduler.init();
         }
 
+    #[verifier(inline)]
     pub open spec fn get_proc_ptrs(&self) -> Seq<ProcPtr>
     {
         self.proc_ptrs@
@@ -157,6 +158,15 @@ impl ProcessManager {
         return *ret;
     }
 
+    pub open spec fn spec_get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> Pcid
+        recommends
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+    {
+        self.get_proc(self.get_thread(thread_ptr).parent).pcid
+    }
+
+    #[verifier(when_used_as_spec(spec_get_pcid_by_thread_ptr))]
     pub fn get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Pcid)
         requires
             self.wf(),
@@ -165,10 +175,12 @@ impl ProcessManager {
             ret =~= self.get_proc(self.get_thread(thread_ptr).parent).pcid,
             self.get_pcid_closure().contains(ret),
             0<=ret<PCID_MAX,
+            ret =~= self.spec_get_pcid_by_thread_ptr(thread_ptr),
     {
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
         let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
         let proc_ptr = thread.parent;
+        assert(self.proc_perms@.dom().contains(proc_ptr));
         let tracked proc_perm = self.proc_perms.borrow().tracked_borrow(proc_ptr);
         let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
         let ret = proc.pcid;

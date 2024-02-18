@@ -137,6 +137,7 @@ impl MMUManager{
             forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> self.get_pagetable_mapping_by_pcid(pcid)[va] =~= old(self).get_pagetable_mapping_by_pcid(pcid)[va],
             forall|i:IOid|#![auto] self.get_mmu_page_closure().contains(i) ==> self.get_iommutable_mapping_by_ioid(i) =~= old(self).get_iommutable_mapping_by_ioid(i),
             forall|i:IOid, va:usize| #![auto] self.get_iommu_ids().contains(i) && spec_va_valid(va) ==> self.get_iommutable_mapping_by_ioid(i)[va] =~= old(self).get_iommutable_mapping_by_ioid(i)[va],
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> self.page_tables[ret as int].get_pagetable_mapping()[va].is_None(),
     {
         let ret = self.free_pcids.pop_unique();
         assert(0<=ret<PCID_MAX);

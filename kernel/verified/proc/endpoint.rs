@@ -337,6 +337,7 @@ impl ProcessManager{
         ensures
             self.wf(),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> old(self).get_pcid_by_thread_ptr(_thread_ptr) == self.get_pcid_by_thread_ptr(_thread_ptr),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != receiver_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
             forall|_endpoint_ptr:EndpointPtr| #![auto] self.get_endpoint_ptrs().contains(_endpoint_ptr) == old(self).get_endpoint_ptrs().contains(_endpoint_ptr),
             forall|_endpoint_ptr:EndpointPtr| #![auto] self.get_endpoint_ptrs().contains(_endpoint_ptr) && _endpoint_ptr != old(self).get_thread(sender_ptr).endpoint_descriptors@[sender_endpoint_index as int] ==>

@@ -36,6 +36,7 @@ impl ProcessManager {
             self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(page_ptr),
             self.get_proc_ptrs() =~= old(self).get_proc_ptrs().push(ret),
             self.get_proc_ptrs().contains(ret),
+            self.get_proc(ret).pcid == new_pcid,
             self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(ret),
             self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
             self.proc_perms@[ret]@.value.get_Some_0().owned_threads.len() == 0,
