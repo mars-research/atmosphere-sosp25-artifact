@@ -34,7 +34,7 @@
 
     craneLib = (crane.mkLib pkgs).overrideToolchain pinnedRust;
 
-    pinnedVerus = verus.packages.${system}.verus-no-std;
+    pinnedVerus = verus.packages.${system};
 
     mkShell = pkgs.mkShell.override {
       stdenv = pkgs.llvmPackages_14.stdenv;
@@ -48,7 +48,8 @@
     devShell = mkShell {
       nativeBuildInputs = [
         pinnedRust
-        pinnedVerus
+        pinnedVerus.verus-no-std
+        pinnedVerus.line-count
 
         pkgs.mars-research.mars-tools
       ] ++ (with pkgs; [

@@ -218,11 +218,11 @@
         "rust-overlay": "rust-overlay_3"
       },
       "locked": {
-        "lastModified": 1706021020,
-        "narHash": "sha256-ZczHACY22R/tRnWAxFBy+7PEpQMVlSPsYuVYVOQBsHU=",
+        "lastModified": 1708276393,
+        "narHash": "sha256-RD7+xMkpQg28Lr3tiDGF2vqwFxGG9AJ4W+Z4yHen1cU=",
         "owner": "mars-research",
         "repo": "verus",
-        "rev": "f96080c8664d838f6a783d6c77de29272369b87f",
+        "rev": "5fbd5cbb5022400758c3336085eb012cf935923b",
         "type": "github"
       },
       "original": {
