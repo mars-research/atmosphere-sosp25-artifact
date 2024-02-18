@@ -3,12 +3,14 @@
 //! Since our only purpose is to load the microkernel and the
 //! initial task, we can keep this simple.
 
-use core::alloc::{GlobalAlloc, Layout, LayoutError};
-use core::ffi::c_void;
+use core::alloc::{GlobalAlloc, Layout};
 use core::ptr;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::elf::{Memory, PageProtection};
+use x86::current::paging::{VAddr, PAddr};
+
+use crate::memory::PhysicalAllocator;
+use super::{ContiguousMapping, MemoryRange, VirtualMapper};
 
 pub static mut ALLOCATOR: BumpAllocator = BumpAllocator {
     base: 0 as *mut u8,
@@ -76,18 +78,31 @@ unsafe impl GlobalAlloc for BumpAllocator {
     }
 }
 
-impl Memory for BumpAllocator {
+impl PhysicalAllocator for BumpAllocator {
+    unsafe fn allocate_physical(&mut self, size: usize) -> PAddr {
+        let layout = Layout::from_size_align(size, 4096).unwrap();
+        PAddr(self.alloc(layout) as _)
+    }
+}
+
+impl VirtualMapper for BumpAllocator {
     unsafe fn map_anonymous(
         &mut self,
-        base: *mut c_void,
+        base: VAddr,
         size: usize,
-        _protection: PageProtection,
-    ) -> *mut c_void {
-        if !base.is_null() {
-            base
+        _protection: super::PageProtection,
+    ) -> ContiguousMapping {
+        if base.0 != 0 {
+            ContiguousMapping {
+                vaddr: base,
+                paddr: PAddr(base.0),
+            }
         } else {
-            let layout = Layout::from_size_align(size, 4096).unwrap();
-            self.alloc(layout) as *mut c_void
+            let paddr = self.allocate_physical(size);
+            ContiguousMapping {
+                vaddr: VAddr(paddr.0),
+                paddr,
+            }
         }
     }
 }
@@ -108,6 +123,10 @@ impl BumpAllocator {
     /// Returns the base of the allocation.
     pub fn base(&self) -> *mut u8 {
         self.base
+    }
+
+    pub fn range(&self) -> MemoryRange {
+        MemoryRange::new(self.base as u64, self.size as u64)
     }
 }
 

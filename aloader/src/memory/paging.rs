@@ -6,8 +6,7 @@ use core::ptr;
 
 use bit_field::BitField;
 
-use crate::memory;
-use crate::elf::{PageProtection, Memory};
+use crate::memory::PhysicalAllocator;
 
 const LEVEL_MASK: u64 = 0b1_1111_1111;
 
@@ -31,8 +30,9 @@ const PHYSICAL_MASK: u64 = (1u64 << MAXPHYADDR) - 1u64;
 /// Bitmask to get the physical page address.
 const PHYSICAL_PAGE_MASK: u64 = PAGE_MASK & PHYSICAL_MASK;
 
-pub struct AddressSpace {
+pub struct AddressSpace<'a, A: PhysicalAllocator> {
     pml4: *mut PageTable,
+    allocator: &'a mut A,
 }
 
 #[repr(transparent)]
@@ -44,10 +44,11 @@ struct PageTable {
 #[derive(Clone, Copy)]
 struct Entry(u64);
 
-impl AddressSpace {
-    pub fn new() -> Self {
+impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
+    pub fn new(allocator: &'a mut A) -> Self {
         Self {
-            pml4: unsafe { Self::allocate_page_table() },
+            pml4: unsafe { Self::allocate_page_table(allocator) },
+            allocator,
         }
     }
 
@@ -72,7 +73,7 @@ impl AddressSpace {
             let mut entry = (*cur).read(index);
 
             if !entry.present() {
-                let new_table = Self::allocate_page_table();
+                let new_table = Self::allocate_page_table(&mut self.allocator);
 
                 entry = Entry::new()
                     .with_present(true)
@@ -101,15 +102,9 @@ impl AddressSpace {
         (*cur).write(index, entry);
     }
 
-    unsafe fn allocate_page_table() -> *mut PageTable {
-        let memory = memory::memory();
-
+    unsafe fn allocate_page_table(allocator: &mut A) -> *mut PageTable {
         let table = {
-            memory.map_anonymous(ptr::null_mut(), mem::size_of::<PageTable>(), PageProtection {
-                read: true,
-                write: true,
-                execute: false,
-            })
+            allocator.allocate_physical(mem::size_of::<PageTable>()).0
         } as *mut PageTable;
 
         if table as u64 & (1u64 << PAGE_SHIFT - 1) != 0 {

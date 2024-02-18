@@ -1,12 +1,99 @@
 mod allocator;
+mod map;
+mod paging;
 
+use core::fmt;
 use core::num::NonZeroU64;
 
-use crate::elf::Memory;
-use astd::heapless::Vec as ArrayVec;
+use num_derive::{FromPrimitive, ToPrimitive};
+use x86::current::paging::{VAddr, PAddr};
+
+use astd::sync::Mutex;
+
+pub use map::MemoryMap;
+pub use paging::AddressSpace;
+
+/// The physical memory map.
+static PHYSICAL_MEMORY_MAP: Mutex<MemoryMap<BootMemoryType>> = Mutex::new(MemoryMap::empty());
+
+/// The memory region reserved for the initial allocator.
+static ALLOCATOR_MEMORY_REGION: Mutex<Option<MemoryRange>> = Mutex::new(None);
+
+pub trait VirtualMapper {
+    /// Allocates and maps virtual memory.
+    ///
+    /// If base is null, then the mapping can be at an arbitary address.
+    unsafe fn map_anonymous(
+        &mut self,
+        base: VAddr,
+        size: usize,
+        protection: PageProtection,
+    ) -> ContiguousMapping;
+}
+
+pub trait PhysicalAllocator {
+    /// Allocates physical memory.
+    unsafe fn allocate_physical(&mut self, size: usize) -> PAddr;
+}
+
+pub struct ContiguousMapping {
+    pub vaddr: VAddr,
+    pub paddr: PAddr, 
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PageProtection {
+    pub read: bool,
+    pub write: bool,
+    pub execute: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum BootMemoryType {
+    Bios,
+    Loader,
+    LoaderAllocator,
+    Kernel,
+    Domain,
+    DomainImage,
+    PageTable,
+    Pci,
+    Other(AcpiMemoryType),
+}
+
+/// Type of a physical address range.
+///
+/// As defined in ACPI, Table 14-1 Address Range Types:
+/// <https://uefi.org/sites/default/files/resources/ACPI_4_Errata_A.pdf>
+#[repr(u32)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive, ToPrimitive)]
+#[non_exhaustive]
+pub enum AcpiMemoryType {
+    /// This range is available RAM usable by the operating system.
+    Memory = 1,
+
+    /// This range of addresses is in use or reserved by the system and is not to be included in the allocatable memory pool of the operating system's memory manager.
+    Reserved = 2,
+
+    /// ACPI Reclaim Memory.
+    ///
+    /// This range is available RAM usable by the OS after it reads the ACPI tables.
+    Acpi = 3,
+
+    /// ACPI NVS Memory.
+    ///
+    /// This range of addresses is in use or reserve by the system and must not be used by the operating system. This range is required to be saved and restored across an NVS sleep.
+    Nvs = 4,
+
+    /// This range of addresses contains memory in which errors have been detected. This range must not be used by OSPM.
+    Unusable = 5,
+
+    /// This range of addresses contains memory that is not enabled. This range must not be used by OSPM.
+    Disabled = 6,
+}
 
 /// A range of memory, denoted by the base address and size.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemoryRange {
     base: u64,
     size: NonZeroU64,
@@ -18,6 +105,10 @@ impl MemoryRange {
             base,
             size: NonZeroU64::new(size).unwrap(),
         }
+    }
+
+    pub fn set_size(&mut self, size: u64) {
+        self.size = NonZeroU64::new(size).unwrap();
     }
 
     pub const fn base(&self) -> u64 {
@@ -45,65 +136,63 @@ impl MemoryRange {
     }
 }
 
-/// Computes a list of usable physical memory regions.
-///
-/// `memory_regions` is a disjoint list of all physical memory regions.
-/// `occupied_regions` is a disjoint list of occupied physical memory regions.
-pub fn compute_usable_memory_regions(
-    memory_regions: &[MemoryRange],
-    occupied_regions: &[MemoryRange],
-) -> ArrayVec<MemoryRange, 100> {
-    let mut occupied_regions: ArrayVec<MemoryRange, 100> =
-        ArrayVec::from_slice(occupied_regions).expect("Too many occupied regions");
-    occupied_regions.sort_unstable_by(|a, b| a.base().cmp(&b.base()));
+impl fmt::Display for MemoryRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:#016x}-{:#016x} ({:#x})", self.base(), self.end_inclusive(), self.size())
+    }
+}
 
-    let mut usable_regions = ArrayVec::new();
+pub fn init_physical_memory_map(
+    regions: impl Iterator<Item = (MemoryRange, AcpiMemoryType)>,
+    loader_range: MemoryRange,
+    image_ranges: impl Iterator<Item = MemoryRange>,
+) {
+    let mut map = PHYSICAL_MEMORY_MAP.lock();
+    *map = MemoryMap::new(
+        regions.map(|(r, t)| (r, BootMemoryType::Other(t)))
+    );
 
-    for memory_region in memory_regions.iter() {
-        let mut splits: ArrayVec<MemoryRange, 100> = ArrayVec::new();
-        let mut remaining = memory_region.clone();
+    map.relabel(MemoryRange::new(0, 1024 * 1024), BootMemoryType::Bios);
+    map.relabel(loader_range, BootMemoryType::Loader);
 
-        for occupied in occupied_regions.iter() {
-            if !occupied.intersects(&remaining) {
-                // disjoint
-                continue;
-            }
-
-            if occupied.fully_contains(&remaining) {
-                // completely occupied, no remaining
-                break;
-            }
-
-            if remaining.base() < occupied.base() {
-                // 1 usable region at the beginning
-                splits
-                    .push(MemoryRange::new(
-                        remaining.base(),
-                        occupied.base() - remaining.base(),
-                    ))
-                    .unwrap();
-            }
-
-            if occupied.end_inclusive() < remaining.end_inclusive() {
-                remaining = MemoryRange::new(
-                    occupied.end_inclusive() + 1,
-                    remaining.end_inclusive() - occupied.end_inclusive(),
-                );
-            } else {
-                // nothing remaining
-                break;
-            }
-        }
-
-        usable_regions.extend(splits);
-        usable_regions.push(remaining).unwrap();
+    for image in image_ranges {
+        map.relabel(image, BootMemoryType::DomainImage);
     }
 
-    usable_regions
+    map.sort();
+
+    // Reserve region for bump allocator
+    let allocator_size = 1024 * 1024 * 1024; // 1024 MiB
+    let mut reserved_region = ALLOCATOR_MEMORY_REGION.lock();
+    let first_memory = map.regions
+        .iter()
+        .find(|(r, t)| t == &BootMemoryType::Other(AcpiMemoryType::Memory) && r.size() > allocator_size)
+        .expect("No usable memory region");
+
+    let allocator_region = MemoryRange::new(
+        first_memory.0.base(),
+        allocator_size,
+    );
+    map.relabel(allocator_region.clone(), BootMemoryType::LoaderAllocator);
+    log::debug!(
+        "Reserved region for dynamic allocator: {:x?}",
+        allocator_region,
+    );
+    *reserved_region = Some(allocator_region.clone());
+}
+
+pub fn dump_physical_memory_map() {
+    let mut map = PHYSICAL_MEMORY_MAP.lock();
+
+    map.sort();
+
+    for (region, label) in &map.regions {
+        log::info!("{:<100} {:?}", region, label);
+    }
 }
 
 pub unsafe fn init() {
-    if let Some(reserved_region) = crate::boot::get_reserved_region() {
+    if let Some(reserved_region) = get_allocator_region() {
         allocator::init(
             reserved_region.base() as *mut u8,
             reserved_region.size() as usize,
@@ -113,12 +202,19 @@ pub unsafe fn init() {
     }
 }
 
-pub fn memory() -> &'static mut impl Memory {
+pub fn allocator() -> &'static mut (impl PhysicalAllocator + VirtualMapper) {
     unsafe { &mut allocator::ALLOCATOR }
 }
 
-pub fn reserve(size: usize) -> (*mut u8, impl Memory) {
+pub fn reserve(size: usize, label: BootMemoryType) -> (*mut u8, impl PhysicalAllocator + VirtualMapper) {
     let allocator = unsafe { allocator::ALLOCATOR.reserve(size) };
 
+    let mut map = PHYSICAL_MEMORY_MAP.lock();
+    map.relabel(allocator.range(), label);
+
     (allocator.base(), allocator)
+}
+
+pub fn get_allocator_region() -> Option<MemoryRange> {
+    ALLOCATOR_MEMORY_REGION.lock().clone()
 }

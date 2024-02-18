@@ -9,7 +9,6 @@ use core::cmp::max;
 use core::ffi::c_void;
 use core::fmt;
 use core::mem;
-use core::ptr;
 use core::slice;
 
 use astd::heapless::Vec as ArrayVec;
@@ -19,6 +18,8 @@ use displaydoc::Display;
 use plain::Plain;
 
 use dynamic::Dynamic;
+use x86::current::paging::VAddr;
+use crate::memory::{VirtualMapper, PageProtection};
 
 cfg_match! {
     target_arch = "x86_64" => {
@@ -71,20 +72,6 @@ pub enum Error {
     IoError(IoError),
 }
 
-pub trait Memory {
-    // TODO: Higher-level abstractions, move to ainterface
-
-    /// Maps anonymous memory.
-    ///
-    /// If base is null, then the mapping can be at an arbitary address.
-    unsafe fn map_anonymous(
-        &mut self,
-        base: *mut c_void,
-        size: usize,
-        protection: PageProtection,
-    ) -> *mut c_void;
-}
-
 pub struct ElfHandle<F: Read + Seek> {
     file: F,
     header: Header,
@@ -110,13 +97,6 @@ struct LoadableSummary {
 
 trait ProgramHeaderExt {
     fn prot_flags(&self) -> PageProtection;
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct PageProtection {
-    pub read: bool,
-    pub write: bool,
-    pub execute: bool,
 }
 
 impl Into<Error> for IoError {
@@ -207,7 +187,7 @@ where
         })
     }
 
-    pub fn load(mut self, memory: &mut impl Memory) -> Result<(ElfMapping, T), Error> {
+    pub fn load(mut self, memory: &mut impl VirtualMapper) -> Result<(ElfMapping, T), Error> {
         let summary = if let Some(summary) = self.summarize_loadable() {
             summary
         } else {
@@ -220,9 +200,9 @@ where
         }
 
         // This assumes that the ELF is relocatable
-        let load_addr = unsafe {
+        let load_base_map = unsafe {
             memory.map_anonymous(
-                ptr::null_mut(),
+                VAddr(0),
                 self.page_align(summary.total_mapping_size),
                 PageProtection {
                     read: false,
@@ -232,7 +212,10 @@ where
             )
         };
 
-        if load_addr.is_null() {
+        let load_addr_loader = load_base_map.paddr.0 as *mut c_void;
+        let load_addr = load_base_map.vaddr.0 as *mut c_void;
+
+        if load_addr_loader.is_null() {
             return Err(Error::MapFailed);
         }
 
@@ -287,7 +270,7 @@ where
                         ph = DisplayPFlags(ph),
                     );
 
-                    memory.map_anonymous(addr as *mut c_void, size, prot)
+                    memory.map_anonymous(VAddr::from_usize(addr), size, prot).paddr.0 as *mut c_void
                 };
 
                 if mapping.is_null() {
@@ -326,7 +309,7 @@ where
                             ph = DisplayPFlags(ph),
                         );
 
-                        memory.map_anonymous(addr, size, prot)
+                        memory.map_anonymous(VAddr(addr as u64), size, prot).paddr.0 as *mut c_void
                     };
 
                     if mapping.is_null() {

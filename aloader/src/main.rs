@@ -1,8 +1,7 @@
 //! The Atmosphere early loader.
 
 #![cfg_attr(not(test), no_std, no_main, feature(start))]
-//#![no_main]
-#![feature(alloc_error_handler, strict_provenance, abi_x86_interrupt, const_maybe_uninit_zeroed)]
+#![feature(alloc_error_handler, strict_provenance, abi_x86_interrupt)]
 #![deny(
     asm_sub_register,
     deprecated,
@@ -23,7 +22,6 @@ pub mod console;
 pub mod elf;
 pub mod logging;
 pub mod memory;
-pub mod paging;
 
 use core::arch::asm;
 
@@ -34,8 +32,11 @@ use astd::boot::{BootInfo, DomainMapping};
 use astd::io::{Cursor, Read, Seek, SeekFrom};
 
 use elf::{ElfHandle, ElfMapping};
+use memory::{AddressSpace, BootMemoryType, PhysicalAllocator};
 
-const DOM0_RESERVATION: usize = 128 * 1024 * 1024; // 128 MiB
+const KERNEL_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
+const DOM0_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
+const PAGE_TABLE_RESERVATION: usize = 128 * 1024 * 1024; // 128 MiB
 const PAGE_SIZE: usize = 4096;
 
 /// Loader entry point.
@@ -54,6 +55,9 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         memory::init();
     }
 
+    let (_, mut page_table_allocator) = memory::reserve(PAGE_TABLE_RESERVATION, BootMemoryType::PageTable);
+    let (_, mut kernel_allocator) = memory::reserve(KERNEL_RESERVATION, BootMemoryType::Kernel);
+
     let kernel_file = {
         let f = boot::get_kernel_image().expect("No kernel image was passed");
         Cursor::new(f)
@@ -62,7 +66,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     let kernel_elf = ElfHandle::parse(kernel_file, 4096).unwrap();
     let kernel_end = kernel_elf.elf_end();
 
-    let (kernel_map, mut kernel_file) = kernel_elf.load(memory::memory()).unwrap();
+    let (kernel_map, mut kernel_file) = kernel_elf.load(&mut kernel_allocator).unwrap();
 
     // Also load dom0 if it exists
     kernel_file
@@ -71,7 +75,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     let mut boot_info = BootInfo::empty(); // stays on stack
 
-    match load_domain(kernel_file, &kernel_map) {
+    match load_domain(kernel_file, &kernel_map, &mut page_table_allocator) {
         Ok(dom0) => {
             boot_info.dom0 = Some(dom0);
         }
@@ -79,6 +83,8 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
             log::warn!("No valid Dom0: {:?}", e);
         }
     }
+
+    memory::dump_physical_memory_map();
 
     log::info!("Calling into kernel @ {:x?}", kernel_map.entry_point);
 
@@ -121,7 +127,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     loop {}
 }
 
-fn load_domain<T>(elf: T, kernel_map: &ElfMapping) -> Result<DomainMapping, elf::Error>
+fn load_domain<T>(elf: T, kernel_map: &ElfMapping, page_table_allocator: &mut impl PhysicalAllocator) -> Result<DomainMapping, elf::Error>
     where
         T: Read + Seek,
         T::Error: Into<elf::Error>,
@@ -130,10 +136,10 @@ fn load_domain<T>(elf: T, kernel_map: &ElfMapping) -> Result<DomainMapping, elf:
     log::info!("Loading Dom0...");
 
     // TODO: Relocate to fixed virtual address
-    let (reserved_start, mut memory) = memory::reserve(DOM0_RESERVATION);
+    let (reserved_start, mut memory) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
     let (dom_map, _) = parsed.load(&mut memory).expect("Failed to map Dom0");
 
-    let mut address_space = paging::AddressSpace::new();
+    let mut address_space = AddressSpace::new(page_table_allocator);
 
     log::info!("Mapping Dom0 pages...");
     let mut cur = reserved_start;

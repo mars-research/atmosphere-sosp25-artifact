@@ -6,14 +6,8 @@ use core::ptr;
 use core::slice;
 
 use crate::memory::MemoryRange;
-use astd::heapless::Vec as ArrayVec;
+use crate::memory::init_physical_memory_map;
 use astd::sync::Mutex;
-
-/// A list of kernel-usable memory regions.
-static USABLE_MEMORY_REGIONS: Mutex<ArrayVec<MemoryRange, 100>> = Mutex::new(ArrayVec::new());
-
-/// The memory region reserved for the initial allocator.
-static RESERVED_MEMORY_REGION: Mutex<Option<MemoryRange>> = Mutex::new(None);
 
 /// The kernel image passed by the bootloader.
 static KERNEL_IMAGE: Mutex<Option<&'static [u8]>> = Mutex::new(None);
@@ -72,35 +66,15 @@ pub unsafe fn init() {
             start_info.dump_memmap();
             start_info.dump_modlist();
 
-            let memory_regions: ArrayVec<MemoryRange, 100> = {
-                let it = start_info
-                    .iter_normal_memory_regions()
-                    .filter(|range| !range.contains(0));
+            let regions = start_info
+                .iter_memory_regions()
+                .map(|(r, t)| (r, t.expect("Unknown memory type")));
+            let loader_range = get_loader_image_range();
+            let image_ranges = start_info
+                .iter_modlist()
+                .map(|module| module.to_memory_range());
 
-                ArrayVec::from_iter(it)
-            };
-            let occupied_regions: ArrayVec<MemoryRange, 100> = {
-                let it = start_info
-                    .iter_modlist()
-                    .map(|module| module.to_memory_range());
-                let mut vec = ArrayVec::from_iter(it);
-                vec.push(get_loader_image_range()).unwrap();
-                vec
-            };
-            // log::debug!("Occupied regions: {:#x?}", occupied_regions);
-
-            let mut usable_regions = USABLE_MEMORY_REGIONS.lock();
-            *usable_regions =
-                crate::memory::compute_usable_memory_regions(&memory_regions, &occupied_regions);
-
-            log::info!("Usable regions:");
-            for region in usable_regions.iter() {
-                log::info!(
-                    "[mem {:#016x}-{:#016x}]",
-                    region.base(),
-                    region.end_inclusive()
-                )
-            }
+            init_physical_memory_map(regions, loader_range, image_ranges);
 
             if let Some(module) = start_info.iter_modlist().next() {
                 let mut kernel_image = KERNEL_IMAGE.lock();
@@ -118,29 +92,6 @@ pub unsafe fn init() {
             panic!("Failed to detect bootloader, cannot continue");
         }
     }
-
-    // Reserve region for bump allocator
-    let reserve_size = 1024 * 1024 * 1024; // 1024 MiB
-    let mut usable_regions = USABLE_MEMORY_REGIONS.lock();
-    for usable_region in usable_regions.iter_mut() {
-        if usable_region.size() > reserve_size {
-            let mut reserved_region = RESERVED_MEMORY_REGION.lock();
-            *reserved_region = Some(MemoryRange::new(usable_region.base(), reserve_size));
-            *usable_region = MemoryRange::new(
-                usable_region.base() + reserve_size,
-                usable_region.size() - reserve_size,
-            );
-            log::debug!(
-                "Reserved region for dynamic allocator: {:x?}",
-                reserved_region
-            );
-            break;
-        }
-    }
-}
-
-pub fn get_reserved_region() -> Option<MemoryRange> {
-    RESERVED_MEMORY_REGION.lock().clone()
 }
 
 pub fn get_kernel_image() -> Option<&'static [u8]> {

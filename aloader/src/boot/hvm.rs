@@ -5,10 +5,8 @@
 use core::iter::Iterator;
 use core::ptr;
 
-use num_derive::{FromPrimitive, ToPrimitive};
+use crate::memory::{MemoryRange, AcpiMemoryType};
 use num_traits::FromPrimitive;
-
-use crate::memory::MemoryRange;
 
 pub const HVM_START_INFO_MAGIC: u32 = 0x336ec578;
 
@@ -46,37 +44,6 @@ pub struct StartInfo {
     memmap_entries: u32,
 
     _reserved: u32,
-}
-
-/// Type of a physical address range.
-///
-/// As defined in ACPI, Table 14-1 Address Range Types:
-/// <https://uefi.org/sites/default/files/resources/ACPI_4_Errata_A.pdf>
-#[repr(u32)]
-#[derive(Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-#[non_exhaustive]
-pub enum MemoryType {
-    /// This range is available RAM usable by the operating system.
-    Memory = 1,
-
-    /// This range of addresses is in use or reserved by the system and is not to be included in the allocatable memory pool of the operating system's memory manager.
-    Reserved = 2,
-
-    /// ACPI Reclaim Memory.
-    ///
-    /// This range is available RAM usable by the OS after it reads the ACPI tables.
-    Acpi = 3,
-
-    /// ACPI NVS Memory.
-    ///
-    /// This range of addresses is in use or reserve by the system and must not be used by the operating system. This range is required to be saved and restored across an NVS sleep.
-    Nvs = 4,
-
-    /// This range of addresses contains memory in which errors have been detected. This range must not be used by OSPM.
-    Unusable = 5,
-
-    /// This range of addresses contains memory that is not enabled. This range must not be used by OSPM.
-    Disabled = 6,
 }
 
 /// A entry in the physical memory table.
@@ -135,26 +102,16 @@ impl StartInfo {
         }
     }
 
-    /// Creates an iterator through the physical memory map entries.
-    pub fn iter_memmap(&self) -> MemmapTableIterator {
-        MemmapTableIterator {
-            start_info: self,
-            index: 0,
-            done: false,
-        }
-    }
-
-    /// Creates an iterator through normal memory regions.
-    pub fn iter_normal_memory_regions(&self) -> impl Iterator<Item = MemoryRange> + '_ {
-        self.iter_memmap()
-            .filter(|entry| entry.map_type() == Some(MemoryType::Memory))
-            .map(|entry| MemoryRange::new(entry.addr, entry.size))
+    /// Creates an iterator through all memory regions.
+    pub fn iter_memory_regions(&self) -> impl Iterator<Item = (MemoryRange, Option<AcpiMemoryType>)> + '_ {
+        self.iter_raw_memmap()
+            .map(|entry| (MemoryRange::new(entry.addr, entry.size), entry.map_type()))
     }
 
     /// Dumps the physical memory map to the log.
     pub fn dump_memmap(&self) {
         log::info!("Physical memory map:");
-        for memmap in self.iter_memmap() {
+        for memmap in self.iter_raw_memmap() {
             let start = memmap.addr;
             let end = start + memmap.size - 1;
             log::info!(
@@ -193,10 +150,19 @@ impl StartInfo {
     fn validate(&self) -> bool {
         0x336ec578 == self.magic
     }
+
+    /// Creates an iterator through the physical memory map entries.
+    fn iter_raw_memmap(&self) -> MemmapTableIterator {
+        MemmapTableIterator {
+            start_info: self,
+            index: 0,
+            done: false,
+        }
+    }
 }
 
 impl MemmapTableEntry {
-    pub fn map_type(&self) -> Option<MemoryType> {
+    pub fn map_type(&self) -> Option<AcpiMemoryType> {
         FromPrimitive::from_u32(self.map_type)
     }
 }
