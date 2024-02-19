@@ -43,6 +43,7 @@ pub const ENDPOINT_INDEX_INVALID:ErrorCodeType = 12;
 pub const SYSTEM_OUT_OF_MEM:ErrorCodeType = 13;
 pub const PROCESS_LIST_NO_SPEC:ErrorCodeType = 14;
 pub const NO_FREE_PCID:ErrorCodeType = 15;
+pub const PROC_THREAD_LIST_FULL:ErrorCodeType = 16;
 
 
 pub type ThreadState = usize;

@@ -187,6 +187,55 @@ impl ProcessManager {
         return ret;
     }
 
+    pub open spec fn spec_get_parent_proc_ptr_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> ProcPtr
+        recommends
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+    {
+        self.get_thread(thread_ptr).parent
+    }
+
+    #[verifier(when_used_as_spec(spec_get_parent_proc_ptr_by_thread_ptr))]
+    pub fn get_parent_proc_ptr_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: ProcPtr)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+        ensures
+            ret =~= self.get_thread(thread_ptr).parent,
+            self.get_proc_ptrs().contains(ret),
+            ret =~= self.get_parent_proc_ptr_by_thread_ptr(thread_ptr),
+    {
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        let proc_ptr = thread.parent;
+        return proc_ptr;
+    }
+
+    pub open spec fn spec_get_proc_num_of_threads_by_proc_ptr(&self, proc_ptr:ProcPtr) -> usize
+        recommends
+            self.wf(),
+            self.get_proc_ptrs().contains(proc_ptr),
+    {
+        self.get_proc(proc_ptr).owned_threads.len()
+    }
+
+    #[verifier(when_used_as_spec(spec_get_proc_num_of_threads_by_proc_ptr))]
+    pub fn get_proc_num_of_threads_by_proc_ptr(&self, proc_ptr:ProcPtr) -> (ret: usize)
+        requires
+            self.wf(),
+            self.get_proc_ptrs().contains(proc_ptr),
+        ensures
+            ret =~= self.get_proc(proc_ptr).owned_threads.len(),
+            ret =~= self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads.len(),
+            ret =~= self.get_proc_num_of_threads_by_proc_ptr(proc_ptr),
+    {
+        assert(self.get_proc_ptrs().contains(proc_ptr));
+        assert(self.proc_perms@.dom().contains(proc_ptr));
+        let tracked proc_perm = self.proc_perms.borrow().tracked_borrow(proc_ptr);
+        let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
+        return proc.owned_threads.len();
+}
+
     pub fn get_endpoint_rf_counter_by_endpoint_ptr(&self, endpoint_ptr:EndpointPtr) -> (ret :usize)
         requires
             self.wf(),
