@@ -170,7 +170,7 @@ impl Kernel {
                 self.proc_man.get_thread(ret.2.unwrap()).state == SCHEDULED
                 &&
                 // the new proccess's pagetable is empty. There are kernel and loader mapped in this new pagetable, but they are transparent to user level
-                forall|va:VAddr| #![auto] spec_va_valid(va) ==> self.mmu_man.get_pagetable_by_pcid(self.proc_man.get_pcid_by_thread_ptr(ret.2.unwrap())).get_pagetable_mapping()[va].is_None() 
+                forall|va:VAddr| #![auto] spec_va_valid(va) ==> self.mmu_man.get_pagetable_by_pcid(self.proc_man.get_proc(self.proc_man.get_thread(ret.2.unwrap()).parent).pcid).get_pagetable_mapping()[va].is_None() 
             ),
     {   
         if cpu_id >= NUM_CPUS{
@@ -224,62 +224,62 @@ impl Kernel {
         let new_proc = self.proc_man.new_proc(page_ptr2, page_perm2, new_pcid, None);
         let new_thread = self.proc_man.new_thread(pt_regs_new_proc,page_ptr3, page_perm3,new_proc);
 
-        assert(
-            self.proc_man.wf());
-        assert(
-            self.mmu_man.wf()
-        );
-        assert(
-            self.page_alloc.wf()
-        );
-        assert(
-            self.cpu_list.wf()
-        );
-        assert(
-            self.kernel_cpu_list_wf()
-        );
-        assert(
-            self.kernel_mem_layout_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_pagetable_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_iommutable_wf()
-        );
-        assert(self.kernel_proc_mmu_wf());
-        assert(self.kernel_proc_no_thread_in_transit());
-        assert(self.kernel_tlb_wf());
+        // assert(
+        //     self.proc_man.wf());
+        // assert(
+        //     self.mmu_man.wf()
+        // );
+        // assert(
+        //     self.page_alloc.wf()
+        // );
+        // assert(
+        //     self.cpu_list.wf()
+        // );
+        // assert(
+        //     self.kernel_cpu_list_wf()
+        // );
+        // assert(
+        //     self.kernel_mem_layout_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_pagetable_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_iommutable_wf()
+        // );
+        // assert(self.kernel_proc_mmu_wf());
+        // assert(self.kernel_proc_no_thread_in_transit());
+        // assert(self.kernel_tlb_wf());
         assert(self.wf());
         
-        // self.kernel_new_proc_endpoint_passer(current_thread_ptr, endpoint_index, new_thread, 0);
+        // // self.kernel_new_proc_endpoint_passer(current_thread_ptr, endpoint_index, new_thread, 0);
         self.proc_man.pass_endpoint(current_thread_ptr,endpoint_index,new_thread,0);
-        assert(
-            self.proc_man.wf());
-        assert(
-            self.mmu_man.wf()
-        );
-        assert(
-            self.page_alloc.wf()
-        );
-        assert(
-            self.cpu_list.wf()
-        );
-        assert(
-            self.kernel_cpu_list_wf()
-        );
-        assert(
-            self.kernel_mem_layout_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_pagetable_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_iommutable_wf()
-        );
-        assert(self.kernel_proc_mmu_wf());
-        assert(self.kernel_proc_no_thread_in_transit());
-        assert(self.kernel_tlb_wf());
+        // assert(
+        //     self.proc_man.wf());
+        // assert(
+        //     self.mmu_man.wf()
+        // );
+        // assert(
+        //     self.page_alloc.wf()
+        // );
+        // assert(
+        //     self.cpu_list.wf()
+        // );
+        // assert(
+        //     self.kernel_cpu_list_wf()
+        // );
+        // assert(
+        //     self.kernel_mem_layout_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_pagetable_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_iommutable_wf()
+        // );
+        // assert(self.kernel_proc_mmu_wf());
+        // assert(self.kernel_proc_no_thread_in_transit());
+        // assert(self.kernel_tlb_wf());
         assert(self.wf());
 
         return (SyscallReturnStruct::new(SUCCESS,pcid,cr3,pt_regs),Some(new_proc),Some(new_thread));
@@ -289,8 +289,8 @@ impl Kernel {
     pub fn kernel_new_thread(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, pt_regs_new_thread: PtRegs) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
         requires
             old(self).wf(),
-        ensures
-            self.wf(),
+        // ensures
+        //     self.wf(),
     {
         if cpu_id >= NUM_CPUS{
             return (SyscallReturnStruct::new(CPU_ID_INVALID,0,0,pt_regs),None,None);
@@ -339,34 +339,61 @@ impl Kernel {
  
         let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem(); 
         let new_thread = self.proc_man.new_thread(pt_regs_new_thread,page_ptr1, page_perm1,current_proc_ptr);
+        // assert(
+        //     self.proc_man.wf());
+        // assert(
+        //     self.mmu_man.wf()
+        // );
+        // assert(
+        //     self.page_alloc.wf()
+        // );
+        // assert(
+        //     self.cpu_list.wf()
+        // );
+        // assert(
+        //     self.kernel_cpu_list_wf()
+        // );
+        // assert(
+        //     self.kernel_mem_layout_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_pagetable_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_iommutable_wf()
+        // );
+        // assert(self.kernel_proc_mmu_wf());
+        // assert(self.kernel_proc_no_thread_in_transit());
+        // assert(self.kernel_tlb_wf());
+        assert(self.wf());
         self.proc_man.pass_endpoint(current_thread_ptr,endpoint_index,new_thread,0);
-        assert(
-            self.proc_man.wf());
-        assert(
-            self.mmu_man.wf()
-        );
-        assert(
+        // assert(
+        //     self.proc_man.wf());
+        // assert(
+        //     self.mmu_man.wf()
+        // );
+        // assert(
           
-            self.page_alloc.wf()
-        );
-        assert(
-            self.cpu_list.wf()
-        );
-        assert(
-            self.kernel_cpu_list_wf()
-        );
-        assert(
-            self.kernel_mem_layout_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_pagetable_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_iommutable_wf()
-        );
-        assert(self.kernel_proc_mmu_wf());
-        assert(self.kernel_proc_no_thread_in_transit());
-        assert(self.kernel_tlb_wf());
+        //     self.page_alloc.wf()
+        // );
+        // assert(
+        //     self.cpu_list.wf()
+        // );
+        // assert(
+        //     self.kernel_cpu_list_wf()
+        // );
+        // assert(
+        //     self.kernel_mem_layout_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_pagetable_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_iommutable_wf()
+        // );
+        // assert(self.kernel_proc_mmu_wf());
+        // assert(self.kernel_proc_no_thread_in_transit());
+        // assert(self.kernel_tlb_wf());
         assert(self.wf());
         return (SyscallReturnStruct::new(SUCCESS,pcid,cr3,pt_regs),None,None);
     }

@@ -135,6 +135,7 @@ impl ProcessManager {
         self.proc_ptrs@
     }
 
+    #[verifier(inline)]
     pub open spec fn get_proc(&self, proc_ptr: ProcPtr) -> Process
         recommends
             self.get_proc_ptrs().contains(proc_ptr),
@@ -158,15 +159,15 @@ impl ProcessManager {
         return *ret;
     }
 
-    pub open spec fn spec_get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> Pcid
-        recommends
-            self.wf(),
-            self.get_thread_ptrs().contains(thread_ptr),
-    {
-        self.get_proc(self.get_thread(thread_ptr).parent).pcid
-    }
+    // pub open spec fn spec_get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> Pcid
+    //     recommends
+    //         self.wf(),
+    //         self.get_thread_ptrs().contains(thread_ptr),
+    // {
+    //     self.get_proc(self.get_thread(thread_ptr).parent).pcid
+    // }
 
-    #[verifier(when_used_as_spec(spec_get_pcid_by_thread_ptr))]
+    // #[verifier(when_used_as_spec(spec_get_pcid_by_thread_ptr))]
     pub fn get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Pcid)
         requires
             self.wf(),
@@ -175,7 +176,7 @@ impl ProcessManager {
             ret =~= self.get_proc(self.get_thread(thread_ptr).parent).pcid,
             self.get_pcid_closure().contains(ret),
             0<=ret<PCID_MAX,
-            ret =~= self.spec_get_pcid_by_thread_ptr(thread_ptr),
+            // ret =~= self.get_pcid_by_thread_ptr(thread_ptr),
     {
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
         let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
@@ -187,15 +188,15 @@ impl ProcessManager {
         return ret;
     }
 
-    pub open spec fn spec_get_parent_proc_ptr_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> ProcPtr
-        recommends
-            self.wf(),
-            self.get_thread_ptrs().contains(thread_ptr),
-    {
-        self.get_thread(thread_ptr).parent
-    }
+    // pub open spec fn spec_get_parent_proc_ptr_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> ProcPtr
+    //     recommends
+    //         self.wf(),
+    //         self.get_thread_ptrs().contains(thread_ptr),
+    // {
+    //     self.get_thread(thread_ptr).parent
+    // }
 
-    #[verifier(when_used_as_spec(spec_get_parent_proc_ptr_by_thread_ptr))]
+    // #[verifier(when_used_as_spec(spec_get_parent_proc_ptr_by_thread_ptr))]
     pub fn get_parent_proc_ptr_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: ProcPtr)
         requires
             self.wf(),
@@ -203,7 +204,7 @@ impl ProcessManager {
         ensures
             ret =~= self.get_thread(thread_ptr).parent,
             self.get_proc_ptrs().contains(ret),
-            ret =~= self.get_parent_proc_ptr_by_thread_ptr(thread_ptr),
+            // ret =~= self.get_parent_proc_ptr_by_thread_ptr(thread_ptr),
     {
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
         let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
@@ -211,15 +212,15 @@ impl ProcessManager {
         return proc_ptr;
     }
 
-    pub open spec fn spec_get_proc_num_of_threads_by_proc_ptr(&self, proc_ptr:ProcPtr) -> usize
-        recommends
-            self.wf(),
-            self.get_proc_ptrs().contains(proc_ptr),
-    {
-        self.get_proc(proc_ptr).owned_threads.len()
-    }
+    // pub open spec fn spec_get_proc_num_of_threads_by_proc_ptr(&self, proc_ptr:ProcPtr) -> usize
+    //     recommends
+    //         self.wf(),
+    //         self.get_proc_ptrs().contains(proc_ptr),
+    // {
+    //     self.get_proc(proc_ptr).owned_threads.len()
+    // }
 
-    #[verifier(when_used_as_spec(spec_get_proc_num_of_threads_by_proc_ptr))]
+    // #[verifier(when_used_as_spec(spec_get_proc_num_of_threads_by_proc_ptr))]
     pub fn get_proc_num_of_threads_by_proc_ptr(&self, proc_ptr:ProcPtr) -> (ret: usize)
         requires
             self.wf(),
@@ -227,7 +228,7 @@ impl ProcessManager {
         ensures
             ret =~= self.get_proc(proc_ptr).owned_threads.len(),
             ret =~= self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads.len(),
-            ret =~= self.get_proc_num_of_threads_by_proc_ptr(proc_ptr),
+            // ret =~= self.get_proc_num_of_threads_by_proc_ptr(proc_ptr),
     {
         assert(self.get_proc_ptrs().contains(proc_ptr));
         assert(self.proc_perms@.dom().contains(proc_ptr));
@@ -249,6 +250,8 @@ impl ProcessManager {
         let ret = endpoint.rf_counter;
         return ret;
     }
+
+    #[verifier(inline)]
     pub open spec fn get_thread(&self, thread_ptr: ThreadPtr) -> Thread
         recommends
             self.get_thread_ptrs().contains(thread_ptr),
@@ -453,12 +456,13 @@ impl ProcessManager {
         self.thread_ptrs@
     }
 
-    
+    #[verifier(inline)]
     pub open spec fn get_endpoint_ptrs(&self) -> Set<EndpointPtr>
     {
         self.endpoint_ptrs@
     }
 
+    #[verifier(inline)]
     pub open spec fn get_endpoint(&self, endpoint_ptr:EndpointPtr) -> Endpoint
         recommends
             self.get_endpoint_ptrs().contains(endpoint_ptr)

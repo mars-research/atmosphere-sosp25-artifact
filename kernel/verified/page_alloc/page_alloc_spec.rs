@@ -84,9 +84,10 @@ pub open spec fn page_ptr_valid(ptr: usize) -> bool
     ((ptr/4096) < NUM_PAGES)
 }
 
+#[verifier(inline)]
 pub open spec fn page_index_valid(index: usize) -> bool
 {
-    0<=index<NUM_PAGES
+    (0<=index<NUM_PAGES)
 }
 
 
@@ -171,7 +172,7 @@ impl PageAllocator {
         assert(forall|i:int| #![auto] 0<=i<NUM_PAGES ==> page_ptr_valid(self.page_array@[i].start));
         assert(forall|i:int,j:int| #![auto] 0<=i<NUM_PAGES && 0<=j<NUM_PAGES && i != j==> self.page_array@[i].start != self.page_array@[j].start);
     }
-
+    #[verifier(inline)]
     pub open spec fn page_array_wf(&self) -> bool{
         (self.page_array.wf())
         &&
@@ -187,7 +188,7 @@ impl PageAllocator {
         &&
         (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].rf_count == self.page_array@[i].mappings@.dom().len() + self.page_array@[i].io_mappings@.dom().len())
     }
-
+    #[verifier(inline)]
     pub open spec fn page_perms_wf(&self) -> bool{
         (self.page_perms@.dom() =~= self.get_free_pages_as_set() + self.get_mapped_pages())
         &&
@@ -195,7 +196,7 @@ impl PageAllocator {
         &&
         (forall|page_ptr:PagePtr| #![auto] self.page_perms@.dom().contains(page_ptr) ==> self.page_perms@[page_ptr]@.value.is_Some())
     }
-
+    #[verifier(inline)]
     pub open spec fn free_pages_wf(&self) -> bool{
         (self.free_pages.wf())
         &&
@@ -211,7 +212,7 @@ impl PageAllocator {
         &&
         (forall|i:int,j:int| #![auto] 0<=i<self.free_pages.len() && 0<=j<self.free_pages.len() && i != j ==> self.free_pages@[i] != self.free_pages@[j])
     }
-
+    #[verifier(inline)]
     pub open spec fn allocated_pages_wf(&self) -> bool{
         (forall|page_ptr:PagePtr| #![auto] self.allocated_pages@.contains(page_ptr) ==> page_ptr_valid(page_ptr))
         &&
@@ -222,7 +223,7 @@ impl PageAllocator {
         (forall|page_ptr:PagePtr| #![auto] self.allocated_pages@.contains(page_ptr) ==> (self.page_array@[page_ptr2page_index(page_ptr as usize) as int].is_io_page == false))
 
     }
-
+    #[verifier(inline)]
     pub open spec fn page_table_pages_wf(&self) -> bool{
         (forall|page_ptr:PagePtr| #![auto] self.page_table_pages@.contains(page_ptr) ==> page_ptr_valid(page_ptr))
         &&
@@ -233,7 +234,7 @@ impl PageAllocator {
         (forall|page_ptr:PagePtr| #![auto] self.page_table_pages@.contains(page_ptr) ==> (self.page_array@[page_ptr2page_index(page_ptr as usize) as int].is_io_page == false))
 
     }
-
+    #[verifier(inline)]
     pub open spec fn mapped_pages_wf(&self) -> bool{
         (forall|page_ptr:PagePtr| #![auto] self.mapped_pages@.contains(page_ptr) ==> page_ptr_valid(page_ptr))
         &&
@@ -241,11 +242,11 @@ impl PageAllocator {
         &&
         (forall|page_ptr:PagePtr| #![auto] self.mapped_pages@.contains(page_ptr) ==> (self.page_array@[page_ptr2page_index(page_ptr as usize) as int].state == MAPPED))
     }
-
+    #[verifier(inline)]
     pub open spec fn io_pages_wf(&self) -> bool{
         (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> (self.page_array@[i].is_io_page == true ==> (self.page_array@[i].state == MAPPED || self.page_array@[i].state == UNAVAILABLE)))
     }
-
+    #[verifier(inline)]
     pub open spec fn available_pages_wf(&self) -> bool{
         &&&
         self.available_pages@.finite()
@@ -254,7 +255,7 @@ impl PageAllocator {
         &&&
         (forall|i:usize| #![auto] 0<=i<NUM_PAGES ==> (self.page_array@[i as int].state != UNAVAILABLE ==> self.available_pages@.contains(page_index2page_ptr(i))))
     }
-
+    #[verifier(inline)]
     pub open spec fn mem_wf(&self) -> bool
     {
         //The first three ensure no memory corruption bug in our kernel or in userspace, these three are needed.
@@ -275,14 +276,14 @@ impl PageAllocator {
         &&&
         ((self.get_allocated_pages() + self.get_mapped_pages() + self.get_free_pages_as_set() + self.get_page_table_pages()) =~= self.get_available_pages()) 
     }
-
+    #[verifier(inline)]
     pub open spec fn rf_wf(&self) -> bool{
         forall|page_ptr:PagePtr| #![auto] self.get_mapped_pages().contains(page_ptr) ==>
             (
                 self.get_page_rf_counter(page_ptr) == self.get_page_mappings(page_ptr).len() + self.get_page_io_mappings(page_ptr).len()
             )
     }
-
+    #[verifier(inline)]
     pub open spec fn wf(&self) -> bool
     {
         self.mem_wf()

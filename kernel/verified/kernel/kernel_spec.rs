@@ -89,6 +89,7 @@ impl Kernel{
             old(self).proc_man.thread_ptrs@ =~= Set::empty(),
             old(self).proc_man.thread_perms@ =~= Map::empty(),
             old(self).proc_man.scheduler.arr_seq@.len() == MAX_NUM_THREADS,
+            old(self).proc_man.scheduler.wf(),
             old(self).proc_man.scheduler@ =~= Seq::empty(),
             old(self).proc_man.endpoint_ptrs@ =~= Set::empty(),
             old(self).proc_man.endpoint_perms@ =~= Map::empty(),
@@ -116,7 +117,7 @@ impl Kernel{
             forall|i:int|#![auto] 0<=i<PCID_MAX ==> old(self).mmu_man.page_tables[i].l3_tables@ =~= Map::empty(),
             forall|i:int|#![auto] 0<=i<PCID_MAX ==> old(self).mmu_man.page_tables[i].l2_tables@ =~= Map::empty(),
             forall|i:int|#![auto] 0<=i<PCID_MAX ==> old(self).mmu_man.page_tables[i].l1_tables@ =~= Map::empty(),
-            forall|i:usize, va: VAddr|#![auto] 0<=i<PCID_MAX && spec_va_valid(va) ==>  old(self).mmu_man.get_pagetable_mapping_by_pcid(i)[va].is_None(),
+            forall|i:usize, va: VAddr|#![auto] 0<=i<PCID_MAX && spec_va_valid(va) ==>   old(self).mmu_man.get_pagetable_by_pcid(i).wf() && old(self).mmu_man.get_pagetable_mapping_by_pcid(i)[va].is_None(),
 
             old(self).cpu_list.wf(),
 
@@ -165,10 +166,22 @@ impl Kernel{
         assert(self.proc_man.wf());
         assert(self.mmu_man.wf());
         self.page_alloc.init(boot_page_ptrs,boot_page_perms);
+        assert(forall|page_ptr:PagePtr|#![auto] self.page_alloc.get_page_table_pages().contains(page_ptr)
+        <==>
+        (
+           page_ptr_valid(page_ptr)
+           &&
+           0<=page_ptr2page_index(page_ptr as usize)<NUM_PAGES
+           &&
+           boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == PAGETABLE
+        ) );
+        assert(self.page_alloc.get_page_table_pages() =~= dom0_pagetable.get_pagetable_page_closure());
         assert(self.page_alloc.wf());
         self.mmu_man.adopt_dom0(dom0_pagetable);
         assert(self.kernel_mmu_page_alloc_pagetable_wf());
         assert(self.kernel_mmu_page_alloc_iommutable_wf());
+        assert(self.page_alloc.get_page_table_pages() =~= self.mmu_man.get_mmu_page_closure());
+        assert(self.page_alloc.get_allocated_pages() =~= self.proc_man.get_proc_man_page_closure());
         assert(self.kernel_mem_layout_wf());
         return self.kernel_init_helper(dom0_pt_regs);
 
@@ -242,7 +255,7 @@ impl Kernel{
         }
     }
             
-
+    #[verifier(inline)]
     pub open spec fn kernel_mmu_page_alloc_pagetable_wf(&self) -> bool{
         &&&
         (
@@ -252,7 +265,7 @@ impl Kernel{
             )
         )
     }
-
+    #[verifier(inline)]
     pub open spec fn kernel_mmu_page_alloc_iommutable_wf(&self) -> bool{
         &&&
         (
@@ -262,7 +275,7 @@ impl Kernel{
             )
         )
     }
-
+    #[verifier(inline)]
     pub open spec fn kernel_proc_mmu_wf(&self) -> bool{
         &&&
         (forall|pcid:Pcid|#![auto] self.proc_man.get_pcid_closure().contains(pcid) ==> 
@@ -273,13 +286,13 @@ impl Kernel{
         &&&
         (self.proc_man.get_ioid_closure() =~= self.mmu_man.get_iommu_ids())
     }
-
+    #[verifier(inline)]
     pub open spec fn kernel_proc_no_thread_in_transit(&self) -> bool{
         &&&
         (forall|thread_ptr:ThreadPtr|#![auto] self.proc_man.get_thread_ptrs().contains(thread_ptr) ==> 
             self.proc_man.get_thread(thread_ptr).state != TRANSIT)
     }
-
+    #[verifier(inline)]
     pub open spec fn kernel_mem_layout_wf(&self) -> bool {
         // all pages used to construct pagetable/iommutables are marked correctly in page allocator 
         &&&
@@ -287,7 +300,7 @@ impl Kernel{
         &&&
         (self.page_alloc.get_allocated_pages() =~= self.proc_man.get_proc_man_page_closure())
     }
-
+    #[verifier(inline)]
     pub open spec fn kernel_cpu_list_wf(&self) -> bool {
         &&&
         (
@@ -306,6 +319,7 @@ impl Kernel{
                     )
         )
     }
+    #[verifier(inline)]
     pub open spec fn kernel_tlb_wf(&self) -> bool {
         &&&
         (
@@ -334,7 +348,7 @@ impl Kernel{
                 )
         )
     }
-
+    #[verifier(inline)]
     pub open spec fn wf(&self) -> bool{        
         &&&
         (
@@ -416,6 +430,9 @@ impl Kernel{
             (
                 self.page_alloc.get_mapped_pages().contains(pa)
             )
+        );
+        assert(
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid) =~= self.mmu_man.get_pagetable_by_pcid(pcid).get_pagetable_mapped_pages()
         );
         assert(forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).subset_of(self.page_alloc.get_mapped_pages()));
         assert(forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_page_table_pages()));

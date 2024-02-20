@@ -201,16 +201,16 @@ impl PageAllocator {
                 self.page_array.set_page_state(page_ptr2page_index(page_ptr), UNAVAILABLE);
                 proof{self.mapped_pages@ = self.mapped_pages@.remove(page_ptr);}
                 proof{(self.page_perms.borrow_mut()).tracked_remove(page_ptr);}
-                assert(self.mem_wf());
-                assert(self.page_array_wf());
-                assert(self.free_pages_wf());
-                assert(self.page_table_pages_wf());
-                assert(self.allocated_pages_wf());
-                assert(self.mapped_pages_wf());
-                assert(self.rf_wf());
-                assert(self.page_perms_wf());
-                assert(self.available_pages_wf());
-                assert(self.io_pages_wf());
+                // assert(self.mem_wf());
+                // assert(self.page_array_wf());
+                // assert(self.free_pages_wf());
+                // assert(self.page_table_pages_wf());
+                // assert(self.allocated_pages_wf());
+                // assert(self.mapped_pages_wf());
+                // assert(self.rf_wf());
+                // assert(self.page_perms_wf());
+                // assert(self.available_pages_wf());
+                // assert(self.io_pages_wf());
                 assert(self.wf());
             }
             else{
