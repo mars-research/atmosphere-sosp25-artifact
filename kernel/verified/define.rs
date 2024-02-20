@@ -94,6 +94,7 @@ pub const IO:PageState = 5;
 
 pub type PageTablePtr = usize;
 pub const PCID_MAX:usize = 4096;
+pub const IOID_MAX:usize = 4096;
 
 pub type PagePPtr = PPtr<[u8; PAGE_SZ]>;
 pub type PagePtr = usize;

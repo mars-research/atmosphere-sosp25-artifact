@@ -35,6 +35,24 @@ impl IOMMUTable{
         self.dummy.get_pagetable_mapped_pages()
     }
 
+    pub fn init(&mut self)
+    requires
+        old(self).dummy.l4_table@ =~= Map::empty(),
+        old(self).dummy.l3_tables@ =~= Map::empty(),
+        old(self).dummy.l2_tables@ =~= Map::empty(),
+        old(self).dummy.l1_tables@ =~= Map::empty(),
+    ensures
+        self.dummy.wf_mapping(),
+        self.dummy.get_pagetable_page_closure() =~= Set::empty(),
+        self.dummy.l4_table@ =~= Map::empty(),
+        self.dummy.l3_tables@ =~= Map::empty(),
+        self.dummy.l2_tables@ =~= Map::empty(),
+        self.dummy.l1_tables@ =~= Map::empty(),
+        forall|va:VAddr|#![auto] spec_va_valid(va) ==> self.dummy.mapping@.dom().contains(va),
+        forall|va:VAddr|#![auto] spec_va_valid(va) ==> self.dummy.mapping@[va].is_None(),
+    {
+        self.dummy.init();
+    }
 }
 
 }
