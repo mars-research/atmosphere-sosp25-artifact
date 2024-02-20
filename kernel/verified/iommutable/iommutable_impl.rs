@@ -84,6 +84,22 @@ impl IOMMUTable{
     {
         return self.dummy.create_va_entry(va,page_alloc);
     }
+
+    pub fn init_to_wf(&mut self, page_ptr: PagePtr, page_perm: Tracked<PagePerm>)
+        requires
+            old(self).dummy.wf_mapping(),
+            old(self).get_iommutable_page_closure() =~= Set::empty(),
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> old(self).get_iommutable_mapping()[va].is_None(),
+            page_ptr != 0,
+            page_perm@@.pptr == page_ptr,
+            page_perm@@.value.is_Some(),
+        ensures
+            self.wf(),
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> self.get_iommutable_mapping()[va].is_None(),
+            self.get_iommutable_page_closure() =~= Set::empty().insert(page_ptr),
+    {
+        self.dummy.init_to_wf(page_ptr,page_perm,None);
+    }
 }
 
 }

@@ -34,6 +34,10 @@ impl Process {
     pub open spec fn get_pcid(&self) -> Pcid {
         self.pcid
     }
+
+    pub open spec fn get_ioid(&self) -> Option<IOid> {
+        self.ioid
+    }
 }
 
 pub struct ProcessManager{
@@ -185,6 +189,26 @@ impl ProcessManager {
         let tracked proc_perm = self.proc_perms.borrow().tracked_borrow(proc_ptr);
         let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
         let ret = proc.pcid;
+        return ret;
+    }
+
+    pub fn get_ioid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Option<IOid>)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+        ensures
+            ret =~= self.get_proc(self.get_thread(thread_ptr).parent).ioid,
+            ret.is_Some() ==> self.get_ioid_closure().contains(ret.unwrap()),
+            ret.is_Some() ==> 0<=ret.unwrap()<IOID_MAX,
+            // ret =~= self.get_pcid_by_thread_ptr(thread_ptr),
+    {
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        let proc_ptr = thread.parent;
+        assert(self.proc_perms@.dom().contains(proc_ptr));
+        let tracked proc_perm = self.proc_perms.borrow().tracked_borrow(proc_ptr);
+        let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
+        let ret = proc.ioid;
         return ret;
     }
 
@@ -759,18 +783,22 @@ impl ProcessManager {
 
     pub open spec fn wf_ioid_closure(&self) -> bool{
         (
-            self.ioid_closure@.finite()
+            self.get_ioid_closure().finite()
+        )&&
+        (
+            forall|proc_ptr_i: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr_i) && self.proc_perms@[proc_ptr_i].view().value.get_Some_0().get_ioid().is_Some()
+                ==>  0<=self.proc_perms@[proc_ptr_i].view().value.get_Some_0().get_ioid().unwrap()<IOID_MAX
         )
         &&
         (
             forall|proc_ptr_i: ProcPtr,proc_ptr_j: ProcPtr| #![auto] proc_ptr_i != proc_ptr_j && self.proc_perms@.dom().contains(proc_ptr_i) && self.proc_perms@.dom().contains(proc_ptr_j)
-                && self.proc_perms@[proc_ptr_i].view().value.get_Some_0().ioid.is_Some() && self.proc_perms@[proc_ptr_j].view().value.get_Some_0().ioid.is_Some()
-                ==>  self.proc_perms@[proc_ptr_i].view().value.get_Some_0().ioid.unwrap() != self.proc_perms@[proc_ptr_j].view().value.get_Some_0().ioid.unwrap()
+                && self.proc_perms@[proc_ptr_i].view().value.get_Some_0().get_ioid().is_Some() && self.proc_perms@[proc_ptr_j].view().value.get_Some_0().get_ioid().is_Some()
+                ==>  self.proc_perms@[proc_ptr_i].view().value.get_Some_0().get_ioid().unwrap() != self.proc_perms@[proc_ptr_j].view().value.get_Some_0().get_ioid().unwrap()
         )
         &&
         (
-            forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr) && self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.is_Some()
-                ==>  self.get_ioid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().ioid.unwrap())
+            forall|proc_ptr: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr )&& self.proc_perms@[proc_ptr].view().value.get_Some_0().get_ioid().is_Some()
+                ==>  self.get_ioid_closure().contains(self.proc_perms@[proc_ptr].view().value.get_Some_0().get_ioid().unwrap())
         )
     }
 

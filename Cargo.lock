@@ -2151,6 +2151,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "realjump",
+ "verified",
  "x86 0.47.0",
 ]
 

@@ -27,6 +27,7 @@ impl ProcessManager {
             old(self).get_pcid_closure().contains(new_pcid) == false,
             0<=new_pcid<PCID_MAX,
             new_ioid.is_Some() ==> old(self).get_ioid_closure().contains(new_ioid.get_Some_0()) == false,
+            new_ioid.is_Some() ==> 0 <= new_ioid.unwrap() < IOID_MAX,
         ensures
             self.wf(),
             self.scheduler =~= old(self).scheduler,

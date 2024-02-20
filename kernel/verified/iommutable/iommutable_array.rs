@@ -39,5 +39,29 @@ impl MarsArray<IOMMUTable,IOID_MAX>{
                 i = i + 1;
             }
         }
+    
+
+    #[verifier(external_body)]
+    pub fn init_into_wf_by_ioid(&mut self, ioid:Pcid, page_ptr: PagePtr, page_perm: Tracked<PagePerm>)
+        requires
+            0<=ioid<IOID_MAX,
+            old(self).wf(),
+            old(self)@[ioid as int].wf_mapping(),
+            old(self)@[ioid as int].get_iommutable_page_closure() =~= Set::empty(),
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> old(self)@[ioid as int].get_iommutable_mapping()[va].is_None(),
+            page_ptr != 0,
+            page_perm@@.pptr == page_ptr,
+            page_perm@@.value.is_Some(),
+        ensures
+            self.wf(),
+            self@[ioid as int].wf(),
+            self@[ioid as int].dummy.mapping@ =~= old(self)@[ioid as int].dummy.mapping@,
+            forall|va:VAddr| #![auto] spec_va_valid(va) ==> self@[ioid as int].get_iommutable_mapping()[va].is_None(),
+            self@[ioid as int].get_iommutable_page_closure() =~= Set::empty().insert(page_ptr),
+            forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int].get_iommutable_mapping() =~= old(self)@[i as int].get_iommutable_mapping(),
+    {
+        self.ar[ioid].init_to_wf(page_ptr,page_perm);
     }
+}
 }
