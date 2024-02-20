@@ -162,6 +162,8 @@ unsafe fn try_sysret(pc: *const c_void, pml4: *const c_void, sp: *mut c_void) ->
     asm!(
         "mov cr3, {pml4}",
         "mov rsp, {sp}",
+        "pushfq",
+        "pop r11",
         "sysretq",
 
         in("rcx") pc,

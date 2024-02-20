@@ -59,12 +59,14 @@ unsafe extern "C" fn sys_entry() -> ! {
         "mov rsp, [rip + CPU0_SYSCALL_SP]", // FIXME: per-CPU stack
 
         "push r10", // original rsp
+        "push r11", // original rflags
         "push rcx", // return address
 
         "mov rcx, rax",
         "call {handler}",
 
         "pop rcx",
+        "pop r11",
         "pop rsp",
 
         "sysretq",
