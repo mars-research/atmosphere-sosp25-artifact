@@ -116,5 +116,38 @@ impl MarsArray<PageTable,PCID_MAX>{
         self.ar[pcid].init_to_wf(page_ptr,page_perm, kernel_pml4_entry);
     }
 
+    #[verifier(external_body)]
+    pub fn create_va_entry_by_pcid(&mut self, pcid:Pcid, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self)@[pcid as int].wf(),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 4,
+            spec_va_valid(va),
+            old(self)@[pcid as int].get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
+            old(self)@[pcid as int].get_pagetable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
+        ensures
+            self.wf(),
+            self@[pcid as int].wf(),
+            forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:int| #![auto] 0<=i<PCID_MAX ==> self@[i as int].get_pagetable_mapping() =~= old(self)@[i as int].get_pagetable_mapping(),
+            self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure() + ret@,
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            self@[pcid as int].get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()),
+            self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure() + ret@,
+            // self.resolve_mapping_l2(l4i,l3i,l2i).is_Some(),
+            self@[pcid as int].is_va_entry_exist(va),
+            page_alloc.wf(),
+            page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
+            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+    {
+        return self.ar[pcid].create_va_entry(va,page_alloc);
+    }
+
 }
 }

@@ -36,6 +36,8 @@ impl Kernel{
             old(self).page_alloc.get_page_mappings(dst.addr).contains((pcid,va)) == false,
             old(self).page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count < usize::MAX,
             old(self).mmu_man.get_pagetable_by_pcid(pcid).is_va_entry_exist(va),
+        ensures
+            self.wf()
     {
         let result = self.mmu_man.map_pagetable_page(pcid,va,dst);
         assert(result == true);
@@ -48,7 +50,16 @@ impl Kernel{
         assert(self.kernel_mmu_page_alloc_pagetable_wf());
         assert(self.kernel_tlb_wf());
         assert(self.wf());
-    }  
+    }
+
+    pub fn kernel_pagetable_create_va_entry(&mut self, pcid:Pcid, va: usize)
+        requires
+            old(self).wf(),
+            0<=pcid<PCID_MAX,
+            old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
+    {
+        
+    }
 
     pub fn kernel_unmap_pagetable_page(&mut self, pcid:Pcid, va: usize) -> (ret:Option<PageEntry>)
         requires

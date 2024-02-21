@@ -223,6 +223,9 @@ impl MMUManager{
     //         spec_va_valid(va),
     //         old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
     //         old(self).get_pagetable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
+    // {
+
+    // }
 
 }
 

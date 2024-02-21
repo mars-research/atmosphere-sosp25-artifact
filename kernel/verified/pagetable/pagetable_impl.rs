@@ -386,6 +386,7 @@ impl PageTable{
             page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret.1@,
             page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret.1@,
             forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
             page_alloc.free_pages.len() >= 3,
             self.get_pagetable_mapped_pages().disjoint(page_alloc.get_free_pages_as_set()),
     {
@@ -504,6 +505,7 @@ impl PageTable{
         page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret.1@,
         page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret.1@,
         forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+        forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
         page_alloc.free_pages.len() >= 2,
 {
     proof{
@@ -613,6 +615,7 @@ ensures
     page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret.1@,
     page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret.1@,
     forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+    forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
     page_alloc.free_pages.len() >= 1,
 {
 proof{
@@ -729,6 +732,7 @@ proof{
             page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
             page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
             forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
     {
         let mut ret:Ghost<Set<PagePtr>> = Ghost(Set::empty());
             proof{
