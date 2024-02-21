@@ -3,7 +3,7 @@ verus!{
 // use vstd::ptr::*;
 // use crate::mars_array::MarsArray;
 use crate::array_vec::ArrayVec;
-
+use crate::pagetable::*;
 use crate::define::*;
 
 use crate::page_alloc::*;
@@ -105,6 +105,8 @@ impl PageAllocator {
         requires
             old(self).wf(),
             old(self).free_pages.len() > 0,
+            0<=target.0<PCID_MAX,
+            spec_va_valid(target.1),
         ensures
             self.wf(),
             self.page_table_pages =~= old(self).page_table_pages,
@@ -145,6 +147,8 @@ impl PageAllocator {
             old(self).get_mapped_pages().contains(page_ptr),
             old(self).get_page_mappings(page_ptr).contains(target) == false,
             old(self).page_array@[page_ptr2page_index(page_ptr) as int].rf_count < usize::MAX,
+            0<=target.0<PCID_MAX,
+            spec_va_valid(target.1),
         ensures
             self.wf(),
             self.free_pages =~= old(self).free_pages,
@@ -375,6 +379,8 @@ impl PageAllocator {
              boot_page_perms@[page_index2page_ptr(i)]@.pptr == page_index2page_ptr(i)
              &&
              boot_page_perms@[page_index2page_ptr(i)]@.value.is_Some()
+             &&
+             spec_va_valid(boot_page_ptrs@[i as int].1)
             )
         ),
         NUM_PAGES * 4096 <= usize::MAX,
@@ -396,7 +402,21 @@ impl PageAllocator {
             0<=page_ptr2page_index(page_ptr as usize)<NUM_PAGES
             &&
             boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == PAGETABLE
+        ),      
+        forall|page_ptr:PagePtr,pcid:Pcid, va:usize| #![auto] self.get_available_pages().contains(page_ptr) && self.get_page_mappings(page_ptr).contains((pcid,va)) ==>
+        (
+            pcid == 0
+            &&
+            page_ptr_valid(page_ptr)
+            &&
+            spec_va_valid(va)
+            &&
+            (
+            boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == MAPPED
+            ||
+            boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == IO)
         ),
+        forall|page_ptr:PagePtr| #![auto] self.get_available_pages().contains(page_ptr) ==> self.get_page_io_mappings(page_ptr) =~= Set::empty(),
 {
     proof{self.free_pages@.unique_seq_to_set();}
     self.mapped_pages = Ghost(Set::empty());
@@ -414,7 +434,9 @@ impl PageAllocator {
                     && 
                     boot_page_perms@[page_index2page_ptr(j)]@.pptr == page_index2page_ptr(j)
                     &&
-                    boot_page_perms@[page_index2page_ptr(j)]@.value.is_Some()
+                    boot_page_perms@[page_index2page_ptr(j)]@.value.is_Some()             
+                    &&
+                    spec_va_valid(boot_page_ptrs@[j as int].1)
                     ),
                 boot_page_ptrs.wf(),
                 boot_page_ptrs.len() == NUM_PAGES,
@@ -432,6 +454,9 @@ impl PageAllocator {
                 self.mapped_pages@.disjoint(self.page_table_pages@),
                 self.page_table_pages@.disjoint(self.get_free_pages_as_set()),
                 self.available_pages@ =~= self.get_free_pages_as_set() + self.mapped_pages@ + self.page_table_pages@,
+
+                self.pagetable_mapping_wf(),
+                self.pagetable_io_mapping_wf(),
 
                 forall|j:usize| #![auto] i<=j<NUM_PAGES ==> self.free_pages@.contains(page_index2page_ptr(j)) == false,
                 forall|j:usize| #![auto] i<=j<NUM_PAGES ==> self.allocated_pages@.contains(page_index2page_ptr(j)) == false,
@@ -527,6 +552,22 @@ impl PageAllocator {
                     boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == PAGETABLE
                 ),
                 
+                
+                forall|page_ptr:PagePtr,pcid:Pcid, va:usize| #![auto] self.get_available_pages().contains(page_ptr) && self.get_page_mappings(page_ptr).contains((pcid,va)) ==>
+                    (
+                        pcid == 0
+                        &&
+                        page_ptr_valid(page_ptr)
+                        &&
+                        spec_va_valid(va)
+                        &&
+                        (
+                        boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == MAPPED
+                        ||
+                        boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == IO)
+                    ),
+                    
+                forall|page_ptr:PagePtr| #![auto] self.get_available_pages().contains(page_ptr) ==> self.get_page_io_mappings(page_ptr) =~= Set::empty(),
             ensures
                 i == NUM_PAGES,
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == FREE ==> self.free_pages@.contains(page_index2page_ptr(i)), 
@@ -541,6 +582,8 @@ impl PageAllocator {
                 self.page_perms_wf(),
                 self.available_pages_wf(),
                 self.io_pages_wf(),
+                self.pagetable_mapping_wf(),
+                self.pagetable_io_mapping_wf(),
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == MAPPED ==> self.get_page_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[i as int].1)),
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == MAPPED ==> self.get_mapped_pages().contains(page_index2page_ptr(i)),
                 forall|i:usize| #![auto] 0<=i<NUM_PAGES && boot_page_ptrs@[i as int].0 == IO ==> self.get_page_mappings(page_index2page_ptr(i)) =~= Set::<(Pcid,VAddr)>::empty().insert((0,boot_page_ptrs@[i as int].1)),
@@ -556,6 +599,23 @@ impl PageAllocator {
                     &&
                     boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == PAGETABLE
                 ),
+
+                                
+                forall|page_ptr:PagePtr,pcid:Pcid, va:usize| #![auto] self.get_available_pages().contains(page_ptr) && self.get_page_mappings(page_ptr).contains((pcid,va)) ==>
+                    (
+                        pcid == 0
+                        &&
+                        page_ptr_valid(page_ptr)
+                        &&
+                        spec_va_valid(va)
+                        &&
+                        (
+                        boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == MAPPED
+                        ||
+                        boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == IO)
+                    ),
+                    
+                forall|page_ptr:PagePtr| #![auto] self.get_available_pages().contains(page_ptr) ==> self.get_page_io_mappings(page_ptr) =~= Set::empty(),
         {
         proof{
             page_ptr_lemma();

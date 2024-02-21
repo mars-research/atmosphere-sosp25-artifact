@@ -147,6 +147,8 @@ impl Kernel{
                  boot_page_perms@[page_index2page_ptr(i)]@.pptr == page_index2page_ptr(i)
                  &&
                  boot_page_perms@[page_index2page_ptr(i)]@.value.is_Some()
+                 &&
+                 spec_va_valid(boot_page_ptrs@[i as int].1)
                 )
             ),
             NUM_PAGES * 4096 <= usize::MAX,
@@ -161,6 +163,16 @@ impl Kernel{
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == MAPPED 
                 ||
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == IO,
+
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) && (boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].0 == MAPPED || boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].0 == IO) ==>
+                (
+                    spec_va_valid(boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].1)
+                    &&
+                    dom0_pagetable.get_pagetable_mapping()[boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].1].is_Some()
+                    &&
+                    dom0_pagetable.get_pagetable_mapping()[boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].1].get_Some_0().addr == page_ptr
+                ),
+
             forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].1 == va,
             forall|page_ptr:PagePtr|#![auto] dom0_pagetable.get_pagetable_page_closure().contains(page_ptr)
@@ -171,7 +183,7 @@ impl Kernel{
                     0<=page_ptr2page_index(page_ptr as usize)<NUM_PAGES
                     &&
                     boot_page_ptrs@[page_ptr2page_index(page_ptr as usize) as int].0 == PAGETABLE
-                 ) 
+                 )
     {
         proof{page_ptr_lemma();}
         self.cpu_list.init_to_none();
@@ -272,10 +284,15 @@ impl Kernel{
     pub open spec fn kernel_mmu_page_alloc_pagetable_wf(&self) -> bool{
         &&&
         (
-            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() ==>
+            forall|pcid:Pcid, va:usize| #![auto] (0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some()) ==>
             (
                 self.page_alloc.get_page_mappings(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr).contains((pcid,va))
             )
+        )
+        &&&
+        (
+            forall|pa:PAddr, pcid:Pcid, va:usize| #![auto]  self.page_alloc.get_available_pages().contains(pa) && self.page_alloc.get_page_mappings(pa).contains((pcid,va)) ==> 
+                (0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() &&  self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr == pa)
         )
     }
     #[verifier(inline)]
@@ -286,6 +303,11 @@ impl Kernel{
             (
                 self.page_alloc.get_page_io_mappings(self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].get_Some_0().addr).contains((ioid,va))
             )
+        )
+        &&&
+        (
+            forall|pa:PAddr, ioid:IOid, va:usize| #![auto]  self.page_alloc.get_available_pages().contains(pa) && self.page_alloc.get_page_io_mappings(pa).contains((ioid,va)) ==> 
+                (0<=ioid<IOID_MAX && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].is_Some() &&  self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].get_Some_0().addr == pa)
         )
     }
     #[verifier(inline)]
@@ -506,6 +528,16 @@ impl Kernel{
     assert(forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_page_table_pages()));
     assert(forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_free_pages_as_set()));
     assert(forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX ==> self.mmu_man.get_iommutable_mapped_pages_by_ioid(ioid).disjoint(self.page_alloc.get_allocated_pages()));
+    }
+
+    pub proof fn kernel_pagetable_none_infer_none_in_page_alloc(&self)
+        requires
+            self.wf()
+        ensures
+            forall|pa:PAddr, pcid:Pcid, va:usize| #![auto]  self.page_alloc.get_available_pages().contains(pa) && 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_None() ==> 
+                (self.page_alloc.get_page_mappings(pa).contains((pcid,va)) == false)
+    {
+
     }
 
 }

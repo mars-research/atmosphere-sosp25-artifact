@@ -525,6 +525,8 @@ impl Kernel {
     pub fn kernel_mmap(&mut self, cpu_id:CPUID, pt_regs: PtRegs, va: usize, perm_bits:usize, range: usize) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
         requires
             old(self).wf(),
+        ensures
+            self.wf(),
     {
         if cpu_id >= NUM_CPUS{
             return (SyscallReturnStruct::new(CPU_ID_INVALID,0,0,pt_regs),None,None);
@@ -593,6 +595,8 @@ impl Kernel {
         assert(self.wf());
         return (SyscallReturnStruct::new(SUCCESS,0,0,pt_regs),None,None);
     }
+
+    // pub kernel_map_pagetable_pages_to_iommutable(&mut self, cpu_id:CPUID, pt_regs: PtRegs, va:VAddr, range:usize)
 
 }
 

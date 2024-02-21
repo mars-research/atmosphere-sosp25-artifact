@@ -4,7 +4,7 @@ verus!{
 
 use crate::define::*;
 use crate::page_alloc::*;
-
+use crate::pagetable::*;
 use crate::mars_array::MarsArray;
 use crate::array_vec::ArrayVec;
 
@@ -242,6 +242,26 @@ impl PageAllocator {
         &&
         (forall|page_ptr:PagePtr| #![auto] self.mapped_pages@.contains(page_ptr) ==> (self.page_array@[page_ptr2page_index(page_ptr as usize) as int].state == MAPPED))
     }
+
+    #[verifier(inline)]
+    pub open spec fn pagetable_mapping_wf(&self) -> bool{
+        &&&
+        (
+            forall|pcid:Pcid, pa:PAddr,va:VAddr| #![auto] self.get_available_pages().contains(pa) && self.get_page_mappings(pa).contains((pcid,va)) ==> 
+            (0<=pcid<PCID_MAX && spec_va_valid(va))
+        )
+    }
+
+    
+    #[verifier(inline)]
+    pub open spec fn pagetable_io_mapping_wf(&self) -> bool{
+        &&&
+        (
+            forall|ioid:IOid, pa:PAddr,va:VAddr| #![auto] self.get_available_pages().contains(pa) && self.get_page_io_mappings(pa).contains((ioid,va)) ==> 
+            (0<=ioid<IOID_MAX && spec_va_valid(va))
+        )
+    }
+
     #[verifier(inline)]
     pub open spec fn io_pages_wf(&self) -> bool{
         (forall|i:int| #![auto] 0<=i<NUM_PAGES ==> (self.page_array@[i].is_io_page == true ==> (self.page_array@[i].state == MAPPED || self.page_array@[i].state == UNAVAILABLE)))
@@ -305,6 +325,10 @@ impl PageAllocator {
         self.available_pages_wf()
         &&
         self.io_pages_wf()
+        &&
+        self.pagetable_mapping_wf()
+        &&
+        self.pagetable_io_mapping_wf()
            
     }
 

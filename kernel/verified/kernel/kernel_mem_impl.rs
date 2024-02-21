@@ -52,6 +52,36 @@ impl Kernel{
         assert(self.wf());
     }
 
+    // pub fn kernel_map_iommutable_page(&mut self, ioid:IOid, va: usize, dst:PageEntry)
+    //     requires
+    //         old(self).wf(), 
+    //         0<=ioid<IOID_MAX,
+    //         old(self).mmu_man.get_free_ioids_as_set().contains(ioid) == false,
+    //         spec_va_valid(va),
+    //         old(self).mmu_man.get_mmu_page_closure().contains(dst.addr) == false,
+    //         old(self).mmu_man.get_pagetable_mapping_by_ioid(ioid)[va].is_None(),
+    //         page_ptr_valid(dst.addr),
+    //         spec_va_perm_bits_valid(dst.perm),
+    //         old(self).page_alloc.get_mapped_pages().contains(dst.addr),
+    //         old(self).page_alloc.get_page_io_mappings(dst.addr).contains((pcid,va)) == false,
+    //         old(self).page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count < usize::MAX,
+    //         old(self).mmu_man.get_pagetable_by_pcid(pcid).is_va_entry_exist(va),
+    //     ensures
+    //         self.wf()
+    // {
+    //     let result = self.mmu_man.map_pagetable_page(pcid,va,dst);
+    //     assert(result == true);
+    //     assert(old(self).page_alloc.get_available_pages().contains(dst.addr));
+    //     self.page_alloc.map_user_page(dst.addr,(pcid,va),RWX);
+    //     // assert(self.page_alloc.get_page_table_pages() =~= self.mmu_man.get_mmu_page_closure());
+
+    //     proof{page_ptr_lemma();}
+    //     assert(self.kernel_mmu_page_alloc_iommutable_wf());
+    //     assert(self.kernel_mmu_page_alloc_pagetable_wf());
+    //     assert(self.kernel_tlb_wf());
+    //     assert(self.wf());
+    // }
+
     pub fn kernel_pagetable_create_va_entry(&mut self, pcid:Pcid, va: usize)
         requires
             old(self).wf(),
@@ -268,6 +298,8 @@ impl Kernel{
             i = i + 1;
         }
     }
+
+
 
 }
 
