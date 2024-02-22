@@ -1,11 +1,11 @@
 [package]
-name = "dom0"
+name = "asys"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-asys = { path = "../asys" }
+astd = { path = "../astd" }
 
 log = "0.4.19"

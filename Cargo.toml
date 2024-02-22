@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "aloader",
   "astd",
+  "asys",
   "atest",
   "build-tool",
   "dom0",

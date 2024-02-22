@@ -9,10 +9,9 @@ use crate::gdt::GlobalDescriptorTable;
 
 const SYSCALL32_ENTRY: u64 = 0; // nein
 const SYSCALL32_ENTRY_EIP: u32 = 0; // nein
+const MAX_SYSCALLS: usize = 64;
 
 static mut CPU0_SYSCALL_STACK: [u8; 4 * 1024 * 1024] = [0; 4 * 1024 * 1024];
-
-#[no_mangle]
 static mut CPU0_SYSCALL_SP: u64 = 0;
 
 /// Initializes syscalls.
@@ -56,28 +55,40 @@ unsafe extern "C" fn sys_entry() -> ! {
         // rax, r10, r11
 
         "mov r10, rsp",
-        "mov rsp, [rip + CPU0_SYSCALL_SP]", // FIXME: per-CPU stack
+        "mov rsp, [rip + {saved_sp}]", // FIXME: per-CPU stack
 
         "push r10", // original rsp
         "push r11", // original rflags
         "push rcx", // return address
 
-        "mov rcx, rax",
-        "call {handler}",
+        // rdi, rsi, rdx, rcx, r8, r9
+        "cmp rax, {nr_print}",
+        "je 2f",
+        "mov rax, -1",
+        "jmp 3f",
 
+        "2:",
+        "call {sys_print}",
+
+        "3:",
         "pop rcx",
         "pop r11",
         "pop rsp",
 
         "sysretq",
 
-        handler = sym test_sys,
+        saved_sp = sym CPU0_SYSCALL_SP,
+        nr_print = const asys::__NR_PRINT,
+        sys_print = sym sys_print,
         options(noreturn),
     );
 }
 
-extern "C" fn test_sys(a: u64, b: u64, c: u64, num: u64) -> u64 {
-    //log::info!("syscall={}, a={}, b={}, c={}", num, a, b, c);
-
-    123
+extern "C" fn sys_print(data: *const u8, len: usize) -> isize {
+    let s = unsafe {
+        let slice = core::slice::from_raw_parts(data, len);
+        core::str::from_utf8_unchecked(slice)
+    };
+    log::info!("print: {}", s);
+    0
 }

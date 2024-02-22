@@ -2,21 +2,19 @@
 #![no_main]
 #![feature(start)]
 
-use core::arch::asm;
 use core::panic::PanicInfo;
 
 #[start]
 #[no_mangle]
 fn main() -> isize {
+    asys::init_logging();
+    log::info!("hello {}", "world");
+
     unsafe {
-        asm!(
-            "syscall",
-            "2:",
-            //"hlt",
-            "jmp 2b",
-        );
+        asys::sys_print("meow".as_ptr(), 4);
     }
-    42
+
+    loop {}
 }
 
 /// The kernel panic handler.
