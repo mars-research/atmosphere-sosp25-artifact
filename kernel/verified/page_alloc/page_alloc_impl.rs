@@ -107,6 +107,18 @@ impl PageAllocator {
             old(self).free_pages.len() > 0,
         ensures
             self.wf(),
+            self.page_table_pages =~= old(self).page_table_pages,
+            self.allocated_pages =~= old(self).allocated_pages,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].io_mappings@ =~= old(self).page_array@[i].io_mappings@,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].io_mappings@.dom() =~= old(self).page_array@[i].io_mappings@.dom(),            
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) && page_ptr != ret ==> self.get_page_mappings(page_ptr) =~= old(self).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.get_page_io_mappings(page_ptr) =~= old(self).get_page_io_mappings(page_ptr),
+            page_ptr_valid(ret),
+            self.get_page_mappings(ret) =~= Set::empty().insert(target),
+            self.get_available_pages() =~= old(self).get_available_pages(),
+            old(self).get_free_pages_as_set().contains(ret),
+            self.get_free_pages_as_set() =~= old(self).get_free_pages_as_set().remove(ret),
+            self.free_pages.len() == old(self).free_pages.len() -1,
     {
         let ret = self.free_pages.pop_unique();
         self.page_array.set_page_state(page_ptr2page_index(ret),MAPPED);

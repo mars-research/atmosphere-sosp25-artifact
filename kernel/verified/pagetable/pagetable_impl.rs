@@ -19,7 +19,7 @@ impl PageTable{
             old(self).get_pagetable_page_closure().contains(dst.addr) == false,
             old(self).mapping@[va].is_None(),
             page_ptr_valid(dst.addr),
-            va_perm_bits_valid(dst.perm),
+            spec_va_perm_bits_valid(dst.perm),
         ensures
             self.wf(),
             old(self).is_va_entry_exist(va) == ret ,
@@ -364,7 +364,7 @@ impl PageTable{
         requires
             old(self).wf(),
             old(page_alloc).wf(),
-            old(page_alloc).free_pages.len() >= 4,
+            old(page_alloc).free_pages.len() >= 3,
             spec_va_valid(va),
             old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
             old(self).get_pagetable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
@@ -385,9 +385,11 @@ impl PageTable{
             page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
             page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret.1@,
             page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret.1@,
-            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
-            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
-            page_alloc.free_pages.len() >= 3,
+            page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            page_alloc.free_pages.len() >= 2,
+            page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 1,
             self.get_pagetable_mapped_pages().disjoint(page_alloc.get_free_pages_as_set()),
     {
         let mut ret_set:Ghost<Set<PagePtr>> = Ghost(Set::empty());
@@ -481,7 +483,7 @@ impl PageTable{
     requires
         old(self).wf(),
         old(page_alloc).wf(),
-        old(page_alloc).free_pages.len() >=3,
+        old(page_alloc).free_pages.len() >=2,
         spec_va_valid(va),
         (l4i,l3i,l2i,l1i) =~= spec_va2index(va),
         old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
@@ -504,9 +506,11 @@ impl PageTable{
         page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
         page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret.1@,
         page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret.1@,
-        forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
-        forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
-        page_alloc.free_pages.len() >= 2,
+        page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+        forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+        forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+        page_alloc.free_pages.len() >= 1,
+        page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 1,
 {
     proof{
         pagetable_virtual_mem_lemma();  
@@ -591,7 +595,7 @@ pub fn create_va_entry_l1(&mut self, va:VAddr,page_alloc :&mut PageAllocator, l4
 requires
     old(self).wf(),
     old(page_alloc).wf(),
-    old(page_alloc).free_pages.len() >=2,
+    old(page_alloc).free_pages.len() >=1,
     spec_va_valid(va),
     (l4i,l3i,l2i,l1i) =~= spec_va2index(va),
     old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
@@ -614,9 +618,11 @@ ensures
     page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
     page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret.1@,
     page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret.1@,
-    forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
-    forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
-    page_alloc.free_pages.len() >= 1,
+    page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+    forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+    forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+    page_alloc.free_pages.len() >= 0,
+    page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 1,
 {
 proof{
     pagetable_virtual_mem_lemma();  
@@ -713,7 +719,7 @@ proof{
         requires
             old(self).wf(),
             old(page_alloc).wf(),
-            old(page_alloc).free_pages.len() >= 4,
+            old(page_alloc).free_pages.len() >= 3,
             spec_va_valid(va),
             old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
             old(self).get_pagetable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
@@ -731,8 +737,10 @@ proof{
             page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
             page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
             page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
-            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
-            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 3,
     {
         let mut ret:Ghost<Set<PagePtr>> = Ghost(Set::empty());
             proof{

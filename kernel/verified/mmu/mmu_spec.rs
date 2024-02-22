@@ -291,7 +291,7 @@ impl MMUManager{
         &&&
         (
             forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) && self.page_tables[i].get_pagetable_mapping()[va].is_Some() ==> 
-                va_perm_bits_valid(self.page_tables[i].get_pagetable_mapping()[va].get_Some_0().perm)
+                spec_va_perm_bits_valid(self.page_tables[i].get_pagetable_mapping()[va].get_Some_0().perm)
         )     
         &&&
         (
@@ -343,7 +343,7 @@ impl MMUManager{
         &&&
         (
             forall|i:int,va:usize| #![auto] 0<=i<IOID_MAX && spec_va_valid(va) && self.iommu_tables[i].get_iommutable_mapping()[va].is_Some() ==> 
-                va_perm_bits_valid(self.iommu_tables[i].get_iommutable_mapping()[va].get_Some_0().perm)
+                spec_va_perm_bits_valid(self.iommu_tables[i].get_iommutable_mapping()[va].get_Some_0().perm)
         )     
         &&&
         (

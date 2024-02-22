@@ -17,7 +17,7 @@ impl IOMMUTable{
             old(self).dummy.get_pagetable_page_closure().contains(dst.addr) == false,
             old(self).dummy.mapping@[va].is_None(),
             page_ptr_valid(dst.addr),
-            va_perm_bits_valid(dst.perm),
+            spec_va_perm_bits_valid(dst.perm),
         ensures
             self.dummy.wf(),
             old(self).dummy.is_va_entry_exist(va) == ret ,

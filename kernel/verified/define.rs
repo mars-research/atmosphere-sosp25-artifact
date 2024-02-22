@@ -45,6 +45,9 @@ pub const PROCESS_LIST_NO_SPEC:ErrorCodeType = 14;
 pub const NO_FREE_PCID:ErrorCodeType = 15;
 pub const PROC_THREAD_LIST_FULL:ErrorCodeType = 16;
 pub const NO_FREE_IOID:ErrorCodeType = 17;
+pub const VMEM_PERMBITS_INVALID:ErrorCodeType = 18;
+pub const MMAP_VADDR_INVALID:ErrorCodeType = 19;
+pub const MMAP_VADDR_NOT_FREE:ErrorCodeType = 20;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;

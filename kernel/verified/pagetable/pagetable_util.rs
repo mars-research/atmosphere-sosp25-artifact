@@ -8,10 +8,16 @@ use core::mem::MaybeUninit;
 
 use crate::pagetable::*;
 use crate::page_alloc::*;
+use core::convert::TryInto;
+pub fn va_perm_bits_valid(perm:usize) -> (ret:bool)
+    ensures
+        ret == spec_va_perm_bits_valid(perm),
+{
+    (perm ^ VA_PERM_MASK as usize) == 0
+}
 
 
-
-pub open spec fn va_perm_bits_valid(perm:usize) -> bool{
+pub open spec fn spec_va_perm_bits_valid(perm:usize) -> bool{
     (perm ^ VA_PERM_MASK as usize) == 0
 }
 
@@ -59,7 +65,7 @@ pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<Pag
         old(perm)@.value.get_Some_0().wf(),
         0<=i<512,
         value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
-        value.is_Some() ==> va_perm_bits_valid(value.unwrap().perm),
+        value.is_Some() ==> spec_va_perm_bits_valid(value.unwrap().perm),
     ensures
         pptr.id() == perm@.pptr,
         perm@.value.is_Some(),
@@ -96,9 +102,30 @@ pub fn page_to_pagemap(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tra
     (page.0, Tracked::assume_new())
 }
 
+#[verifier(external_body)]
+pub fn va_valid(va:usize) -> (ret:bool)
+    ensures 
+        ret == spec_va_valid(va),
+{
+    (va & VA_MASK as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX.try_into().unwrap()
+}
+
 pub open spec fn spec_va_valid(va: usize) -> bool
 {
     (va & VA_MASK as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX
+}
+
+pub open spec fn spec_va_add_range(va: usize, i: usize) -> usize
+{
+    (va + (i*4096)) as usize
+}
+#[verifier(external_body)]
+pub fn va_add_range(va: usize, i: usize) -> (ret:usize)
+    ensures
+        ret == spec_va_add_range(va,i),
+        i != 0 ==> ret != va,
+{
+    (va + (i*4096)) as usize
 }
 
 pub open spec fn spec_v2l1index(va: usize) -> L1Index
@@ -135,13 +162,6 @@ pub open spec fn spec_index2va(i:(L4Index,L3Index,L2Index,L1Index)) -> usize
 {
     (i.0 as usize)<<39 & (i.1 as usize)<<30 & (i.2 as usize)<<21 & (i.3 as usize)<<12 
 } 
-
-
-pub fn va_valid(va: usize) -> (ret: bool)
-    ensures ret == spec_va_valid(va),
-{
-    (va & VA_MASK as usize == 0) &&  (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX as u64
-}
 
 #[verifier(external_body)]
 pub fn v2l1index(va: usize) -> (ret: L1Index)
@@ -262,27 +282,27 @@ pub proof fn pagemap_permission_bits_lemma()
         (forall|i:usize| #![auto] (i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (PAGE_ENTRY_PRESENT_MASK as usize) == 1),
         (forall|i:usize| #![auto] page_ptr_valid(i) ==> 
             ((i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_MASK as usize)) == i),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
             (
                 ((((i | j) | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_MASK as usize)) == i)
             )
         ),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
             (
                 ((((i | j) | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_PERM_MASK as usize)) == j)
             )
         ),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
             (
                 (((i | j)  & (VA_MASK as usize)) == i)
             )
         ),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && va_perm_bits_valid(j) ==>
+        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
             (
                 (((i | j)  & (VA_PERM_MASK as usize)) == j)
             )
         ),
-        va_perm_bits_valid(0usize) == true,
+        spec_va_perm_bits_valid(0usize) == true,
     {
 
     }

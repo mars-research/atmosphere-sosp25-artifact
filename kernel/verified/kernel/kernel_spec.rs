@@ -155,7 +155,7 @@ impl Kernel{
             forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 page_ptr_valid(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
             forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
-                va_perm_bits_valid(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
+                spec_va_perm_bits_valid(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
             
             forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == MAPPED 

@@ -49,7 +49,7 @@ impl MarsArray<PageTable,PCID_MAX>{
             old(self)@[pcid as int].get_pagetable_page_closure().contains(dst.addr) == false,
             old(self)@[pcid as int].mapping@[va].is_None(),
             page_ptr_valid(dst.addr),
-            va_perm_bits_valid(dst.perm),
+            spec_va_perm_bits_valid(dst.perm),
         ensures 
             self.wf(),
             self@[pcid as int].wf(),
@@ -123,7 +123,7 @@ impl MarsArray<PageTable,PCID_MAX>{
             old(self).wf(),
             old(self)@[pcid as int].wf(),
             old(page_alloc).wf(),
-            old(page_alloc).free_pages.len() >= 4,
+            old(page_alloc).free_pages.len() >= 3,
             spec_va_valid(va),
             old(self)@[pcid as int].get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
             old(self)@[pcid as int].get_pagetable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
@@ -143,8 +143,10 @@ impl MarsArray<PageTable,PCID_MAX>{
             page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
             page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
             page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
-            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
-            forall|page_ptr:PagePtr| #![auto] page_alloc.available_pages@.contains(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 3,
     {
         return self.ar[pcid].create_va_entry(va,page_alloc);
     }

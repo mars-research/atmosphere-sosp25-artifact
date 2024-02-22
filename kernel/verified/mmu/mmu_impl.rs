@@ -21,7 +21,7 @@ impl MMUManager{
             old(self).get_mmu_page_closure().contains(dst.addr) == false,
             old(self).get_pagetable_mapping_by_pcid(pcid)[va].is_None(),
             page_ptr_valid(dst.addr),
-            va_perm_bits_valid(dst.perm),
+            spec_va_perm_bits_valid(dst.perm),
         ensures
             self.wf(),
             self.free_pcids =~= old(self).free_pcids,
@@ -105,7 +105,7 @@ impl MMUManager{
             forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==> 
                 page_ptr_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
             forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==> 
-                va_perm_bits_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
+                spec_va_perm_bits_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
         ensures
             self.wf(),
             self.free_ioids.wf(),
@@ -212,20 +212,74 @@ impl MMUManager{
         return ret;
     }
 
-    // pub fn create_pagetable_va_entry(&mut self, pcid:Pcid, va:VAddr, page_alloc:&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
-    //     requires
-    //         0<=pcid<PCID_MAX,
-    //         old(self).wf(),
-    //         old(self).get_free_pcids_as_set().contains(pcid) == false,
-    //         spec_va_valid(va),
-    //         old(page_alloc).wf(),
-    //         old(page_alloc).free_pages.len() >= 4,
-    //         spec_va_valid(va),
-    //         old(self).get_pagetable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
-    //         old(self).get_pagetable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
-    // {
+    pub fn create_pagetable_va_entry(&mut self, pcid:Pcid, va:VAddr, page_alloc:&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            0<=pcid<PCID_MAX,
+            old(self).wf(),
+            old(self).get_free_pcids_as_set().contains(pcid) == false,
+            spec_va_valid(va),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 3,
+            spec_va_valid(va),
+            old(page_alloc).get_free_pages_as_set().disjoint(old(self).get_mmu_page_closure()),
+            forall|pcid:Pcid|#![auto] 0<=pcid<PCID_MAX ==> old(self).get_pagetable_page_closure_by_pcid(pcid).disjoint(old(page_alloc).get_free_pages_as_set()),
+            forall|pcid:Pcid|#![auto] 0<=pcid<PCID_MAX ==> old(self).get_pagetable_mapped_pages_by_pcid(pcid).disjoint(old(page_alloc).get_free_pages_as_set()),
+        ensures
+            self.wf(),
+            self.free_pcids =~= old(self).free_pcids,
+            self.free_ioids =~= old(self).free_ioids,
+            page_alloc.wf(),
+            page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            forall|i:Pcid| #![auto] 0<=i<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(i) =~= old(self).get_pagetable_mapping_by_pcid(i),
+            forall|i:IOid| #![auto] 0<=i<IOID_MAX ==> self.get_iommutable_mapping_by_ioid(i) =~= old(self).get_iommutable_mapping_by_ioid(i),
+            self.get_mmu_page_closure() =~= old(self).get_mmu_page_closure() + ret@,
+            // self.resolve_mapping_l2(l4i,l3i,l2i).is_Some(),
+            self.get_pagetable_by_pcid(pcid).is_va_entry_exist(va),
+            page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 3,
+    {
+        let ret = self.page_tables.create_va_entry_by_pcid(pcid,va,page_alloc);
+        proof{
+            self.page_table_pages@ = self.page_table_pages@ + ret@;
+        }
 
-    // }
+        assert(
+            forall|i:int,| #![auto] 0<=i<PCID_MAX && i != pcid ==> self.page_tables[i].get_pagetable_page_closure().disjoint(ret@)
+        );
+        assert(
+            forall|i:int,| #![auto] 0<=i<PCID_MAX && i != pcid ==> self.page_tables[i].get_pagetable_page_closure().disjoint(old(self).page_tables[pcid as int].get_pagetable_page_closure())
+        );
+
+        assert(
+            self.pagetables_wf()
+        );
+        assert(
+            self.iommutables_wf()
+        );
+        assert(
+            self.pagetable_iommutable_disjoint()
+        );
+        ret
+    }
+
+    pub fn mmu_get_va_entry_by_pcid(&self, pcid: Pcid, va:VAddr) -> (ret:Option<PageEntry>)
+        requires 
+            self.wf(),
+            0<=pcid<PCID_MAX,
+            spec_va_valid(va),
+            self.get_free_pcids_as_set().contains(pcid) == false,
+        ensures
+            ret =~= self.get_pagetable_mapping_by_pcid(pcid)[va],
+    {
+        assert(self.get_pagetable_by_pcid(pcid).wf());
+        self.page_tables.get(pcid).get_va_entry(va)
+    }
 
 }
 

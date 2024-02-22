@@ -62,7 +62,7 @@ impl PageMap{
         (
             forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
             (
-                va_perm_bits_valid(self.spec_seq@[i].get_Some_0().perm)
+                spec_va_perm_bits_valid(self.spec_seq@[i].get_Some_0().perm)
             )
         )
     }
@@ -84,7 +84,7 @@ impl PageMap{
             old(self).wf(),
             0<=index<512,
             value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
-            value.is_Some() ==> va_perm_bits_valid(value.unwrap().perm),
+            value.is_Some() ==> spec_va_perm_bits_valid(value.unwrap().perm),
         ensures
             self.wf(),
             self@ =~= self@.update(index as int,value),
