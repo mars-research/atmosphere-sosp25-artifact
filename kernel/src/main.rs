@@ -96,14 +96,12 @@ fn main(boot_info: *const BootInfo) -> isize {
 
     let boot_info = boot::get_boot_info();
     let dom0 = boot_info.dom0.as_ref().unwrap();
-    log::info!("entry={:?} pml4={:?}", dom0.entry_point, dom0.pml4);
+    log::info!("dom0: {:?}", dom0);
 
     let initial_sp = unsafe { dom0.reserved_start.add(dom0.reserved_size) };
     unsafe {
-        try_sysret(dom0.entry_point, dom0.pml4, initial_sp as *mut _);
+        try_sysret(dom0.entry_point, initial_sp as *mut _);
     }
-
-    
 
     unsafe {
         scripts::run_script_from_command_line();
@@ -157,17 +155,15 @@ fn panic(info: &PanicInfo) -> ! {
     }
 }
 
-unsafe fn try_sysret(pc: *const c_void, pml4: *const c_void, sp: *mut c_void) -> ! {
+unsafe fn try_sysret(pc: *const c_void, sp: *mut c_void) -> ! {
     log::info!("Going to sysret into {:x?}", pc);
     asm!(
-        "mov cr3, {pml4}",
         "mov rsp, {sp}",
         "pushfq",
         "pop r11",
         "sysretq",
 
         in("rcx") pc,
-        pml4 = in(reg) pml4,
         sp = in(reg) sp,
         out("rsi") _,
         out("r15") _,

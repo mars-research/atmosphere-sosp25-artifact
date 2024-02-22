@@ -1,6 +1,7 @@
 //! Boot manager handoff.
 
 use core::ffi::c_void;
+use core::ptr;
 
 use crate::string::ArrayString;
 
@@ -10,6 +11,9 @@ use crate::string::ArrayString;
 pub struct BootInfo {
     /// The kernel command line.
     pub command_line: ArrayString<4096>,
+
+    /// The page table.
+    pub pml4: *const c_void,
 
     /// The initial domain.
     pub dom0: Option<DomainMapping>,
@@ -35,9 +39,6 @@ pub struct DomainMapping {
 
     /// The entry point.
     pub entry_point: *const c_void,
-
-    /// The page table.
-    pub pml4: *const c_void,
 }
 
 impl BootInfo {
@@ -46,6 +47,7 @@ impl BootInfo {
         Self {
             command_line: ArrayString::empty(),
             dom0: None,
+            pml4: ptr::null(),
         }
     }
 }

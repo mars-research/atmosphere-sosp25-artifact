@@ -82,6 +82,8 @@ pub struct ElfHandle<F: Read + Seek> {
 }
 
 pub struct ElfMapping {
+    pub load_addr: usize,
+    pub load_size: usize,
     pub load_bias: usize,
     pub entry_point: *const c_void,
     pub max_vaddr: usize,
@@ -200,10 +202,11 @@ where
         }
 
         // This assumes that the ELF is relocatable
+        let load_size = self.page_align(summary.total_mapping_size);
         let load_base_map = unsafe {
             memory.map_anonymous(
                 VAddr(0),
-                self.page_align(summary.total_mapping_size),
+                load_size,
                 PageProtection {
                     read: false,
                     write: false,
@@ -329,6 +332,8 @@ where
         Ok((
             ElfMapping {
                 load_bias,
+                load_size,
+                load_addr: load_addr as usize,
                 entry_point,
                 max_vaddr,
             },

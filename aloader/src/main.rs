@@ -75,7 +75,12 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     let mut boot_info = BootInfo::empty(); // stays on stack
 
-    match load_domain(kernel_file, &kernel_map, &mut page_table_allocator) {
+    let mut address_space = AddressSpace::new(&mut page_table_allocator);
+    boot_info.pml4 = address_space.pml4();
+
+    memory::dump_physical_memory_map();
+
+    match load_domain(kernel_file, &mut address_space) {
         Ok(dom0) => {
             boot_info.dom0 = Some(dom0);
         }
@@ -84,10 +89,17 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         }
     }
 
-    memory::dump_physical_memory_map();
+    bootstrap_system_paging(&mut address_space, &kernel_map);
+
+    log::info!("Switching to PML4 @ {:x?}", boot_info.pml4);
+    unsafe {
+        asm!(
+            "mov cr3, {pml4}",
+            pml4 = inout(reg) boot_info.pml4 => _,
+        );
+    }
 
     log::info!("Calling into kernel @ {:x?}", kernel_map.entry_point);
-
     let ret: usize;
     unsafe {
         asm!(
@@ -127,10 +139,11 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     loop {}
 }
 
-fn load_domain<T>(elf: T, kernel_map: &ElfMapping, page_table_allocator: &mut impl PhysicalAllocator) -> Result<DomainMapping, elf::Error>
+fn load_domain<T, A>(elf: T, address_space: &mut AddressSpace<A>) -> Result<DomainMapping, elf::Error>
     where
         T: Read + Seek,
         T::Error: Into<elf::Error>,
+        A: PhysicalAllocator,
 {
     let parsed = ElfHandle::parse(elf, PAGE_SIZE)?;
     log::info!("Loading Dom0...");
@@ -139,9 +152,7 @@ fn load_domain<T>(elf: T, kernel_map: &ElfMapping, page_table_allocator: &mut im
     let (reserved_start, mut memory) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
     let (dom_map, _) = parsed.load(&mut memory).expect("Failed to map Dom0");
 
-    let mut address_space = AddressSpace::new(page_table_allocator);
-
-    log::info!("Mapping Dom0 pages...");
+    log::info!("Mapping Dom0...");
     let mut cur = reserved_start;
     while cur.addr() < reserved_start.addr() + DOM0_RESERVATION {
         unsafe {
@@ -150,31 +161,36 @@ fn load_domain<T>(elf: T, kernel_map: &ElfMapping, page_table_allocator: &mut im
         }
     }
 
-    // Set up kernel mapping
-    let mut cur = kernel_map.load_bias;
-    while cur < kernel_map.max_vaddr {
-        unsafe {
-            address_space.map(cur as u64, cur as u64, false);
-            cur = cur + PAGE_SIZE;
-        }
-    }
-
-    // Set up system mapping
-    let mut cur = 0x0;
-    while cur < 1 * 1024 * 1024 {
-        unsafe {
-            address_space.map(cur as u64, cur as u64, false);
-            cur = cur + PAGE_SIZE;
-        }
-    }
-
     Ok(DomainMapping {
         reserved_start,
         reserved_size: DOM0_RESERVATION,
         entry_point: dom_map.entry_point,
-        pml4: address_space.pml4(),
         load_bias: dom_map.load_bias,
     })
+}
+
+fn bootstrap_system_paging<A>(address_space: &mut AddressSpace<A>, kernel_map: &ElfMapping)
+    where
+        A: PhysicalAllocator,
+{
+    let loader_range = boot::get_loader_image_range();
+    let identity_ranges = [
+        ("Kernel", kernel_map.load_addr as u64, kernel_map.load_size as u64),
+        ("Loader", loader_range.base(), loader_range.size()),
+        ("BIOS", 0x0, 1024 * 1024),
+        ("APIC", 0xfee00000, 1024 * 1024),
+    ];
+
+    for (name, base, size) in identity_ranges {
+        log::info!("Mapping {}...", name);
+        let mut cur = base;
+        while cur < base + size {
+            unsafe {
+                address_space.map(cur as u64, cur as u64, false);
+                cur = cur + PAGE_SIZE as u64;
+            }
+        }
+    }
 }
 
 /// The kernel panic handler.

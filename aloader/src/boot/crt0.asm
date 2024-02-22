@@ -180,11 +180,6 @@ set_up_page_tables:
 	or eax, 0b11
 	mov [p3_table + 16], eax
 
-	; map fourth P3 entry to P2 apic table
-	mov eax, p2_apic_table
-	or eax, 0b11
-	mov [p3_table + 24], eax
-
     ; == map each P2 entry to a huge 2MiB page
     mov ecx, 0         ; counter variable
 
@@ -212,20 +207,6 @@ set_up_page_tables:
     inc ecx            ; increase counter
     cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
     jne .map_p2_mod_table  ; else map the next entry
-
-    ; == map each P2_apic entry to a huge 2MiB page
-    mov ecx, 0         ; counter variable
-.map_p2_apic_table:
-    ; map ecx-th P2 entry to a huge page that starts at address 0xc0000000 + 2MiB*ecx
-    mov eax, 0x200000  ; 2MiB
-    mul ecx            ; start address of ecx-th page
-	add eax, 0xc0000000
-    or eax, 0b10000011 ; present + writable + huge
-    mov [p2_apic_table + ecx * 8], eax ; map ecx-th entry
-
-    inc ecx            ; increase counter
-    cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
-    jne .map_p2_apic_table  ; else map the next entry
 
     ret
 
