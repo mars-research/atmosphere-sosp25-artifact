@@ -18,3 +18,8 @@ You can now build and run Atmosphere with `cd kernel && cargo run`.
 
 Atmosphere builds with `atmo`, a build system that extends Cargo.
 Run `atmo help` for more information.
+
+## TODO
+
+Add kernel specs for IO. @Xiangdong
+Initialize all PCIDs at system init time. @Xiangdong
