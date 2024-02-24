@@ -104,7 +104,7 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_page_io_mappings(&mut self, index: usize, io_mappings: Ghost<Map<(Pcid,VAddr),PageType>>) 
+    pub fn set_page_io_mappings(&mut self, index: usize, io_mappings: Ghost<Map<(IOid,VAddr),PageType>>) 
         requires 
             0 <= index < N,
             old(self).wf(),

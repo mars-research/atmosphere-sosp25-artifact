@@ -540,6 +540,16 @@ impl Kernel{
 
     }
 
+    pub proof fn kernel_iommutable_none_infer_none_in_page_alloc(&self)
+        requires
+            self.wf()
+        ensures
+            forall|pa:PAddr, ioid:IOid, va:usize| #![auto]  self.page_alloc.get_available_pages().contains(pa) && 0<=ioid<IOID_MAX && spec_va_valid(va) && self.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va].is_None() ==> 
+                (self.page_alloc.get_page_io_mappings(pa).contains((ioid,va)) == false)
+    {
+
+    }
+
 }
 
 }

@@ -219,25 +219,25 @@ impl MMUManager{
     }
     #[verifier(inline)]
     pub open spec fn get_iommutable_by_ioid(&self, ioid: IOid) -> IOMMUTable
-        recommends 0<=ioid<PCID_MAX,
+        recommends 0<=ioid<IOID_MAX,
     {
         self.iommu_tables[ioid as int]
     }
     #[verifier(inline)]
     pub open spec fn get_iommutable_mapping_by_ioid(&self, ioid: IOid) -> Map<VAddr,Option<PageEntry>>
-        recommends 0<=ioid<PCID_MAX,
+        recommends 0<=ioid<IOID_MAX,
     {   
         self.iommu_tables[ioid as int].get_iommutable_mapping()
     }
     #[verifier(inline)]
     pub open spec fn get_iommutable_page_closure_by_ioid(&self, ioid: IOid) -> Set<PagePtr>
-        recommends 0<=ioid<PCID_MAX,
+        recommends 0<=ioid<IOID_MAX,
     {   
         self.iommu_tables[ioid as int].get_iommutable_page_closure()
     }
     #[verifier(inline)]
     pub open spec fn get_iommutable_mapped_pages_by_ioid(&self, ioid: IOid) -> Set<PagePtr>
-        recommends 0<=ioid<PCID_MAX,
+        recommends 0<=ioid<IOID_MAX,
     {   
         self.iommu_tables[ioid as int].get_iommutable_mapped_pages()
     }

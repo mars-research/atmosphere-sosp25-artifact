@@ -48,6 +48,8 @@ pub const NO_FREE_IOID:ErrorCodeType = 17;
 pub const VMEM_PERMBITS_INVALID:ErrorCodeType = 18;
 pub const MMAP_VADDR_INVALID:ErrorCodeType = 19;
 pub const MMAP_VADDR_NOT_FREE:ErrorCodeType = 20;
+pub const PROC_NO_IOMMUTABLE:ErrorCodeType = 21;
+pub const PAGE_RF_COUNTER_OVERFLOW:ErrorCodeType = 22;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;

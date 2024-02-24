@@ -21,6 +21,17 @@ impl PageAllocator {
         self.free_pages.len()
     }
 
+    pub fn get_page_rf_counter_by_page_ptr(&self, page_ptr:PagePtr) -> (ret:usize)
+        requires 
+            self.wf(),
+            page_ptr_valid(page_ptr),
+        ensures
+            ret == self.get_page_rf_counter(page_ptr),
+    {
+        return self.page_array.get(page_ptr2page_index(page_ptr)).rf_count;
+    }
+
+
     pub fn alloc_kernel_mem(&mut self) -> (ret : (PagePtr,Tracked<PagePerm>))
         requires 
             old(self).wf(),
@@ -169,6 +180,51 @@ impl PageAllocator {
         self.page_array.set_page_rf_count(page_ptr2page_index(page_ptr), new_rf_count);
         let new_mappings = Ghost(self.page_array@[spec_page_ptr2page_index(page_ptr) as int].mappings@.insert(target, page_type));
         self.page_array.set_page_mappings(page_ptr2page_index(page_ptr),new_mappings);
+
+        assert(self.mem_wf());
+        assert(self.page_array_wf());
+        assert(self.free_pages_wf());
+        assert(self.page_table_pages_wf());
+        assert(self.allocated_pages_wf());
+        assert(self.mapped_pages_wf());
+        assert(self.rf_wf());
+        assert(self.page_perms_wf());
+        assert(self.available_pages_wf());
+        assert(self.io_pages_wf());
+
+        assert(self.wf());
+    }
+
+    pub fn map_user_io_page(&mut self, page_ptr : PagePtr, target: (IOid,VAddr), page_type: PageType)
+        requires
+            page_ptr_valid(page_ptr),
+            old(self).wf(),
+            old(self).get_mapped_pages().contains(page_ptr),
+            old(self).get_page_io_mappings(page_ptr).contains(target) == false,
+            old(self).page_array@[page_ptr2page_index(page_ptr) as int].rf_count < usize::MAX,
+            0<=target.0<IOID_MAX,
+            spec_va_valid(target.1),
+        ensures
+            self.wf(),
+            self.free_pages =~= old(self).free_pages,
+            self.page_table_pages =~= old(self).page_table_pages,
+            self.allocated_pages =~= old(self).allocated_pages,
+            self.mapped_pages =~= old(self).mapped_pages,
+            self.available_pages =~= old(self).available_pages,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(page_ptr) ==> self.page_array@[i] =~= old(self).page_array@[i],
+            self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count == old(self).page_array@[page_ptr2page_index(page_ptr) as int].rf_count + 1,
+            self.page_array@[page_ptr2page_index(page_ptr) as int].io_mappings@ =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].io_mappings@.insert(target, page_type),
+            self.page_array@[page_ptr2page_index(page_ptr) as int].io_mappings@.dom() =~= old(self).page_array@[page_ptr2page_index(page_ptr) as int].io_mappings@.dom().insert(target),
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].mappings@ =~= old(self).page_array@[i].mappings@,
+            forall|i:int| #![auto] 0<=i<NUM_PAGES ==> self.page_array@[i].mappings@.dom() =~= old(self).page_array@[i].mappings@.dom(),
+    {
+        assert(self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count != 0);
+        assert(self.page_array@[page_ptr2page_index(page_ptr) as int].rf_count > 0);
+        let old_rf_count = self.page_array.get(page_ptr2page_index(page_ptr)).rf_count;
+        let new_rf_count = old_rf_count + 1;
+        self.page_array.set_page_rf_count(page_ptr2page_index(page_ptr), new_rf_count);
+        let new_mappings = Ghost(self.page_array@[spec_page_ptr2page_index(page_ptr) as int].io_mappings@.insert(target, page_type));
+        self.page_array.set_page_io_mappings(page_ptr2page_index(page_ptr),new_mappings);
 
         assert(self.mem_wf());
         assert(self.page_array_wf());

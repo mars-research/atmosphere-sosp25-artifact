@@ -5,8 +5,10 @@ use crate::define::*;
 use crate::mars_array::*;
 use crate::page_alloc::*;
 
-use crate::pagetable::*;
 use crate::iommutable::*;
+use crate::iommutable::*;
+
+use crate::pagetable::*;
 
 
 impl MarsArray<IOMMUTable,IOID_MAX>{
@@ -62,6 +64,68 @@ impl MarsArray<IOMMUTable,IOID_MAX>{
             forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int].get_iommutable_mapping() =~= old(self)@[i as int].get_iommutable_mapping(),
     {
         self.ar[ioid].init_to_wf(page_ptr,page_perm);
+    }
+
+
+    #[verifier(external_body)]
+    pub fn map_iommutable_page_by_ioid(&mut self, ioid:IOid, va: VAddr, dst:PageEntry) -> (ret: bool)
+        requires
+            0<=ioid<IOID_MAX,
+            old(self).wf(),
+            old(self)@[ioid as int].wf(),
+            spec_va_valid(va),
+            old(self)@[ioid as int].get_iommutable_page_closure().contains(dst.addr) == false,
+            old(self)@[ioid as int].get_iommutable_mapping()[va].is_None(),
+            page_ptr_valid(dst.addr),
+            spec_va_perm_bits_valid(dst.perm),
+        ensures 
+            self.wf(),
+            self@[ioid as int].wf(),
+            old(self)@[ioid as int].dummy.is_va_entry_exist(va) == ret ,
+            old(self)@[ioid as int].dummy.is_va_entry_exist(va) ==> 
+                self@[ioid as int].get_iommutable_mapping() =~= old(self)@[ioid as int].get_iommutable_mapping().insert(va,Some(dst)),
+            !old(self)@[ioid as int].dummy.is_va_entry_exist(va) ==> 
+                self@[ioid as int].get_iommutable_mapping() =~=old(self)@[ioid as int].get_iommutable_mapping(),
+            self@[ioid as int].get_iommutable_page_closure() =~= old(self)@[ioid as int].get_iommutable_page_closure(),
+            forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int].get_iommutable_mapping() =~= old(self)@[i as int].get_iommutable_mapping(),
+    {
+        return self.ar[ioid].map(va, dst);
+    }
+
+    #[verifier(external_body)]
+    pub fn create_va_entry_by_ioid(&mut self, ioid:IOid, va:VAddr,page_alloc :&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            0<=ioid<IOID_MAX,
+            old(self).wf(),
+            old(self)@[ioid as int].wf(),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 3,
+            spec_va_valid(va),
+            old(self)@[ioid as int].get_iommutable_page_closure().disjoint(old(page_alloc).get_free_pages_as_set()),
+            old(self)@[ioid as int].get_iommutable_mapped_pages().disjoint(old(page_alloc).get_free_pages_as_set()),
+        ensures
+            self.wf(),
+            self@[ioid as int].wf(),
+            forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:int| #![auto] 0<=i<IOID_MAX ==> self@[i as int].get_iommutable_mapping() =~= old(self)@[i as int].get_iommutable_mapping(),
+            self@[ioid as int].get_iommutable_page_closure() =~= old(self)@[ioid as int].get_iommutable_page_closure() + ret@,
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            self@[ioid as int].get_iommutable_page_closure().disjoint(page_alloc.get_free_pages_as_set()),
+            self@[ioid as int].get_iommutable_page_closure() =~= old(self)@[ioid as int].get_iommutable_page_closure() + ret@,
+            // self.resolve_mapping_l2(l4i,l3i,l2i).is_Some(),
+            self@[ioid as int].dummy.is_va_entry_exist(va),
+            page_alloc.wf(),
+            page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
+            page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 3,
+    {
+        return self.ar[ioid].dummy.create_va_entry(va,page_alloc);
     }
 }
 }

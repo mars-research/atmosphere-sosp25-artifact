@@ -70,6 +70,39 @@ impl MMUManager{
         return ret;
     }
 
+    pub fn map_iommutable_page(&mut self, ioid:IOid, va: usize, dst:PageEntry) -> (ret: bool)
+        requires
+            0<=ioid<IOID_MAX,
+            old(self).wf(),
+            old(self).get_free_ioids_as_set().contains(ioid) == false,
+            spec_va_valid(va),
+            old(self).get_mmu_page_closure().contains(dst.addr) == false,
+            old(self).get_iommutable_mapping_by_ioid(ioid)[va].is_None(),
+            page_ptr_valid(dst.addr),
+            spec_va_perm_bits_valid(dst.perm),
+        ensures
+            self.wf(),
+            self.free_pcids =~= old(self).free_pcids,
+            self.page_tables =~= old(self).page_tables,
+            self.page_table_pages =~= old(self).page_table_pages,
+            self.free_ioids =~= old(self).free_ioids,
+            // self.page_tables =~= old(self).page_tables,
+            self.iommu_table_pages =~= old(self).iommu_table_pages,
+            forall|_ioid:IOid| #![auto] 0<=_ioid<IOID_MAX && _ioid != ioid ==> self.get_iommutable_by_ioid(_ioid) =~= old(self).get_iommutable_by_ioid(_ioid),
+            self.get_iommutable_page_closure_by_ioid(ioid) =~= old(self).get_iommutable_page_closure_by_ioid(ioid),
+            old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) == ret,
+            old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) ==> 
+                self.get_iommutable_mapping_by_ioid(ioid) =~= old(self).get_iommutable_mapping_by_ioid(ioid).insert(va,Some(dst)),
+            !old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) ==> 
+                self.get_iommutable_mapping_by_ioid(ioid) =~= old(self).get_iommutable_mapping_by_ioid(ioid),
+            forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX ==> self.get_pagetable_by_pcid(_pcid) =~= old(self).get_pagetable_by_pcid(_pcid),
+            forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(_pcid) =~= old(self).get_pagetable_mapping_by_pcid(_pcid),
+        {
+        let ret = self.iommu_tables.map_iommutable_page_by_ioid(ioid,va,dst);     
+        assert(self.wf());
+        return ret;
+        }
+
     pub fn adopt_dom0(&mut self, pagetable: PageTable)
         requires
             old(self).wf(),
@@ -268,6 +301,62 @@ impl MMUManager{
         ret
     }
 
+    pub fn create_iommutable_va_entry(&mut self, ioid:IOid, va:VAddr, page_alloc:&mut PageAllocator) -> (ret:Ghost<Set<PagePtr>>)
+        requires
+            0<=ioid<IOID_MAX,
+            old(self).wf(),
+            old(self).get_free_ioids_as_set().contains(ioid) == false,
+            spec_va_valid(va),
+            old(page_alloc).wf(),
+            old(page_alloc).free_pages.len() >= 3,
+            spec_va_valid(va),
+            old(page_alloc).get_free_pages_as_set().disjoint(old(self).get_mmu_page_closure()),
+            forall|ioid:IOid|#![auto] 0<=ioid<IOID_MAX ==> old(self).get_iommutable_page_closure_by_ioid(ioid).disjoint(old(page_alloc).get_free_pages_as_set()),
+            forall|ioid:IOid|#![auto] 0<=ioid<IOID_MAX ==> old(self).get_iommutable_mapped_pages_by_ioid(ioid).disjoint(old(page_alloc).get_free_pages_as_set()),
+        ensures
+            self.wf(),
+            self.free_pcids =~= old(self).free_pcids,
+            self.free_ioids =~= old(self).free_ioids,
+            page_alloc.wf(),
+            page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_page_table_pages() =~= old(page_alloc).get_page_table_pages() + ret@,
+            page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret@,
+            page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+            ret@.subset_of(old(page_alloc).get_free_pages_as_set()),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
+            forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
+            forall|i:Pcid| #![auto] 0<=i<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(i) =~= old(self).get_pagetable_mapping_by_pcid(i),
+            forall|i:IOid| #![auto] 0<=i<IOID_MAX ==> self.get_iommutable_mapping_by_ioid(i) =~= old(self).get_iommutable_mapping_by_ioid(i),
+            self.get_mmu_page_closure() =~= old(self).get_mmu_page_closure() + ret@,
+            // self.resolve_mapping_l2(l4i,l3i,l2i).is_Some(),
+            self.get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va),
+            page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 3,
+    {
+        let ret = self.iommu_tables.create_va_entry_by_ioid(ioid,va,page_alloc);
+        proof{
+            self.iommu_table_pages@ = self.iommu_table_pages@ + ret@;
+        }
+
+        assert(
+            forall|i:int,| #![auto] 0<=i<IOID_MAX && i != ioid ==> self.iommu_tables[i].get_iommutable_page_closure().disjoint(ret@)
+        );
+        assert(
+            forall|i:int,| #![auto] 0<=i<IOID_MAX && i != ioid ==> self.iommu_tables[i].get_iommutable_page_closure().disjoint(old(self).iommu_tables[ioid as int].get_iommutable_page_closure())
+        );
+
+        assert(
+            self.pagetables_wf()
+        );
+        assert(
+            self.iommutables_wf()
+        );
+        assert(
+            self.pagetable_iommutable_disjoint()
+        );
+        ret
+    }
+
     pub fn mmu_get_va_entry_by_pcid(&self, pcid: Pcid, va:VAddr) -> (ret:Option<PageEntry>)
         requires 
             self.wf(),
@@ -279,6 +368,18 @@ impl MMUManager{
     {
         assert(self.get_pagetable_by_pcid(pcid).wf());
         self.page_tables.get(pcid).get_va_entry(va)
+    }
+
+    pub fn mmu_get_va_entry_by_ioid(&self, ioid: IOid, va:VAddr) -> (ret:Option<PageEntry>)
+        requires 
+            self.wf(),
+            0<=ioid<IOID_MAX,
+            spec_va_valid(va),
+            self.get_free_ioids_as_set().contains(ioid) == false,
+        ensures
+            ret =~= self.get_iommutable_mapping_by_ioid(ioid)[va],
+    {
+        self.iommu_tables.get(ioid).dummy.get_va_entry(va)
     }
 
 }
