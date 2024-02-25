@@ -50,6 +50,8 @@ pub const MMAP_VADDR_INVALID:ErrorCodeType = 19;
 pub const MMAP_VADDR_NOT_FREE:ErrorCodeType = 20;
 pub const PROC_NO_IOMMUTABLE:ErrorCodeType = 21;
 pub const PAGE_RF_COUNTER_OVERFLOW:ErrorCodeType = 22;
+pub const SCHEDULER_EMPTY:ErrorCodeType = 23;
+pub const CPU_NO_IDLE:ErrorCodeType = 24;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;

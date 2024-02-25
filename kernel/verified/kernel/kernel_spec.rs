@@ -356,6 +356,15 @@ impl Kernel{
                     &&
                     self.proc_man.get_thread(self.cpu_list[cpu_id as int].get_current_thread().unwrap()).state == RUNNING
                     )
+        )        
+        &&&
+        (
+            forall|cpu_id_i:CPUID,cpu_id_j:CPUID| #![auto] 0 <= cpu_id_i < NUM_CPUS && 0 <= cpu_id_j < NUM_CPUS  && cpu_id_i != cpu_id_j
+                && self.cpu_list[cpu_id_i as int].get_is_idle() == false && self.cpu_list[cpu_id_j as int].get_is_idle() == false
+                ==> (
+                    self.cpu_list[cpu_id_i as int].get_current_thread().unwrap() != 
+                    self.cpu_list[cpu_id_j as int].get_current_thread().unwrap()
+                    )
         )
     }
     #[verifier(inline)]
