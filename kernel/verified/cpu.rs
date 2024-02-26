@@ -105,21 +105,21 @@ impl Cpu {
 
 impl MarsArray<Cpu,NUM_CPUS>{
 
-    pub fn set_current_thread(&mut self, cpu_id:CPUID, current_thread: ThreadPtr)
+    pub fn set_current_thread(&mut self, cpu_id:CPUID, current_thread: Option<ThreadPtr>)
         requires
             old(self).wf(),
             0<=cpu_id<NUM_CPUS
         ensures
             self.wf(),
             forall|i:CPUID| #![auto] 0<=i<NUM_CPUS && i != cpu_id  ==> self@[i as int] =~= old(self)@[i as int],
-            self@[cpu_id as int].current_t == Some(current_thread),
+            self@[cpu_id as int].current_t == current_thread,
             self@[cpu_id as int].tlb =~= old(self)@[cpu_id as int].tlb,
             self@[cpu_id as int].iotlb =~= old(self)@[cpu_id as int].iotlb,
     {
         let old_tlb = self.get(cpu_id).tlb;
         let old_iotlb = self.get(cpu_id).iotlb;
         self.set(cpu_id, Cpu{
-            current_t: Some(current_thread),
+            current_t: current_thread,
             tlb: old_tlb,
             iotlb: old_iotlb,
         });

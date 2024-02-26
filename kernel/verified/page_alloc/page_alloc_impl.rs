@@ -46,6 +46,7 @@ impl PageAllocator {
             self.get_mapped_pages() =~= old(self).get_mapped_pages(),
             self.get_allocated_pages().contains(ret.0),
             self.get_available_pages() =~= old(self).get_available_pages(),
+            ret.0 != 0,
             ret.1@@.pptr == ret.0,
             ret.1@@.value.is_Some(),
             self.free_pages.len() as int =~= old(self).free_pages.len() as int - 1,
@@ -84,6 +85,7 @@ impl PageAllocator {
         let tracked mut page_perm: PagePerm =
             (self.page_perms.borrow_mut()).tracked_remove(ptr);
         assert(page_perm@.value.is_Some());
+        assume(ptr != 0); // TODO: @Xiangdong add this to spec.
         return (ptr,Tracked(page_perm));
     }
 

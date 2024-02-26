@@ -37,7 +37,18 @@ impl Kernel{
             old(self).page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count < usize::MAX,
             old(self).mmu_man.get_pagetable_by_pcid(pcid).is_va_entry_exist(va),
         ensures
-            self.wf()
+            self.wf(),
+            self.page_alloc.free_pages.len() =~= old(self).page_alloc.free_pages.len(),
+            self.page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count == 
+                old(self).page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count + 1,
+            forall|i:int|#![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(dst.addr)
+                ==> self.page_alloc.page_array@[i].rf_count == old(self).page_alloc.page_array@[i].rf_count,
+            self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
+            self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
+            forall|i:Pcid| #![auto] 0<=i<PCID_MAX && i !=pcid ==> self.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i),
+            forall|i:IOid| #![auto] 0<=i<IOID_MAX ==> self.mmu_man.get_iommutable_mapping_by_ioid(i) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i),
+            forall|_va:VAddr| #![auto] spec_va_valid(_va) && va != _va ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va] =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va],
+            self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some(),
     {
         let result = self.mmu_man.map_pagetable_page(pcid,va,dst);
         assert(result == true);
@@ -113,33 +124,33 @@ impl Kernel{
             self.page_alloc.unmap_user_page(ret.unwrap().addr,(pcid,va));
             self.cpu_list.flush_address(pcid,va);
 
-            assert(
-                self.proc_man.wf()
-            );
-            assert(
-                self.mmu_man.wf()
-            );
-            assert(
-                self.page_alloc.wf()
-            );
-            assert(
-                self.cpu_list.wf()
-            );
-            assert(
-                self.kernel_cpu_list_wf()
-            );
-            assert(
-                self.kernel_mem_layout_wf()
-            );
-            assert(
-                self.kernel_mmu_page_alloc_pagetable_wf()
-            );
-            assert(
-                self.kernel_mmu_page_alloc_iommutable_wf()
-            );
-            assert(self.kernel_proc_mmu_wf());
-            assert(self.kernel_proc_no_thread_in_transit());
-            assert(self.kernel_tlb_wf());
+            // assert(
+            //     self.proc_man.wf()
+            // );
+            // assert(
+            //     self.mmu_man.wf()
+            // );
+            // assert(
+            //     self.page_alloc.wf()
+            // );
+            // assert(
+            //     self.cpu_list.wf()
+            // );
+            // assert(
+            //     self.kernel_cpu_list_wf()
+            // );
+            // assert(
+            //     self.kernel_mem_layout_wf()
+            // );
+            // assert(
+            //     self.kernel_mmu_page_alloc_pagetable_wf()
+            // );
+            // assert(
+            //     self.kernel_mmu_page_alloc_iommutable_wf()
+            // );
+            // assert(self.kernel_proc_mmu_wf());
+            // assert(self.kernel_proc_no_thread_in_transit());
+            // assert(self.kernel_tlb_wf());
             assert(self.wf());
         }
 
@@ -187,6 +198,50 @@ impl Kernel{
         assert(self.wf());
     }
 
+
+    pub fn kernel_map_pagetable_page_to_pagetable(&mut self, pcid: Pcid, va: VAddr, target: Pcid, perm_bits:usize)
+        requires
+            old(self).wf(),
+            0<=pcid<PCID_MAX,
+            0<=target<PCID_MAX,
+            pcid != target,
+            spec_va_valid(va),            
+            old(self).page_alloc.free_pages.len() >= 3,
+            old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
+            old(self).mmu_man.get_free_pcids_as_set().contains(target) == false,
+            old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some(),
+            old(self).page_alloc.page_array@[
+                page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr) as int].rf_count < usize::MAX,
+            old(self).mmu_man.get_pagetable_mapping_by_pcid(target)[va].is_None(),
+            spec_va_perm_bits_valid(perm_bits),
+        ensures
+            self.wf(),
+            self.page_alloc.free_pages.len() >= old(self).page_alloc.free_pages.len() - 3,
+            self.page_alloc.page_array@[page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr) as int].rf_count == 
+                old(self).page_alloc.page_array@[page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr) as int].rf_count + 1,
+            forall|i:int|#![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr) 
+                ==> self.page_alloc.page_array@[i].rf_count == old(self).page_alloc.page_array@[i].rf_count,
+            self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
+            self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
+            forall|i:IOid| #![auto] 0<=i<PCID_MAX ==> self.mmu_man.get_iommutable_mapping_by_ioid(i) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i),
+            forall|i:Pcid| #![auto] 0<=i<PCID_MAX && i !=target ==> self.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i),
+            forall|_va:VAddr| #![auto] spec_va_valid(_va) && va != _va ==> self.mmu_man.get_pagetable_mapping_by_pcid(target)[_va] =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(target)[_va],
+            self.mmu_man.get_pagetable_mapping_by_pcid(target)[va].is_Some(),
+    {
+        proof{
+            // self.kernel_iommutable_none_infer_none_in_page_alloc();
+            self.kernel_pagetable_none_infer_none_in_page_alloc();
+        }
+        let option = self.mmu_man.mmu_get_va_entry_by_pcid(pcid,va);
+        assert(option.is_Some());
+        let entry = option.unwrap();
+        assert(self.page_alloc.get_available_pages().contains(entry.addr));
+        self.kernel_create_va_entry_by_pcid(target,va);
+        self.kernel_map_pagetable_page(target,va,PageEntry{addr:entry.addr, perm: perm_bits});
+
+        assert(self.wf());
+    }
+
     pub fn kernel_map_new_page_by_pcid(&mut self, pcid: Pcid, va: usize, perm_bits:usize)
         requires
             old(self).wf(),
@@ -212,33 +267,33 @@ impl Kernel{
         assert(result == true);
         
 
-        assert(
-            self.proc_man.wf()
-        );
-        assert(
-            self.mmu_man.wf()
-        );
-        assert(
-            self.page_alloc.wf()
-        );
-        assert(
-            self.cpu_list.wf()
-        );
-        assert(
-            self.kernel_cpu_list_wf()
-        );
-        assert(
-            self.kernel_mem_layout_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_pagetable_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_iommutable_wf()
-        );
-        assert(self.kernel_proc_mmu_wf());
-        assert(self.kernel_proc_no_thread_in_transit());
-        assert(self.kernel_tlb_wf());
+        // assert(
+        //     self.proc_man.wf()
+        // );
+        // assert(
+        //     self.mmu_man.wf()
+        // );
+        // assert(
+        //     self.page_alloc.wf()
+        // );
+        // assert(
+        //     self.cpu_list.wf()
+        // );
+        // assert(
+        //     self.kernel_cpu_list_wf()
+        // );
+        // assert(
+        //     self.kernel_mem_layout_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_pagetable_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_iommutable_wf()
+        // );
+        // assert(self.kernel_proc_mmu_wf());
+        // assert(self.kernel_proc_no_thread_in_transit());
+        // assert(self.kernel_tlb_wf());
         assert(self.wf());
     }
 
@@ -271,33 +326,33 @@ impl Kernel{
         }
         self.mmu_man.create_pagetable_va_entry(pcid,va,&mut self.page_alloc);
 
-        assert(
-            self.proc_man.wf()
-        );
-        assert(
-            self.mmu_man.wf()
-        );
-        assert(
-            self.page_alloc.wf()
-        );
-        assert(
-            self.cpu_list.wf()
-        );
-        assert(
-            self.kernel_cpu_list_wf()
-        );
-        assert(
-            self.kernel_mem_layout_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_pagetable_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_iommutable_wf()
-        );
-        assert(self.kernel_proc_mmu_wf());
-        assert(self.kernel_proc_no_thread_in_transit());
-        assert(self.kernel_tlb_wf());
+        // assert(
+        //     self.proc_man.wf()
+        // );
+        // assert(
+        //     self.mmu_man.wf()
+        // );
+        // assert(
+        //     self.page_alloc.wf()
+        // );
+        // assert(
+        //     self.cpu_list.wf()
+        // );
+        // assert(
+        //     self.kernel_cpu_list_wf()
+        // );
+        // assert(
+        //     self.kernel_mem_layout_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_pagetable_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_iommutable_wf()
+        // );
+        // assert(self.kernel_proc_mmu_wf());
+        // assert(self.kernel_proc_no_thread_in_transit());
+        // assert(self.kernel_tlb_wf());
         assert(self.wf());
     }
 
@@ -331,34 +386,82 @@ impl Kernel{
         }
         self.mmu_man.create_iommutable_va_entry(ioid,va,&mut self.page_alloc);
 
-        assert(
-            self.proc_man.wf()
-        );
-        assert(
-            self.mmu_man.wf()
-        );
-        assert(
-            self.page_alloc.wf()
-        );
-        assert(
-            self.cpu_list.wf()
-        );
-        assert(
-            self.kernel_cpu_list_wf()
-        );
-        assert(
-            self.kernel_mem_layout_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_pagetable_wf()
-        );
-        assert(
-            self.kernel_mmu_page_alloc_iommutable_wf()
-        );
-        assert(self.kernel_proc_mmu_wf());
-        assert(self.kernel_proc_no_thread_in_transit());
-        assert(self.kernel_tlb_wf());
+        // assert(
+        //     self.proc_man.wf()
+        // );
+        // assert(
+        //     self.mmu_man.wf()
+        // );
+        // assert(
+        //     self.page_alloc.wf()
+        // );
+        // assert(
+        //     self.cpu_list.wf()
+        // );
+        // assert(
+        //     self.kernel_cpu_list_wf()
+        // );
+        // assert(
+        //     self.kernel_mem_layout_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_pagetable_wf()
+        // );
+        // assert(
+        //     self.kernel_mmu_page_alloc_iommutable_wf()
+        // );
+        // assert(self.kernel_proc_mmu_wf());
+        // assert(self.kernel_proc_no_thread_in_transit());
+        // assert(self.kernel_tlb_wf());
         assert(self.wf());
+    }
+
+    pub fn kernel_map_pagetable_range_page_to_pagetable(&mut self, pcid: Pcid, target: Pcid, va: usize, perm_bits:usize, range: usize)
+        requires
+            old(self).wf(),
+            0<=pcid<PCID_MAX,
+            0<=target<IOID_MAX,
+            pcid != target,
+            forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va,i)),            
+            old(self).page_alloc.free_pages.len() >= 3 * range,
+            old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
+            old(self).mmu_man.get_free_pcids_as_set().contains(target) == false,
+            forall|i:usize| #![auto] 0<=i<range ==> old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,i)].is_Some(),
+            forall|i:usize| #![auto] 0<=i<range ==>  old(self).page_alloc.page_array@[
+                page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,i)].get_Some_0().addr) as int].rf_count < usize::MAX - range,
+            forall|i:usize| #![auto] 0<=i<range ==> old(self).mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va,i)].is_None(),
+            spec_va_perm_bits_valid(perm_bits),
+        ensures 
+            self.wf(),
+    {
+        let mut i = 0;
+        while i != range
+            invariant
+                0<=i<=range,
+                self.wf(),
+                0<=pcid<PCID_MAX,
+                0<=target<IOID_MAX,
+                pcid != target,
+                forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va,i)),            
+                self.page_alloc.free_pages.len() >= 3 * (range - i),
+                self.mmu_man.get_free_pcids_as_set().contains(pcid) == false,
+                self.mmu_man.get_free_pcids_as_set().contains(target) == false,
+                forall|i:usize| #![auto] 0<=i<range ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,i)].is_Some(),
+                forall|j:usize| #![auto] i<=j<range ==> self.page_alloc.page_array@[
+                    page_ptr2page_index(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].get_Some_0().addr) as int].rf_count < usize::MAX - range + i,
+                forall|j:usize| #![auto] i<=j<range  ==> self.mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va,j)].is_None(),
+                forall|j:usize| #![auto] 0<=j<i  ==> self.mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va,j)].is_Some(),
+                spec_va_perm_bits_valid(perm_bits),
+            ensures
+                i == range,
+                self.wf(),
+                forall|j:usize| #![auto] 0<=j<range ==> self.mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va,j)].is_Some(),
+        {
+            // TODO: @Xiangdong prove or make this a lemma
+            assume(forall|i:usize, j:usize| #![auto] i != j ==>  spec_va_add_range(va,i) != spec_va_add_range(va,j));
+            self.kernel_map_pagetable_page_to_pagetable(pcid,va_add_range(va,i),target,perm_bits);
+            i = i + 1;
+        }
     }
 
     pub fn kernel_map_pagetable_range_page_to_iommutable(&mut self, pcid: Pcid, ioid: Pcid, va: usize, perm_bits:usize, range: usize)

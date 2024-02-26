@@ -259,7 +259,7 @@ impl ProcessManager {
         let tracked proc_perm = self.proc_perms.borrow().tracked_borrow(proc_ptr);
         let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
         return proc.owned_threads.len();
-}
+    }
 
     pub fn get_endpoint_rf_counter_by_endpoint_ptr(&self, endpoint_ptr:EndpointPtr) -> (ret :usize)
         requires
@@ -272,6 +272,34 @@ impl ProcessManager {
         let tracked endpoint_perm = self.endpoint_perms.borrow().tracked_borrow(endpoint_ptr);
         let endpoint : &Endpoint = PPtr::<Endpoint>::from_usize(endpoint_ptr).borrow(Tracked(endpoint_perm));
         let ret = endpoint.rf_counter;
+        return ret;
+    }
+
+    pub fn get_endpoint_state_by_endpoint_ptr(&self, endpoint_ptr:EndpointPtr) -> (ret :EndpointState)
+        requires
+            self.wf(),
+            self.get_endpoint_ptrs().contains(endpoint_ptr),
+        ensures
+            ret =~= self.get_endpoint(endpoint_ptr).queue_state,
+    {
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr));
+        let tracked endpoint_perm = self.endpoint_perms.borrow().tracked_borrow(endpoint_ptr);
+        let endpoint : &Endpoint = PPtr::<Endpoint>::from_usize(endpoint_ptr).borrow(Tracked(endpoint_perm));
+        let ret = endpoint.queue_state;
+        return ret;
+    }
+
+    pub fn get_endpoint_len_by_endpoint_ptr(&self, endpoint_ptr:EndpointPtr) -> (ret :usize)
+        requires
+            self.wf(),
+            self.get_endpoint_ptrs().contains(endpoint_ptr),
+        ensures
+            ret =~= self.get_endpoint(endpoint_ptr).len(),
+    {
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr));
+        let tracked endpoint_perm = self.endpoint_perms.borrow().tracked_borrow(endpoint_ptr);
+        let endpoint : &Endpoint = PPtr::<Endpoint>::from_usize(endpoint_ptr).borrow(Tracked(endpoint_perm));
+        let ret = endpoint.queue.len();
         return ret;
     }
 
@@ -350,8 +378,7 @@ impl ProcessManager {
         self.wf(),
         self.get_thread_ptrs().contains(thread_ptr),
     ensures
-        ret == self.get_thread(thread_ptr).ipc_payload.endpoint_payload,
-        ret.is_Some() ==> 0 <= ret.unwrap() < MAX_NUM_ENDPOINT_DESCRIPTORS,
+        ret =~= self.get_thread(thread_ptr).ipc_payload.endpoint_payload,
     {
         assert(self.thread_perms@.dom().contains(thread_ptr));
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
@@ -540,8 +567,6 @@ impl ProcessManager {
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().pptr == thread_ptr)
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  0 <= self.thread_perms@[thread_ptr].view().value.get_Some_0().state <= TRANSIT)
-        &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().value.get_Some_0().ipc_payload.wf())
         && 
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.proc_ptrs@.contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().parent))
         && 

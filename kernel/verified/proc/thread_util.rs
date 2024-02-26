@@ -21,7 +21,6 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
             ret.1@@.value.is_Some(),
             ret.1@@.value.get_Some_0().endpoint_descriptors.wf(),
             ret.1@@.value.get_Some_0().endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {0}),
-            ret.1@@.value.get_Some_0().ipc_payload.wf(),
             ret.1@@.value.get_Some_0().ipc_payload.message =~= None,
             ret.1@@.value.get_Some_0().ipc_payload.page_payload =~= None,
             ret.1@@.value.get_Some_0().ipc_payload.endpoint_payload =~= None,
@@ -140,6 +139,9 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
         perm@@.value.get_Some_0().endpoint_descriptors.wf(), 
         perm@@.value.get_Some_0().endpoint_descriptors@ =~= old(perm)@@.value.get_Some_0().endpoint_descriptors@.update(index as int, endpoint_pointer),
+        forall|_endpoint_ptr:EndpointPtr|#![auto] old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) ==> 
+            perm@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr),
+        perm@@.value.get_Some_0().endpoint_descriptors@.contains(endpoint_pointer),
         ret == old(perm)@@.value.get_Some_0().endpoint_descriptors@[index as int],
         forall|_endpoint_ptr: EndpointPtr| #![auto]  _endpoint_ptr != ret 
             ==> perm@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) == old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr),
@@ -284,6 +286,31 @@ ensures pptr.id() == perm@@.pptr,
     }
 }
 
+#[verifier(external_body)]
+pub fn thread_set_ipc_payload(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, ipc_payload:IPCPayLoad)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        // perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().is_receiving_call == old(perm)@@.value.get_Some_0().is_receiving_call,
+        perm@@.value.get_Some_0().ipc_payload == ipc_payload,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().ipc_payload = ipc_payload;
+    }
+}
 
 #[verifier(external_body)]
 pub fn thread_set_callee(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, callee: Option<ThreadPtr>)

@@ -54,19 +54,6 @@ pub struct IPCPayLoad{
     pub endpoint_payload: Option<EndpointIdx>,
 }
 
-impl IPCPayLoad{
-    pub open spec fn wf(&self) -> bool{
-        &&& 
-        (
-            self.message.is_Some() ==> (spec_va_valid(self.message.get_Some_0().0) && self.message.get_Some_0().1 <= 4096)
-        )
-        &&&
-        (
-            self.endpoint_payload.is_Some() == true ==> self.endpoint_payload.unwrap() < MAX_NUM_ENDPOINT_DESCRIPTORS
-        )
-    }
-}
-
 
 impl ProcessManager {
     pub fn set_thread_to_transit(&mut self, thread_ptr:ThreadPtr)
@@ -88,6 +75,7 @@ impl ProcessManager {
             self.endpoint_ptrs =~= old(self).endpoint_ptrs,
             self.endpoint_perms =~= old(self).endpoint_perms,
             self.pcid_closure =~= old(self).pcid_closure,
+            self.ioid_closure =~= old(self).ioid_closure,
             self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
             //self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
             self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
@@ -127,6 +115,7 @@ impl ProcessManager {
         self.wf(),
         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
         self.proc_ptrs =~= old(self).proc_ptrs,
         self.proc_perms =~= old(self).proc_perms,
         self.thread_ptrs =~= old(self).thread_ptrs,
@@ -135,6 +124,7 @@ impl ProcessManager {
         self.endpoint_ptrs =~= old(self).endpoint_ptrs,
         self.endpoint_perms =~= old(self).endpoint_perms,
         self.pcid_closure =~= old(self).pcid_closure,
+        self.ioid_closure =~= old(self).ioid_closure,
         self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
         //self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
         self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,

@@ -26,6 +26,7 @@ impl SyscallReturnStruct{
         };
     }
 }
+
 pub type ErrorCodeType = usize;
 pub const SUCCESS: ErrorCodeType = 0;
 pub const SENDER_ENDPOINT_NOT_EXIST: ErrorCodeType = 1;
@@ -52,6 +53,9 @@ pub const PROC_NO_IOMMUTABLE:ErrorCodeType = 21;
 pub const PAGE_RF_COUNTER_OVERFLOW:ErrorCodeType = 22;
 pub const SCHEDULER_EMPTY:ErrorCodeType = 23;
 pub const CPU_NO_IDLE:ErrorCodeType = 24;
+pub const ENDPOINT_SLOT_TAKEN:ErrorCodeType = 25;
+
+pub const NO_ERROR_CODE:ErrorCodeType = 233;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;
