@@ -54,8 +54,14 @@ pub const PAGE_RF_COUNTER_OVERFLOW:ErrorCodeType = 22;
 pub const SCHEDULER_EMPTY:ErrorCodeType = 23;
 pub const CPU_NO_IDLE:ErrorCodeType = 24;
 pub const ENDPOINT_SLOT_TAKEN:ErrorCodeType = 25;
+pub const ENDPOINT_FULL:ErrorCodeType = 26;
+pub const MESSAGE_INVALID:ErrorCodeType = 27;
+pub const PAGE_PAYLOAD_INVALID:ErrorCodeType = 28;
+pub const CALL_FAILED:ErrorCodeType = 29;
+pub const NO_CALLER:ErrorCodeType = 30;
 
 pub const NO_ERROR_CODE:ErrorCodeType = 233;
+pub const NO_NEXT_THREAD:ErrorCodeType = 234;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;

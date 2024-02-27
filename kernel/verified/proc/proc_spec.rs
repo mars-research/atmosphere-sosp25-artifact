@@ -373,6 +373,62 @@ impl ProcessManager {
         return endpoint_ptr;
     }
 
+    pub fn get_thread_caller(&self, thread_ptr:ThreadPtr) -> (ret:Option<ThreadPtr>)
+    requires
+        self.wf(),
+        self.get_thread_ptrs().contains(thread_ptr),
+    ensures
+        ret =~= self.get_thread(thread_ptr).caller,
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+
+        return thread.caller;
+    }
+
+    pub fn get_thread_if_is_calling(&self, thread_ptr:ThreadPtr) -> (ret: bool)
+    requires
+        self.wf(),
+        self.get_thread_ptrs().contains(thread_ptr),
+    ensures
+        ret =~= self.get_thread(thread_ptr).ipc_payload.calling,
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+
+        return thread.ipc_payload.calling;
+    }
+
+    pub fn get_thread_message_payload(&self, thread_ptr:ThreadPtr) -> (ret: Option<(VAddr,usize)>)
+    requires
+        self.wf(),
+        self.get_thread_ptrs().contains(thread_ptr),
+    ensures
+        ret =~= self.get_thread(thread_ptr).ipc_payload.message,
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+
+        return thread.ipc_payload.message;
+    }
+
+    pub fn get_thread_page_payload(&self, thread_ptr:ThreadPtr) -> (ret: Option<(VAddr,usize)>)
+    requires
+        self.wf(),
+        self.get_thread_ptrs().contains(thread_ptr),
+    ensures
+        ret =~= self.get_thread(thread_ptr).ipc_payload.page_payload,
+    {
+        assert(self.thread_perms@.dom().contains(thread_ptr));
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+
+        return thread.ipc_payload.page_payload;
+    }
+
     pub fn get_thread_endpoint_payload(&self, thread_ptr:ThreadPtr) -> (ret: Option<EndpointIdx>)
     requires
         self.wf(),
@@ -720,9 +776,6 @@ impl ProcessManager {
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.is_Some() ==>
             self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.unwrap()].view().value.get_Some_0().caller.is_Some()
             && self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.unwrap()].view().value.get_Some_0().caller.unwrap() == thread_ptr)
-        &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) && self.thread_perms@[thread_ptr].view().value.get_Some_0().caller.is_Some() ==>
-            self.thread_perms@[thread_ptr].view().value.get_Some_0().is_receiving_call == false)
 
     
 

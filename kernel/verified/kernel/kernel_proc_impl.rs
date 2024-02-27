@@ -43,7 +43,7 @@ impl Kernel {
 
     }
 
-    pub fn kernel_pop_endpoint(&mut self, cpu_id:CPUID, thread_ptr: ThreadPtr, endpoint_idx:EndpointIdx)
+    pub fn kernel_pop_endpoint(&mut self, cpu_id:CPUID, thread_ptr: ThreadPtr, endpoint_idx:EndpointIdx) -> (ret: ThreadPtr)
         requires
             old(self).wf(),
             0<=cpu_id<NUM_CPUS,
@@ -59,6 +59,7 @@ impl Kernel {
             self.proc_man.get_thread_ptrs() =~= old(self).proc_man.get_thread_ptrs(),
             self.page_alloc =~= old(self).page_alloc,
             self.mmu_man =~= old(self).mmu_man,
+            self.proc_man.get_thread_ptrs().contains(ret);
     {
         let new_thread_ptr = self.proc_man.pop_endpoint(thread_ptr, endpoint_idx);
         assert(forall|thread_ptr:ThreadPtr|#![auto] thread_ptr != new_thread_ptr && self.proc_man.get_thread_ptrs().contains(thread_ptr) ==> self.proc_man.get_thread(thread_ptr).state != TRANSIT);
@@ -103,7 +104,7 @@ impl Kernel {
         assert(forall|i:int|#![auto]0<=i<NUM_CPUS
             ==> old(self).cpu_list@[i].iotlb =~= self.cpu_list@[i].iotlb);
         assert(self.kernel_tlb_wf());
-
+        return new_thread_ptr;
     }
 
 

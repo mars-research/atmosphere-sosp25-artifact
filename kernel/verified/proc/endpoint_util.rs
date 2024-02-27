@@ -12,6 +12,24 @@ use crate::define::*;
 
 use crate::mars_staticlinkedlist::*;
 
+#[verifier(external_body)]
+pub fn endpoint_set_queue_state(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, queue_state: EndpointState)
+    requires 
+        endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
+        old(endpoint_perm)@@.value.is_Some(),
+    ensures
+        endpoint_pptr.id() == endpoint_perm@@.pptr,
+        endpoint_perm@@.value.is_Some(),
+        endpoint_perm@@.value.get_Some_0().queue =~= old(endpoint_perm)@@.value.get_Some_0().queue,
+        // endpoint_perm@@.value.get_Some_0().queue_state =~= old(endpoint_perm)@@.value.get_Some_0().queue_state,
+        endpoint_perm@@.value.get_Some_0().owning_threads@ =~= old(endpoint_perm)@@.value.get_Some_0().owning_threads@,
+        endpoint_perm@@.value.get_Some_0().rf_counter=~= old(endpoint_perm)@@.value.get_Some_0().rf_counter,
+        endpoint_perm@@.value.get_Some_0().queue_state == queue_state
+
+{
+    let uptr = endpoint_pptr.to_usize() as *mut MaybeUninit<Endpoint>;
+    unsafe{(*uptr).assume_init_mut().queue_state = queue_state;}
+}
 
 #[verifier(external_body)]
 pub fn endpoint_remove_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr:ThreadPtr)
