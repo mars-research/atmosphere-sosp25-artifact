@@ -4,7 +4,7 @@ use vstd::prelude::*;
 verus!{
 
 use crate::mars_staticlinkedlist::*;
-use crate::pagetable::*;
+// use crate::pagetable::*;
 use crate::mars_array::*;
 use crate::define::*;
 use crate::trap::*;
@@ -302,11 +302,12 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
             page_ptr == ret,
             self.wf(),
             self.scheduler@ =~= old(self).scheduler@.push(ret),
-            self.proc_ptrs =~= old(self).proc_ptrs,
+            self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
             self.get_thread(ret).state == SCHEDULED,
             self.get_thread_ptrs() =~= old(self).get_thread_ptrs().insert(ret),
             self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(ret),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
             forall|endpoint_ptr:EndpointPtr|#![auto] self.get_endpoint_ptrs().contains(endpoint_ptr) ==> self.get_endpoint(endpoint_ptr) =~= old(self).get_endpoint(endpoint_ptr),
             self.get_ioid_closure() =~= old(self).get_ioid_closure(),
             self.get_pcid_closure() =~= old(self).get_pcid_closure(),

@@ -1,6 +1,5 @@
 pub mod kernel_spec;
-// pub mod kernel_proc_impl;
-// pub mod kernel_tlb_impl;
+pub mod kernel_init;
 pub mod kernel_mem_impl;
 pub mod kernel_ipc_impl;
 pub mod kernel_tcd_sched;
@@ -11,8 +10,7 @@ pub mod syscall_endpoint;
 pub mod syscall_ipc;
 
 pub use kernel_spec::*;
-// pub use kernel_proc_impl::*;
-// pub use kernel_tlb_impl::*;
+pub use kernel_init::*;
 pub use kernel_mem_impl::*;
 pub use kernel_ipc_impl::*;
 pub use kernel_tcd_sched::*;

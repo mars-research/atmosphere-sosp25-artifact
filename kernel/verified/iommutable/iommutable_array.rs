@@ -6,7 +6,6 @@ use crate::mars_array::*;
 use crate::page_alloc::*;
 
 use crate::iommutable::*;
-use crate::iommutable::*;
 
 use crate::pagetable::*;
 

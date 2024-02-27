@@ -39,6 +39,8 @@ impl Kernel{
             self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
             forall|i:Pcid| #![auto] 0<=i<PCID_MAX && i !=pcid ==> self.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i),
             forall|i:IOid| #![auto] 0<=i<IOID_MAX ==> self.mmu_man.get_iommutable_mapping_by_ioid(i) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i),
+            forall|i:Pcid,_va:VAddr| #![auto] 0<=i<PCID_MAX && i !=pcid && spec_va_valid(_va) ==> self.mmu_man.get_pagetable_mapping_by_pcid(i)[_va] =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i)[_va],
+            forall|i:IOid,_va:VAddr| #![auto] 0<=i<IOID_MAX && spec_va_valid(_va) ==> self.mmu_man.get_iommutable_mapping_by_ioid(i)[_va] =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i)[_va],
             forall|_va:VAddr| #![auto] spec_va_valid(_va) && va != _va ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va] =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va],
             self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some(),
     {
@@ -168,6 +170,8 @@ impl Kernel{
             forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.page_alloc.get_page_io_mappings(page_ptr) =~= old(self).page_alloc.get_page_io_mappings(page_ptr),
             forall|i:Pcid| #![auto] 0<=i<PCID_MAX ==> self.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i),
             forall|i:IOid| #![auto] 0<=i<IOID_MAX ==> self.mmu_man.get_iommutable_mapping_by_ioid(i) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i),
+            forall|i:Pcid, va:VAddr| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) ==> self.mmu_man.get_pagetable_mapping_by_pcid(i)[va] =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i)[va],
+            forall|i:IOid, va:VAddr| #![auto] 0<=i<IOID_MAX && spec_va_valid(va) ==> self.mmu_man.get_iommutable_mapping_by_ioid(i)[va] =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i)[va],
             // self.resolve_mapping_l2(l4i,l3i,l2i).is_Some(),
             self.mmu_man.get_pagetable_by_pcid(pcid).is_va_entry_exist(va),
             self.page_alloc.free_pages.len() >= old(self).page_alloc.free_pages.len() - 3,

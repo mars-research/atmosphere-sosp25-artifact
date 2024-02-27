@@ -22,4 +22,3 @@ Run `atmo help` for more information.
 ## TODO
 
 Add kernel specs for IO. @Xiangdong
-Initialize all PCIDs at system init time. @Xiangdong

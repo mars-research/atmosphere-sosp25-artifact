@@ -28,6 +28,16 @@ impl SyscallReturnStruct{
 }
 
 pub type ErrorCodeType = usize;
+
+// NO_ERROR_CODE is used for timer interrupt or an ipc syscall when the current thread gives up the cpu and 
+// scheduler picks a next thread to run. We do not need to return a syscall error code for a thread coming
+// from the scheduler. 
+// However, if the thread was sent to the scheduler due to its previous syscall, most likely from endpoint related ones, 
+// we do need to return an error code that is stored in the thread struct.
+pub const NO_ERROR_CODE:ErrorCodeType = 233;
+// The TCB needs to spin at the kernel entry until the next thread is available.
+pub const NO_NEXT_THREAD:ErrorCodeType = 234;
+
 pub const SUCCESS: ErrorCodeType = 0;
 pub const SENDER_ENDPOINT_NOT_EXIST: ErrorCodeType = 1;
 pub const RECEIVER_ENDPOINT_EXIST: ErrorCodeType = 2;
@@ -59,9 +69,6 @@ pub const MESSAGE_INVALID:ErrorCodeType = 27;
 pub const PAGE_PAYLOAD_INVALID:ErrorCodeType = 28;
 pub const CALL_FAILED:ErrorCodeType = 29;
 pub const NO_CALLER:ErrorCodeType = 30;
-
-pub const NO_ERROR_CODE:ErrorCodeType = 233;
-pub const NO_NEXT_THREAD:ErrorCodeType = 234;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;

@@ -6,11 +6,11 @@ use crate::proc::*;
 // use crate::page_alloc::*;
 // use crate::cpu::*;
 // use crate::mars_array::MarsArray;
-use crate::pagetable::*;
+// use crate::pagetable::*;
 use crate::cpu::*;
 use crate::define::*;
 use crate::trap::*;
-use crate::page_alloc::*;
+// use crate::page_alloc::*;
 
 use crate::kernel::*;
 
