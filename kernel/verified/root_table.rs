@@ -51,11 +51,13 @@ verus!{
         #[verifier(external_body)]
         pub fn new() -> (ret: Self)
         {
-            RootTable{
-                root: MaybeUninit::uninit().assume_init(),
-                seq_ar: Ghost(Seq::empty()),
-                
-                deviecs: MaybeUninit::uninit().assume_init(),
+            unsafe{
+                RootTable{
+                    root: MaybeUninit::uninit().assume_init(),
+                    seq_ar: Ghost(Seq::empty()),
+                    
+                    deviecs: MaybeUninit::uninit().assume_init(),
+                }
             }
         }
 

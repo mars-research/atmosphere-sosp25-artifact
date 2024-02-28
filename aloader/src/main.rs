@@ -34,9 +34,9 @@ use astd::io::{Cursor, Read, Seek, SeekFrom};
 use elf::{ElfHandle, ElfMapping};
 use memory::{AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper};
 
-const KERNEL_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
+const KERNEL_RESERVATION: usize = 512 * 1024 * 1024; // 1024 MiB
 const DOM0_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
-const PAGE_TABLE_RESERVATION: usize = 128 * 1024 * 1024; // 128 MiB
+const PAGE_TABLE_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
 const PAGE_SIZE: usize = 4096;
 
 /// Loader entry point.

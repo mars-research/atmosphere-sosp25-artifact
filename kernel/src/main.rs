@@ -24,10 +24,10 @@
 )]
 #![deny(clippy::from_over_into, clippy::needless_question_mark)]
 #![deny(rustdoc::bare_urls, rustdoc::broken_intra_doc_links)]
-#![cfg_attr(
-    not(debug_assertions),
-    deny(dead_code, unused_imports, unused_mut, unused_variables,)
-)]
+// #![cfg_attr(
+//     not(debug_assertions),
+//     deny(dead_code, unused_imports, unused_mut, unused_variables,)
+// )]
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(crate::test_runner)]
 #![no_main]
@@ -78,9 +78,9 @@ fn main(boot_info: *const BootInfo) -> isize {
         print_logo();
     }
 
-    // log::info!("hello_world from verified={:?}",verified::kernel::hello_world());
-    // kernel::kernel_test();
-    // kernel::kernel_new();
+    log::info!("hello_world from verified={:?}",verified::kernel::hello_world());
+    kernel::kernel_test();
+    kernel::kernel_new();
 
     log::info!("Command line: {}", boot::get_raw_command_line());
     #[cfg(debug_assertions)]

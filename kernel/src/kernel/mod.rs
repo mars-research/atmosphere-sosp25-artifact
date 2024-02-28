@@ -20,5 +20,5 @@ pub fn kernel_new(){
     
     let mut my_int = KERNEL.lock();
     log::info!("kernel lock aquired");
-    *my_int = Some(Kernel::new());
+    // *my_int = Some(Kernel::new());
 }
