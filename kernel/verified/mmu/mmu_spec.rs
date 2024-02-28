@@ -8,7 +8,7 @@ use crate::array_vec::ArrayVec;
 use crate::page_alloc::*;
 use crate::define::*;
 use crate::iommutable::*;
-
+use crate::root_table::*;
 
 pub struct MMUManager{
 
@@ -20,10 +20,12 @@ pub struct MMUManager{
     pub free_ioids: ArrayVec<IOid,IOID_MAX>, //actual owners are procs
     pub iommu_tables:  MarsArray<IOMMUTable,IOID_MAX>,
     pub iommu_table_pages: Ghost<Set<PagePtr>>,
+
+    pub root_table:RootTable,
 }
 
 impl MMUManager{
-    #[verifier(inline)]
+
     pub open spec fn pagetables_wf(&self) -> bool{
         &&&
         self.free_pcids.wf()
@@ -75,7 +77,6 @@ impl MMUManager{
         )
     }
 
-    #[verifier(inline)]
     pub open spec fn iommutables_wf(&self) -> bool{
         &&&
         self.free_ioids.wf()
@@ -127,10 +128,16 @@ impl MMUManager{
         )
     }
 
-    #[verifier(inline)]
     pub open spec fn pagetable_iommutable_disjoint(&self) -> bool
     {
         self.page_table_pages@.disjoint(self.iommu_table_pages@)
+    }
+
+    pub open spec fn root_table_wf(&self) -> bool{
+        self.root_table.wf()
+        &&
+        forall|bus:usize,dev:usize,fun:usize|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun) != 0 ==> 
+            (exists|ioid:IOid|#![auto] 0<=ioid<IOID_MAX && self.free_ioids@.contains(ioid) == false && self.iommu_tables@[ioid as int].dummy.cr3 == self.root_table.resolve(bus,dev,fun))
     }
 
     #[verifier(inline)]
@@ -198,7 +205,6 @@ impl MMUManager{
         self.iommu_tables[ioid as int].get_iommutable_mapped_pages()
     }
 
-
     pub fn get_cr3_by_pcid(&self, pcid:Pcid) -> (ret:usize)
     requires
         self.wf(),
@@ -226,7 +232,7 @@ impl MMUManager{
         return (0,self.page_tables.get(0).cr3);
     }
 
-    #[verifier(inline)]
+    // #[verifier(inline)]
     pub open spec fn wf(&self) -> bool
     {
         &&&
@@ -244,6 +250,10 @@ impl MMUManager{
         &&&
         (
             self.get_pagetable_by_pcid(0).wf()
+        )
+        &&&
+        (
+            self.root_table_wf()
         )
     }
 }

@@ -88,6 +88,7 @@ impl MarsArray<IOMMUTable,IOID_MAX>{
             self@[ioid as int].get_iommutable_page_closure() =~= old(self)@[ioid as int].get_iommutable_page_closure(),
             forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int] =~= old(self)@[i as int],
             forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int].get_iommutable_mapping() =~= old(self)@[i as int].get_iommutable_mapping(),
+            forall|i:int| #![auto] 0<=i<IOID_MAX ==> self@[i as int].dummy.cr3 =~= old(self)@[i as int].dummy.cr3,
     {
         return self.ar[ioid].map(va, dst);
     }
@@ -123,6 +124,7 @@ impl MarsArray<IOMMUTable,IOID_MAX>{
             forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_mappings(page_ptr) =~= old(page_alloc).get_page_mappings(page_ptr),
             forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> page_alloc.get_page_io_mappings(page_ptr) =~= old(page_alloc).get_page_io_mappings(page_ptr),
             page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 3,
+            forall|i:int| #![auto] 0<=i<IOID_MAX ==> self@[i as int].dummy.cr3 =~= old(self)@[i as int].dummy.cr3,
     {
         return self.ar[ioid].dummy.create_va_entry(va,page_alloc);
     }

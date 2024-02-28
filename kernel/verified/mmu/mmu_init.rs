@@ -9,6 +9,7 @@ use crate::page_alloc::*;
 use crate::define::*;
 use crate::iommutable::*;
 use crate::mmu::*;
+use crate::root_table::*;
 
 
 impl MMUManager{
@@ -42,6 +43,7 @@ impl MMUManager{
             self.pagetables_wf(),
             self.iommutables_wf(),
             self.pagetable_iommutable_disjoint(),
+            self.root_table_wf(),
             
             self.free_pcids.wf(),
             self.free_pcids.unique(),
@@ -129,7 +131,7 @@ impl MMUManager{
 
         self.page_tables.init_all_pagetables();
         self.iommu_tables.init_all_iommutables();
-
+        self.root_table.init();
         assert(self.pagetables_wf());
         assert(self.iommutables_wf());
         assert(self.pagetable_iommutable_disjoint());
@@ -141,6 +143,7 @@ impl MMUManager{
             old(self).pagetables_wf(),
             old(self).iommutables_wf(),
             old(self).pagetable_iommutable_disjoint(),
+            old(self).root_table_wf(),
             old(self).free_pcids.wf(),
             old(self).free_pcids.unique(),
             old(self).free_pcids.len() == PCID_MAX,
@@ -241,6 +244,7 @@ impl MMUManager{
             free_ioids:  ArrayVec::<IOid,IOID_MAX>::new(),
             iommu_tables: MarsArray::<IOMMUTable,IOID_MAX>::new(),
             iommu_table_pages: Ghost(Set::empty()),
+            root_table: RootTable::new(),
         };
         ret
     }

@@ -107,7 +107,7 @@ pub const RW:PageType = 2;
 pub const RX:PageType = 3;
 pub const RWX:PageType = 4;
 
-pub type PageState = usize;
+pub type PageState = u8;
 
 pub const UNAVAILABLE:PageState = 0;
 pub const FREE:PageState = 1;
