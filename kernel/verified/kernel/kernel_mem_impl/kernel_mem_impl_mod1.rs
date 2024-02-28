@@ -16,7 +16,6 @@ impl Kernel{
     pub fn kernel_map_pagetable_page(&mut self, pcid:Pcid, va: usize, dst:PageEntry)
         requires
             old(self).wf(), 
-            old(self).kernel_mmu_page_alloc_pagetable_wf(),
             0<=pcid<PCID_MAX,
             old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
             spec_va_valid(va),
@@ -164,8 +163,8 @@ impl Kernel{
             self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
             self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
             // page_alloc.wf(),
-            // page_alloc.get_mapped_pages() =~= old(page_alloc).get_mapped_pages(),
-            // page_alloc.get_allocated_pages() =~= old(page_alloc).get_allocated_pages(),
+            self.page_alloc.get_mapped_pages() =~= old(self).page_alloc.get_mapped_pages(),
+            self.page_alloc.get_allocated_pages() =~= old(self).page_alloc.get_allocated_pages(),
             forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.page_alloc.get_page_mappings(page_ptr) =~= old(self).page_alloc.get_page_mappings(page_ptr),
             forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> self.page_alloc.get_page_io_mappings(page_ptr) =~= old(self).page_alloc.get_page_io_mappings(page_ptr),
             forall|i:Pcid| #![auto] 0<=i<PCID_MAX ==> self.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i),

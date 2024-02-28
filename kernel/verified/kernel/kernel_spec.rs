@@ -200,7 +200,15 @@ impl Kernel{
             forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).subset_of(self.page_alloc.get_mapped_pages()),
             forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_page_table_pages()),
             forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_free_pages_as_set()),
-            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_allocated_pages()),
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> self.mmu_man.get_pagetable_mapped_pages_by_pcid(pcid).disjoint(self.page_alloc.get_allocated_pages()),            
+            forall|pcid:Pcid, pa:PAddr| #![auto] 0<=pcid<PCID_MAX && page_ptr_valid(pa) && self.mmu_man.get_pagetable_by_pcid(pcid).get_pagetable_mapped_pages().contains(pa) ==>
+            (
+                self.page_alloc.get_mapped_pages().contains(pa)
+            ),
+            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) && self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some() ==>
+            (
+                self.page_alloc.get_mapped_pages().contains(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].get_Some_0().addr)
+            )
     {
         lemma_set_properties::<Set<PagePtr>>();  
         assert(

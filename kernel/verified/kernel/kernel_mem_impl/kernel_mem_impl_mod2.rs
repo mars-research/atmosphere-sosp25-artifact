@@ -44,14 +44,24 @@ impl Kernel{
             self.mmu_man.get_pagetable_mapping_by_pcid(target)[va_dst].is_Some(),
     {
         proof{
-            // self.kernel_iommutable_none_infer_none_in_page_alloc();
+            self.pagetable_mem_wf_derive();
             self.kernel_pagetable_none_infer_none_in_page_alloc();
         }
         let option = self.mmu_man.mmu_get_va_entry_by_pcid(pcid,va_src);
         assert(option.is_Some());
         let entry = option.unwrap();
-        assert(self.page_alloc.get_available_pages().contains(entry.addr));
+        assert(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].is_Some());
+        assert(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].get_Some_0().addr =~= entry.addr);
+        assert(self.page_alloc.get_mapped_pages().contains(entry.addr) == true);
+        assert(self.page_alloc.get_page_table_pages().contains(entry.addr) == false);
+        assert(self.mmu_man.get_mmu_page_closure().contains(entry.addr) == false);
         self.kernel_create_va_entry_by_pcid(target,va_dst);
+        assert(self.wf());
+        assert(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].is_Some());
+        assert(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].get_Some_0().addr =~= entry.addr);
+        assert(self.page_alloc.get_mapped_pages().contains(entry.addr) == true);
+        assert(self.page_alloc.get_page_table_pages().contains(entry.addr) == false);
+        assert(self.mmu_man.get_mmu_page_closure().contains(entry.addr) == false);
         self.kernel_map_pagetable_page(target,va_dst,PageEntry{addr:entry.addr, perm: perm_bits});
 
         assert(self.wf());
