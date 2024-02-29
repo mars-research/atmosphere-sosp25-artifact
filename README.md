@@ -21,4 +21,4 @@ Run `atmo help` for more information.
 
 ## TODO
 
-Add kernel specs for IO. @Xiangdong
+Add spec for trap frames and thread error code @Xiangdong
