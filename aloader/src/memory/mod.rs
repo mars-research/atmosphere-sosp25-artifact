@@ -1,6 +1,7 @@
 mod allocator;
 mod map;
 mod paging;
+mod userspace;
 
 use core::fmt;
 use core::num::NonZeroU64;
@@ -12,6 +13,7 @@ use astd::sync::Mutex;
 
 pub use map::MemoryMap;
 pub use paging::AddressSpace;
+pub use userspace::{UserspaceMapper, USERSPACE_BASE};
 
 /// The physical memory map.
 static PHYSICAL_MEMORY_MAP: Mutex<MemoryMap<BootMemoryType>> = Mutex::new(MemoryMap::empty());
