@@ -294,6 +294,7 @@ impl MMUManager{
             self.get_free_pcids_as_set().contains(pcid) == false,
         ensures
             ret =~= self.get_pagetable_mapping_by_pcid(pcid)[va],
+            ret.is_Some() ==> page_ptr_valid(ret.unwrap().addr),
     {
         assert(self.get_pagetable_by_pcid(pcid).wf());
         self.page_tables.get(pcid).get_va_entry(va)
@@ -309,6 +310,39 @@ impl MMUManager{
             ret =~= self.get_iommutable_mapping_by_ioid(ioid)[va],
     {
         self.iommu_tables.get(ioid).dummy.get_va_entry(va)
+    }
+
+    pub fn mmu_get_pci_dev_by_ioid(&self, ioid:IOid, bus:u8,dev:u8,fun:u8) -> (ret:bool)
+        requires
+            self.wf(),
+            self.get_free_ioids_as_set().contains(ioid) == false,
+            0<=ioid<IOID_MAX,
+            0<=bus<256 && 0<=dev<32 && 0<=fun<8,
+        ensures 
+            ret =~= self.pci_bitmap@[(ioid, bus,dev,fun)],
+    {
+        return self.pci_bitmap.get(ioid, bus,dev,fun);
+    }
+
+    pub fn mmu_send_pci_dev_by_ioid(&mut self, ioid:IOid, bus:u8,dev:u8,fun:u8)
+        requires
+            old(self).wf(),
+            old(self).get_free_ioids_as_set().contains(ioid) == false,
+            0<=ioid<IOID_MAX,
+            0<=bus<256 && 0<=dev<32 && 0<=fun<8,
+        ensures
+            self.wf(),
+            self.get_free_ioids_as_set() =~= old(self).get_free_ioids_as_set(),            
+            self.get_free_pcids_as_set() =~= old(self).get_free_pcids_as_set(),  
+            self.get_mmu_page_closure() =~= old(self).get_mmu_page_closure(),
+            forall|i:Pcid|#![auto] 0<=i<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(i) =~= old(self).get_pagetable_mapping_by_pcid(i),
+            forall|ioid:IOid| #![auto] 0<=ioid<IOID_MAX ==> self.get_iommutable_mapping_by_ioid(ioid) =~= old(self).get_iommutable_mapping_by_ioid(ioid),
+            forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> self.get_pagetable_mapping_by_pcid(pcid)[va] =~= old(self).get_pagetable_mapping_by_pcid(pcid)[va],
+            forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> self.get_iommutable_mapping_by_ioid(ioid)[va] =~= old(self).get_iommutable_mapping_by_ioid(ioid)[va],
+            self.pci_bitmap@ =~= old(self).pci_bitmap@.insert((ioid, bus,dev,fun),true),
+    {
+        self.pci_bitmap.set(ioid, bus,dev,fun,true);
+
     }
 
 }

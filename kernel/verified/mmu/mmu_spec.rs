@@ -141,6 +141,8 @@ impl MMUManager{
     pub open spec fn root_table_wf(&self) -> bool{
         (self.root_table.wf())
         &&
+        (self.pci_bitmap.wf())
+        &&
         (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==> 
             (
                 0<=self.root_table.resolve(bus,dev,fun).get_Some_0().0<IOID_MAX

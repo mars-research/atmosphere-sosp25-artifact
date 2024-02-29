@@ -69,6 +69,8 @@ pub const MESSAGE_INVALID:ErrorCodeType = 27;
 pub const PAGE_PAYLOAD_INVALID:ErrorCodeType = 28;
 pub const CALL_FAILED:ErrorCodeType = 29;
 pub const NO_CALLER:ErrorCodeType = 30;
+pub const ENDPOINT_PAYLOAD_INVALID:ErrorCodeType = 31;
+pub const PCI_DEV_PAYLOAD_INVALID:ErrorCodeType = 32;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;

@@ -4,6 +4,7 @@ verus!{
 
 /// Registers passed to the ISR.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct PtRegs {
     /*
      * C ABI says these regs are callee-preserved. They aren't saved on kernel entry

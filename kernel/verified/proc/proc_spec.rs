@@ -13,7 +13,7 @@ use crate::mars_staticlinkedlist::*;
 
 // use crate::setters::*;
 use crate::define::*;
-
+use crate::trap::PtRegs;
 
 
 pub struct Process{
@@ -172,6 +172,20 @@ impl ProcessManager {
     // }
 
     // #[verifier(when_used_as_spec(spec_get_pcid_by_thread_ptr))]
+
+    pub fn get_pt_regs_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: PtRegs)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+        ensures
+            ret =~= self.get_thread(thread_ptr).trap_frame,
+            // ret =~= self.get_pcid_by_thread_ptr(thread_ptr),
+        {
+            let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+            let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+            let trap_frame = thread.trap_frame;
+            return trap_frame;
+        }
     pub fn get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Pcid)
         requires
             self.wf(),
@@ -236,6 +250,30 @@ impl ProcessManager {
         return proc_ptr;
     }
 
+    pub fn get_error_code_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Option<ErrorCodeType>)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+        ensures
+            ret =~= self.get_thread(thread_ptr).error_code,
+        {
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        let error_code = thread.error_code;
+        return error_code;
+        }
+    pub fn get_ipc_payload_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: IPCPayLoad)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+        ensures
+            ret =~= self.get_thread(thread_ptr).ipc_payload,
+        {
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        let ipc_payload = thread.ipc_payload;
+        return ipc_payload;
+        }
     // pub open spec fn spec_get_proc_num_of_threads_by_proc_ptr(&self, proc_ptr:ProcPtr) -> usize
     //     recommends
     //         self.wf(),

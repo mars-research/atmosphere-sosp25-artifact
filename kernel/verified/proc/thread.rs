@@ -31,7 +31,7 @@ pub struct Thread{
     pub endpoint_descriptors: MarsArray<EndpointPtr,MAX_NUM_ENDPOINT_DESCRIPTORS>,
     pub ipc_payload: IPCPayLoad,
 
-    pub error_code: Option<ErrorCodeType>,
+    pub error_code: Option<ErrorCodeType>, //this will only be set when it comes out of endpoint and goes to scheduler. 
 
     pub callee: Option<ThreadPtr>,
     pub caller: Option<ThreadPtr>,
@@ -45,12 +45,13 @@ impl Thread {
         Set::empty()
     }
 }
-
+#[derive(Clone, Copy)]
 pub struct IPCPayLoad{
     pub calling: bool,
     pub message: Option<(VAddr,usize)>,
     pub page_payload: Option<(VAddr, usize)>,
     pub endpoint_payload: Option<EndpointIdx>,
+    pub pci_payload: Option<(u8,u8,u8)>,
 }
 
 

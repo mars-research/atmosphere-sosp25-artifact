@@ -6,7 +6,7 @@ use vstd::ptr::*;
 use crate::mars_staticlinkedlist::*;
 
 use crate::define::*;
-
+use crate::trap::*;
 
 
 pub struct Endpoint{
@@ -306,7 +306,7 @@ impl ProcessManager{
         return ret;
     }
 
-    pub fn push_endpoint_and_set_state(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad, endpoint_queue_state: EndpointState)
+    pub fn push_endpoint_and_set_state(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad, pt_regs: PtRegs, endpoint_queue_state: EndpointState)
         requires 
             old(self).wf(),
             old(self).get_thread_ptrs().contains(thread_ptr),
@@ -360,6 +360,7 @@ impl ProcessManager{
         thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, Some(endpoint_ptr));
         thread_set_state(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, BLOCKED);
         thread_set_ipc_payload(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, endpoint_payload);
+        thread_set_trap_frame(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, pt_regs);
         proof{
             assert(self.thread_perms@.dom().contains(thread_ptr) == false);
             (self.thread_perms.borrow_mut())
@@ -375,7 +376,7 @@ impl ProcessManager{
         assert(self.wf());
     }
 
-    pub fn push_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad)
+    pub fn push_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad, pt_regs:PtRegs)
         requires 
             old(self).wf(),
             old(self).get_thread_ptrs().contains(thread_ptr),
@@ -428,6 +429,7 @@ impl ProcessManager{
         thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, Some(endpoint_ptr));
         thread_set_state(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, BLOCKED);
         thread_set_ipc_payload(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, endpoint_payload);
+        thread_set_trap_frame(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, pt_regs);
         proof{
             assert(self.thread_perms@.dom().contains(thread_ptr) == false);
             (self.thread_perms.borrow_mut())
@@ -442,6 +444,35 @@ impl ProcessManager{
         assert(self.wf_endpoints());
         assert(self.wf());
     }
+
+    pub fn check_receiver_endpoint_descriptors(&self, receiver_ptr: ThreadPtr, target_endpoint_ptr: EndpointPtr) -> (ret:bool)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(receiver_ptr),
+        ensures
+            ret == true ==> (
+                forall|i:int| #![auto] 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.get_thread(receiver_ptr).endpoint_descriptors@[i as int] != target_endpoint_ptr
+            )
+        {
+            let mut i = 0;
+            while i != MAX_NUM_ENDPOINT_DESCRIPTORS
+                invariant
+                    self.wf(),
+                    self.get_thread_ptrs().contains(receiver_ptr),
+                    0<=i<=MAX_NUM_ENDPOINT_DESCRIPTORS,
+                    forall|j:int| #![auto] 0 <= j < i ==> self.get_thread(receiver_ptr).endpoint_descriptors@[j as int] != target_endpoint_ptr,
+                ensures
+                    i==MAX_NUM_ENDPOINT_DESCRIPTORS,
+                    forall|j:int| #![auto] 0 <= j < i ==> self.get_thread(receiver_ptr).endpoint_descriptors@[j as int] != target_endpoint_ptr,
+            {
+                if self.get_thread_endpoint_ptr_by_endpoint_idx(receiver_ptr, i) == target_endpoint_ptr
+                {
+                    return false;
+                }
+                i = i + 1;
+            }
+            return true;
+        }
 
     pub fn pass_endpoint(&mut self, sender_ptr: ThreadPtr, sender_endpoint_index: EndpointIdx, receiver_ptr: ThreadPtr, receiver_endpoint_index: EndpointIdx,)
         requires
@@ -466,6 +497,7 @@ impl ProcessManager{
             self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
             self.get_pcid_closure() =~= old(self).get_pcid_closure(),
             self.get_ioid_closure() =~= old(self).get_ioid_closure(),
+            self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==>  self.get_thread(_thread_ptr).state == old(self).get_thread(_thread_ptr).state,
             //self.thread_perms=@ =~= old(self).thread_perms@,
             self.scheduler =~= old(self).scheduler,
