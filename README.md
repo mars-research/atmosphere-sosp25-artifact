@@ -22,3 +22,4 @@ Run `atmo help` for more information.
 ## TODO
 
 Add spec for trap frames and thread error code @Xiangdong
+Add real implementation for page permissions @Xiangdong
