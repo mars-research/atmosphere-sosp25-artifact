@@ -20,5 +20,4 @@ pub mod mars_staticlinkedlist;
 // pub mod setters;
 pub mod define;
 pub mod trap;
-pub mod root_table;
 // pub mod proc_getters;

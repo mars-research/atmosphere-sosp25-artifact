@@ -1,7 +1,7 @@
 use vstd::prelude::*;
 verus!{
 // use vstd::ptr::PointsTo;
-
+use core::mem::MaybeUninit;
 use crate::pagetable::*;
 use crate::mars_array::MarsArray;
 use crate::array_vec::ArrayVec;
@@ -9,7 +9,6 @@ use crate::page_alloc::*;
 use crate::define::*;
 use crate::iommutable::*;
 use crate::mmu::*;
-use crate::root_table::*;
 
 
 impl MMUManager{
@@ -132,6 +131,7 @@ impl MMUManager{
         self.page_tables.init_all_pagetables();
         self.iommu_tables.init_all_iommutables();
         self.root_table.init();
+        self.pci_bitmap.init();
         assert(self.pagetables_wf());
         assert(self.iommutables_wf());
         assert(self.pagetable_iommutable_disjoint());
@@ -236,7 +236,9 @@ impl MMUManager{
             forall|i:int|#![auto] 0<=i<IOID_MAX ==> ret.iommu_tables[i].dummy.l2_tables@ =~= Map::empty(),
             forall|i:int|#![auto] 0<=i<IOID_MAX ==> ret.iommu_tables[i].dummy.l1_tables@ =~= Map::empty(),
             forall|i:usize, va: VAddr|#![auto] 0<=i<IOID_MAX && spec_va_valid(va) ==>  ret.get_iommutable_mapping_by_ioid(i)[va].is_None(),
+            // ret.pci_bitmap.wf(),
     {
+        unsafe{
         let ret = Self{
             free_pcids: ArrayVec::<Pcid,PCID_MAX>::new(),
             page_tables: MarsArray::<PageTable,PCID_MAX>::new(),
@@ -245,8 +247,11 @@ impl MMUManager{
             iommu_tables: MarsArray::<IOMMUTable,IOID_MAX>::new(),
             iommu_table_pages: Ghost(Set::empty()),
             root_table: RootTable::new(),
+            // device_table: MaybeUninit::uninit().assume_init(),
+            pci_bitmap:PCIBitMap::new(),
         };
         ret
+        }
     }
 }
 }

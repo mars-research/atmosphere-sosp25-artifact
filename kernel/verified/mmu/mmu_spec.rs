@@ -8,7 +8,7 @@ use crate::array_vec::ArrayVec;
 use crate::page_alloc::*;
 use crate::define::*;
 use crate::iommutable::*;
-use crate::root_table::*;
+use crate::mmu::*;
 
 pub struct MMUManager{
 
@@ -21,7 +21,12 @@ pub struct MMUManager{
     pub iommu_tables:  MarsArray<IOMMUTable,IOID_MAX>,
     pub iommu_table_pages: Ghost<Set<PagePtr>>,
 
-    pub root_table:RootTable,
+    pub root_table:RootTable,        
+    
+    // pub device_table:MarsArray<MarsArray<Option<(u8,u8,u8)>,256>,IOID_MAX>,
+    // pub ioid_device_table: Ghost<Seq<Set<(u8,u8,u8)>>>,
+
+    pub pci_bitmap: PCIBitMap,
 }
 
 impl MMUManager{
@@ -134,10 +139,64 @@ impl MMUManager{
     }
 
     pub open spec fn root_table_wf(&self) -> bool{
-        self.root_table.wf()
+        (self.root_table.wf())
         &&
-        forall|bus:usize,dev:usize,fun:usize|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun) != 0 ==> 
-            (exists|ioid:IOid|#![auto] 0<=ioid<IOID_MAX && self.free_ioids@.contains(ioid) == false && self.iommu_tables@[ioid as int].dummy.cr3 == self.root_table.resolve(bus,dev,fun))
+        (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==> 
+            (
+                0<=self.root_table.resolve(bus,dev,fun).get_Some_0().0<IOID_MAX
+                &&
+                self.get_free_ioids_as_set().contains(self.root_table.resolve(bus,dev,fun).get_Some_0().0) == false
+                &&
+                self.root_table.resolve(bus,dev,fun).get_Some_0().1 == self.get_iommutable_by_ioid(self.root_table.resolve(bus,dev,fun).get_Some_0().0).dummy.cr3
+            )
+        )        
+        &&
+        (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==> 
+        (
+            self.pci_bitmap@[(self.root_table.resolve(bus,dev,fun).get_Some_0().0,bus,dev,fun)]== true
+        ))
+        &&
+        (forall|ioid:IOid,bus:u8,dev:u8,fun:u8|#![auto] 0<=ioid<IOID_MAX && self.get_free_ioids_as_set().contains(ioid) && 0<=bus<256 && 0<=dev<32 && 0<=fun<8 ==> 
+        (
+            self.pci_bitmap@[(ioid,bus,dev,fun)] == false
+        ))
+        // &&
+        // self.ioid_device_table@.len() == IOID_MAX
+        // &&
+        // forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX ==> self.ioid_device_table@[ioid as int].finite()
+        // &&
+        // forall|ioid:Pcid, i:int| #![auto] 0<=ioid<IOID_MAX && 0<=i<256 && self.device_table@[ioid as int]@[i].is_Some() ==>
+        //     (
+        //         0<=self.device_table@[ioid as int]@[i].get_Some_0().0<256
+        //         &&
+        //         0<=self.device_table@[ioid as int]@[i].get_Some_0().1<32
+        //         &&
+        //         0<=self.device_table@[ioid as int]@[i].get_Some_0().2<8
+        //         // &&
+        //         // self.ioid_device_table@[ioid as int].contains(self.device_table@[ioid as int]@[i].get_Some_0())
+        //     )
+        // &&
+        // forall|ioid:Pcid, dev:(u8,u8,u8)| #![auto] 0<=ioid<IOID_MAX && self.ioid_device_table@[ioid as int].contains(dev) ==> 
+        //     (
+        //         0<=dev.0<256
+        //         &&
+        //         0<=dev.1<32
+        //         &&
+        //         0<=dev.2<8
+        //         &&
+        //         exists|_ioid:Pcid, _i:int| #![auto] 0<=_ioid<IOID_MAX && 0<=_i<256 && self.device_table@[ioid as int]@[i].is_Some() && dev =~= self.device_table@[ioid as int]@[i].get_Some_0()
+        //     )
+        // &&
+        // forall|ioid:Pcid, i:int, j:int| #![auto] 0<=ioid<IOID_MAX && 0<=i<256 && 0<=j<256 && self.device_table@[ioid as int]@[i].is_Some() && self.device_table@[ioid as int]@[j].is_Some()==>
+        // (
+        //     self.device_table@[ioid as int]@[i].get_Some_0() =~= self.device_table@[ioid as int]@[j].get_Some_0() == false
+        // )
+        // &&
+        // forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==> 
+        //     (
+        //         exists|i:int|#![auto]  0<i<256 && self.device_table@[self.root_table.resolve(bus,dev,fun).get_Some_0().0 as int][i].is_Some()
+        //             && self.device_table@[self.root_table.resolve(bus,dev,fun).get_Some_0().0 as int][i].get_Some_0() =~= (bus,dev,fun)
+        //     )
     }
 
     #[verifier(inline)]
