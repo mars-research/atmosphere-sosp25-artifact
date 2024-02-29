@@ -272,7 +272,7 @@ p2_apic_table:
     resb 4096
 
 stack_bottom:
-    resb 1024 * 1024 * 32 ; Reserve this many bytes
+    resb 1024 * 1024 * 256 ; Reserve this many bytes
 stack_top:
 
 bootinfo:
