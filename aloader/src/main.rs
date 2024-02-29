@@ -32,7 +32,7 @@ use astd::boot::{BootInfo, DomainMapping};
 use astd::io::{Cursor, Read, Seek, SeekFrom};
 
 use elf::{ElfHandle, ElfMapping};
-use memory::{AddressSpace, BootMemoryType, PhysicalAllocator};
+use memory::{AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper};
 
 const KERNEL_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
 const DOM0_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
@@ -148,22 +148,29 @@ fn load_domain<T, A>(elf: T, address_space: &mut AddressSpace<A>) -> Result<Doma
     let parsed = ElfHandle::parse(elf, PAGE_SIZE)?;
     log::info!("Loading Dom0...");
 
-    // TODO: Relocate to fixed virtual address
-    let (reserved_start, mut memory) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
-    let (dom_map, _) = parsed.load(&mut memory).expect("Failed to map Dom0");
+    let (reserved_start, mut allocator) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
 
-    log::info!("Mapping Dom0...");
-    let mut cur = reserved_start;
-    while cur.addr() < reserved_start.addr() + DOM0_RESERVATION {
+    let mut userspace_mapper = UserspaceMapper::new(address_space, &mut allocator);
+    let (dom_map, _) = parsed.load(&mut userspace_mapper).expect("Failed to map Dom0");
+
+    // Allocate and map stack
+    // FIXME: Use GNU_STACK
+    let stack_size = 16 * 1024 * 1024;
+    let phys_base = unsafe { allocator.allocate_physical(stack_size as usize).0 };
+    let virt_base = memory::USERSPACE_BASE + DOM0_RESERVATION as u64 - stack_size;
+
+    let mut cur = virt_base;
+    while cur < virt_base + stack_size {
         unsafe {
-            address_space.map(cur as u64, cur as u64, true);
-            cur = cur.add(PAGE_SIZE);
+            address_space.map(cur, cur - virt_base + phys_base, true);
         }
+        cur = cur + PAGE_SIZE as u64;
     }
 
     Ok(DomainMapping {
         reserved_start,
         reserved_size: DOM0_RESERVATION,
+        virt_start: memory::USERSPACE_BASE as *mut u8,
         entry_point: dom_map.entry_point,
         load_bias: dom_map.load_bias,
     })

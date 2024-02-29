@@ -82,6 +82,7 @@ pub struct ElfHandle<F: Read + Seek> {
 }
 
 pub struct ElfMapping {
+    pub phys_base: usize,
     pub load_addr: usize,
     pub load_size: usize,
     pub load_bias: usize,
@@ -226,6 +227,7 @@ where
         //
         //     load_addr + page_offset(ph.p_vaddr)
         let load_bias = (load_addr as usize).wrapping_sub(self.page_start(summary.first_vaddr));
+        let load_bias_loader = (load_addr_loader as usize).wrapping_sub(self.page_start(summary.first_vaddr));
         let max_vaddr = load_addr as usize + summary.total_mapping_size;
         let entry_point = (load_bias + self.header.e_entry as usize) as *const c_void;
 
@@ -293,7 +295,7 @@ where
             // Memory beyond memsz is zero-initialized
             if memsz > filesz && (ph.p_flags & PF_W != 0) {
                 // Zero out the fractional page
-                let zero_addr = load_bias + vaddr + filesz;
+                let zero_addr = load_bias_loader + vaddr + filesz;
                 let zero_end = self.page_align(zero_addr);
                 if zero_end > zero_addr {
                     let fractional_page = unsafe {
@@ -323,7 +325,7 @@ where
             }
         }
 
-        if let Some(dynamic) = Dynamic::from_program_headers(self.program_headers.iter(), load_bias)
+        if let Some(dynamic) = Dynamic::from_program_headers(self.program_headers.iter(), load_bias, load_bias_loader)
         {
             log::debug!("Applying relocations");
             dynamic.fixup();
@@ -331,6 +333,7 @@ where
 
         Ok((
             ElfMapping {
+                phys_base: load_addr_loader as usize,
                 load_bias,
                 load_size,
                 load_addr: load_addr as usize,

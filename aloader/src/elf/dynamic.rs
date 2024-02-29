@@ -13,18 +13,20 @@ use super::{
 
 pub struct Dynamic {
     ptr: *const elf_types::dynamic::Dyn,
-    load_offset: usize,
+    load_bias: usize,
+    load_bias_loader: usize,
 }
 
 impl Dynamic {
     pub fn from_program_headers<'a>(
         mut phs: impl Iterator<Item = &'a ProgramHeader>,
-        load_offset: usize,
+        load_bias: usize,
+        load_bias_loader: usize,
     ) -> Option<Self> {
         phs.find(|ph| ph.p_type == PT_DYNAMIC).map(|ph| {
             let ptr =
-                load_offset.wrapping_add(ph.p_vaddr as usize) as *const elf_types::dynamic::Dyn;
-            Self { ptr, load_offset }
+                load_bias_loader.wrapping_add(ph.p_vaddr as usize) as *const elf_types::dynamic::Dyn;
+            Self { ptr, load_bias, load_bias_loader }
         })
     }
 
@@ -46,7 +48,7 @@ impl Dynamic {
 
                 // DT_RELA
                 DT_RELA => {
-                    rela_data = Some(entry.d_val.wrapping_add(self.load_offset as _)
+                    rela_data = Some(entry.d_val.wrapping_add(self.load_bias_loader as _)
                         as *const elf_types::reloc::Rela);
                 }
                 DT_RELASZ => {
@@ -62,7 +64,7 @@ impl Dynamic {
 
                 // DT_REL
                 DT_REL => {
-                    rel_data = Some(entry.d_val.wrapping_add(self.load_offset as _)
+                    rel_data = Some(entry.d_val.wrapping_add(self.load_bias_loader as _)
                         as *const elf_types::reloc::Rel);
                 }
                 DT_RELSZ => {
@@ -89,9 +91,9 @@ impl Dynamic {
                     panic!("Unsupported relocation type");
                 }
 
-                let relocated = self.load_offset.wrapping_add(reloc.r_addend as usize);
-                let ptr = self.load_offset.wrapping_add(reloc.r_offset as usize) as *mut usize;
-                //log::debug!("ptr={:?}, offset=0x{:x}, addend=0x{:x}, actual=0x{:x}", ptr, reloc.r_offset, reloc.r_addend, relocated);
+                let relocated = self.load_bias.wrapping_add(reloc.r_addend as usize);
+                let ptr = self.load_bias_loader.wrapping_add(reloc.r_offset as usize) as *mut usize;
+                // log::debug!("RELA ptr={:?}, offset=0x{:x}, addend=0x{:x}, actual=0x{:x}", ptr, reloc.r_offset, reloc.r_addend, relocated);
 
                 unsafe {
                     ptr::write_unaligned(ptr, relocated);
@@ -107,10 +109,10 @@ impl Dynamic {
                     panic!("Unsupported relocation type");
                 }
 
-                let ptr = self.load_offset.wrapping_add(reloc.r_offset as usize) as *mut usize;
+                let ptr = self.load_bias_loader.wrapping_add(reloc.r_offset as usize) as *mut usize;
                 unsafe {
                     let addend = *ptr;
-                    let relocated = self.load_offset.wrapping_add(addend);
+                    let relocated = self.load_bias.wrapping_add(addend);
                     *ptr = relocated;
                 }
             }

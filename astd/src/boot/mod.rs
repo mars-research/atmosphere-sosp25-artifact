@@ -26,11 +26,14 @@ pub struct BootInfo {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct DomainMapping {
-    /// The beginning of the contiguous reserved space.
+    /// The beginning of the contiguous reserved space (physical).
     pub reserved_start: *mut u8,
 
     /// The size of the reserved space.
     pub reserved_size: usize,
+
+    /// The beginning of the virtual address.
+    pub virt_start: *mut u8,
 
     /// The load bias of the domain.
     ///
