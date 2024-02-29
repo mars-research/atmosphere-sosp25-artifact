@@ -98,7 +98,8 @@ fn main(boot_info: *const BootInfo) -> isize {
     let dom0 = boot_info.dom0.as_ref().unwrap();
     log::info!("dom0: {:?}", dom0);
 
-    let initial_sp = unsafe { dom0.reserved_start.add(dom0.reserved_size) };
+    let initial_sp = unsafe { dom0.virt_start.add(dom0.reserved_size - 0x1000) };
+    log::info!("initial_sp: {:?}", initial_sp);
     unsafe {
         try_sysret(dom0.entry_point, initial_sp as *mut _);
     }
@@ -158,9 +159,9 @@ fn panic(info: &PanicInfo) -> ! {
 unsafe fn try_sysret(pc: *const c_void, sp: *mut c_void) -> ! {
     log::info!("Going to sysret into {:x?}", pc);
     asm!(
-        "mov rsp, {sp}",
         "pushfq",
         "pop r11",
+        "mov rsp, {sp}",
         "sysretq",
 
         in("rcx") pc,
