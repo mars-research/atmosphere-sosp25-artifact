@@ -28,7 +28,7 @@ use core::arch::asm;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 
-use astd::boot::{BootInfo, DomainMapping};
+use astd::boot::{BootInfo, DomainMapping, PhysicalMemoryType};
 use astd::io::{Cursor, Read, Seek, SeekFrom};
 
 use elf::{ElfHandle, ElfMapping};
@@ -97,6 +97,17 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
             "mov cr3, {pml4}",
             pml4 = inout(reg) boot_info.pml4 => _,
         );
+    }
+
+    log::info!("Populating physical page list");
+    for (region, label) in memory::get_physical_memory_map().regions.iter() {
+        let page_type: PhysicalMemoryType = (*label).into();
+        let mut cur = region.base();
+        while cur < region.end_inclusive() {
+            boot_info.pages.push((cur, page_type))
+                .expect("Too many pages");
+            cur += PAGE_SIZE as u64;
+        }
     }
 
     log::info!("Calling into kernel @ {:x?}", kernel_map.entry_point);

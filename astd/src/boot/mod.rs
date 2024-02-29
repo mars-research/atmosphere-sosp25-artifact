@@ -4,6 +4,29 @@ use core::ffi::c_void;
 use core::ptr;
 
 use crate::string::ArrayString;
+use crate::heapless::Vec as ArrayVec;
+
+/// The type of physical memory.
+///
+/// This is a simplified version of `BootMemoryType` in aloader.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(u8)]
+pub enum PhysicalMemoryType {
+    /// Used by the kernel.
+    Kernel,
+
+    /// Used by page tables.
+    PageTable,
+
+    /// Used by a domain.
+    Domain,
+
+    /// Available to be allocated.
+    Available,
+
+    /// Reserved for other use.
+    Reserved,
+}
 
 /// Boot manager handoff information.
 #[repr(C)]
@@ -17,6 +40,9 @@ pub struct BootInfo {
 
     /// The initial domain.
     pub dom0: Option<DomainMapping>,
+
+    /// All available physical pages and their state.
+    pub pages: ArrayVec<(u64, PhysicalMemoryType), {4 * 1024 * 1024}>,
 }
 
 /// A loaded domain.
@@ -51,6 +77,7 @@ impl BootInfo {
             command_line: ArrayString::empty(),
             dom0: None,
             pml4: ptr::null(),
+            pages: ArrayVec::new(),
         }
     }
 }

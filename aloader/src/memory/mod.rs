@@ -3,13 +3,13 @@ mod map;
 mod paging;
 mod userspace;
 
-use core::fmt;
+use core::{fmt, ops::DerefMut};
 use core::num::NonZeroU64;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 use x86::current::paging::{VAddr, PAddr};
 
-use astd::sync::Mutex;
+use astd::{sync::Mutex, boot::PhysicalMemoryType};
 
 pub use map::MemoryMap;
 pub use paging::AddressSpace;
@@ -61,6 +61,25 @@ pub enum BootMemoryType {
     PageTable,
     Pci,
     Other(AcpiMemoryType),
+}
+
+impl From<BootMemoryType> for PhysicalMemoryType {
+    fn from(value: BootMemoryType) -> Self {
+        use BootMemoryType as BMT;
+        use PhysicalMemoryType as PMT;
+        match value {
+            // free up loader and domain image for unlimited use
+            BMT::Loader | BMT::LoaderAllocator => PMT::Available,
+            BMT::DomainImage => PMT::Available,
+
+            BMT::Kernel => PMT::Kernel,
+            BMT::Domain => PMT::Domain,
+            BMT::PageTable => PMT::PageTable,
+
+            BMT::Bios => PMT::Reserved,
+            _ => PMT::Reserved,
+        }
+    }
 }
 
 /// Type of a physical address range.
@@ -219,4 +238,8 @@ pub fn reserve(size: usize, label: BootMemoryType) -> (*mut u8, impl PhysicalAll
 
 pub fn get_allocator_region() -> Option<MemoryRange> {
     ALLOCATOR_MEMORY_REGION.lock().clone()
+}
+
+pub fn get_physical_memory_map() -> impl DerefMut<Target = MemoryMap<BootMemoryType>> {
+    PHYSICAL_MEMORY_MAP.lock()
 }
