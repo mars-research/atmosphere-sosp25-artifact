@@ -4,7 +4,7 @@ use crate::define::*;
 use core::mem::MaybeUninit;
 pub struct PCIBitMap
 {
-    pub bit_map:[[[[bool;8];32];256];IOID_MAX],
+    pub bit_map:[[[u8;32];256];IOID_MAX], //32MB
     pub ghost_map:Ghost<Map<(IOid,u8,u8,u8),bool>>,
 }
 impl PCIBitMap{
@@ -35,7 +35,7 @@ impl PCIBitMap{
                     let mut fun = 0;
                     while fun != 8{
     
-                        self.bit_map[ioid][bus as usize][dev as usize][fun as usize] = false;
+                        self.bit_map[ioid][bus as usize][dev as usize] = 0;
     
                         fun = fun + 1;
                     }
@@ -76,7 +76,7 @@ impl PCIBitMap{
         ensures
             ret == self.resolve(ioid,bus,dev,fun)
     {
-        self.bit_map[ioid][bus as usize][dev as usize][fun as usize]
+        (self.bit_map[ioid][bus as usize][dev as usize] & (0x1u8 << (fun as usize))) == 0
     }
 
     #[verifier(external_body)]
@@ -86,9 +86,18 @@ impl PCIBitMap{
             0<=ioid<IOID_MAX,
             0<=bus<256 && 0<=dev<32 && 0<=fun<8,
         ensures
-            self.ghost_map@ =~= old(self).ghost_map@.insert((ioid,bus,dev,fun),target)
+            self.wf(),
+            self.ghost_map@ =~= old(self).ghost_map@.insert((ioid,bus,dev,fun),target),
+            self@ =~= old(self)@.insert((ioid,bus,dev,fun),target),
     {
-        self.bit_map[ioid][bus as usize][dev as usize][fun as usize] = target;
+        let bit_mask = !(0x1u8 << fun);
+        let old = self.bit_map[ioid][bus as usize][dev as usize] & bit_mask;
+        if target{
+            self.bit_map[ioid][bus as usize][dev as usize] = old;
+        }
+        else{
+            self.bit_map[ioid][bus as usize][dev as usize] = old | (0x1u8 << fun);
+        }
     }
 }
 }
