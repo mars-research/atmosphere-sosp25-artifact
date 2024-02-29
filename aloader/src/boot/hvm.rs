@@ -5,7 +5,7 @@
 use core::iter::Iterator;
 use core::ptr;
 
-use crate::memory::{MemoryRange, AcpiMemoryType};
+use crate::memory::{AcpiMemoryType, MemoryRange};
 use num_traits::FromPrimitive;
 
 pub const HVM_START_INFO_MAGIC: u32 = 0x336ec578;
@@ -103,7 +103,9 @@ impl StartInfo {
     }
 
     /// Creates an iterator through all memory regions.
-    pub fn iter_memory_regions(&self) -> impl Iterator<Item = (MemoryRange, Option<AcpiMemoryType>)> + '_ {
+    pub fn iter_memory_regions(
+        &self,
+    ) -> impl Iterator<Item = (MemoryRange, Option<AcpiMemoryType>)> + '_ {
         self.iter_raw_memmap()
             .map(|entry| (MemoryRange::new(entry.addr, entry.size), entry.map_type()))
     }

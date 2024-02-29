@@ -38,14 +38,14 @@ mod cpu;
 mod error;
 mod gdt;
 mod interrupt;
+mod kernel;
 mod logging;
 mod scripts;
 mod syscalls;
 mod utils;
-mod kernel;
 
-use core::{panic::PanicInfo, ffi::c_void};
 use core::arch::asm;
+use core::{ffi::c_void, panic::PanicInfo};
 
 use astd::boot::BootInfo;
 

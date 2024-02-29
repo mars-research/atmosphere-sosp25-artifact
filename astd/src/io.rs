@@ -1,6 +1,6 @@
 //! I/O utilities.
 
-use core::convert::AsRef;
+use core::convert::{AsMut, AsRef};
 
 use displaydoc::Display;
 use embedded_io as eio;
@@ -42,6 +42,11 @@ impl<T> Cursor<T> {
     pub fn new(inner: T) -> Self {
         Self { inner, pos: 0 }
     }
+
+    /// Returns the current position.
+    pub fn pos(&self) -> u64 {
+        self.pos
+    }
 }
 
 impl<T> Cursor<T>
@@ -52,6 +57,17 @@ where
     pub fn remaining_slice(&self) -> &[u8] {
         let len = self.pos.min(self.inner.as_ref().len() as u64);
         &self.inner.as_ref()[(len as usize)..]
+    }
+}
+
+impl<T> Cursor<T>
+where
+    T: AsMut<[u8]>,
+{
+    /// Returns the remaining slice.
+    pub fn remaining_slice_mut(&mut self) -> &mut [u8] {
+        let len = self.pos.min(self.inner.as_mut().len() as u64);
+        &mut self.inner.as_mut()[(len as usize)..]
     }
 }
 
@@ -88,6 +104,24 @@ where
                 kind: eio::ErrorKind::InvalidInput,
             }),
         }
+    }
+}
+
+impl<T> Write for Cursor<T>
+where
+    T: AsMut<[u8]>,
+{
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+        assert!(self.inner.as_mut().len() == 4096);
+        assert!(self.remaining_slice_mut().len() == 4096);
+        let n = Write::write(&mut self.remaining_slice_mut(), buf).unwrap();
+        self.pos += n as u64;
+        assert!(n == 0);
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> Result<(), Self::Error> {
+        Ok(())
     }
 }
 

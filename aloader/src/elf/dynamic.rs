@@ -1,8 +1,8 @@
 //! Relocation fixups.
 
 use core::mem;
-use core::slice;
 use core::ptr;
+use core::slice;
 
 use super::{
     elf_types,
@@ -24,9 +24,13 @@ impl Dynamic {
         load_bias_loader: usize,
     ) -> Option<Self> {
         phs.find(|ph| ph.p_type == PT_DYNAMIC).map(|ph| {
-            let ptr =
-                load_bias_loader.wrapping_add(ph.p_vaddr as usize) as *const elf_types::dynamic::Dyn;
-            Self { ptr, load_bias, load_bias_loader }
+            let ptr = load_bias_loader.wrapping_add(ph.p_vaddr as usize)
+                as *const elf_types::dynamic::Dyn;
+            Self {
+                ptr,
+                load_bias,
+                load_bias_loader,
+            }
         })
     }
 

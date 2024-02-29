@@ -17,9 +17,9 @@ use cfg_match::cfg_match;
 use displaydoc::Display;
 use plain::Plain;
 
+use crate::memory::{PageProtection, VirtualMapper};
 use dynamic::Dynamic;
 use x86::current::paging::VAddr;
-use crate::memory::{VirtualMapper, PageProtection};
 
 cfg_match! {
     target_arch = "x86_64" => {
@@ -227,7 +227,8 @@ where
         //
         //     load_addr + page_offset(ph.p_vaddr)
         let load_bias = (load_addr as usize).wrapping_sub(self.page_start(summary.first_vaddr));
-        let load_bias_loader = (load_addr_loader as usize).wrapping_sub(self.page_start(summary.first_vaddr));
+        let load_bias_loader =
+            (load_addr_loader as usize).wrapping_sub(self.page_start(summary.first_vaddr));
         let max_vaddr = load_addr as usize + summary.total_mapping_size;
         let entry_point = (load_bias + self.header.e_entry as usize) as *const c_void;
 
@@ -275,7 +276,10 @@ where
                         ph = DisplayPFlags(ph),
                     );
 
-                    memory.map_anonymous(VAddr::from_usize(addr), size, prot).paddr.0 as *mut c_void
+                    memory
+                        .map_anonymous(VAddr::from_usize(addr), size, prot)
+                        .paddr
+                        .0 as *mut c_void
                 };
 
                 if mapping.is_null() {
@@ -287,7 +291,9 @@ where
                 let dst = unsafe { slice::from_raw_parts_mut(mapping as *mut u8, file_map_size) };
 
                 self.file
-                    .seek(SeekFrom::Start(self.start_pos + self.page_start(offset) as u64))
+                    .seek(SeekFrom::Start(
+                        self.start_pos + self.page_start(offset) as u64,
+                    ))
                     .map_err(Into::into)?;
                 self.file.read_exact(dst).map_err(Into::into)?;
             }
@@ -325,7 +331,8 @@ where
             }
         }
 
-        if let Some(dynamic) = Dynamic::from_program_headers(self.program_headers.iter(), load_bias, load_bias_loader)
+        if let Some(dynamic) =
+            Dynamic::from_program_headers(self.program_headers.iter(), load_bias, load_bias_loader)
         {
             log::debug!("Applying relocations");
             dynamic.fixup();

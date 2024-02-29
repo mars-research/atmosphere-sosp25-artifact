@@ -5,8 +5,8 @@ mod hvm;
 use core::ptr;
 use core::slice;
 
-use crate::memory::MemoryRange;
 use crate::memory::init_physical_memory_map;
+use crate::memory::MemoryRange;
 use astd::sync::Mutex;
 
 /// The kernel image passed by the bootloader.

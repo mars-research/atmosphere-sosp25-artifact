@@ -18,12 +18,11 @@ impl<T: Clone + Debug + PartialEq> MemoryMap<T> {
     }
 
     pub fn new<I>(regions: I) -> Self
-        where I: IntoIterator<Item = (MemoryRange, T)>,
+    where
+        I: IntoIterator<Item = (MemoryRange, T)>,
     {
         let regions = ArrayVec::from_iter(regions);
-        Self {
-            regions,
-        }
+        Self { regions }
     }
 
     pub fn add(&mut self, region: MemoryRange, label: T) {
@@ -39,7 +38,6 @@ impl<T: Clone + Debug + PartialEq> MemoryMap<T> {
                 break;
             }
 
-
             if !region.intersects(&range) {
                 // disjoint
                 continue;
@@ -52,27 +50,31 @@ impl<T: Clone + Debug + PartialEq> MemoryMap<T> {
 
             // [left][relabeled][right]
             if range.base() > region.base() {
-                new_regions.push((MemoryRange::new(
-                    region.base(),
-                    range.base() - region.base(),
-                ), cur_label.clone())).unwrap();
+                new_regions
+                    .push((
+                        MemoryRange::new(region.base(), range.base() - region.base()),
+                        cur_label.clone(),
+                    ))
+                    .unwrap();
             }
 
             if range.end_inclusive() < region.end_inclusive() {
-                new_regions.push((MemoryRange::new(
-                    range.end_inclusive() + 1,
-                    region.end_inclusive() - range.end_inclusive(),
-                ), cur_label.clone())).unwrap();
+                new_regions
+                    .push((
+                        MemoryRange::new(
+                            range.end_inclusive() + 1,
+                            region.end_inclusive() - range.end_inclusive(),
+                        ),
+                        cur_label.clone(),
+                    ))
+                    .unwrap();
             }
 
             let relabeled_base = core::cmp::max(range.base(), region.base());
             let relabeled_end = core::cmp::min(range.end_inclusive(), region.end_inclusive());
 
             *cur_label = label.clone();
-            *region = MemoryRange::new(
-                relabeled_base,
-                relabeled_end - relabeled_base + 1,
-            );
+            *region = MemoryRange::new(relabeled_base, relabeled_end - relabeled_base + 1);
         }
 
         self.regions.extend(new_regions);
@@ -83,15 +85,15 @@ impl<T: Clone + Debug + PartialEq> MemoryMap<T> {
             return;
         }
 
-        self.regions.sort_unstable_by(|a, b| {
-            a.0.base().cmp(&b.0.base())
-        });
+        self.regions
+            .sort_unstable_by(|a, b| a.0.base().cmp(&b.0.base()));
 
         let mut curidx = 0;
         let mut cur = self.regions[curidx].clone();
 
         for i in 1..self.regions.len() {
-            if cur.0.end_inclusive() + 1 == self.regions[i].0.base() && &cur.1 == &self.regions[i].1 {
+            if cur.0.end_inclusive() + 1 == self.regions[i].0.base() && &cur.1 == &self.regions[i].1
+            {
                 // consecutive
                 cur.0.set_size(cur.0.size() + self.regions[i].0.size());
             } else {
@@ -107,4 +109,3 @@ impl<T: Clone + Debug + PartialEq> MemoryMap<T> {
         self.regions.truncate(curidx);
     }
 }
-

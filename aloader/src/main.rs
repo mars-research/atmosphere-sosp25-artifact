@@ -55,7 +55,8 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         memory::init();
     }
 
-    let (_, mut page_table_allocator) = memory::reserve(PAGE_TABLE_RESERVATION, BootMemoryType::PageTable);
+    let (_, mut page_table_allocator) =
+        memory::reserve(PAGE_TABLE_RESERVATION, BootMemoryType::PageTable);
     let (_, mut kernel_allocator) = memory::reserve(KERNEL_RESERVATION, BootMemoryType::Kernel);
 
     let kernel_file = {
@@ -104,7 +105,9 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         let page_type: PhysicalMemoryType = (*label).into();
         let mut cur = region.base();
         while cur < region.end_inclusive() {
-            boot_info.pages.push((cur, page_type))
+            boot_info
+                .pages
+                .push((cur, page_type))
                 .expect("Too many pages");
             cur += PAGE_SIZE as u64;
         }
@@ -150,11 +153,14 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     loop {}
 }
 
-fn load_domain<T, A>(elf: T, address_space: &mut AddressSpace<A>) -> Result<DomainMapping, elf::Error>
-    where
-        T: Read + Seek,
-        T::Error: Into<elf::Error>,
-        A: PhysicalAllocator,
+fn load_domain<T, A>(
+    elf: T,
+    address_space: &mut AddressSpace<A>,
+) -> Result<DomainMapping, elf::Error>
+where
+    T: Read + Seek,
+    T::Error: Into<elf::Error>,
+    A: PhysicalAllocator,
 {
     let parsed = ElfHandle::parse(elf, PAGE_SIZE)?;
     log::info!("Loading Dom0...");
@@ -162,7 +168,9 @@ fn load_domain<T, A>(elf: T, address_space: &mut AddressSpace<A>) -> Result<Doma
     let (reserved_start, mut allocator) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
 
     let mut userspace_mapper = UserspaceMapper::new(address_space, &mut allocator);
-    let (dom_map, _) = parsed.load(&mut userspace_mapper).expect("Failed to map Dom0");
+    let (dom_map, _) = parsed
+        .load(&mut userspace_mapper)
+        .expect("Failed to map Dom0");
 
     // Allocate and map stack
     // FIXME: Use GNU_STACK
@@ -188,12 +196,16 @@ fn load_domain<T, A>(elf: T, address_space: &mut AddressSpace<A>) -> Result<Doma
 }
 
 fn bootstrap_system_paging<A>(address_space: &mut AddressSpace<A>, kernel_map: &ElfMapping)
-    where
-        A: PhysicalAllocator,
+where
+    A: PhysicalAllocator,
 {
     let loader_range = boot::get_loader_image_range();
     let identity_ranges = [
-        ("Kernel", kernel_map.load_addr as u64, kernel_map.load_size as u64),
+        (
+            "Kernel",
+            kernel_map.load_addr as u64,
+            kernel_map.load_size as u64,
+        ),
         ("Loader", loader_range.base(), loader_range.size()),
         ("BIOS", 0x0, 1024 * 1024),
         ("APIC", 0xfee00000, 1024 * 1024),

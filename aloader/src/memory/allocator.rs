@@ -7,10 +7,10 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::ptr;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use x86::current::paging::{VAddr, PAddr};
+use x86::current::paging::{PAddr, VAddr};
 
-use crate::memory::PhysicalAllocator;
 use super::{ContiguousMapping, MemoryRange, VirtualMapper};
+use crate::memory::PhysicalAllocator;
 
 pub static mut ALLOCATOR: BumpAllocator = BumpAllocator {
     base: 0 as *mut u8,

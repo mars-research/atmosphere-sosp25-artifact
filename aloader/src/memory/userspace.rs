@@ -1,7 +1,9 @@
 use x86::current::paging::{PAddr, VAddr};
 
+use crate::memory::{
+    AddressSpace, ContiguousMapping, PageProtection, PhysicalAllocator, VirtualMapper,
+};
 use crate::PAGE_SIZE;
-use crate::memory::{AddressSpace, PhysicalAllocator, PageProtection, ContiguousMapping, VirtualMapper};
 
 /// The virtual base address userspace programs are loaded to.
 pub const USERSPACE_BASE: u64 = 0x8000000000;
@@ -58,7 +60,8 @@ where
                 unsafe {
                     // Map user view
                     log::info!("vaddr = {:x?}", cur - phys_base + virt_base);
-                    self.address_space.map(cur - phys_base + virt_base, cur, true);
+                    self.address_space
+                        .map(cur - phys_base + virt_base, cur, true);
 
                     // Map kernel view (identity)
                     self.address_space.map(cur, cur, false);
@@ -74,4 +77,3 @@ where
         }
     }
 }
-

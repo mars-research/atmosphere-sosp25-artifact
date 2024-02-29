@@ -3,8 +3,8 @@
 use core::ffi::c_void;
 use core::ptr;
 
-use crate::string::ArrayString;
 use crate::heapless::Vec as ArrayVec;
+use crate::string::ArrayString;
 
 /// The type of physical memory.
 ///
@@ -42,7 +42,7 @@ pub struct BootInfo {
     pub dom0: Option<DomainMapping>,
 
     /// All available physical pages and their state.
-    pub pages: ArrayVec<(u64, PhysicalMemoryType), {4 * 1024 * 1024}>,
+    pub pages: ArrayVec<(u64, PhysicalMemoryType), { 4 * 1024 * 1024 }>,
 }
 
 /// A loaded domain.

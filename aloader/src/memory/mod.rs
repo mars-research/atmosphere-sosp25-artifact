@@ -3,13 +3,13 @@ mod map;
 mod paging;
 mod userspace;
 
-use core::{fmt, ops::DerefMut};
 use core::num::NonZeroU64;
+use core::{fmt, ops::DerefMut};
 
 use num_derive::{FromPrimitive, ToPrimitive};
-use x86::current::paging::{VAddr, PAddr};
+use x86::current::paging::{PAddr, VAddr};
 
-use astd::{sync::Mutex, boot::PhysicalMemoryType};
+use astd::{boot::PhysicalMemoryType, sync::Mutex};
 
 pub use map::MemoryMap;
 pub use paging::AddressSpace;
@@ -40,7 +40,7 @@ pub trait PhysicalAllocator {
 
 pub struct ContiguousMapping {
     pub vaddr: VAddr,
-    pub paddr: PAddr, 
+    pub paddr: PAddr,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -159,7 +159,13 @@ impl MemoryRange {
 
 impl fmt::Display for MemoryRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:#016x}-{:#016x} ({:#x})", self.base(), self.end_inclusive(), self.size())
+        write!(
+            f,
+            "{:#016x}-{:#016x} ({:#x})",
+            self.base(),
+            self.end_inclusive(),
+            self.size()
+        )
     }
 }
 
@@ -169,9 +175,7 @@ pub fn init_physical_memory_map(
     image_ranges: impl Iterator<Item = MemoryRange>,
 ) {
     let mut map = PHYSICAL_MEMORY_MAP.lock();
-    *map = MemoryMap::new(
-        regions.map(|(r, t)| (r, BootMemoryType::Other(t)))
-    );
+    *map = MemoryMap::new(regions.map(|(r, t)| (r, BootMemoryType::Other(t))));
 
     map.relabel(MemoryRange::new(0, 1024 * 1024), BootMemoryType::Bios);
     map.relabel(loader_range, BootMemoryType::Loader);
@@ -185,15 +189,15 @@ pub fn init_physical_memory_map(
     // Reserve region for bump allocator
     let allocator_size = 1024 * 1024 * 1024; // 1024 MiB
     let mut reserved_region = ALLOCATOR_MEMORY_REGION.lock();
-    let first_memory = map.regions
+    let first_memory = map
+        .regions
         .iter()
-        .find(|(r, t)| t == &BootMemoryType::Other(AcpiMemoryType::Memory) && r.size() > allocator_size)
+        .find(|(r, t)| {
+            t == &BootMemoryType::Other(AcpiMemoryType::Memory) && r.size() > allocator_size
+        })
         .expect("No usable memory region");
 
-    let allocator_region = MemoryRange::new(
-        first_memory.0.base(),
-        allocator_size,
-    );
+    let allocator_region = MemoryRange::new(first_memory.0.base(), allocator_size);
     map.relabel(allocator_region.clone(), BootMemoryType::LoaderAllocator);
     log::debug!(
         "Reserved region for dynamic allocator: {:x?}",
@@ -227,7 +231,10 @@ pub fn allocator() -> &'static mut (impl PhysicalAllocator + VirtualMapper) {
     unsafe { &mut allocator::ALLOCATOR }
 }
 
-pub fn reserve(size: usize, label: BootMemoryType) -> (*mut u8, impl PhysicalAllocator + VirtualMapper) {
+pub fn reserve(
+    size: usize,
+    label: BootMemoryType,
+) -> (*mut u8, impl PhysicalAllocator + VirtualMapper) {
     let allocator = unsafe { allocator::ALLOCATOR.reserve(size) };
 
     let mut map = PHYSICAL_MEMORY_MAP.lock();

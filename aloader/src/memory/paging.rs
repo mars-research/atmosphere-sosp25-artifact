@@ -103,9 +103,8 @@ impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
     }
 
     unsafe fn allocate_page_table(allocator: &mut A) -> *mut PageTable {
-        let table = {
-            allocator.allocate_physical(mem::size_of::<PageTable>()).0
-        } as *mut PageTable;
+        let table =
+            { allocator.allocate_physical(mem::size_of::<PageTable>()).0 } as *mut PageTable;
 
         if table as u64 & (1u64 << PAGE_SHIFT - 1) != 0 {
             panic!("Got unaligned page");
@@ -129,9 +128,7 @@ impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
 
 impl PageTable {
     const fn zeroed() -> Self {
-        unsafe {
-            mem::transmute(MaybeUninit::<Self>::zeroed())
-        }
+        unsafe { mem::transmute(MaybeUninit::<Self>::zeroed()) }
     }
 
     unsafe fn read(&self, index: usize) -> Entry {
