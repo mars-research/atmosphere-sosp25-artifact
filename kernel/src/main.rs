@@ -78,7 +78,6 @@ fn main(boot_info: *const BootInfo) -> isize {
         print_logo();
     }
 
-    log::info!("hello_world from verified={:?}",verified::kernel::hello_world());
     kernel::kernel_test();
     kernel::kernel_new();
 

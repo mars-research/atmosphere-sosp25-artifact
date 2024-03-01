@@ -13,9 +13,11 @@ impl PCIBitMap{
         ensures
             ret.wf(),
     {
-        Self{
-            bit_map:MaybeUninit::uninit().assume_init(),
-            ghost_map:Ghost(Map::empty()),
+        unsafe{
+            Self{
+                bit_map:MaybeUninit::uninit().assume_init(),
+                ghost_map:Ghost(Map::empty()),
+            }
         }
     }
     #[verifier(external_body)]
