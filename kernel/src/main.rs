@@ -47,7 +47,7 @@ mod utils;
 use core::arch::asm;
 use core::{ffi::c_void, panic::PanicInfo};
 
-use astd::boot::BootInfo;
+use astd::boot::{BootInfo, PhysicalMemoryType};
 
 static mut SHUTDOWN_ON_PANIC: bool = false;
 
@@ -171,4 +171,21 @@ unsafe fn try_sysret(pc: *const c_void, sp: *mut c_void) -> ! {
     );
 
     loop {}
+}
+
+use verified::define as vdefine;
+
+trait PhysicalMemoryTypeExt {
+    fn to_verified_page_state(&self) -> vdefine::PageState;
+}
+
+impl PhysicalMemoryTypeExt for PhysicalMemoryType {
+    fn to_verified_page_state(&self) -> vdefine::PageState {
+        match self {
+            Self::Available => vdefine::FREE,
+            Self::Domain => vdefine::MAPPED,
+            Self::PageTable => vdefine::PAGETABLE,
+            Self::Kernel | Self::Reserved => vdefine::UNAVAILABLE,
+        }
+    }
 }
