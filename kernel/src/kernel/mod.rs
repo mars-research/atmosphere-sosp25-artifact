@@ -4,8 +4,35 @@ use verified::proc::ProcessManager;
 use verified::mmu::MMUManager;
 use verified::page_alloc::PageAllocator;
 use core::mem::size_of;
-
+use verified::array_vec::ArrayVec as vArrayVec;
+use verified::pagetable::PageTable as vPageTable;
+use verified::pagetable::PageEntry as vPageEntry;
+use verified::define::PagePerm;
+use verified::define::PagePtr;
+use verified::trap::PtRegs as vPtRegs;
+use astd::heapless::Vec as ArrayVec;
+use astd::boot::PhysicalMemoryType;
 static KERNEL: Mutex<Option<Kernel>> = Mutex::new(None);
+
+use vstd::prelude::*;
+
+use verified::define as vdefine;
+
+trait PhysicalMemoryTypeExt {
+    fn to_verified_page_state(&self) -> vdefine::PageState;
+}
+
+impl PhysicalMemoryTypeExt for PhysicalMemoryType {
+    fn to_verified_page_state(&self) -> vdefine::PageState {
+        match self {
+            Self::Available => vdefine::FREE,
+            Self::Domain => vdefine::MAPPED,
+            Self::PageTable => vdefine::PAGETABLE,
+            Self::Kernel | Self::Reserved => vdefine::UNAVAILABLE,
+        }
+    }
+}
+
 
 pub fn kernel_test(){
     log::info!("hello from kernel");
@@ -21,4 +48,35 @@ pub fn kernel_new(){
     let mut my_int = KERNEL.lock();
     log::info!("kernel lock aquired");
     *my_int = Some(Kernel::new());
+}
+pub fn kernel_init(boot_page_ptrs: &ArrayVec<(u64,PhysicalMemoryType),{4*1024*1024}>, dom0_pagetable_ptr: usize, kernel_pml4_entry_ptr: usize){
+    let mut boot_pages = vArrayVec::<(u8, usize), {1*1024*1024}>::new();
+    let mut i = 0;
+    while i != 1*1024*1024 {
+        boot_pages.push((boot_page_ptrs[i].1.to_verified_page_state(), boot_page_ptrs[i].0 as usize));
+        i = i + 1;
+    }
+    let dom0_pagetable = vPageTable::new(dom0_pagetable_ptr);
+    let kernel_page_entry = vPageEntry{addr:kernel_pml4_entry_ptr, perm: 0x1 as usize};
+    let mut dom0_pt_regs = vPtRegs::new_empty();
+    dom0_pt_regs.r15 = 233;
+    let page_perms:Tracked<Map<PagePtr,PagePerm>> =  Tracked::assume_new();
+    let ret_code = KERNEL.lock().as_mut().unwrap().kernel_init(&boot_pages,page_perms,dom0_pagetable,kernel_page_entry, dom0_pt_regs);
+    log::info!("kernel init ret_code {:?}",ret_code);
+    let dom0_thread_scheduler_index =  KERNEL.lock().as_mut().unwrap().proc_man.scheduler.value_list_head;
+    let proc_ptrs_len =  KERNEL.lock().as_mut().unwrap().proc_man.get_proc_ptrs_len();
+    let dom0_thread_ptr =  KERNEL.lock().as_mut().unwrap().proc_man.scheduler.get_head();
+    let dom0_proc_ptr = KERNEL.lock().as_mut().unwrap().proc_man.proc_ptrs.get_head();
+    let dom0_proc_ptr_by_thread_ptr = KERNEL.lock().as_mut().unwrap().proc_man.get_parent_proc_ptr_by_thread_ptr(dom0_thread_ptr);
+    let dom0_thread_ptr_by_proc_ptr = KERNEL.lock().as_mut().unwrap().proc_man.get_head_of_owned_thread_by_proc_ptr(dom0_proc_ptr);
+    log::info!("dom0_thread_scheduler_index {:?}",dom0_thread_scheduler_index);
+    log::info!("proc_ptrs_len {:?}",proc_ptrs_len);
+    log::info!("dom0_thread_ptr {:x}",dom0_thread_ptr);
+    log::info!("dom0_proc_ptr {:x}",dom0_proc_ptr);
+    log::info!("dom0_proc_ptr_by_thread_ptr {:x}",dom0_proc_ptr_by_thread_ptr);
+    log::info!("dom0_thread_ptr_by_proc_ptr {:x}",dom0_thread_ptr_by_proc_ptr);
+    
+    let dom0_retstruc = KERNEL.lock().as_mut().unwrap().kernel_idle_pop_sched(0,vPtRegs::new_empty());
+    log::info!("{:?}",dom0_retstruc);
+    log::info!("");
 }

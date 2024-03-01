@@ -4,7 +4,7 @@ verus!{
 
 /// Registers passed to the ISR.
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct PtRegs {
     /*
      * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
@@ -76,6 +76,37 @@ impl PtRegs {
         self.rsp = input.rsp;
         self.ss = input.ss;
     
+    }
+
+    pub fn new_empty()-> (ret : Self)
+    {
+        let ret = Self {
+            r15 : 0,
+            r14 : 0,
+            r13 : 0,
+            r12 : 0,
+            rbp : 0,
+            rbx : 0,
+
+            r11 : 0,
+            r10 : 0,
+            r9 : 0,
+            r8 : 0,
+            rax : 0,
+            rcx : 0,
+            rdx : 0,
+            rsi : 0,
+            rdi : 0,
+
+            orig_ax : 0,
+
+            rip : 0,
+            rcs : 0,
+            rflags : 0,
+            rsp : 0,
+            ss : 0,
+        };
+        ret
     }
 
     pub fn new(input: &PtRegs) -> (ret : Self)

@@ -114,10 +114,17 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         }
     }
 
+    let mut cur = 0; 
     log::info!("Populating physical page list");
     for (region, label) in memory::get_physical_memory_map().regions.iter() {
         let page_type: PhysicalMemoryType = (*label).into();
-        let mut cur = region.base();
+        while cur < region.base(){
+            boot_info
+            .pages
+            .push((cur, PhysicalMemoryType::Reserved))
+            .expect("Too many pages");
+            cur += PAGE_SIZE as u64;
+        }
         while cur < region.end_inclusive() {
             boot_info
                 .pages
@@ -125,6 +132,13 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
                 .expect("Too many pages");
             cur += PAGE_SIZE as u64;
         }
+    }
+    while cur < 4*1024*1024*4096{
+        boot_info
+        .pages
+        .push((cur, PhysicalMemoryType::Reserved))
+        .expect("Too many pages");
+        cur += PAGE_SIZE as u64;
     }
 
     log::info!("Calling into kernel @ {:x?}", kernel_map.entry_point);

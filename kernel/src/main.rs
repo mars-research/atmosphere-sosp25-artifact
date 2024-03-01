@@ -51,6 +51,8 @@ use astd::boot::{BootInfo, PhysicalMemoryType};
 
 static mut SHUTDOWN_ON_PANIC: bool = false;
 
+use verified::array_vec::ArrayVec as vArrayVec;
+
 /// CPU 0 entry point.
 #[start]
 #[no_mangle]
@@ -95,7 +97,17 @@ fn main(boot_info: *const BootInfo) -> isize {
 
     let boot_info = boot::get_boot_info();
     let dom0 = boot_info.dom0.as_ref().unwrap();
+    let pml4 = boot_info.pml4;
+    let mut kernel_pml4:usize = 0;
+    unsafe{
+        kernel_pml4 = *(pml4 as * const usize);
+    }
     log::info!("dom0: {:?}", dom0);
+    log::info!("pml4: {:?}", pml4);
+    log::info!("kernel_pml4: {:x}", kernel_pml4);
+    log::info!("page_array_len: {:x}", boot_info.pages.len());
+
+    kernel::kernel_init(&boot_info.pages, pml4 as usize, kernel_pml4 as usize);
 
     let initial_sp = unsafe { dom0.virt_start.add(dom0.reserved_size - 0x1000) };
     log::info!("initial_sp: {:?}", initial_sp);
@@ -170,21 +182,4 @@ unsafe fn try_sysret(pc: *const c_void, sp: *mut c_void) -> ! {
     );
 
     loop {}
-}
-
-use verified::define as vdefine;
-
-trait PhysicalMemoryTypeExt {
-    fn to_verified_page_state(&self) -> vdefine::PageState;
-}
-
-impl PhysicalMemoryTypeExt for PhysicalMemoryType {
-    fn to_verified_page_state(&self) -> vdefine::PageState {
-        match self {
-            Self::Available => vdefine::FREE,
-            Self::Domain => vdefine::MAPPED,
-            Self::PageTable => vdefine::PAGETABLE,
-            Self::Kernel | Self::Reserved => vdefine::UNAVAILABLE,
-        }
-    }
 }

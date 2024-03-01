@@ -299,6 +299,20 @@ impl ProcessManager {
         return proc.owned_threads.len();
     }
 
+    pub fn get_head_of_owned_thread_by_proc_ptr(&self, proc_ptr:ProcPtr) -> (ret: ThreadPtr)
+        requires
+            self.wf(),
+            self.get_proc_ptrs().contains(proc_ptr),
+        ensures
+            ret =~= self.get_proc(proc_ptr).owned_threads@[0],
+    {
+        assert(self.get_proc_ptrs().contains(proc_ptr));
+        assert(self.proc_perms@.dom().contains(proc_ptr));
+        let tracked proc_perm = self.proc_perms.borrow().tracked_borrow(proc_ptr);
+        let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
+        return proc.owned_threads.get_head();
+    }
+
     pub fn get_endpoint_rf_counter_by_endpoint_ptr(&self, endpoint_ptr:EndpointPtr) -> (ret :usize)
         requires
             self.wf(),

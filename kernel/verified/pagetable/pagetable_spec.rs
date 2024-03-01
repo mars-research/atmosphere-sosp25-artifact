@@ -30,6 +30,18 @@ pub struct PageTable{
 
 impl PageTable{
 
+    pub fn new(cr3:usize) -> (ret:Self)
+    {
+        Self{
+            cr3 : cr3,
+            l4_table: Tracked(Map::tracked_empty()),
+            l3_tables: Tracked(Map::tracked_empty()),
+            l2_tables: Tracked(Map::tracked_empty()),
+            l1_tables: Tracked(Map::tracked_empty()),
+            mapping: Ghost(Map::empty()),
+        }
+    }
+
     pub fn init(&mut self)
         requires
             old(self).l4_table@ =~= Map::empty(),
