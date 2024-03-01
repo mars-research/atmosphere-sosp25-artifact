@@ -173,7 +173,7 @@ impl ProcessManager {
 
     // #[verifier(when_used_as_spec(spec_get_pcid_by_thread_ptr))]
 
-    pub fn get_pt_regs_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: PtRegs)
+    pub fn get_pt_regs_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Option<PtRegs>)
         requires
             self.wf(),
             self.get_thread_ptrs().contains(thread_ptr),
@@ -677,7 +677,14 @@ impl ProcessManager {
         && 
         (forall|proc_ptr: usize, i:int| #![auto] self.proc_perms@.dom().contains(proc_ptr) && 0<=i<self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads.len()
             ==>  self.thread_perms@[self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads@[i]]@.value.get_Some_0().parent == proc_ptr)
-        
+        && 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==>  
+            (self.get_thread(thread_ptr).state != RUNNING <==> self.get_thread(thread_ptr).trap_frame.is_Some())
+        )
+        && 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==>  
+            (self.get_thread(thread_ptr).error_code.is_Some() ==> self.get_thread(thread_ptr).state == SCHEDULED)
+        )
     }
 
     pub open spec fn wf_scheduler(&self) -> bool{

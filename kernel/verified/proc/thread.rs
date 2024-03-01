@@ -36,7 +36,7 @@ pub struct Thread{
     pub callee: Option<ThreadPtr>,
     pub caller: Option<ThreadPtr>,
     
-    pub trap_frame: PtRegs,
+    pub trap_frame: Option<PtRegs>,
 }
 
 impl Thread {
@@ -57,56 +57,56 @@ pub struct IPCPayLoad{
 
 impl ProcessManager {
 
-    pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr)
-        requires
-            old(self).wf(),
-            old(self).get_thread_ptrs().contains(caller),
-            old(self).get_thread_ptrs().contains(callee),
-            old(self).get_thread(callee).state == RUNNING,
-            old(self).get_thread(callee).caller == Some(caller),
-            old(self).scheduler.len() != MAX_NUM_THREADS,
-        ensures
-            self.wf(),
-            self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
-            self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
-            self.get_endpoint_ptrs() =~= old(self).get_endpoint_ptrs(),
-            self.pcid_closure =~= old(self).pcid_closure,
-            self.ioid_closure =~= old(self).ioid_closure,
-            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr).endpoint_descriptors =~= old(self).get_thread(_thread_ptr).endpoint_descriptors,
-            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != caller && _thread_ptr != callee ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
-            self.get_thread(caller).state == RUNNING,
-            self.get_thread(callee).state == SCHEDULED,
+    // pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, ) -> (ret: (PtRegs, Option<ErrorCodeType>))
+    //     requires
+    //         old(self).wf(),
+    //         old(self).get_thread_ptrs().contains(caller),
+    //         old(self).get_thread_ptrs().contains(callee),
+    //         old(self).get_thread(callee).state == RUNNING,
+    //         old(self).get_thread(callee).caller == Some(caller),
+    //         old(self).scheduler.len() != MAX_NUM_THREADS,
+    //     ensures
+    //         self.wf(),
+    //         self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
+    //         self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
+    //         self.get_endpoint_ptrs() =~= old(self).get_endpoint_ptrs(),
+    //         self.pcid_closure =~= old(self).pcid_closure,
+    //         self.ioid_closure =~= old(self).ioid_closure,
+    //         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr).endpoint_descriptors =~= old(self).get_thread(_thread_ptr).endpoint_descriptors,
+    //         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != caller && _thread_ptr != callee ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
+    //         self.get_thread(caller).state == RUNNING,
+    //         self.get_thread(callee).state == SCHEDULED,
 
-    {
-        assert(self.get_thread(caller).callee =~= Some(callee));
-        assert(self.get_thread(caller).state =~= CALLING);
+    // {
+    //     assert(self.get_thread(caller).callee =~= Some(callee));
+    //     assert(self.get_thread(caller).state =~= CALLING);
 
-        let caller_pptr = PPtr::<Thread>::from_usize(caller);
-        let mut caller_perm =
-            Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller));
-        thread_set_state(&caller_pptr, &mut caller_perm, RUNNING);
-        thread_set_callee(&caller_pptr, &mut caller_perm, None);
-        proof{
-            assert(self.thread_perms@.dom().contains(caller) == false);
-            (self.thread_perms.borrow_mut())
-                .tracked_insert(caller, caller_perm.get());
-        }
+    //     let caller_pptr = PPtr::<Thread>::from_usize(caller);
+    //     let mut caller_perm =
+    //         Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller));
+    //     thread_set_state(&caller_pptr, &mut caller_perm, RUNNING);
+    //     thread_set_callee(&caller_pptr, &mut caller_perm, None);
+    //     proof{
+    //         assert(self.thread_perms@.dom().contains(caller) == false);
+    //         (self.thread_perms.borrow_mut())
+    //             .tracked_insert(caller, caller_perm.get());
+    //     }
 
-        let callee_pptr = PPtr::<Thread>::from_usize(callee);
-        let mut callee_perm =
-            Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
-        thread_set_caller(&callee_pptr, &mut callee_perm, None);
-        proof{
-            assert(self.thread_perms@.dom().contains(callee) == false);
-            (self.thread_perms.borrow_mut())
-                .tracked_insert(callee, callee_perm.get());
-        }
+    //     let callee_pptr = PPtr::<Thread>::from_usize(callee);
+    //     let mut callee_perm =
+    //         Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
+    //     thread_set_caller(&callee_pptr, &mut callee_perm, None);
+    //     proof{
+    //         assert(self.thread_perms@.dom().contains(callee) == false);
+    //         (self.thread_perms.borrow_mut())
+    //             .tracked_insert(callee, callee_perm.get());
+    //     }
         
-        self.push_scheduler(callee);
-        assert(self.wf());
-    }
+    //     self.push_scheduler_with_error_code(callee, );
+    //     assert(self.wf());
+    // }
 
-    pub fn set_thread_caller(&mut self, caller:ThreadPtr, callee:ThreadPtr)
+    pub fn set_thread_caller(&mut self, caller:ThreadPtr, callee:ThreadPtr, caller_trap_frame: PtRegs)
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(caller),
@@ -131,6 +131,7 @@ impl ProcessManager {
             Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller));
         thread_set_state(&caller_pptr, &mut caller_perm, CALLING);
         thread_set_callee(&caller_pptr, &mut caller_perm, Some(callee));
+        thread_set_trap_frame(&caller_pptr, &mut caller_perm, Some(caller_trap_frame));
         proof{
             assert(self.thread_perms@.dom().contains(caller) == false);
             (self.thread_perms.borrow_mut())
@@ -149,147 +150,147 @@ impl ProcessManager {
         assert(self.wf());
     }
 
-    pub fn set_thread_to_transit(&mut self, thread_ptr:ThreadPtr)
-        requires 
-            old(self).wf(),
-            old(self).get_thread_ptrs().contains(thread_ptr),
-            old(self).get_thread(thread_ptr).state != BLOCKED,
-            old(self).get_thread(thread_ptr).state != SCHEDULED,
-            old(self).get_thread(thread_ptr).state != CALLING,
-        ensures
-            self.wf(),
-            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
-            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
-            self.proc_ptrs =~= old(self).proc_ptrs,
-            self.proc_perms =~= old(self).proc_perms,
-            self.thread_ptrs =~= old(self).thread_ptrs,
-            //self.thread_perms=@ =~= old(self).thread_perms@,
-            self.scheduler =~= old(self).scheduler,
-            self.endpoint_ptrs =~= old(self).endpoint_ptrs,
-            self.endpoint_perms =~= old(self).endpoint_perms,
-            self.pcid_closure =~= old(self).pcid_closure,
-            self.ioid_closure =~= old(self).ioid_closure,
-            self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
-            //self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
-            self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
-            self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
-            self.get_thread(thread_ptr).endpoint_ptr =~= old(self).get_thread(thread_ptr).endpoint_ptr,
-            self.get_thread(thread_ptr).endpoint_rf =~= old(self).get_thread(thread_ptr).endpoint_rf,
-            self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
-            self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
-            self.get_thread(thread_ptr).error_code =~= old(self).get_thread(thread_ptr).error_code,
-            self.get_thread(thread_ptr).state == TRANSIT,
-    {
-        let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
-        let mut thread_perm =
-            Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
-        thread_set_state(&thread_pptr, &mut thread_perm, TRANSIT);
-        proof{
-            assert(self.thread_perms@.dom().contains(thread_ptr) == false);
-            (self.thread_perms.borrow_mut())
-                .tracked_insert(thread_ptr, thread_perm.get());
-        }
-        assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
-            ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr) == false);
-        assert(self.wf_threads());
-        assert(self.wf_procs());
-        assert(self.wf_scheduler());
-        assert(self.wf_mem_closure());
-        assert(self.wf_pcid_closure());
-    }
+    // pub fn set_thread_to_transit(&mut self, thread_ptr:ThreadPtr)
+    //     requires 
+    //         old(self).wf(),
+    //         old(self).get_thread_ptrs().contains(thread_ptr),
+    //         old(self).get_thread(thread_ptr).state != BLOCKED,
+    //         old(self).get_thread(thread_ptr).state != SCHEDULED,
+    //         old(self).get_thread(thread_ptr).state != CALLING,
+    //     ensures
+    //         self.wf(),
+    //         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
+    //         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+    //         self.proc_ptrs =~= old(self).proc_ptrs,
+    //         self.proc_perms =~= old(self).proc_perms,
+    //         self.thread_ptrs =~= old(self).thread_ptrs,
+    //         //self.thread_perms=@ =~= old(self).thread_perms@,
+    //         self.scheduler =~= old(self).scheduler,
+    //         self.endpoint_ptrs =~= old(self).endpoint_ptrs,
+    //         self.endpoint_perms =~= old(self).endpoint_perms,
+    //         self.pcid_closure =~= old(self).pcid_closure,
+    //         self.ioid_closure =~= old(self).ioid_closure,
+    //         self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
+    //         //self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
+    //         self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
+    //         self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
+    //         self.get_thread(thread_ptr).endpoint_ptr =~= old(self).get_thread(thread_ptr).endpoint_ptr,
+    //         self.get_thread(thread_ptr).endpoint_rf =~= old(self).get_thread(thread_ptr).endpoint_rf,
+    //         self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
+    //         self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
+    //         self.get_thread(thread_ptr).error_code =~= old(self).get_thread(thread_ptr).error_code,
+    //         self.get_thread(thread_ptr).state == TRANSIT,
+    // {
+    //     let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
+    //     let mut thread_perm =
+    //         Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
+    //     thread_set_state(&thread_pptr, &mut thread_perm, TRANSIT);
+    //     proof{
+    //         assert(self.thread_perms@.dom().contains(thread_ptr) == false);
+    //         (self.thread_perms.borrow_mut())
+    //             .tracked_insert(thread_ptr, thread_perm.get());
+    //     }
+    //     assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+    //         ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr) == false);
+    //     assert(self.wf_threads());
+    //     assert(self.wf_procs());
+    //     assert(self.wf_scheduler());
+    //     assert(self.wf_mem_closure());
+    //     assert(self.wf_pcid_closure());
+    // }
 
-    pub fn set_thread_to_running(&mut self, thread_ptr:ThreadPtr)
-    requires 
-        old(self).wf(),
-        old(self).get_thread_ptrs().contains(thread_ptr),
-        old(self).get_thread(thread_ptr).state == TRANSIT,
-        //old(self).scheduler@.contains(thread_ptr) == false,
-    ensures
-        self.wf(),
-        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
-        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
-        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
-        self.proc_ptrs =~= old(self).proc_ptrs,
-        self.proc_perms =~= old(self).proc_perms,
-        self.thread_ptrs =~= old(self).thread_ptrs,
-        //self.thread_perms=@ =~= old(self).thread_perms@,
-        self.scheduler =~= old(self).scheduler,
-        self.endpoint_ptrs =~= old(self).endpoint_ptrs,
-        self.endpoint_perms =~= old(self).endpoint_perms,
-        self.pcid_closure =~= old(self).pcid_closure,
-        self.ioid_closure =~= old(self).ioid_closure,
-        self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
-        //self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
-        self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
-        self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
-        self.get_thread(thread_ptr).endpoint_ptr =~= old(self).get_thread(thread_ptr).endpoint_ptr,
-        self.get_thread(thread_ptr).endpoint_rf =~= old(self).get_thread(thread_ptr).endpoint_rf,
-        self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
-        self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
-        self.get_thread(thread_ptr).error_code =~= old(self).get_thread(thread_ptr).error_code,
-        self.get_thread(thread_ptr).state == RUNNING,
-{
-    assert(self.scheduler@.contains(thread_ptr) == false);
-    let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
-    let mut thread_perm =
-        Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
-    thread_set_state(&thread_pptr, &mut thread_perm, RUNNING);
-    proof{
-        assert(self.thread_perms@.dom().contains(thread_ptr) == false);
-        (self.thread_perms.borrow_mut())
-            .tracked_insert(thread_ptr, thread_perm.get());
-    }
-    assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
-        ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr) == false);
-    assert(self.wf_threads());
-    assert(self.wf_procs());
-    assert(self.wf_scheduler());
-    assert(self.wf_mem_closure());
-    assert(self.wf_pcid_closure());
-}
+//     pub fn set_thread_to_running(&mut self, thread_ptr:ThreadPtr)
+//     requires 
+//         old(self).wf(),
+//         old(self).get_thread_ptrs().contains(thread_ptr),
+//         old(self).get_thread(thread_ptr).state == TRANSIT,
+//         //old(self).scheduler@.contains(thread_ptr) == false,
+//     ensures
+//         self.wf(),
+//         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
+//         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+//         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
+//         self.proc_ptrs =~= old(self).proc_ptrs,
+//         self.proc_perms =~= old(self).proc_perms,
+//         self.thread_ptrs =~= old(self).thread_ptrs,
+//         //self.thread_perms=@ =~= old(self).thread_perms@,
+//         self.scheduler =~= old(self).scheduler,
+//         self.endpoint_ptrs =~= old(self).endpoint_ptrs,
+//         self.endpoint_perms =~= old(self).endpoint_perms,
+//         self.pcid_closure =~= old(self).pcid_closure,
+//         self.ioid_closure =~= old(self).ioid_closure,
+//         self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
+//         //self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
+//         self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
+//         self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
+//         self.get_thread(thread_ptr).endpoint_ptr =~= old(self).get_thread(thread_ptr).endpoint_ptr,
+//         self.get_thread(thread_ptr).endpoint_rf =~= old(self).get_thread(thread_ptr).endpoint_rf,
+//         self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
+//         self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
+//         self.get_thread(thread_ptr).error_code =~= old(self).get_thread(thread_ptr).error_code,
+//         self.get_thread(thread_ptr).state == RUNNING,
+// {
+//     assert(self.scheduler@.contains(thread_ptr) == false);
+//     let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
+//     let mut thread_perm =
+//         Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
+//     thread_set_state(&thread_pptr, &mut thread_perm, RUNNING);
+//     proof{
+//         assert(self.thread_perms@.dom().contains(thread_ptr) == false);
+//         (self.thread_perms.borrow_mut())
+//             .tracked_insert(thread_ptr, thread_perm.get());
+//     }
+//     assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+//         ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr) == false);
+//     assert(self.wf_threads());
+//     assert(self.wf_procs());
+//     assert(self.wf_scheduler());
+//     assert(self.wf_mem_closure());
+//     assert(self.wf_pcid_closure());
+// }
 
-pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<ErrorCodeType>)
-    requires 
-        old(self).wf(),
-        old(self).get_thread_ptrs().contains(thread_ptr),
-    ensures
-        self.wf(),
-        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
-        forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
-        self.proc_ptrs =~= old(self).proc_ptrs,
-        self.proc_perms =~= old(self).proc_perms,
-        self.thread_ptrs =~= old(self).thread_ptrs,
-        //self.thread_perms=@ =~= old(self).thread_perms@,
-        self.scheduler =~= old(self).scheduler,
-        self.endpoint_ptrs =~= old(self).endpoint_ptrs,
-        self.endpoint_perms =~= old(self).endpoint_perms,
-        self.pcid_closure =~= old(self).pcid_closure,
-        self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
-        self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
-        self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
-        self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
-        self.get_thread(thread_ptr).endpoint_ptr =~= old(self).get_thread(thread_ptr).endpoint_ptr,
-        self.get_thread(thread_ptr).endpoint_rf =~= old(self).get_thread(thread_ptr).endpoint_rf,
-        self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
-        self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
-        //self.get_thread(thread_ptr).error_code =~= old(self).get_thread(thread_ptr).error_code,
-        self.get_thread(thread_ptr).error_code =~= error_code,
-{
-    let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
-    let mut thread_perm =
-        Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
-    thread_set_error_code(&thread_pptr, &mut thread_perm, error_code);
-    proof{
-        assert(self.thread_perms@.dom().contains(thread_ptr) == false);
-        (self.thread_perms.borrow_mut())
-            .tracked_insert(thread_ptr, thread_perm.get());
-    }
-    assert(self.wf_threads());
-    assert(self.wf_procs());
-    assert(self.wf_scheduler());
-    assert(self.wf_mem_closure());
-    assert(self.wf_pcid_closure());
-}
+// pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<ErrorCodeType>)
+//     requires 
+//         old(self).wf(),
+//         old(self).get_thread_ptrs().contains(thread_ptr),
+//     ensures
+//         self.wf(),
+//         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
+//         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != thread_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+//         self.proc_ptrs =~= old(self).proc_ptrs,
+//         self.proc_perms =~= old(self).proc_perms,
+//         self.thread_ptrs =~= old(self).thread_ptrs,
+//         //self.thread_perms=@ =~= old(self).thread_perms@,
+//         self.scheduler =~= old(self).scheduler,
+//         self.endpoint_ptrs =~= old(self).endpoint_ptrs,
+//         self.endpoint_perms =~= old(self).endpoint_perms,
+//         self.pcid_closure =~= old(self).pcid_closure,
+//         self.get_thread(thread_ptr).parent =~= old(self).get_thread(thread_ptr).parent,
+//         self.get_thread(thread_ptr).state =~= old(self).get_thread(thread_ptr).state,
+//         self.get_thread(thread_ptr).parent_rf =~= old(self).get_thread(thread_ptr).parent_rf,
+//         self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
+//         self.get_thread(thread_ptr).endpoint_ptr =~= old(self).get_thread(thread_ptr).endpoint_ptr,
+//         self.get_thread(thread_ptr).endpoint_rf =~= old(self).get_thread(thread_ptr).endpoint_rf,
+//         self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
+//         self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
+//         //self.get_thread(thread_ptr).error_code =~= old(self).get_thread(thread_ptr).error_code,
+//         self.get_thread(thread_ptr).error_code =~= error_code,
+// {
+//     let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
+//     let mut thread_perm =
+//         Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
+//     thread_set_error_code(&thread_pptr, &mut thread_perm, error_code);
+//     proof{
+//         assert(self.thread_perms@.dom().contains(thread_ptr) == false);
+//         (self.thread_perms.borrow_mut())
+//             .tracked_insert(thread_ptr, thread_perm.get());
+//     }
+//     assert(self.wf_threads());
+//     assert(self.wf_procs());
+//     assert(self.wf_scheduler());
+//     assert(self.wf_mem_closure());
+//     assert(self.wf_pcid_closure());
+// }
     pub fn new_thread(&mut self, pt_regs:PtRegs, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr) -> (ret: ThreadPtr)
         requires
             old(self).wf(),
@@ -335,6 +336,8 @@ pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<
                 .tracked_insert(parent_ptr, proc_perm.get());
         }
         thread_set_parent_rf(&thread_pptr, &mut thread_perm,parent_rf);
+        thread_set_trap_frame(&thread_pptr, &mut thread_perm,Some(pt_regs));
+        thread_set_error_code(&thread_pptr, &mut thread_perm,None);
         assert(self.thread_perms@.dom().contains(parent_ptr) == false);
         proof{
             (self.thread_perms.borrow_mut())

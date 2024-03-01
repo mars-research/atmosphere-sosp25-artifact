@@ -17,7 +17,7 @@ use crate::kernel::*;
 
 impl Kernel {
 
-    pub fn syscall_new_endpoint(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, pt_regs_new_thread: PtRegs) -> (ret:SyscallReturnStruct)
+    pub fn syscall_new_endpoint(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx) -> (ret:SyscallReturnStruct)
         requires
             old(self).wf(),
     {
