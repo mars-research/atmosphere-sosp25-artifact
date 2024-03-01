@@ -57,54 +57,61 @@ pub struct IPCPayLoad{
 
 impl ProcessManager {
 
-    // pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, ) -> (ret: (PtRegs, Option<ErrorCodeType>))
-    //     requires
-    //         old(self).wf(),
-    //         old(self).get_thread_ptrs().contains(caller),
-    //         old(self).get_thread_ptrs().contains(callee),
-    //         old(self).get_thread(callee).state == RUNNING,
-    //         old(self).get_thread(callee).caller == Some(caller),
-    //         old(self).scheduler.len() != MAX_NUM_THREADS,
-    //     ensures
-    //         self.wf(),
-    //         self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
-    //         self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
-    //         self.get_endpoint_ptrs() =~= old(self).get_endpoint_ptrs(),
-    //         self.pcid_closure =~= old(self).pcid_closure,
-    //         self.ioid_closure =~= old(self).ioid_closure,
-    //         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr).endpoint_descriptors =~= old(self).get_thread(_thread_ptr).endpoint_descriptors,
-    //         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != caller && _thread_ptr != callee ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
-    //         self.get_thread(caller).state == RUNNING,
-    //         self.get_thread(callee).state == SCHEDULED,
+    pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_error_code: Option<ErrorCodeType>) -> (ret: PtRegs)
+        requires
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(caller),
+            old(self).get_thread_ptrs().contains(callee),
+            old(self).get_thread(callee).state == RUNNING,
+            old(self).get_thread(callee).caller == Some(caller),
+            old(self).scheduler.len() != MAX_NUM_THREADS,
+        ensures
+            self.wf(),
+            self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
+            self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
+            self.get_endpoint_ptrs() =~= old(self).get_endpoint_ptrs(),
+            self.pcid_closure =~= old(self).pcid_closure,
+            self.ioid_closure =~= old(self).ioid_closure,
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr).endpoint_descriptors =~= old(self).get_thread(_thread_ptr).endpoint_descriptors,
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != caller && _thread_ptr != callee ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
+            self.get_thread(caller).state == RUNNING,
+            self.get_thread(callee).state == SCHEDULED,
 
-    // {
-    //     assert(self.get_thread(caller).callee =~= Some(callee));
-    //     assert(self.get_thread(caller).state =~= CALLING);
+    {
+        assert(self.get_thread(caller).callee =~= Some(callee));
+        assert(self.get_thread(caller).state =~= CALLING);
 
-    //     let caller_pptr = PPtr::<Thread>::from_usize(caller);
-    //     let mut caller_perm =
-    //         Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller));
-    //     thread_set_state(&caller_pptr, &mut caller_perm, RUNNING);
-    //     thread_set_callee(&caller_pptr, &mut caller_perm, None);
-    //     proof{
-    //         assert(self.thread_perms@.dom().contains(caller) == false);
-    //         (self.thread_perms.borrow_mut())
-    //             .tracked_insert(caller, caller_perm.get());
-    //     }
+        let caller_pt_regs = self.get_pt_regs_by_thread_ptr(caller);
 
-    //     let callee_pptr = PPtr::<Thread>::from_usize(callee);
-    //     let mut callee_perm =
-    //         Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
-    //     thread_set_caller(&callee_pptr, &mut callee_perm, None);
-    //     proof{
-    //         assert(self.thread_perms@.dom().contains(callee) == false);
-    //         (self.thread_perms.borrow_mut())
-    //             .tracked_insert(callee, callee_perm.get());
-    //     }
+        let caller_pptr = PPtr::<Thread>::from_usize(caller);
+        let mut caller_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller));
+        thread_set_state(&caller_pptr, &mut caller_perm, RUNNING);
+        thread_set_callee(&caller_pptr, &mut caller_perm, None);
+        thread_set_trap_frame(&caller_pptr, &mut caller_perm, None);
+        thread_set_error_code(&caller_pptr, &mut caller_perm, None);
+        proof{
+            assert(self.thread_perms@.dom().contains(caller) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(caller, caller_perm.get());
+        }
+
+        let callee_pptr = PPtr::<Thread>::from_usize(callee);
+        let mut callee_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
+        thread_set_caller(&callee_pptr, &mut callee_perm, None);
+        thread_set_trap_frame(&callee_pptr, &mut callee_perm, None);
+        thread_set_error_code(&callee_pptr, &mut callee_perm, None);
+        proof{
+            assert(self.thread_perms@.dom().contains(callee) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(callee, callee_perm.get());
+        }
         
-    //     self.push_scheduler_with_error_code(callee, );
-    //     assert(self.wf());
-    // }
+        self.push_scheduler(callee,callee_error_code,callee_pt_regs);
+        assert(self.wf());
+        return caller_pt_regs.unwrap();
+    }
 
     pub fn set_thread_caller(&mut self, caller:ThreadPtr, callee:ThreadPtr, caller_trap_frame: PtRegs)
         requires

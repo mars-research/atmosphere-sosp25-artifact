@@ -70,7 +70,7 @@ impl Kernel {
                 let (new_thread_ptr,new_pt_regs,error_code)  = self.proc_man.pop_scheduler();
                 self.cpu_list.set_current_thread(cpu_id, Some(new_thread_ptr));
                 assert(self.wf());
-                let new_pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
+                let new_pcid = self.proc_man.get_pcid_by_thread_ptr(new_thread_ptr);
                 let new_cr3 = self.mmu_man.get_cr3_by_pcid(new_pcid);
                 if error_code.is_none(){
                     return SyscallReturnStruct::new(NO_ERROR_CODE,new_pcid,new_cr3,new_pt_regs);
@@ -99,7 +99,7 @@ impl Kernel {
                     let (new_thread_ptr,new_pt_regs,error_code)  = self.proc_man.pop_scheduler();
                     self.cpu_list.set_current_thread(cpu_id, Some(new_thread_ptr));
                     assert(self.wf());
-                    let new_pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
+                    let new_pcid = self.proc_man.get_pcid_by_thread_ptr(new_thread_ptr);
                     let new_cr3 = self.mmu_man.get_cr3_by_pcid(new_pcid);
                     let error_code = self.proc_man.get_error_code_by_thread_ptr(new_thread_ptr);
                     if error_code.is_none(){
