@@ -23,12 +23,13 @@ impl Kernel {
         ensures
             self.wf(),
     {
+        let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();
         if cpu_id >= NUM_CPUS{
-            return (SyscallReturnStruct::new(CPU_ID_INVALID,0,0,pt_regs),None,None);
+            return (SyscallReturnStruct::new(CPU_ID_INVALID,default_pcid,default_cr3,pt_regs),None,None);
         }
 
         if self.cpu_list.get(cpu_id).get_is_idle() {
-            return (SyscallReturnStruct::new(NO_RUNNING_THREAD,0,0,pt_regs),None,None);
+            return (SyscallReturnStruct::new(NO_RUNNING_THREAD,default_pcid,default_cr3,pt_regs),None,None);
         }
         assert(self.cpu_list[cpu_id as int].get_is_idle() == false);
         let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
