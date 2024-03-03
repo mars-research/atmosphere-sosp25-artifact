@@ -3,14 +3,13 @@
 mod hvm;
 
 use core::ptr;
-use core::slice;
 
 use crate::memory::init_physical_memory_map;
 use crate::memory::MemoryRange;
 use astd::sync::Mutex;
 
 /// The kernel image passed by the bootloader.
-static KERNEL_IMAGE: Mutex<Option<&'static [u8]>> = Mutex::new(None);
+static KERNEL_IMAGE: Mutex<Option<MemoryRange>> = Mutex::new(None);
 
 #[cfg(not(test))]
 //#[link(name = "crt0")]
@@ -48,6 +47,11 @@ pub fn get_loader_image_range() -> MemoryRange {
     MemoryRange::new(start, size)
 }
 
+/// Returns the range of the kernel image.
+pub fn get_kernel_image_range() -> Option<MemoryRange> {
+    KERNEL_IMAGE.lock().clone()
+}
+
 /// Initializes the boot loader information.
 pub unsafe fn init() {
     let loader_range = get_loader_image_range();
@@ -78,10 +82,7 @@ pub unsafe fn init() {
 
             if let Some(module) = start_info.iter_modlist().next() {
                 let mut kernel_image = KERNEL_IMAGE.lock();
-                *kernel_image = Some(slice::from_raw_parts(
-                    module.paddr as *const u8,
-                    module.size as usize,
-                ));
+                *kernel_image = Some(MemoryRange::new(module.paddr, module.size));
             }
         }
         Some(Bootloader::Multiboot2) => {
@@ -92,10 +93,6 @@ pub unsafe fn init() {
             panic!("Failed to detect bootloader, cannot continue");
         }
     }
-}
-
-pub fn get_kernel_image() -> Option<&'static [u8]> {
-    KERNEL_IMAGE.lock().clone()
 }
 
 fn detect_bootloader() -> Option<Bootloader> {

@@ -59,6 +59,7 @@ pub enum BootMemoryType {
     Domain,
     DomainImage,
     PageTable,
+    KernelPageTable,
     Pci,
     Other(AcpiMemoryType),
 }
@@ -179,6 +180,7 @@ pub fn init_physical_memory_map(
 
     map.relabel(MemoryRange::new(0, 1024 * 1024), BootMemoryType::Bios);
     map.relabel(loader_range, BootMemoryType::Loader);
+    map.relabel(allocator::get_bootstrap_range(), BootMemoryType::PageTable);
 
     for image in image_ranges {
         map.relabel(image, BootMemoryType::DomainImage);
@@ -187,7 +189,7 @@ pub fn init_physical_memory_map(
     map.sort();
 
     // Reserve region for bump allocator
-    let allocator_size = 1024 * 1024 * 1024; // 1024 MiB
+    let allocator_size = 1024 * 1024 * 1024; // 1 GiB
     let mut reserved_region = ALLOCATOR_MEMORY_REGION.lock();
     let first_memory = map
         .regions
@@ -199,8 +201,9 @@ pub fn init_physical_memory_map(
 
     let allocator_region = MemoryRange::new(first_memory.0.base(), allocator_size);
     map.relabel(allocator_region.clone(), BootMemoryType::LoaderAllocator);
+
     log::debug!(
-        "Reserved region for dynamic allocator: {:x?}",
+        "Reserved region for dynamic allocator: {:#x?}",
         allocator_region,
     );
     *reserved_region = Some(allocator_region.clone());
@@ -225,6 +228,10 @@ pub unsafe fn init() {
     } else {
         panic!("No region was reserved for the allocator");
     }
+}
+
+pub fn bootstrap_allocator() -> &'static mut (impl PhysicalAllocator + VirtualMapper) {
+    unsafe { &mut allocator::BOOTSTRAP_ALLOCATOR }
 }
 
 pub fn allocator() -> &'static mut (impl PhysicalAllocator + VirtualMapper) {

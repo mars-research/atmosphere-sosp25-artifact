@@ -30,9 +30,8 @@ const PHYSICAL_MASK: u64 = (1u64 << MAXPHYADDR) - 1u64;
 /// Bitmask to get the physical page address.
 const PHYSICAL_PAGE_MASK: u64 = PAGE_MASK & PHYSICAL_MASK;
 
-pub struct AddressSpace<'a, A: PhysicalAllocator> {
+pub struct AddressSpace {
     pml4: *mut PageTable,
-    allocator: &'a mut A,
 }
 
 #[repr(transparent)]
@@ -44,11 +43,14 @@ struct PageTable {
 #[derive(Clone, Copy)]
 struct Entry(u64);
 
-impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
-    pub fn new(allocator: &'a mut A) -> Self {
+impl AddressSpace {
+    pub fn new(allocator: &mut impl PhysicalAllocator) -> Self {
+        let pml4 = unsafe {
+            Self::allocate_page_table(allocator)
+        };
+
         Self {
-            pml4: unsafe { Self::allocate_page_table(allocator) },
-            allocator,
+            pml4,
         }
     }
 
@@ -56,7 +58,7 @@ impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
         self.pml4 as *const _
     }
 
-    pub unsafe fn map(&mut self, vaddr: u64, paddr: u64, user: bool) {
+    pub unsafe fn map(&mut self, allocator: &mut impl PhysicalAllocator, vaddr: u64, paddr: u64, user: bool) {
         //log::info!("Mapping VA 0x{:x} -> PA 0x{:x}", vaddr, paddr);
 
         let mut cur = self.pml4;
@@ -73,8 +75,7 @@ impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
             let mut entry = (*cur).read(index);
 
             if !entry.present() {
-                let new_table = Self::allocate_page_table(&mut self.allocator);
-
+                let new_table = Self::allocate_page_table(allocator);
                 entry = Entry::new()
                     .with_present(true)
                     .with_read_write(true)
@@ -102,7 +103,7 @@ impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
         (*cur).write(index, entry);
     }
 
-    unsafe fn allocate_page_table(allocator: &mut A) -> *mut PageTable {
+    unsafe fn allocate_page_table(allocator: &mut impl PhysicalAllocator) -> *mut PageTable {
         let table =
             { allocator.allocate_physical(mem::size_of::<PageTable>()).0 } as *mut PageTable;
 
@@ -121,6 +122,18 @@ impl<'a, A: PhysicalAllocator> AddressSpace<'a, A> {
             1 => ((address >> 30) & LEVEL_MASK) as usize,
             2 => ((address >> 21) & LEVEL_MASK) as usize,
             3 => ((address >> 12) & LEVEL_MASK) as usize,
+            _ => panic!("Invalid level"),
+        }
+    }
+
+    /// Returns the size of the huge page at a level, supported by the platform.
+    fn huge_page_size(level: usize) -> Option<usize> {
+        // TODO: Check support
+        match level {
+            0 => None,
+            1 => Some(1 * 1024 * 1024), // 1 GiB
+            2 => Some(2 * 1024), // 2 MiB
+            3 => None, // Regular 4 KiB page
             _ => panic!("Invalid level"),
         }
     }
