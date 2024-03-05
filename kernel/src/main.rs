@@ -40,7 +40,6 @@ mod gdt;
 mod interrupt;
 mod kernel;
 mod logging;
-mod pci;
 mod scripts;
 mod syscalls;
 mod utils;

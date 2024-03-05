@@ -33,7 +33,7 @@ impl Qemu {
     /// Create a QEMU instance.
     pub fn new(_project: ProjectHandle, config: RunConfiguration) -> Self {
         Self {
-            qemu_binary: PathBuf::from("/home/zhaofeng/Git/qemu/build/qemu-system-x86_64"),
+            qemu_binary: PathBuf::from("qemu-system-x86_64"),
             config,
             debug_exit_io_base: 0xf4,
         }
