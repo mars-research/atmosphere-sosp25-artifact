@@ -12,8 +12,11 @@ use x86::current::paging::{PAddr, VAddr};
 use astd::{boot::PhysicalMemoryType, sync::Mutex};
 
 pub use map::MemoryMap;
-pub use paging::AddressSpace;
+pub use paging::{AddressSpace, PAGE_SIZE, HUGE_PAGE_SIZE};
 pub use userspace::{UserspaceMapper, USERSPACE_BASE};
+
+pub const BOOTSTRAP_SIZE: usize = 512 * 1024 * 1024; // 512 MiB
+pub const ALLOCATOR_SIZE: usize = 2 * 1024 * 1024 * 1024; // 2 GiB
 
 /// The physical memory map.
 static PHYSICAL_MEMORY_MAP: Mutex<MemoryMap<BootMemoryType>> = Mutex::new(MemoryMap::empty());
@@ -189,17 +192,16 @@ pub fn init_physical_memory_map(
     map.sort();
 
     // Reserve region for bump allocator
-    let allocator_size = 1024 * 1024 * 1024; // 1 GiB
     let mut reserved_region = ALLOCATOR_MEMORY_REGION.lock();
     let first_memory = map
         .regions
         .iter()
         .find(|(r, t)| {
-            t == &BootMemoryType::Other(AcpiMemoryType::Memory) && r.size() > allocator_size
+            t == &BootMemoryType::Other(AcpiMemoryType::Memory) && r.size() > ALLOCATOR_SIZE as u64
         })
         .expect("No usable memory region");
 
-    let allocator_region = MemoryRange::new(first_memory.0.base(), allocator_size);
+    let allocator_region = MemoryRange::new(first_memory.0.base(), ALLOCATOR_SIZE as u64);
     map.relabel(allocator_region.clone(), BootMemoryType::LoaderAllocator);
 
     log::debug!(

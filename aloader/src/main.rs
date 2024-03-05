@@ -33,11 +33,12 @@ use astd::boot::{BootInfo, DomainMapping, PhysicalMemoryType};
 use astd::io::{Cursor, Read, Seek, SeekFrom};
 
 use elf::ElfHandle;
-use memory::{AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper};
+use memory::{
+    AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper, PAGE_SIZE, HUGE_PAGE_SIZE
+};
 
-const KERNEL_RESERVATION: usize = 512 * 1024 * 1024; // 512 MiB
+const KERNEL_RESERVATION: usize = 1024 * 1024 * 1024; // 1 GiB
 const DOM0_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
-const PAGE_SIZE: usize = 4096;
 
 /// Loader entry point.
 #[cfg_attr(not(test), start, no_mangle)]
@@ -62,9 +63,9 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     let mut cur = 0;
     while cur < 0x240000000 { // FIXME
         unsafe {
-            address_space.map(bootstrap_allocator, cur, cur, false);
+            address_space.map(bootstrap_allocator, cur, cur, false, true);
         }
-        cur = cur + PAGE_SIZE as u64;
+        cur = cur + HUGE_PAGE_SIZE as u64;
     }
 
     log::info!("Switching to PML4 @ {:x?}", address_space.pml4());
@@ -166,6 +167,9 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     loop {}
 }
 
+// dom0:
+// ELF: 0x0~0xabcd
+// Reserved: 4GB
 fn load_domain<T, A>(
     elf: T,
     address_space: &mut AddressSpace,
@@ -195,7 +199,7 @@ where
     let mut cur = virt_base;
     while cur < virt_base + stack_size {
         unsafe {
-            address_space.map(page_table_allocator, cur, cur - virt_base + phys_base, true);
+            address_space.map(page_table_allocator, cur, cur - virt_base + phys_base, true, false);
         }
         cur = cur + PAGE_SIZE as u64;
     }

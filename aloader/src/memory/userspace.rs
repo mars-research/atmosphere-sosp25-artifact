@@ -61,7 +61,7 @@ where
             while cur < phys_base + size as u64 {
                 unsafe {
                     self.address_space
-                        .map(self.page_table_allocator, cur - phys_base + virt_base, cur, true);
+                        .map(self.page_table_allocator, cur - phys_base + virt_base, cur, true, false);
 
                     cur = cur + PAGE_SIZE as u64;
                 }

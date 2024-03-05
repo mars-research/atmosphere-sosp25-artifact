@@ -33,7 +33,7 @@ impl Qemu {
     /// Create a QEMU instance.
     pub fn new(_project: ProjectHandle, config: RunConfiguration) -> Self {
         Self {
-            qemu_binary: PathBuf::from("qemu-system-x86_64"),
+            qemu_binary: PathBuf::from("/home/zhaofeng/Git/qemu/build/qemu-system-x86_64"),
             config,
             debug_exit_io_base: 0xf4,
         }
@@ -53,9 +53,9 @@ impl Emulator for Qemu {
 
         let mut command = Command::new(self.qemu_binary.as_os_str());
 
-        if let Ok(qboot) = env::var("QBOOT_BIOS") {
-            command.args(&["-bios", &qboot]);
-        }
+        //if let Ok(qboot) = env::var("QBOOT_BIOS") {
+        //    command.args(&["-bios", &qboot]);
+        //}
 
         let mut initrd = JumboBinary::new()?;
         initrd.push(&config.kernel)?;
@@ -96,6 +96,7 @@ impl Emulator for Qemu {
             ])
             .arg("-no-reboot")
             .arg("-no-shutdown")
+            .args(&["-d", "int"])
             .args(config.cpu_model.to_qemu()?);
 
         if config.use_virtualization {

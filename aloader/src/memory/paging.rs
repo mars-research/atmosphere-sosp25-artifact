@@ -8,6 +8,9 @@ use bit_field::BitField;
 
 use crate::memory::PhysicalAllocator;
 
+pub const PAGE_SIZE: usize = 4096;
+pub const HUGE_PAGE_SIZE: usize = 1024 * 1024 * 1024;
+
 const LEVEL_MASK: u64 = 0b1_1111_1111;
 
 /// The number of bits in a physical address.
@@ -58,7 +61,7 @@ impl AddressSpace {
         self.pml4 as *const _
     }
 
-    pub unsafe fn map(&mut self, allocator: &mut impl PhysicalAllocator, vaddr: u64, paddr: u64, user: bool) {
+    pub unsafe fn map(&mut self, allocator: &mut impl PhysicalAllocator, vaddr: u64, paddr: u64, user: bool, huge: bool) {
         //log::info!("Mapping VA 0x{:x} -> PA 0x{:x}", vaddr, paddr);
 
         let mut cur = self.pml4;
@@ -70,7 +73,10 @@ impl AddressSpace {
             panic!("paddr is unaligned");
         }
 
-        for level in 0..3 {
+        // FIXME
+        let leaf_level = if huge { 1 } else { 3 };
+
+        for level in 0..leaf_level {
             let index = Self::index(vaddr, level);
             let mut entry = (*cur).read(index);
 
@@ -84,18 +90,19 @@ impl AddressSpace {
                 (*cur).write(index, entry);
             }
 
-            if entry.page_size_bit() {
-                unimplemented!("Huge page not implemented");
+            if !huge && entry.page_size_bit() {
+                todo!("Mixed page sizes");
             }
 
             cur = entry.address() as *mut PageTable;
         }
 
-        let index = Self::index(vaddr, 3);
+        let index = Self::index(vaddr, leaf_level);
         let entry = Entry::new()
             .with_present(true)
             .with_read_write(true)
             .with_address(paddr)
+            .with_page_size_bit(huge)
             .with_user(user);
 
         //log::info!("Physical Mask: 0b{:b}", PHYSICAL_PAGE_MASK);
@@ -194,6 +201,11 @@ impl Entry {
     fn with_address(mut self, address: u64) -> Self {
         let masked = PHYSICAL_PAGE_MASK & address;
         self.0 = self.0 & !(PHYSICAL_PAGE_MASK) | masked;
+        self
+    }
+
+    fn with_page_size_bit(mut self, page_size: bool) -> Self {
+        self.0.set_bit(7, page_size);
         self
     }
 }

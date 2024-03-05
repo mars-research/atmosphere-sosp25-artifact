@@ -197,6 +197,8 @@ where
             return Err(Error::NoLoadableSegments);
         };
 
+        log::info!("Summary: {:?}", summary);
+
         log::info!("Program headers:");
         for ph in self.program_headers.iter() {
             log::info!("- {:?}", ph);

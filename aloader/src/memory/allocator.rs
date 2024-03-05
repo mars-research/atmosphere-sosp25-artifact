@@ -9,10 +9,8 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use x86::current::paging::{PAddr, VAddr};
 
-use super::{ContiguousMapping, MemoryRange, VirtualMapper};
+use super::{ContiguousMapping, MemoryRange, VirtualMapper, BOOTSTRAP_SIZE};
 use crate::memory::PhysicalAllocator;
-
-pub const BOOTSTRAP_SIZE: usize = 256 * 1024 * 1024;
 
 /// Reserved region to identity map physical pages.
 pub static mut BOOTSTRAP_REGION: [u8; BOOTSTRAP_SIZE] = [0; BOOTSTRAP_SIZE];
@@ -29,6 +27,7 @@ pub static mut ALLOCATOR: BumpAllocator = BumpAllocator {
     watermark: AtomicUsize::new(0),
 };
 
+#[derive(Debug)]
 pub struct BumpAllocator {
     base: *mut u8,
     size: usize,
@@ -54,7 +53,7 @@ unsafe impl GlobalAlloc for BumpAllocator {
                 }
 
                 if watermark + required_size > self.size {
-                    log::error!("Out of memory");
+                    log::error!("Out of memory: {:#x?}, wanted {:#x}", self, required_size);
                     return None;
                 }
 

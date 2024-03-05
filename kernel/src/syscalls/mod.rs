@@ -25,7 +25,9 @@ pub unsafe fn init_cpu() {
     let user_seg = SegmentSelector::new(GDT::USER_CODE_INDEX - 1, Ring::Ring3);
 
     // Set STAR
-    let star = ((kernel_seg.bits() as u64) << 48) | ((user_seg.bits() as u64) << 32) | (SYSCALL32_ENTRY_EIP as u64);
+    let star = ((kernel_seg.bits() as u64) << 48)
+        | ((user_seg.bits() as u64) << 32)
+        | (SYSCALL32_ENTRY_EIP as u64);
     msr::wrmsr(msr::IA32_STAR, star);
 
     // Set LSTAR - 64-bit syscall entry
