@@ -118,6 +118,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     log::info!("Populating physical page list");
     for (region, label) in memory::get_physical_memory_map().regions.iter() {
         let page_type: PhysicalMemoryType = (*label).into();
+        log::info!("region.base() {:x}, region.end_inclusive() {:x}, page_type {:?}", region.base(), region.end_inclusive(),page_type);
         while cur < region.base(){
             boot_info
             .pages

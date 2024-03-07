@@ -4,9 +4,10 @@ use core::mem::MaybeUninit;
 
 use vstd::seq_lib::*;
 
-pub type Index = isize;
+pub type Index = i32;
 pub const NULL_POINTER: usize = 0;
 
+#[derive(Debug)]
 pub struct Node{
     pub value:usize,
     pub next:Index,
@@ -14,6 +15,7 @@ pub struct Node{
 }
 
 pub struct MarsStaticLinkedList<const N: usize>{
+    pub ar: [Node;N],
     pub spec_seq: Ghost<Seq<usize>>,
 
     pub value_list: Ghost<Seq<Index>>,
@@ -29,7 +31,6 @@ pub struct MarsStaticLinkedList<const N: usize>{
 
 
     pub arr_seq: Ghost<Seq<Node>>,
-    pub ar: [Node;N],
 }
 
 impl<const N: usize> MarsStaticLinkedList<N> {
@@ -67,14 +68,14 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         requires
             old(self).arr_seq@.len() == N,
             N>2,
-            N<isize::MAX,
+            N<Index::MAX,
         ensures
             self.wf(),
             self.len() == 0,
             self@ =~= Seq::empty(),
         {
             // assume(N>2);
-            // assume(N<isize::MAX);
+            // assume(N<Index::MAX);
             self.value_list = Ghost(Seq::empty());
             self.value_list_head = -1;
             self.value_list_tail = -1;
@@ -105,11 +106,11 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             // assert(self.wf_free_node_tail());
             // assert(self.free_list_len == self.free_list@.len());
             assert(self.free_list_wf());
-            let mut index:isize = 1;
-            while index != N as isize
+            let mut index:Index = 1;
+            while index != N as Index
                 invariant
                     1<= index <= N,
-                    N<isize::MAX,
+                    N<Index::MAX,
                     self.value_list@ =~= Seq::empty(),
                     self.value_list@.len() == 0,
                     self.spec_seq@.len() == 0,
@@ -149,12 +150,12 @@ impl<const N: usize> MarsStaticLinkedList<N> {
                     }
                 }
                 
-                self.free_list = Ghost(self.free_list@.push((index as isize)));
-                self.set_prev(index as isize,(index - 1) as isize);
-                self.set_next(index as isize,-1);
-                self.set_next((index - 1) as isize, index as isize);
-                self.set_ptr(index as isize,0);
-                self.free_list_tail = index as isize;
+                self.free_list = Ghost(self.free_list@.push((index as Index)));
+                self.set_prev(index,(index - 1));
+                self.set_next(index,-1);
+                self.set_next((index - 1), index);
+                self.set_ptr(index,0);
+                self.free_list_tail = index;
                 index = index + 1;
                 self.free_list_len = index as usize;
 

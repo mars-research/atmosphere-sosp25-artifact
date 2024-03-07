@@ -74,7 +74,7 @@ impl From<BootMemoryType> for PhysicalMemoryType {
         match value {
             // free up loader and domain image for unlimited use
             BMT::Loader | BMT::LoaderAllocator => PMT::Available,
-            BMT::DomainImage => PMT::Available,
+            BMT::DomainImage => PMT::Reserved, // tmp
 
             BMT::Kernel => PMT::Kernel,
             BMT::Domain => PMT::Domain,

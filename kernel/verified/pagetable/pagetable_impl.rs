@@ -1143,7 +1143,9 @@ proof{
 
         let tracked mut l4_perm = self.l4_table.borrow_mut().tracked_remove(l4_ptr);
 
-        pagemap_set(&PPtr::<PageMap>::from_usize(l4_ptr),Tracked(&mut l4_perm),0,kernel_pml4_entry);
+        log::info!("kernel_pml4_entry : {:?}", kernel_pml4_entry);
+
+        pagemap_set_kernel_pml4_entry(&PPtr::<PageMap>::from_usize(l4_ptr),Tracked(&mut l4_perm),0,kernel_pml4_entry);
 
         proof{self.l4_table.borrow_mut().tracked_insert(l4_ptr, l4_perm);}
 

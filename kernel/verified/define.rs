@@ -91,8 +91,8 @@ pub type EndpointIdx = usize;
 pub type EndpointPtr = usize;
 
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS:usize = 32;
-pub const MAX_NUM_THREADS_PER_PROC:usize = 500;
-pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 500;
+pub const MAX_NUM_THREADS_PER_PROC:usize = 250;
+pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 250;
 pub const MAX_NUM_PROCS:usize = PCID_MAX;
 pub const MAX_NUM_THREADS:usize = 500 * 4096;
 pub const IPC_MESSAGE_LEN:usize = 1024;

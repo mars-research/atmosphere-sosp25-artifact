@@ -95,6 +95,31 @@ pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<Pag
 }
 
 #[verifier(external_body)]
+pub fn pagemap_set_kernel_pml4_entry(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>) 
+    requires 
+        pptr.id() == old(perm)@.pptr,
+        old(perm)@.value.is_Some(),
+        old(perm)@.value.get_Some_0().wf(),
+        0<=i<512,
+        value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
+        value.is_Some() ==> spec_va_perm_bits_valid(value.unwrap().perm),
+    ensures
+        pptr.id() == perm@.pptr,
+        perm@.value.is_Some(),
+        perm@.value.get_Some_0().wf(),
+        forall|j:usize| 0<=j<512 && j != i ==> 
+            perm@.value.get_Some_0()[j] =~= old(perm)@.value.get_Some_0()[j],
+        perm@.value.get_Some_0()[i] =~= value,
+        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().addr =~= value.get_Some_0().addr,
+        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().perm =~= value.get_Some_0().perm,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<PageMap>;
+        (*uptr).assume_init_mut().set_kernel_pml4_entry(i,value);
+    }
+}
+
+#[verifier(external_body)]
 pub fn page_to_pagemap(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tracked<PointsTo<PageMap>>))
     requires page.0 == page.1@@.pptr,
             page.1@@.value.is_Some(),

@@ -197,6 +197,7 @@ impl Kernel{
         assert(self.page_alloc.get_page_table_pages() =~= self.mmu_man.get_mmu_page_closure());
         assert(self.page_alloc.get_allocated_pages() =~= self.proc_man.get_proc_man_page_closure());
         assert(self.kernel_mem_layout_wf());
+        self.kernel_pml4_entry = kernel_pml4_entry;
         return self.kernel_init_helper(dom0_pt_regs);
 
     }
