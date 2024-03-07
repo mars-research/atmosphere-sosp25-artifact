@@ -75,8 +75,33 @@ pub fn kernel_init(boot_page_ptrs: &ArrayVec<(u64,PhysicalMemoryType),{4*1024*10
     log::info!("dom0_proc_ptr {:x}",dom0_proc_ptr);
     log::info!("dom0_proc_ptr_by_thread_ptr {:x}",dom0_proc_ptr_by_thread_ptr);
     log::info!("dom0_thread_ptr_by_proc_ptr {:x}",dom0_thread_ptr_by_proc_ptr);
-    
+
+    let mut user_pml4:usize = 0;
+    unsafe{
+        user_pml4 = *((dom0_pagetable_ptr + (((0x8000000000 >> 39) & 0b1_1111_1111u64) as usize) * 8) as * const usize);
+    }
+    log::info!("user_pml4 {:x}",user_pml4);
+
+    let mut user_value:usize = 0;
+    unsafe {
+        user_value = *(0x8000000000 as * const usize);
+    }
+    log::info!("user_value {:x}",user_value);
+
     let dom0_retstruc = KERNEL.lock().as_mut().unwrap().kernel_idle_pop_sched(0,vPtRegs::new_empty());
     log::info!("{:?}",dom0_retstruc);
+    let dom0_malloc_ret = KERNEL.lock().as_mut().unwrap().syscall_malloc(0,vPtRegs::new_empty(), 0xA000000000, vdefine::READ_WRITE_EXECUTE, 1);
+    log::info!("{:?}",dom0_malloc_ret);
+    let mut user_pml4:usize = 0;
+    unsafe{
+        user_pml4 = *((dom0_pagetable_ptr + (((0xA000000000 >> 39) & 0b1_1111_1111u64) as usize) * 8) as * const usize);
+    }
+    log::info!("user_pml4 {:x}",user_pml4);
+    let mut user_value:usize = 0;
+    unsafe {
+        *(0xA000000000 as * mut usize) = 0x233;
+        user_value = *(0xA000000000 as * const usize);
+    }
+    log::info!("user_value {:x}",user_value);
     log::info!("");
 }

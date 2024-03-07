@@ -84,6 +84,7 @@ impl Kernel {
             if self.mmu_man.mmu_get_va_entry_by_pcid(pcid,va_add_range(va,i)).is_some(){
                 return (SyscallReturnStruct::new(MMAP_VADDR_NOT_FREE,0,0,pt_regs),None,None);
             }
+            i = i + 1;
         }
 
         self.kernel_create_and_map_range_new_pages(pcid,va,perm_bits,range);
@@ -184,6 +185,7 @@ impl Kernel {
             if self.page_alloc.get_page_rf_counter_by_page_ptr(page_entry.unwrap().addr) >= usize::MAX - range {
                 return (SyscallReturnStruct::new(PAGE_RF_COUNTER_OVERFLOW,0,0,pt_regs),None,None);
             }
+            i = i + 1;
         }
 
         self.kernel_map_pagetable_range_page_to_iommutable(pcid,ioid,va,perm_bits,range);

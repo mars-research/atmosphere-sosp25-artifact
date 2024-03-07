@@ -13,12 +13,24 @@ pub fn va_perm_bits_valid(perm:usize) -> (ret:bool)
     ensures
         ret == spec_va_perm_bits_valid(perm),
 {
-    (perm ^ VA_PERM_MASK as usize) == 0
+    perm == READ
+    ||
+    perm == READ_WRITE
+    ||
+    perm == READ_EXECUTE    
+    ||
+    perm == READ_WRITE_EXECUTE
 }
 
 
 pub open spec fn spec_va_perm_bits_valid(perm:usize) -> bool{
-    (perm ^ VA_PERM_MASK as usize) == 0
+    perm == READ
+    ||
+    perm == READ_WRITE
+    ||
+    perm == READ_EXECUTE    
+    ||
+    perm == READ_WRITE_EXECUTE
 }
 
 // #[verifier(external_body)]
@@ -107,12 +119,12 @@ pub fn va_valid(va:usize) -> (ret:bool)
     ensures 
         ret == spec_va_valid(va),
 {
-    (va & VA_MASK as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX.try_into().unwrap()
+    (va & (!VA_MASK) as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX.try_into().unwrap()
 }
 
 pub open spec fn spec_va_valid(va: usize) -> bool
 {
-    (va & VA_MASK as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX
+    (va & (!VA_MASK) as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX
 }
 
 pub open spec fn spec_va_add_range(va: usize, i: usize) -> usize

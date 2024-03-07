@@ -112,6 +112,9 @@ impl MarsArray<Cpu,NUM_CPUS>{
         ensures
             self.wf(),
             forall|i:CPUID| #![auto] 0<=i<NUM_CPUS && i != cpu_id  ==> self@[i as int] =~= old(self)@[i as int],
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS && i != cpu_id  ==> self@[i as int].current_t =~= old(self)@[i as int].current_t,
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS && i != cpu_id  ==> self@[i as int].tlb =~= old(self)@[i as int].tlb,
+            forall|i:CPUID| #![auto] 0<=i<NUM_CPUS && i != cpu_id  ==> self@[i as int].iotlb =~= old(self)@[i as int].iotlb,
             self@[cpu_id as int].current_t == current_thread,
             self@[cpu_id as int].tlb =~= old(self)@[cpu_id as int].tlb,
             self@[cpu_id as int].iotlb =~= old(self)@[cpu_id as int].iotlb,

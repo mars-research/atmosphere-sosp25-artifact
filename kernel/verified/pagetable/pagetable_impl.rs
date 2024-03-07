@@ -421,7 +421,7 @@ impl PageTable{
             assert(l4_perm@.value.get_Some_0().wf());
             //assert(l1_perm@.value.get_Some_0()[l1i as int] == 0);
 
-            l3_option = Some(PageEntry{addr:page_ptr,perm:0});
+            l3_option = Some(PageEntry{addr:page_ptr,perm:READ_WRITE_EXECUTE});
 
 
             pagemap_set(&l4_pptr,Tracked(&mut l4_perm),l4i,l3_option);
@@ -539,7 +539,7 @@ impl PageTable{
             assert(l3_perm@.value.get_Some_0().wf());
             //assert(l1_perm@.value.get_Some_0()[l1i as int] == 0);
 
-            l2_option = Some(PageEntry{addr:page_ptr,perm:0});
+            l2_option = Some(PageEntry{addr:page_ptr,perm:READ_WRITE_EXECUTE});
             pagemap_set(&l3_pptr,Tracked(&mut l3_perm),l3i,l2_option);
             assert(l3_perm@.value.get_Some_0()[l3i] == l2_option);
             assert(l3_perm@.pptr == l3_ptr);
@@ -651,7 +651,7 @@ proof{
             assert(l2_perm@.value.get_Some_0().wf());
             //assert(l1_perm@.value.get_Some_0()[l1i as int] == 0);
 
-            l1_option = Some(PageEntry{addr:page_ptr,perm:0});
+            l1_option = Some(PageEntry{addr:page_ptr,perm:READ_WRITE_EXECUTE});
             pagemap_set(&l2_pptr,Tracked(&mut l2_perm),l2i,l1_option);
             assert(l2_perm@.value.get_Some_0()[l2i] == l1_option);
             assert(l2_perm@.pptr == l2_ptr);
@@ -818,7 +818,7 @@ proof{
     //         assert(l4_perm@.value.get_Some_0().wf());
     //         //assert(l1_perm@.value.get_Some_0()[l1i as int] == 0);
 
-    //         l3_option = Some(PageEntry{addr:page_ptr,perm:0});
+    //         l3_option = Some(PageEntry{addr:page_ptr,perm:READ_WRITE_EXECUTE});
 
 
     //         pagemap_set(&l4_pptr,Tracked(&mut l4_perm),l4i,l3_option);
@@ -893,7 +893,7 @@ proof{
     //         assert(l3_perm@.value.get_Some_0().wf());
     //         //assert(l1_perm@.value.get_Some_0()[l1i as int] == 0);
 
-    //         l2_option = Some(PageEntry{addr:page_ptr,perm:0});
+    //         l2_option = Some(PageEntry{addr:page_ptr,perm:READ_WRITE_EXECUTE});
     //         pagemap_set(&l3_pptr,Tracked(&mut l3_perm),l3i,l2_option);
     //         assert(l3_perm@.value.get_Some_0()[l3i] == l2_option);
     //         assert(l3_perm@.pptr == l3_ptr);
@@ -956,7 +956,7 @@ proof{
     //         assert(l2_perm@.value.get_Some_0().wf());
     //         //assert(l1_perm@.value.get_Some_0()[l1i as int] == 0);
 
-    //         l1_option = Some(PageEntry{addr:page_ptr,perm:0});
+    //         l1_option = Some(PageEntry{addr:page_ptr,perm:READ_WRITE_EXECUTE});
     //         pagemap_set(&l2_pptr,Tracked(&mut l2_perm),l2i,l1_option);
     //         assert(l2_perm@.value.get_Some_0()[l2i] == l1_option);
     //         assert(l2_perm@.pptr == l2_ptr);

@@ -303,6 +303,7 @@ impl ProcessManager {
         requires
             self.wf(),
             self.get_proc_ptrs().contains(proc_ptr),
+            self.get_proc(proc_ptr).owned_threads.len() != 0,
         ensures
             ret =~= self.get_proc(proc_ptr).owned_threads@[0],
     {

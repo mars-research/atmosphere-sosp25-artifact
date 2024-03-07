@@ -418,6 +418,26 @@ impl PageTable{
         ==> self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))] == self.resolve_mapping_l1(l4i,l3i,l2i,l1i))
         
     }
+
+    pub open spec fn l4_l3_l2_rwx(&self) -> bool {
+        &&&
+        (
+                forall|l4i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= l4i< 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].is_Some() ==> 
+                    self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].get_Some_0().perm == READ_WRITE_EXECUTE
+        )
+        &&&
+        (
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+                forall|j: L3Index| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
+                    self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().perm == READ_WRITE_EXECUTE    
+        )
+        &&&
+        (
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+                forall|j: L2Index| #![auto] 0 <= j < 512 && self.l2_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
+                    self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().perm == READ_WRITE_EXECUTE    
+        )
+    }
     pub open spec fn wf(&self) -> bool
     {
         self.wf_l4()
@@ -433,6 +453,8 @@ impl PageTable{
         self.wf_mapping()
         &&
         self.l4_kernel_entries_reserved()
+        &&
+        self.l4_l3_l2_rwx()
     }
 
     pub open spec fn l4_kernel_entries_reserved(&self) -> bool
