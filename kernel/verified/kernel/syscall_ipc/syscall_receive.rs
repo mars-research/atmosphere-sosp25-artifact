@@ -109,7 +109,7 @@ impl Kernel {
             
                             let receiver_caller = self.proc_man.get_thread_caller(current_thread_ptr);
             
-                            let receiver_ipc_payload = self.proc_man.get_ipc_payload_by_thread_ptr(current_thread_ptr);
+                            let receiver_ipc_payload = ipc_payload;
                             let sender_ipc_payload = self.proc_man.get_ipc_payload_by_thread_ptr(new_thread_ptr);
             
                             let receiver_pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
@@ -241,7 +241,7 @@ impl Kernel {
                                 }else{                                            
                                     let (sender_page_start,sender_page_len) = sender_ipc_payload.page_payload.unwrap();
                                     let (receiver_page_start,receiver_page_len) = receiver_ipc_payload.page_payload.unwrap();
-                                    let perm_bits = 0x3 as usize;
+                                    let perm_bits = READ_WRITE_EXECUTE as usize;
             
                                     if sender_page_len != receiver_page_len || sender_page_len >= usize::MAX/3 || va_perm_bits_valid(perm_bits) == false
                                         || self.page_alloc.free_pages.len() < 3 * sender_page_len
