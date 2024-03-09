@@ -45,7 +45,7 @@ impl Thread {
         Set::empty()
     }
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct IPCPayLoad{
     pub calling: bool,
     pub message: Option<(VAddr,usize)>,
@@ -53,8 +53,17 @@ pub struct IPCPayLoad{
     pub endpoint_payload: Option<EndpointIdx>,
     pub pci_payload: Option<(u8,u8,u8)>,
 }
-
-
+impl IPCPayLoad {
+    pub fn new_to_none() -> (ret:Self){
+        Self{
+            calling: false,
+            message: None,
+            page_payload: None,
+            endpoint_payload: None,
+            pci_payload: None,
+        }
+    }
+}
 impl ProcessManager {
 
     pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_error_code: Option<ErrorCodeType>) -> (ret: PtRegs)
