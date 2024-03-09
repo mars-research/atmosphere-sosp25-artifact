@@ -104,6 +104,7 @@ impl Kernel {
             if self.page_alloc.get_page_rf_counter_by_page_ptr(page_entry.unwrap().addr) >= usize::MAX - sender_page_len {
                 return false;
             }
+            i = i + 1;
         }
         return true;
     }
