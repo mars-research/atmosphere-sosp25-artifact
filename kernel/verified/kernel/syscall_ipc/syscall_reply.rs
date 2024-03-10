@@ -7,7 +7,7 @@ verus!{
 // use crate::cpu::*;
 // use crate::mars_array::MarsArray;
 use crate::proc::*;
-// use crate::pagetable::*;
+use crate::pagetable::*;
 use crate::cpu::*;
 use crate::define::*;
 use crate::trap::*;
@@ -55,7 +55,7 @@ impl Kernel {
         let new_pcid = self.proc_man.get_pcid_by_thread_ptr(caller_ptr);
         let new_cr3 = self.mmu_man.get_cr3_by_pcid(new_pcid);
 
-        let callee_ipc_payload = self.proc_man.get_ipc_payload_by_thread_ptr(current_thread_ptr);
+        let callee_ipc_payload = ipc_payload;
         let caller_ipc_payload = self.proc_man.get_ipc_payload_by_thread_ptr(caller_ptr);
 
         if callee_ipc_payload.message.is_some() || caller_ipc_payload.message.is_some()
@@ -75,11 +75,11 @@ impl Kernel {
                 return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs);
             } 
             else{
-                let sender_va = caller_ipc_payload.message.unwrap().0;
-                let receiver_va = callee_ipc_payload.message.unwrap().0;
+                let sender_va = callee_ipc_payload.message.unwrap().0;
+                let receiver_va = caller_ipc_payload.message.unwrap().0;
 
-                let sender_len = sender_ipc_payload.message.unwrap().1;
-                let receiver_len = receiver_ipc_payload.message.unwrap().1;
+                let sender_len = callee_ipc_payload.message.unwrap().1;
+                let receiver_len = caller_ipc_payload.message.unwrap().1;
 
                 if (va_valid(sender_va) == false) || (va_valid(receiver_va) == false) || (sender_len != receiver_len) 
                     || (receiver_len>4096) || (receiver_len<=0)
@@ -113,6 +113,10 @@ impl Kernel {
                     }
                 }
             }
+        }else{
+            let new_pt_regs = self.proc_man.weak_up_caller_and_schedule(caller_ptr, current_thread_ptr, pt_regs, Some(SUCCESS));
+            self.cpu_list.set_current_thread(cpu_id,Some(caller_ptr));
+            return SyscallReturnStruct::new(SUCCESS,new_pcid,new_cr3,new_pt_regs); 
         }
     }
 }
