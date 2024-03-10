@@ -148,7 +148,8 @@ impl Kernel {
                 self.page_alloc.free_pages.len() >= 3 * range,
                 self.mmu_man.get_free_pcids_as_set().contains(pcid) == false,
                 self.mmu_man.get_free_ioids_as_set().contains(ioid) == false,
-                forall|j:usize| #![auto] 0<=j<i  ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_Some(),
+                forall|j:usize| #![auto] 0<=j<i ==> spec_va_valid(spec_va_add_range(va,j)),
+                forall|j:usize| #![auto] 0<=j<i ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_Some(),
                 forall|j:usize| #![auto] 0<=j<i ==>  self.page_alloc.page_array@[
                     page_ptr2page_index(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].get_Some_0().addr) as int].rf_count < usize::MAX - range,
                 forall|j:usize| #![auto] 0<=j<i ==> old(self).mmu_man.get_iommutable_mapping_by_ioid(ioid)[spec_va_add_range(va,j)].is_None(),
@@ -162,7 +163,8 @@ impl Kernel {
                 self.page_alloc.free_pages.len() >= 3 * range,
                 self.mmu_man.get_free_pcids_as_set().contains(pcid) == false,
                 self.mmu_man.get_free_ioids_as_set().contains(ioid) == false,
-                forall|j:usize| #![auto] 0<=j<i  ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_Some(),
+                forall|j:usize| #![auto] 0<=j<i ==> spec_va_valid(spec_va_add_range(va,j)),
+                forall|j:usize| #![auto] 0<=j<i ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_Some(),
                 forall|j:usize| #![auto] 0<=j<i ==>  self.page_alloc.page_array@[
                     page_ptr2page_index(self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].get_Some_0().addr) as int].rf_count < usize::MAX - range,
                 forall|j:usize| #![auto] 0<=j<i ==> old(self).mmu_man.get_iommutable_mapping_by_ioid(ioid)[spec_va_add_range(va,j)].is_None(),

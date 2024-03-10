@@ -104,10 +104,40 @@ impl PageMap{
                 proof{
                     self.spec_seq@ = self.spec_seq@.update(index as int,value);
                 }
+
+                assert(self.ar.wf());
+                assert(self.spec_seq@.len() == 512);
+                assert(
+                    forall|i:int|#![auto] 0<=i<512 ==> ((self.ar@[i] & (PAGE_ENTRY_PRESENT_MASK as usize) == 0) <==> self.spec_seq@[i].is_None())
+                );
+                assert(
+                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
+                    (
+                        self.spec_seq@[i].get_Some_0().addr == (self.ar@[i] & (VA_MASK as usize))
+                    )
+                );
+                assert(
+                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
+                    (
+                        page_ptr_valid(self.spec_seq@[i].get_Some_0().addr)
+                    )
+                );
+                assert(
+                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
+                    (
+                        self.spec_seq@[i].get_Some_0().perm == (self.ar@[i] & (VA_PERM_MASK as usize))
+                    )
+                );
+                assert(
+                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
+                    (
+                        spec_va_perm_bits_valid(self.spec_seq@[i].get_Some_0().perm)
+                    )
+                );
                 return;
             }
         }
-    
+    #[verifier(external_body)]
     pub fn set_kernel_pml4_entry(&mut self, index:usize, value:Option<PageEntry>)
         requires
             old(self).wf(),
@@ -133,6 +163,7 @@ impl PageMap{
                 proof{
                     self.spec_seq@ = self.spec_seq@.update(index as int,value);
                 }
+
                 return;
             }
         }

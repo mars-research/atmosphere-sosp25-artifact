@@ -280,10 +280,10 @@ impl Kernel {
                                     }else{
                                         let sender_endpoint_ptr = self.proc_man.get_thread_endpoint_ptr_by_endpoint_idx(new_thread_ptr, sender_endpoint_index);
                                         let receiver_endpoint_ptr = self.proc_man.get_thread_endpoint_ptr_by_endpoint_idx(current_thread_ptr, receiver_endpoint_index);
-                                    
+
                                         if sender_endpoint_ptr == 0 || receiver_endpoint_ptr != 0 
                                             ||self.proc_man.get_endpoint_rf_counter_by_endpoint_ptr(sender_endpoint_ptr) == usize::MAX 
-                                            ||self.proc_man.check_receiver_endpoint_descriptors(new_thread_ptr, sender_endpoint_ptr) == false
+                                            ||self.proc_man.check_receiver_endpoint_descriptors(current_thread_ptr, sender_endpoint_ptr) == false
                                         {
                                             self.proc_man.push_scheduler(current_thread_ptr, Some(ENDPOINT_PAYLOAD_INVALID),pt_regs);
                                             self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
@@ -293,7 +293,6 @@ impl Kernel {
                                         self.proc_man.pass_endpoint(new_thread_ptr,sender_endpoint_index,current_thread_ptr,receiver_endpoint_index);
                                         self.proc_man.push_scheduler(current_thread_ptr, Some(SUCCESS),pt_regs);
                                         self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                        
                                         return SyscallReturnStruct::new(SUCCESS,new_pcid,new_cr3,new_pt_regs);
                                         }
                                     }
