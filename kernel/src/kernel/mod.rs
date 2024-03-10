@@ -60,6 +60,32 @@ pub fn kernel_new(){
     *my_int = Some(Kernel::new());
 }
 
+pub fn kernel_test_ipc_send_endpoint(dom0_pagetable_ptr: usize){
+    let dom0_retstruc = KERNEL.lock().as_mut().unwrap().kernel_idle_pop_sched(0,vPtRegs::new_empty());
+    log::info!("pop dom0 \n {:?} \n",dom0_retstruc);
+    let dom0_endpoint_ret = KERNEL.lock().as_mut().unwrap().syscall_new_endpoint(0,vPtRegs::new_empty(), 0);
+    log::info!("new endpoint \n {:?} \n",dom0_endpoint_ret);
+    let dom0_endpoint_ret = KERNEL.lock().as_mut().unwrap().syscall_new_endpoint(0,vPtRegs::new_empty(), 1);
+    log::info!("new endpoint \n {:?} \n",dom0_endpoint_ret);
+    let (dom0_proc_ret,proc_ptr_op, thread_ptr_op) = KERNEL.lock().as_mut().unwrap().syscall_new_proc(0,vPtRegs::new_empty(), 0, vPtRegs::new_empty());
+    log::info!("new proc \n {:?} \n",dom0_proc_ret);
+    let dom1_retstruc = KERNEL.lock().as_mut().unwrap().kernel_idle_pop_sched(1,vPtRegs::new_empty());
+    log::info!("dom1 is running on cpu 1 \n {:?} \n", dom1_retstruc);
+    // log::info!("{:x?}",proc_ptr_op.unwrap());
+    // log::info!("{:x?}",thread_ptr_op.unwrap());
+
+    let mut dom1_ipc_pay_load = vIPCPayLoad::new_to_none();
+    dom1_ipc_pay_load.endpoint_payload = Some(1);
+    let dom1_retstruc = KERNEL.lock().as_mut().unwrap().syscall_receive_wait(1,vPtRegs::new_empty(),0,dom1_ipc_pay_load);
+    log::info!("receive ret value {:?}",dom1_retstruc);
+    let mut dom0_ipc_pay_load = vIPCPayLoad::new_to_none();
+    dom0_ipc_pay_load.endpoint_payload = Some(1);
+    let dom0_retstruc = KERNEL.lock().as_mut().unwrap().syscall_send_wait(0,vPtRegs::new_empty(),0,dom0_ipc_pay_load);
+    log::info!("send ret value {:?}",dom0_retstruc);
+    
+    log::info!("end of new ipc test");
+}
+
 pub fn kernel_test_ipc_send_message(dom0_pagetable_ptr: usize){
     let dom0_retstruc = KERNEL.lock().as_mut().unwrap().kernel_idle_pop_sched(0,vPtRegs::new_empty());
     log::info!("pop dom0 \n {:?} \n",dom0_retstruc);
@@ -340,7 +366,7 @@ pub fn kernel_init(boot_page_ptrs: &ArrayVec<(u64,PhysicalMemoryType),{4*1024*10
     let page_perms:Tracked<Map<PagePtr,PagePerm>> =  Tracked::assume_new();
     let ret_code = KERNEL.lock().as_mut().unwrap().kernel_init(&boot_pages,page_perms,dom0_pagetable,kernel_page_entry, dom0_pt_regs);
     log::info!("kernel init ret_code {:?}",ret_code);
-    kernel_test_ipc_send_message(dom0_pagetable_ptr);
+    kernel_test_ipc_send_endpoint(dom0_pagetable_ptr);
 
     log::info!("End of kernel syscall test \n\n\n\n\n\n");
 }
