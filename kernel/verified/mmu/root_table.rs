@@ -1,7 +1,7 @@
-use vstd::prelude::*;
-use core::mem::MaybeUninit;
 use crate::define::*;
-verus!{
+use core::mem::MaybeUninit;
+use vstd::prelude::*;
+verus! {
     #[repr(align(4096))]
     pub struct DeviceTable{
         ar:[usize;512],
@@ -12,10 +12,10 @@ verus!{
     //     pub open spec fn wf(&self) {
     //         self.seq_ar@.len() == 256,
     //     }
-            
+
     //     #[verifier(inline)]
     //     pub fn get(&self, dev:usize, fun:usize) -> (ret:usize)
-    //         requires    
+    //         requires
     //             self.wf(),
     //             0<=dev<32,
     //             0<=fun<8,
@@ -27,7 +27,7 @@ verus!{
 
     //     #[verifier(inline)]
     //     pub fn set(&mut self, dev:usize, fun:usize, cr3:usize) -> (ret:usize)
-    //         requires    
+    //         requires
     //             self.wf(),
     //             0<=dev<32,
     //             0<=fun<8,
@@ -56,7 +56,7 @@ verus!{
                 RootTable{
                     root: MaybeUninit::uninit().assume_init(),
                     seq_ar: Ghost(Seq::empty()),
-                    
+
                     deviecs: MaybeUninit::uninit().assume_init(),
                 }
             }
@@ -118,7 +118,7 @@ verus!{
             let cr3 = self.deviecs[bus as usize].ar[((dev*fun)*2 + 1) as usize] & 0xFFFFFFFFFFFFF000 as usize;
             return Some((ioid,cr3));
         }
- 
+
         #[verifier(external_body)]
         pub fn set(&mut self, bus:u8, dev:u8, fun:u8, target:Option<(IOid,usize)>)
             requires
@@ -127,8 +127,8 @@ verus!{
             ensures
                 self.wf(),
                 self.resolve(bus,dev,fun) == target,
-                forall|_bus:u8,_dev:u8,_fun:u8|#![auto] 0<=_bus<256 && 0<=_dev<32 && 0<=_fun<8 && 
-                    (_bus != bus || _dev != dev || _fun != fun) 
+                forall|_bus:u8,_dev:u8,_fun:u8|#![auto] 0<=_bus<256 && 0<=_dev<32 && 0<=_fun<8 &&
+                    (_bus != bus || _dev != dev || _fun != fun)
                     ==> self.resolve(_bus,_dev,_fun) =~= old(self).resolve(_bus,_dev,_fun)
         {
             if target.is_none(){
@@ -139,6 +139,6 @@ verus!{
                 self.deviecs[bus as usize].ar[((dev*fun)*2) as usize] = ((target.unwrap().0 << 8) & 0x7FFF00) | (0x010b);
                 self.deviecs[bus as usize].ar[((dev*fun)*2 + 1) as usize] = (target.unwrap().1 & 0xFFFFFFFFFFFFF000) | (0x1001b);
             }
-        }       
+        }
     }
 }

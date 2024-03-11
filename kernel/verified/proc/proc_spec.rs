@@ -1,7 +1,7 @@
 // use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::*;
 
 use super::*;
@@ -47,7 +47,7 @@ pub struct ProcessManager{
 
     pub thread_ptrs: Ghost<Set<ThreadPtr>>,
     pub thread_perms: Tracked<Map<ThreadPtr, PointsTo<Thread>>>,
-    
+
     //pub scheduler: Scheduler,
     pub scheduler: MarsStaticLinkedList<MAX_NUM_THREADS>,
     pub endpoint_ptrs: Ghost<Set<EndpointPtr>>,
@@ -60,9 +60,9 @@ pub struct ProcessManager{
 #[verifier(inline)]
 pub open spec fn endpoint_descriptors_unique(endpoint_descriptors:MarsArray<EndpointPtr,MAX_NUM_ENDPOINT_DESCRIPTORS>) -> bool
 {
-    (forall|i:int,j:int| #![auto] i != j && 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && 0<=j<MAX_NUM_ENDPOINT_DESCRIPTORS 
-        ==> endpoint_descriptors@[i] == 0 || 
-            endpoint_descriptors@[j] == 0 || 
+    (forall|i:int,j:int| #![auto] i != j && 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && 0<=j<MAX_NUM_ENDPOINT_DESCRIPTORS
+        ==> endpoint_descriptors@[i] == 0 ||
+            endpoint_descriptors@[j] == 0 ||
             endpoint_descriptors@[i] != endpoint_descriptors@[j]
         )
 }
@@ -86,14 +86,14 @@ impl ProcessManager {
         let ret = Self {
             proc_ptrs: MarsStaticLinkedList::<MAX_NUM_PROCS>::new(),
             proc_perms: Tracked(Map::tracked_empty()),
-        
+
             thread_ptrs: Ghost(Set::empty()),
             thread_perms: Tracked(Map::tracked_empty()),
-            
+
             scheduler: MarsStaticLinkedList::<MAX_NUM_THREADS>::new(),
             endpoint_ptrs: Ghost(Set::empty()),
             endpoint_perms: Tracked(Map::tracked_empty()),
-        
+
             pcid_closure : Ghost(Set::empty()),
             ioid_closure : Ghost(Set::empty()),
         };
@@ -102,7 +102,7 @@ impl ProcessManager {
     }
 
     pub fn proc_man_init(&mut self)
-        requires 
+        requires
             old(self).proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
             old(self).proc_perms@ =~= Map::empty(),
             old(self).thread_ptrs@ =~= Set::empty(),
@@ -154,7 +154,7 @@ impl ProcessManager {
             0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
         ensures
             ret =~= self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]
-            
+
     {
         assert(self.thread_perms@.dom().contains(thread_ptr));
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
@@ -529,10 +529,10 @@ impl ProcessManager {
         self.get_thread_ptrs().contains(thread_ptr),
         0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
     ensures
-        ret == true ==> (forall|j:int| #![auto] 0 <= j < MAX_NUM_ENDPOINT_DESCRIPTORS ==> 
+        ret == true ==> (forall|j:int| #![auto] 0 <= j < MAX_NUM_ENDPOINT_DESCRIPTORS ==>
                 self.get_thread(thread_ptr).endpoint_descriptors@[j as int] != endpoint_ptr),
         ret == true ==> self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int] == 0,
-        
+
     {
         assert(self.thread_perms@.dom().contains(thread_ptr));
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
@@ -551,16 +551,16 @@ impl ProcessManager {
                 self.wf(),
                 self.get_thread_ptrs().contains(thread_ptr),
                 0<= i <= MAX_NUM_ENDPOINT_DESCRIPTORS,
-                ret == true ==>  
-                    (forall|j:int| #![auto] 0 <= j < i ==> 
+                ret == true ==>
+                    (forall|j:int| #![auto] 0 <= j < i ==>
                         self.get_thread(thread_ptr).endpoint_descriptors@[j as int] != endpoint_ptr),
                 self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int] == 0
             ensures
                 self.wf(),
                 self.get_thread_ptrs().contains(thread_ptr),
                 i == MAX_NUM_ENDPOINT_DESCRIPTORS,
-                ret == true ==>  
-                    (forall|j:int| #![auto] 0 <= j < MAX_NUM_ENDPOINT_DESCRIPTORS ==> 
+                ret == true ==>
+                    (forall|j:int| #![auto] 0 <= j < MAX_NUM_ENDPOINT_DESCRIPTORS ==>
                         self.get_thread(thread_ptr).endpoint_descriptors@[j as int] != endpoint_ptr),
                 self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int] == 0,
         {
@@ -630,7 +630,7 @@ impl ProcessManager {
         self.endpoint_perms@[endpoint_ptr].view().value.get_Some_0()
     }
     ///spec helper for processes
-    ///specs: 
+    ///specs:
     ///Process list (PL) contains no duplicate process pointers
     ///PM contains and only contains process perms of its process pointers
     ///Each process contains no duplicate thread pointers
@@ -638,7 +638,7 @@ impl ProcessManager {
     ///Each process owns a valid reverse pointer to free it from PL
     pub open spec fn wf_procs(&self) -> bool{
         (self.proc_ptrs.wf())
-        &&            
+        &&
         (self.proc_ptrs.unique())
         &&
         (self.proc_ptrs@.to_set() =~= self.proc_perms@.dom())
@@ -660,7 +660,7 @@ impl ProcessManager {
     }
 
     ///spec helper for threads
-    ///specs: 
+    ///specs:
     ///PM contains and only contains thread perms of threads owned by some processes
     ///Each thread has a parent which owns this thread in its owned_threads list
     ///Each process owns a valid reverse pointer to free it from its parent process's owned_threads list
@@ -676,28 +676,28 @@ impl ProcessManager {
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.thread_perms@[thread_ptr].view().pptr == thread_ptr)
         &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  0 <= self.thread_perms@[thread_ptr].view().value.get_Some_0().state <= TRANSIT)
-        && 
+        &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.proc_ptrs@.contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().parent))
-        && 
+        &&
         (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  self.proc_perms@[self.get_thread(thread_ptr).parent].view().value.get_Some_0().owned_threads@.contains(thread_ptr))
-        && 
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>
             self.proc_perms@[self.get_thread(thread_ptr).parent].view().value.get_Some_0().owned_threads.node_ref_valid(self.thread_perms@[thread_ptr].view().value.get_Some_0().parent_rf))
-        && 
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>  
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) ==>
             self.proc_perms@[self.get_thread(thread_ptr).parent].view().value.get_Some_0().owned_threads.node_ref_resolve(self.thread_perms@[thread_ptr].view().value.get_Some_0().parent_rf) == thread_ptr)
-        && 
+        &&
         (forall|proc_ptr: usize, i:int| #![auto] self.proc_perms@.dom().contains(proc_ptr) && 0<=i<self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads.len()
             ==>  self.thread_perms@.dom().contains(self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads@[i]))
-        && 
+        &&
         (forall|proc_ptr: usize, i:int| #![auto] self.proc_perms@.dom().contains(proc_ptr) && 0<=i<self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads.len()
             ==>  self.thread_perms@[self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads@[i]]@.value.get_Some_0().parent == proc_ptr)
-        && 
-        (forall|thread_ptr: ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==>  
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==>
             (self.get_thread(thread_ptr).state != RUNNING <==> self.get_thread(thread_ptr).trap_frame.is_Some())
         )
-        && 
-        (forall|thread_ptr: ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==>  
+        &&
+        (forall|thread_ptr: ThreadPtr| #![auto] self.get_thread_ptrs().contains(thread_ptr) ==>
             (self.get_thread(thread_ptr).error_code.is_Some() ==> self.get_thread(thread_ptr).state == SCHEDULED)
         )
     }
@@ -740,55 +740,55 @@ impl ProcessManager {
         &&
         (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) ==>  self.endpoint_perms@[endpoint_ptr].view().value.get_Some_0().owning_threads@.finite())
         &&
-        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==> self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().owning_threads@.len() == self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().rf_counter)
         &&
-        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==> self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().rf_counter != 0)
         &&
-        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==> (forall|thread_ptr: ThreadPtr| #![auto] self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().owning_threads@.contains(thread_ptr)
                 ==> self.thread_perms@.dom().contains(thread_ptr))
         )
         &&
-        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==> (forall|thread_ptr: ThreadPtr| #![auto] self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().owning_threads@.contains(thread_ptr)
                 ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors@.contains(endpoint_ptr))
         )
         &&
-        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==>  (forall|thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr)
                 ==> ( self.thread_perms@.dom().contains(thread_ptr)
                 )
         ))
         &&
-        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==>  (forall|thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr)
                 ==> (
                     self.thread_perms@[thread_ptr]@.value.get_Some_0().state == BLOCKED
                 )
         ))
         &&
-        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        (forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==>  (forall|thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr)
                 ==> (
                     self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_ptr.unwrap() == endpoint_ptr
                 )
         ))
         &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr)
             ==> self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors.wf())
         &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr)
             ==> endpoint_descriptors_unique(self.thread_perms@[thread_ptr]@.value.get_Some_0().endpoint_descriptors)
             )
         &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr)
             ==> (forall|i:int| #![auto] 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i] != 0
                 ==> self.endpoint_perms@.dom().contains(self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i])
             ))
         &&
-        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr) 
+        (forall|thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(thread_ptr)
             ==> (forall|i:int| #![auto] 0<=i<MAX_NUM_ENDPOINT_DESCRIPTORS && self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i] != 0
                 ==> self.endpoint_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().endpoint_descriptors@[i]]@.value.get_Some_0().owning_threads@.contains(thread_ptr)
             ))
@@ -837,7 +837,7 @@ impl ProcessManager {
             self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.unwrap()].view().value.get_Some_0().caller.is_Some()
             && self.thread_perms@[self.thread_perms@[thread_ptr].view().value.get_Some_0().callee.unwrap()].view().value.get_Some_0().caller.unwrap() == thread_ptr)
 
-    
+
 
     }
 
@@ -900,7 +900,7 @@ impl ProcessManager {
             self.get_pcid_closure().finite()
         )&&
         (
-            forall|proc_ptr_i: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr_i) 
+            forall|proc_ptr_i: ProcPtr| #![auto] self.proc_perms@.dom().contains(proc_ptr_i)
                 ==>  0<=self.proc_perms@[proc_ptr_i].view().value.get_Some_0().get_pcid()<PCID_MAX
         )
         &&
@@ -959,7 +959,7 @@ impl ProcessManager {
     }
 
     pub proof fn wf_ipc_derive_1(&self, thread_ptr:ThreadPtr)
-        requires 
+        requires
             self.wf_ipc(),
             self.thread_ptrs@.contains(thread_ptr),
             self.get_thread(thread_ptr).callee.is_None(),
@@ -967,7 +967,7 @@ impl ProcessManager {
         ensures
             forall|_thread_ptr: ThreadPtr| #![auto] self.thread_perms@.dom().contains(_thread_ptr) && self.thread_perms@[_thread_ptr].view().value.get_Some_0().caller.is_Some() ==>
                 self.thread_perms@[_thread_ptr].view().value.get_Some_0().caller.unwrap() != thread_ptr,
-            
+
     {
 
     }

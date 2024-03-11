@@ -3,7 +3,7 @@ use super::*;
 // use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::*;
 
 // use crate::mars_staticlinkedlist::*;
@@ -44,7 +44,7 @@ impl ProcessManager {
             forall|thread_ptr:ThreadPtr|#![auto] self.get_thread_ptrs().contains(thread_ptr) ==> self.get_thread(thread_ptr) =~= old(self).get_thread(thread_ptr),
             forall|endpoint_ptr:EndpointPtr|#![auto] self.get_endpoint_ptrs().contains(endpoint_ptr) ==> self.get_endpoint(endpoint_ptr) =~= old(self).get_endpoint(endpoint_ptr),
     {
-        assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr) 
+        assert(forall|_endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(_endpoint_ptr)
     ==>  (forall|_thread_ptr:ThreadPtr| #![auto] self.endpoint_perms@[_endpoint_ptr]@.value.get_Some_0().queue@.contains(_thread_ptr)
         ==> (
             (self.thread_perms@.dom().contains(_thread_ptr))
@@ -67,7 +67,7 @@ impl ProcessManager {
         assert(self.proc_ptrs.size == MAX_NUM_PROCS);
 
         let pl_rf = self.proc_ptrs.push(ret);
-        
+
         proc_set_pl_rf(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, pl_rf);
         proc_set_pcid(PPtr::<Process>::from_usize(proc_ptr),  &mut proc_perm, new_pcid);
         if new_ioid.is_none(){
@@ -107,7 +107,7 @@ impl ProcessManager {
     pub fn free_proc(&mut self, proc_ptr: ProcPtr) -> (ret: (PagePPtr,Tracked<PagePerm>))
         requires
             old(self).wf(),
-            old(self).get_proc_ptrs().contains(proc_ptr),    
+            old(self).get_proc_ptrs().contains(proc_ptr),
             old(self).get_proc(proc_ptr).owned_threads.len() == 0,
     {
         assert(self.proc_perms@.dom().contains(proc_ptr));

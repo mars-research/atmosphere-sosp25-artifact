@@ -1,6 +1,5 @@
-
 use vstd::prelude::*;
-verus!{
+verus! {
 
 
 use vstd::ptr::*;
@@ -8,11 +7,11 @@ use crate::define::*;
 use crate::page_alloc::*;
 use crate::pagetable::*;
 // use vstd::set_lib::*;
-    
+
 impl PageTable{
 
     pub fn map(&mut self, va:VAddr, dst:PageEntry) -> (ret: bool)
-        requires 
+        requires
             old(self).wf(),
             spec_va_valid(va),
             //old(self).is_va_entry_exist(va),
@@ -23,9 +22,9 @@ impl PageTable{
         ensures
             self.wf(),
             old(self).is_va_entry_exist(va) == ret ,
-            old(self).is_va_entry_exist(va) ==> 
+            old(self).is_va_entry_exist(va) ==>
                 self.mapping@ =~= old(self).mapping@.insert(va,Some(dst)),
-            !old(self).is_va_entry_exist(va) ==> 
+            !old(self).is_va_entry_exist(va) ==>
                 self.mapping@ =~= old(self).mapping@,
     {
         let (l4i,l3i,l2i,l1i) = va2index(va);
@@ -87,16 +86,16 @@ impl PageTable{
         }
 
         assert(self.wf_l4());
-        
+
         assert(self.wf_l3());
-        
+
         assert(self.wf_l2());
 
         assert(self.wf_l1());
 
         proof{
             self.wf_to_wf_mapping();
-            pagetable_virtual_mem_lemma();    
+            pagetable_virtual_mem_lemma();
         }
 
         assert(self.no_self_mapping());
@@ -105,21 +104,21 @@ impl PageTable{
         assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i) =~= Some(dst));
 
         let g_va:Ghost<usize> = Ghost(spec_index2va((l4i,l3i,l2i,l1i)));
-        assert(forall|va:usize| #![auto] spec_va_valid(va) && va != g_va ==> 
+        assert(forall|va:usize| #![auto] spec_va_valid(va) && va != g_va ==>
             self.mapping@[va] =~= old(self).mapping@[va]);
 
-        assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
+        assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==>
                 self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] =~= old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))]);
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && 
-            self.resolve_mapping_l2(_l4i,_l3i,_l2i).is_Some() && self.resolve_mapping_l2(_l4i,_l3i,_l2i).unwrap().addr != l1_ptr ==> 
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  &&
+            self.resolve_mapping_l2(_l4i,_l3i,_l2i).is_Some() && self.resolve_mapping_l2(_l4i,_l3i,_l2i).unwrap().addr != l1_ptr ==>
             (
                 self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i)
             )
         );
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && 
-            self.resolve_mapping_l2(_l4i,_l3i,_l2i).is_Some() && self.resolve_mapping_l2(_l4i,_l3i,_l2i).unwrap().addr == l1_ptr && _l1i != l1i ==> 
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  &&
+            self.resolve_mapping_l2(_l4i,_l3i,_l2i).is_Some() && self.resolve_mapping_l2(_l4i,_l3i,_l2i).unwrap().addr == l1_ptr && _l1i != l1i ==>
             (
                 self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i)
             )
@@ -147,24 +146,24 @@ impl PageTable{
     }
 
     pub fn unmap(&mut self, va:VAddr) -> (ret: Option<PageEntry>)
-        requires 
+        requires
             old(self).wf(),
             spec_va_valid(va),
             // old(self).mapping@[va] != 0,
         ensures
             self.wf(),
-            old(self).is_va_entry_exist(va) ==> 
+            old(self).is_va_entry_exist(va) ==>
                 self.mapping@ =~= old(self).mapping@.insert(va,None),
-            !old(self).is_va_entry_exist(va) ==> 
+            !old(self).is_va_entry_exist(va) ==>
                 self.mapping@ =~= old(self).mapping@,
-            old(self).mapping@[va].is_Some() ==> 
+            old(self).mapping@[va].is_Some() ==>
                 self.mapping@ =~= old(self).mapping@.insert(va,None),
-            old(self).mapping@[va].is_None() ==> 
+            old(self).mapping@[va].is_None() ==>
                 self.mapping@ =~= old(self).mapping@,
             ret == old(self).mapping@[va],
     {
         proof{
-            pagetable_virtual_mem_lemma();    
+            pagetable_virtual_mem_lemma();
         }
         let (l4i,l3i,l2i,l1i) = va2index(va);
         assert(self.cr3 == self.l4_table@[self.cr3]@.pptr);
@@ -218,7 +217,7 @@ impl PageTable{
         assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i)==dst);
         assert(self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))]==dst);
         assert(self.mapping@[va]==dst);
-        
+
         let tracked mut l1_perm = self.l1_tables.borrow_mut().tracked_remove(l1_ptr);
         assert(l1_ptr == l1_perm@.pptr);
         let l1_pptr = PPtr::<PageMap>::from_usize(l1_ptr);
@@ -238,9 +237,9 @@ impl PageTable{
         }
 
         assert(self.wf_l4());
-        
+
         assert(self.wf_l3());
-        
+
         assert(self.wf_l2());
 
         assert(self.wf_l1());
@@ -254,34 +253,34 @@ impl PageTable{
 
         assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i).is_None());
 
-        assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 
-            0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
+        assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 &&
+            0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==>
             (
                 self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))]
             )
         );
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 &&
             0<= _l2i < 512  && 0<= _l1i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i).get_Some_0().addr != l1_ptr ==> (
             self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i))
         );
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 &&
             0<= _l2i < 512  && 0<= _l1i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i).get_Some_0().addr  == l1_ptr && _l1i != l1i==> (
             self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i))
         );
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 &&
             0<= _l2i < 512  && 0<= _l1i < 512  && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i)) ==> (
             self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == old(self).resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i))
         );
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 &&
             0<= _l2i < 512  && 0<= _l1i < 512  && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i)) ==> (
             self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))])
         );
 
-        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 
+        assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 &&
             0<= _l2i < 512  && 0<= _l1i < 512  && ((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i)) ==> (
             self.resolve_mapping_l1(_l4i,_l3i,_l2i,_l1i) == self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))])
         );
@@ -303,7 +302,7 @@ impl PageTable{
             self.mapping@[va] == ret,
     {
         proof{
-            pagetable_virtual_mem_lemma();    
+            pagetable_virtual_mem_lemma();
         }
         let (l4i,l3i,l2i,l1i) = va2index(va);
         assert(self.cr3 == self.l4_table@[self.cr3]@.pptr);
@@ -394,10 +393,10 @@ impl PageTable{
     {
         let mut ret_set:Ghost<Set<PagePtr>> = Ghost(Set::empty());
         proof{
-            pagetable_virtual_mem_lemma();  
+            pagetable_virtual_mem_lemma();
             page_ptr_lemma();
             pagemap_permission_bits_lemma();
-            // lemma_set_properties::<Set<PagePtr>>();  
+            // lemma_set_properties::<Set<PagePtr>>();
         }
         assert(l4i >= KERNEL_MEM_END_L4INDEX);
         assert(self.cr3 == self.l4_table@[self.cr3]@.pptr);
@@ -428,12 +427,12 @@ impl PageTable{
 
             assert(l4_perm@.value.get_Some_0()[l4i] == l3_option);
             assert(l4_perm@.pptr == self.cr3);
-    
+
             proof {
                 self.l4_table.borrow_mut().tracked_insert(self.cr3, l4_perm);
             }
             assert(self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].get_Some_0().addr == page_ptr);
-            
+
             let (l3_ptr_tmp,mut l3_perm) = page_to_pagemap((page_ptr,page_perm));
             proof{
                 self.l3_tables.borrow_mut().tracked_insert(l3_ptr_tmp, l3_perm.get());
@@ -441,7 +440,7 @@ impl PageTable{
             assert(self.wf_l4());
 
             assert(self.wf_l3());
-            
+
             assert(self.wf_l2());
 
             assert(self.wf_l1());
@@ -452,10 +451,10 @@ impl PageTable{
 
             assert(self.no_self_mapping());
 
-            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j != l4i) 
+            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j != l4i)
                 ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
-            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j == l4i) 
+            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j == l4i)
                 ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
             assert(self.wf_mapping());
@@ -475,7 +474,7 @@ impl PageTable{
         assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret_set@);
         assert(ret_set@.subset_of(old(page_alloc).get_free_pages_as_set()));
         assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
-        
+
         return (l3_ptr,ret_set);
     }
 
@@ -513,10 +512,10 @@ impl PageTable{
         page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 1,
 {
     proof{
-        pagetable_virtual_mem_lemma();  
+        pagetable_virtual_mem_lemma();
         page_ptr_lemma();
         pagemap_permission_bits_lemma();
-        // lemma_set_properties::<Set<PagePtr>>();  
+        // lemma_set_properties::<Set<PagePtr>>();
     }
     let mut ret_set:Ghost<Set<PagePtr>> = Ghost(Set::empty());
     let tracked l3_perm = self.l3_tables.borrow().tracked_borrow(l3_ptr);
@@ -543,7 +542,7 @@ impl PageTable{
             pagemap_set(&l3_pptr,Tracked(&mut l3_perm),l3i,l2_option);
             assert(l3_perm@.value.get_Some_0()[l3i] == l2_option);
             assert(l3_perm@.pptr == l3_ptr);
-    
+
             proof {
                 self.l3_tables.borrow_mut().tracked_insert(l3_ptr, l3_perm);
             }
@@ -553,7 +552,7 @@ impl PageTable{
                 self.l2_tables.borrow_mut().tracked_insert(l2_ptr_tmp, l2_perm.get());
             }
             assert(self.wf_l4());
-        
+
             assert(self.wf_l3());
 
             assert(self.wf_l2());
@@ -562,10 +561,10 @@ impl PageTable{
 
             assert(self.no_self_mapping());
 
-            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j != l4i) 
+            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j != l4i)
                 ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
-            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j == l4i) 
+            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j == l4i)
                 ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
             assert(self.wf_mapping());
@@ -587,7 +586,7 @@ impl PageTable{
         assert(page_alloc.get_free_pages_as_set() =~= old(page_alloc).get_free_pages_as_set() - ret_set@);
         assert(ret_set@.subset_of(old(page_alloc).get_free_pages_as_set()));
         assert(self.get_pagetable_page_closure().disjoint(page_alloc.get_free_pages_as_set()));
-    
+
     return (l2_ptr,ret_set);
 }
 
@@ -625,10 +624,10 @@ ensures
     page_alloc.free_pages.len() >= old(page_alloc).free_pages.len() - 1,
 {
 proof{
-    pagetable_virtual_mem_lemma();  
+    pagetable_virtual_mem_lemma();
     page_ptr_lemma();
     pagemap_permission_bits_lemma();
-    // lemma_set_properties::<Set<PagePtr>>();  
+    // lemma_set_properties::<Set<PagePtr>>();
 }
     let mut ret_set:Ghost<Set<PagePtr>> = Ghost(Set::empty());
         let tracked l2_perm = self.l2_tables.borrow().tracked_borrow(l2_ptr);
@@ -655,7 +654,7 @@ proof{
             pagemap_set(&l2_pptr,Tracked(&mut l2_perm),l2i,l1_option);
             assert(l2_perm@.value.get_Some_0()[l2i] == l1_option);
             assert(l2_perm@.pptr == l2_ptr);
-    
+
             proof {
                 self.l2_tables.borrow_mut().tracked_insert(l2_ptr, l2_perm);
             }
@@ -664,9 +663,9 @@ proof{
                 self.l1_tables.borrow_mut().tracked_insert(l1_ptr_tmp, l1_perm.get());
             }
             assert(self.wf_l4());
-        
+
             assert(self.wf_l3());
-            
+
             assert(self.wf_l2());
 
             assert(self.wf_l1());
@@ -677,10 +676,10 @@ proof{
 
             assert(self.no_self_mapping());
 
-            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j != l2i) 
+            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j != l2i)
                 ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
-            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j == l2i) 
+            assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j == l2i)
                 ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
             assert(self.wf_mapping());
@@ -744,10 +743,10 @@ proof{
     {
         let mut ret:Ghost<Set<PagePtr>> = Ghost(Set::empty());
             proof{
-                pagetable_virtual_mem_lemma();  
+                pagetable_virtual_mem_lemma();
                 page_ptr_lemma();
                 pagemap_permission_bits_lemma();
-                // lemma_set_properties::<Set<PagePtr>>();  
+                // lemma_set_properties::<Set<PagePtr>>();
             }
             let (l4i,l3i,l2i,l1i) = va2index(va);
         let (l3_ptr, l3_ret_set) = self.create_va_entry_l3(va,page_alloc,l4i,l3i,l2i,l1i);
@@ -790,10 +789,10 @@ proof{
     // {
     //     let mut ret:Ghost<Set<PagePtr>> = Ghost(Set::empty());
     //     proof{
-    //         pagetable_virtual_mem_lemma();  
+    //         pagetable_virtual_mem_lemma();
     //         page_ptr_lemma();
     //         pagemap_permission_bits_lemma();
-    //         // lemma_set_properties::<Set<PagePtr>>();  
+    //         // lemma_set_properties::<Set<PagePtr>>();
     //     }
     //     let (l4i,l3i,l2i,l1i) = va2index(va);
     //     assert(l4i >= KERNEL_MEM_END_L4INDEX);
@@ -825,12 +824,12 @@ proof{
 
     //         assert(l4_perm@.value.get_Some_0()[l4i] == l3_option);
     //         assert(l4_perm@.pptr == self.cr3);
-    
+
     //         proof {
     //             self.l4_table.borrow_mut().tracked_insert(self.cr3, l4_perm);
     //         }
     //         assert(self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].get_Some_0().addr == page_ptr);
-            
+
     //         let (l3_ptr_tmp,mut l3_perm) = page_to_pagemap((page_ptr,page_perm));
     //         proof{
     //             self.l3_tables.borrow_mut().tracked_insert(l3_ptr_tmp, l3_perm.get());
@@ -838,7 +837,7 @@ proof{
     //         assert(self.wf_l4());
 
     //         assert(self.wf_l3());
-            
+
     //         assert(self.wf_l2());
 
     //         assert(self.wf_l1());
@@ -849,10 +848,10 @@ proof{
 
     //         assert(self.no_self_mapping());
 
-    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j != l4i) 
+    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j != l4i)
     //             ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
-    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j == l4i) 
+    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l4j == l4i)
     //             ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
     //         assert(self.wf_mapping());
@@ -897,7 +896,7 @@ proof{
     //         pagemap_set(&l3_pptr,Tracked(&mut l3_perm),l3i,l2_option);
     //         assert(l3_perm@.value.get_Some_0()[l3i] == l2_option);
     //         assert(l3_perm@.pptr == l3_ptr);
-    
+
     //         proof {
     //             self.l3_tables.borrow_mut().tracked_insert(l3_ptr, l3_perm);
     //         }
@@ -907,7 +906,7 @@ proof{
     //             self.l2_tables.borrow_mut().tracked_insert(l2_ptr_tmp, l2_perm.get());
     //         }
     //         assert(self.wf_l4());
-        
+
     //         assert(self.wf_l3());
 
     //         assert(self.wf_l2());
@@ -960,7 +959,7 @@ proof{
     //         pagemap_set(&l2_pptr,Tracked(&mut l2_perm),l2i,l1_option);
     //         assert(l2_perm@.value.get_Some_0()[l2i] == l1_option);
     //         assert(l2_perm@.pptr == l2_ptr);
-    
+
     //         proof {
     //             self.l2_tables.borrow_mut().tracked_insert(l2_ptr, l2_perm);
     //         }
@@ -969,9 +968,9 @@ proof{
     //             self.l1_tables.borrow_mut().tracked_insert(l1_ptr_tmp, l1_perm.get());
     //         }
     //         assert(self.wf_l4());
-        
+
     //         assert(self.wf_l3());
-            
+
     //         assert(self.wf_l2());
 
     //         assert(self.wf_l1());
@@ -982,10 +981,10 @@ proof{
 
     //         assert(self.no_self_mapping());
 
-    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j != l2i) 
+    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j != l2i)
     //             ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
-    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j == l2i) 
+    //         assert(forall|l4j: usize,l3j: usize,l2j: usize, l1j: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512 && 0<= l1j < 512 && l2j == l2i)
     //             ==> old(self).resolve_mapping_l1(l4j,l3j,l2j,l1j) == self.resolve_mapping_l1(l4j,l3j,l2j,l1j));
 
     //         assert(self.wf_mapping());
@@ -1044,10 +1043,10 @@ proof{
     //         self.resolve_mapping_l3(l4i,l3i) == l2_ptr,
     //         self.resolve_mapping_l2(l4i,l3i,l2i) == l1_ptr,
     //         self.resolve_mapping_l2(l4i,l3i,l2i) != 0,
-    //         forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
+    //         forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==>
     //             self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))],
     //         self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))] == 0,
-    //         forall|j:usize| 0<=j<512 && j != l1i ==> 
+    //         forall|j:usize| 0<=j<512 && j != l1i ==>
     //             self.l1_tables@[l1_ptr]@.value.get_Some_0()[j as int] == old(self).l1_tables@[l1_ptr]@.value.get_Some_0()[j as int],
     //         self.l1_tables@[l1_ptr]@.value.get_Some_0()[l1i as int] == 0,
 
@@ -1070,7 +1069,7 @@ proof{
     //     assert(self.wf_l4());
 
     //     assert(self.wf_l3());
-        
+
     //     assert(self.wf_l2());
 
     //     assert(self.wf_l1());
@@ -1083,7 +1082,7 @@ proof{
 
     //     assert(self.resolve_mapping_l1(l4i,l3i,l2i,l1i) == 0);
 
-    //     assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==> 
+    //     assert(forall|_l4i: usize, _l3i: usize,_l2i: usize,_l1i: usize| #![auto] (KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512 && 0<= _l1i < 512) && !((_l4i,_l3i,_l2i,_l1i) =~= (l4i,l3i,l2i,l1i))==>
     //         self.mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))] == old(self).mapping@[spec_index2va((_l4i,_l3i,_l2i,_l1i))]);
 
     //     assert(forall|_l4i: usize,_l3i: usize,_l2i: usize,_l1i: usize| #![auto] KERNEL_MEM_END_L4INDEX<= _l4i < 512 && 0<= _l3i < 512 && 0<= _l2i < 512  && 0<= _l1i < 512  && self.resolve_mapping_l2(_l4i,_l3i,_l2i) != l1_ptr ==> (
@@ -1136,7 +1135,7 @@ proof{
         self.cr3 = page_ptr;
         let (l4_ptr,mut l4_perm) = page_to_pagemap((page_ptr,page_perm));
         assume(kernel_pml4_entry.is_None());
-        
+
         proof{
             self.l4_table.borrow_mut().tracked_insert(l4_ptr, l4_perm.get());
         }

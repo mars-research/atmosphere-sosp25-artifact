@@ -12,7 +12,7 @@ use x86::current::paging::{PAddr, VAddr};
 use astd::{boot::PhysicalMemoryType, sync::Mutex};
 
 pub use map::MemoryMap;
-pub use paging::{AddressSpace, PAGE_SIZE, HUGE_PAGE_SIZE};
+pub use paging::{AddressSpace, HUGE_PAGE_SIZE, PAGE_SIZE};
 pub use userspace::{UserspaceMapper, USERSPACE_BASE};
 
 pub const BOOTSTRAP_SIZE: usize = 512 * 1024 * 1024; // 512 MiB

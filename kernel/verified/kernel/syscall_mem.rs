@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -54,7 +54,7 @@ impl Kernel {
         }
 
         let mut i = 0;
-        while i != range 
+        while i != range
             invariant
                 0<=i<=range,
                 self == old(self),
@@ -137,7 +137,7 @@ impl Kernel {
         }
 
         let mut i = 0;
-        while i != range 
+        while i != range
             invariant
                 0<=i<=range,
                 self == old(self),
@@ -173,13 +173,13 @@ impl Kernel {
                 return (SyscallReturnStruct::new(MMAP_VADDR_INVALID,0,0,pt_regs),None,None);
             }
 
-            if self.mmu_man.mmu_get_va_entry_by_ioid(ioid,va_add_range(va,i)).is_some() 
+            if self.mmu_man.mmu_get_va_entry_by_ioid(ioid,va_add_range(va,i)).is_some()
             {
                 return (SyscallReturnStruct::new(MMAP_VADDR_NOT_FREE,0,0,pt_regs),None,None);
             }
 
             let page_entry = self.mmu_man.mmu_get_va_entry_by_pcid(pcid,va_add_range(va,i));
-            
+
             if page_entry.is_none(){
                 return (SyscallReturnStruct::new(MMAP_VADDR_NOT_FREE,0,0,pt_regs),None,None);
             }

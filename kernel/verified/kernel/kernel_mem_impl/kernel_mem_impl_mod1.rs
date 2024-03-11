@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -15,7 +15,7 @@ use crate::kernel::*;
 impl Kernel{
     pub fn kernel_map_pagetable_page(&mut self, pcid:Pcid, va: usize, dst:PageEntry)
         requires
-            old(self).wf(), 
+            old(self).wf(),
             0<=pcid<PCID_MAX,
             old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
             spec_va_valid(va),
@@ -30,7 +30,7 @@ impl Kernel{
         ensures
             self.wf(),
             self.page_alloc.free_pages.len() =~= old(self).page_alloc.free_pages.len(),
-            self.page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count == 
+            self.page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count ==
                 old(self).page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count + 1,
             forall|i:int|#![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(dst.addr)
                 ==> self.page_alloc.page_array@[i].rf_count == old(self).page_alloc.page_array@[i].rf_count,
@@ -58,7 +58,7 @@ impl Kernel{
 
     pub fn kernel_map_iommutable_page(&mut self, ioid:IOid, va: usize, dst:PageEntry)
         requires
-            old(self).wf(), 
+            old(self).wf(),
             0<=ioid<IOID_MAX,
             old(self).mmu_man.get_free_ioids_as_set().contains(ioid) == false,
             spec_va_valid(va),
@@ -73,7 +73,7 @@ impl Kernel{
         ensures
             self.wf(),
             self.page_alloc.free_pages.len() =~= old(self).page_alloc.free_pages.len(),
-            self.page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count == 
+            self.page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count ==
                 old(self).page_alloc.page_array@[page_ptr2page_index(dst.addr) as int].rf_count + 1,
             forall|i:int|#![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(dst.addr)
                 ==> self.page_alloc.page_array@[i].rf_count == old(self).page_alloc.page_array@[i].rf_count,
@@ -99,13 +99,13 @@ impl Kernel{
 
     pub fn kernel_unmap_pagetable_page(&mut self, pcid:Pcid, va: usize) -> (ret:Option<PageEntry>)
         requires
-            old(self).wf(), 
+            old(self).wf(),
             old(self).kernel_mmu_page_alloc_pagetable_wf(),
             0<=pcid<PCID_MAX,
             spec_va_valid(va),
             old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
     {
-        let ret = self.mmu_man.unmap_pagetable_page(pcid,va);   
+        let ret = self.mmu_man.unmap_pagetable_page(pcid,va);
         if ret.is_none() {
             assert(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_None());
             assert(self.wf());
@@ -150,7 +150,7 @@ impl Kernel{
         return ret;
     }
 
-    
+
     pub fn kernel_create_va_entry_by_pcid(&mut self, pcid: Pcid, va: usize)
         requires
             old(self).wf(),

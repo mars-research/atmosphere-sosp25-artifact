@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 
@@ -38,7 +38,7 @@ impl IOMMUTable{
     #[verifier(inline)]
     pub open spec fn is_va_entry_exist(&self, va: VAddr) -> bool
         recommends
-            spec_va_valid(va),    
+            spec_va_valid(va),
     {
         self.dummy.is_va_entry_exist(va)
     }

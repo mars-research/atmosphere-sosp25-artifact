@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use crate::define::*;
 use core::mem::MaybeUninit;
 pub struct PCIBitMap
@@ -36,9 +36,9 @@ impl PCIBitMap{
                 while dev != 32{
                     let mut fun = 0;
                     while fun != 8{
-    
+
                         self.bit_map[ioid][bus as usize][dev as usize] = 0;
-    
+
                         fun = fun + 1;
                     }
                     dev = dev + 1;
@@ -51,7 +51,7 @@ impl PCIBitMap{
     pub open spec fn wf(&self) -> bool{
         &&&
         (
-            forall|ioid:IOid, bus:u8,dev:u8,fun:u8|#![auto] 0<=ioid<IOID_MAX && 0<=bus<256 && 0<=dev<32 && 0<=fun<8 <==> self.ghost_map@.dom().contains((ioid,bus,dev,fun)) 
+            forall|ioid:IOid, bus:u8,dev:u8,fun:u8|#![auto] 0<=ioid<IOID_MAX && 0<=bus<256 && 0<=dev<32 && 0<=fun<8 <==> self.ghost_map@.dom().contains((ioid,bus,dev,fun))
         )
     }
 

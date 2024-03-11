@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::{
     PPtr, PointsTo,
     // PAGE_SZ,
@@ -40,7 +40,7 @@ pub fn proc_to_page(proc: (PPtr::<Process>, Tracked<PointsTo<Process>>)) -> (ret
 
 #[verifier(external_body)]
 pub fn proc_perm_init(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>)
-    requires 
+    requires
         proc_pptr.id() == old(proc_perm)@@.pptr,
         old(proc_perm)@@.value.is_Some(),
         old(proc_perm)@@.value.get_Some_0().owned_threads.arr_seq@.len() == MAX_NUM_THREADS_PER_PROC,
@@ -56,7 +56,7 @@ pub fn proc_perm_init(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsT
 
 #[verifier(external_body)]
 pub fn proc_set_pl_rf(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, pl_rf: Index)
-    requires 
+    requires
         proc_pptr.id() == old(proc_perm)@@.pptr,
         old(proc_perm)@@.value.is_Some(),
         old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
@@ -75,7 +75,7 @@ pub fn proc_set_pl_rf(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsT
 
 #[verifier(external_body)]
 pub fn proc_set_pcid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, pcid: Pcid)
-    requires 
+    requires
         proc_pptr.id() == old(proc_perm)@@.pptr,
         old(proc_perm)@@.value.is_Some(),
         old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
@@ -95,7 +95,7 @@ pub fn proc_set_pcid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo
 
 #[verifier(external_body)]
 pub fn proc_set_ioid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, ioid: Option<IOid>)
-    requires 
+    requires
         proc_pptr.id() == old(proc_perm)@@.pptr,
         old(proc_perm)@@.value.is_Some(),
         old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
@@ -116,7 +116,7 @@ pub fn proc_set_ioid(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo
 
 #[verifier(external_body)]
 pub fn proc_push_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, thread_ptr: ThreadPtr) -> (free_node_index: Index)
-    requires 
+    requires
         proc_pptr.id() == old(proc_perm)@@.pptr,
         old(proc_perm)@@.value.is_Some(),
         old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
@@ -149,7 +149,7 @@ pub fn proc_push_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Point
 
 #[verifier(external_body)]
 pub fn proc_remove_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>, rf: Index) -> (ret: ThreadPtr)
-    requires 
+    requires
         proc_pptr.id() == old(proc_perm)@@.pptr,
         old(proc_perm)@@.value.is_Some(),
         old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),
@@ -179,7 +179,7 @@ pub fn proc_remove_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<Poi
 
 #[verifier(external_body)]
 pub fn proc_pop_thread(proc_pptr: PPtr::<Process>,proc_perm: &mut Tracked<PointsTo<Process>>) -> (ret: ThreadPtr)
-    requires 
+    requires
         proc_pptr.id() == old(proc_perm)@@.pptr,
         old(proc_perm)@@.value.is_Some(),
         old(proc_perm)@@.value.get_Some_0().owned_threads.wf(),

@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::mars_array::*;
@@ -9,7 +9,7 @@ use crate::pagetable::*;
 
 
 impl MarsArray<PageTable,PCID_MAX>{
-    
+
     // new
 
     #[verifier(external_body)]
@@ -50,13 +50,13 @@ impl MarsArray<PageTable,PCID_MAX>{
             old(self)@[pcid as int].mapping@[va].is_None(),
             page_ptr_valid(dst.addr),
             spec_va_perm_bits_valid(dst.perm),
-        ensures 
+        ensures
             self.wf(),
             self@[pcid as int].wf(),
             old(self)@[pcid as int].is_va_entry_exist(va) == ret ,
-            old(self)@[pcid as int].is_va_entry_exist(va) ==> 
+            old(self)@[pcid as int].is_va_entry_exist(va) ==>
                 self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@.insert(va,Some(dst)),
-            !old(self)@[pcid as int].is_va_entry_exist(va) ==> 
+            !old(self)@[pcid as int].is_va_entry_exist(va) ==>
                 self@[pcid as int].mapping@ =~=old(self)@[pcid as int].mapping@,
             self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure(),
             forall|i:int| #![auto] 0<=i<PCID_MAX && i != pcid ==> self@[i as int] =~= old(self)@[i as int],
@@ -76,13 +76,13 @@ impl MarsArray<PageTable,PCID_MAX>{
         ensures
             self.wf(),
             self@[pcid as int].wf(),
-            old(self)@[pcid as int].is_va_entry_exist(va) ==> 
+            old(self)@[pcid as int].is_va_entry_exist(va) ==>
                 self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@.insert(va,None),
-            !old(self)@[pcid as int].is_va_entry_exist(va) ==> 
+            !old(self)@[pcid as int].is_va_entry_exist(va) ==>
                 self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@,
-            old(self)@[pcid as int].mapping@[va].is_Some() ==> 
+            old(self)@[pcid as int].mapping@[va].is_Some() ==>
                 self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@.insert(va,None),
-            !old(self)@[pcid as int].mapping@[va].is_None() ==> 
+            !old(self)@[pcid as int].mapping@[va].is_None() ==>
                 self@[pcid as int].mapping@ =~= old(self)@[pcid as int].mapping@,
             ret == old(self)@[pcid as int].mapping@[va],
             self@[pcid as int].get_pagetable_page_closure() =~= old(self)@[pcid as int].get_pagetable_page_closure(),

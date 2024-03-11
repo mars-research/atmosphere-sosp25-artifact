@@ -14,10 +14,9 @@
 
 // use crate::kernel::*;
 
-
 // impl Kernel {
 
-//     pub fn kernel_push_current_thread_to_endpoint(&mut self, cpu_id:CPUID, thread_ptr: ThreadPtr, endpoint_idx: EndpointIdx, ipc_payload: IPCPayLoad, pt_regs: PtRegs) 
+//     pub fn kernel_push_current_thread_to_endpoint(&mut self, cpu_id:CPUID, thread_ptr: ThreadPtr, endpoint_idx: EndpointIdx, ipc_payload: IPCPayLoad, pt_regs: PtRegs)
 //         requires
 //             old(self).wf(),
 //             0<=cpu_id<NUM_CPUS,
@@ -76,7 +75,7 @@
 
 //         // assert(forall|thread_ptr:ThreadPtr|#![auto] thread_ptr != new_thread_ptr && self.proc_man.get_thread_ptrs().contains(thread_ptr) ==> self.proc_man.get_thread(thread_ptr).state != TRANSIT);
 //         // assert(old(self).proc_man.get_thread(new_thread_ptr).state == BLOCKED);
-//         // assert(forall|i:int|#![auto]0<=i<NUM_CPUS && old(self).cpu_list@[i].get_current_thread().is_Some() 
+//         // assert(forall|i:int|#![auto]0<=i<NUM_CPUS && old(self).cpu_list@[i].get_current_thread().is_Some()
 //         //     ==> old(self).cpu_list@[i].get_current_thread().unwrap() != new_thread_ptr);
 //         // self.proc_man.set_thread_to_running(new_thread_ptr);
 //         self.proc_man.push_scheduler(thread_ptr);
@@ -88,7 +87,7 @@
 //         //     self.mmu_man.wf()
 //         // );
 //         // assert(
-        
+
 //         //     self.page_alloc.wf()
 //         // );
 //         // assert(
@@ -126,7 +125,6 @@
 //         return (new_thread_ptr, SUCCESS);
 //     }
 
-
 //     pub fn kernel_pop_sender_endpoint(&mut self, cpu_id:CPUID, thread_ptr: ThreadPtr, endpoint_idx:EndpointIdx) -> (ret: (ThreadPtr,ErrorCodeType))
 //         requires
 //             old(self).wf(),
@@ -160,7 +158,7 @@
 
 //         // assert(forall|thread_ptr:ThreadPtr|#![auto] thread_ptr != new_thread_ptr && self.proc_man.get_thread_ptrs().contains(thread_ptr) ==> self.proc_man.get_thread(thread_ptr).state != TRANSIT);
 //         // assert(old(self).proc_man.get_thread(new_thread_ptr).state == BLOCKED);
-//         // assert(forall|i:int|#![auto]0<=i<NUM_CPUS && old(self).cpu_list@[i].get_current_thread().is_Some() 
+//         // assert(forall|i:int|#![auto]0<=i<NUM_CPUS && old(self).cpu_list@[i].get_current_thread().is_Some()
 //         //     ==> old(self).cpu_list@[i].get_current_thread().unwrap() != new_thread_ptr);
 //         // self.proc_man.set_thread_to_running(new_thread_ptr);
 //         self.proc_man.push_scheduler(thread_ptr);
@@ -172,7 +170,7 @@
 //         //     self.mmu_man.wf()
 //         // );
 //         // assert(
-        
+
 //         //     self.page_alloc.wf()
 //         // );
 //         // assert(

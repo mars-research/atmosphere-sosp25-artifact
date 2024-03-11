@@ -1,9 +1,8 @@
 use vstd::prelude::*;
 
+pub const KERNEL_PML4_SIG: Option<PageEntry> = None; // hack @Xiangdong
 
-pub const KERNEL_PML4_SIG :Option<PageEntry> = None; // hack @Xiangdong
-
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::mars_array::*;
@@ -18,7 +17,7 @@ pub struct LookUpTable{
 }
 pub struct PageTable{
     pub cr3: PAddr,
-    
+
     pub l4_table: Tracked<Map<PAddr,PointsTo<PageMap>>>,
     pub l3_tables: Tracked<Map<PAddr,PointsTo<PageMap>>>,
     pub l2_tables: Tracked<Map<PAddr,PointsTo<PageMap>>>,
@@ -26,7 +25,7 @@ pub struct PageTable{
 
     pub mapping: Ghost<Map<VAddr,Option<PageEntry>>>,
 }
-    
+
 
 impl PageTable{
 
@@ -85,7 +84,7 @@ impl PageTable{
     pub open spec fn get_pagetable_mapped_pages(&self) -> Set<PagePtr>{
         Set::<PagePtr>::new(|pa: PagePtr| self.is_pa_mapped(pa))
     }
-    
+
     // #[verifier(inline)]
     pub open spec fn is_pa_mapped(&self, pa:PAddr) -> bool
     {
@@ -104,7 +103,7 @@ impl PageTable{
         self.l4_table@[self.cr3]@.value.get_Some_0().wf()
         //L4 table only maps to L3
         &&
-        (forall|i: L4Index, j: L4Index| #![auto] i != j && KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[i].is_Some() && KERNEL_MEM_END_L4INDEX <= j < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[j].is_Some() ==> 
+        (forall|i: L4Index, j: L4Index| #![auto] i != j && KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[i].is_Some() && KERNEL_MEM_END_L4INDEX <= j < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[j].is_Some() ==>
             self.l4_table@[self.cr3]@.value.get_Some_0()[i].get_Some_0().addr != self.l4_table@[self.cr3]@.value.get_Some_0()[j].get_Some_0().addr)
         &&
         (forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[i].is_Some() ==> self.l2_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0()[i].get_Some_0().addr) == false)
@@ -120,13 +119,13 @@ impl PageTable{
     pub open spec fn wf_l3(&self) -> bool{
         //all l4 mappings exist in l3
         (
-            forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[i].is_Some() ==> 
+            forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[i].is_Some() ==>
                 self.l3_tables@.dom().contains(self.l4_table@[self.cr3]@.value.get_Some_0()[i].get_Some_0().addr)
         )
         &&
         (
             self.l3_tables@.dom().contains(0) == false
-        )       
+        )
         &&
         (
             forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> self.l3_tables@[i]@.pptr == i
@@ -141,9 +140,9 @@ impl PageTable{
         )
         &&
         (
-            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==>
                 (
-                exists|l4i:L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= l4i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].is_Some() && 
+                exists|l4i:L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= l4i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].is_Some() &&
                 self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].get_Some_0().addr == i
                 )
         )
@@ -153,7 +152,7 @@ impl PageTable{
         &&
         (
             forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i)
-                ==> 
+                ==>
                 (
                     forall|l3i: L3Index, l3j: L3Index| #![auto] l3i != l3j && 0 <= l3i < 512 && 0 <= l3j < 512 && self.l3_tables@[i]@.value.get_Some_0()[l3i].is_Some() && self.l3_tables@[i]@.value.get_Some_0()[l3j].is_Some() ==>
                         self.l3_tables@[i]@.value.get_Some_0()[l3i].get_Some_0().addr != self.l3_tables@[i]@.value.get_Some_0()[l3j].get_Some_0().addr
@@ -162,7 +161,7 @@ impl PageTable{
         &&
         (
             forall|i: PAddr,j: PAddr| #![auto] i != j && self.l3_tables@.dom().contains(i) && self.l3_tables@.dom().contains(j)
-                ==> 
+                ==>
                 (
                     forall|l3i: L3Index, l3j: L3Index| #![auto] 0 <= l3i < 512 && 0 <= l3j < 512 && self.l3_tables@[i]@.value.get_Some_0()[l3i].is_Some() && self.l3_tables@[j]@.value.get_Some_0()[l3j].is_Some() ==>
                         self.l3_tables@[i]@.value.get_Some_0()[l3i].get_Some_0().addr != self.l3_tables@[j]@.value.get_Some_0()[l3j].get_Some_0().addr
@@ -170,23 +169,23 @@ impl PageTable{
         )
         &&
         (
-            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==>
                 forall|j: L3Index| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
-                    self.l3_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false  
+                    self.l3_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false
         )
         &&
-        (   forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+        (   forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==>
                 forall|j: L3Index| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
-                    self.l1_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false  
+                    self.l1_tables@.dom().contains(self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false
         )
         &&
         (
-            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==>
                 forall|j: L3Index| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
                     self.cr3 != self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr
         )
     }
-    
+
     pub open spec fn wf_l2(&self) -> bool{
       //all l3 mappings exist in l2
         (
@@ -198,7 +197,7 @@ impl PageTable{
         &&
         (
             self.l2_tables@.dom().contains(0) == false
-        )  
+        )
         &&
         (
             forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> self.l2_tables@[i]@.pptr == i
@@ -213,7 +212,7 @@ impl PageTable{
         )
         &&
         (
-            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==>
                 (
                     exists|j:PAddr,l3i:L3Index| #![auto] 0<=l3i<512 && self.l3_tables@.dom().contains(j) && self.l3_tables@[j]@.value.get_Some_0()[l3i].is_Some()
                         && self.l3_tables@[j]@.value.get_Some_0()[l3i].get_Some_0().addr == i
@@ -221,7 +220,7 @@ impl PageTable{
         )
 
 
-                
+
         //L2 table only maps to L1
         //L2 tables are disjoint
         &&
@@ -241,19 +240,19 @@ impl PageTable{
             )
         )
         &&
-        (forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+        (forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==>
             forall|j: L2Index| #![auto]  0 <= j < 512 && self.l2_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
-                self.l2_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false  
+                self.l2_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false
         )
         &&
         (
-            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==>
                 forall|j: L2Index| #![auto] 0 <= j < 512 && self.l2_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
-                    self.l3_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false  
+                    self.l3_tables@.dom().contains(self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr) == false
         )
         &&
         (
-            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==> 
+            forall|i: usize| #![auto] self.l2_tables@.dom().contains(i) ==>
                 forall|j: L2Index| #![auto] 0 <= j < 512 && self.l2_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
                     self.cr3 != self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().addr
         )
@@ -270,7 +269,7 @@ impl PageTable{
         &&
         (
             self.l1_tables@.dom().contains(0) == false
-        )   
+        )
         &&
         (
             forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> self.l1_tables@[i]@.pptr == i
@@ -285,7 +284,7 @@ impl PageTable{
         )
         &&
         (
-            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l1_tables@.dom().contains(i) ==>
                 (
                     exists|j:PAddr,l2i:L2Index| #![auto] 0<=l2i<512 && self.l2_tables@.dom().contains(j) && self.l2_tables@[j]@.value.get_Some_0()[l2i].is_Some()
                         && self.l2_tables@[j]@.value.get_Some_0()[l2i].get_Some_0().addr == i
@@ -294,24 +293,24 @@ impl PageTable{
     }
 
     pub open spec fn no_self_mapping(&self) -> bool
-    {   
+    {
         //L1 table only maps to outside of this pagetable
         //L1 tables do not have to be disjoint
         (
             forall|va: VAddr| #![auto] spec_va_valid(va) && self.mapping@[va].is_Some() ==>
-                    self.l3_tables@.dom().contains(self.mapping@[va].get_Some_0().addr) == false  
+                    self.l3_tables@.dom().contains(self.mapping@[va].get_Some_0().addr) == false
         )
         &&
         (
             forall|va: VAddr| #![auto] spec_va_valid(va) && self.mapping@[va].is_Some() ==>
-                    self.l2_tables@.dom().contains(self.mapping@[va].get_Some_0().addr) == false  
+                    self.l2_tables@.dom().contains(self.mapping@[va].get_Some_0().addr) == false
         )
         &&
         (
             forall|va: VAddr| #![auto] spec_va_valid(va) && self.mapping@[va].is_Some() ==>
-                    self.l1_tables@.dom().contains(self.mapping@[va].get_Some_0().addr) == false  
+                    self.l1_tables@.dom().contains(self.mapping@[va].get_Some_0().addr) == false
         )
-        && 
+        &&
         (
             forall|va: VAddr| #![auto] spec_va_valid(va) && self.mapping@[va].is_Some() ==>
                 self.cr3 != self.mapping@[va].get_Some_0().addr
@@ -321,7 +320,7 @@ impl PageTable{
     // #[verifier(inline)]
     pub open spec fn resolve_mapping_l4(&self, l4i: L4Index) -> Option<PageEntry>
         recommends
-            KERNEL_MEM_END_L4INDEX <= l4i < 512, 
+            KERNEL_MEM_END_L4INDEX <= l4i < 512,
     {
         if self.cr3 == 0{
             None
@@ -367,14 +366,14 @@ impl PageTable{
         }else{
             self.l1_tables@[self.resolve_mapping_l2(l4i,l3i,l2i).get_Some_0().addr]@.value.get_Some_0()[l1i]
         }
-    
+
     }
 
     pub proof fn wf_to_wf_mapping(&self)
         requires self.wf_l4(),
                  self.wf_l3(),
                  self.wf_l2(),
-        ensures 
+        ensures
             self.wf_l4_mapping(),
             self.wf_l3_mapping(),
             self.wf_l2_mapping()
@@ -384,58 +383,58 @@ impl PageTable{
         assert(self.wf_l2_mapping());
     }
 
-    
+
     pub open spec fn wf_l4_mapping(&self) -> bool{
-        forall|l4i: L4Index, l4j: L4Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512) && (KERNEL_MEM_END_L4INDEX<= l4j < 512) && !(l4i == l4j) ==> 
+        forall|l4i: L4Index, l4j: L4Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512) && (KERNEL_MEM_END_L4INDEX<= l4j < 512) && !(l4i == l4j) ==>
         (self.resolve_mapping_l4(l4i).is_None() || self.resolve_mapping_l4(l4j).is_None() || self.resolve_mapping_l4(l4i).get_Some_0().addr != self.resolve_mapping_l4(l4j).get_Some_0().addr)
     }
 
     pub open spec fn wf_l3_mapping(&self) -> bool{
-        forall|l4i: L4Index, l3i: L3Index, l4j: L4Index,l3j: L3Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512) 
-            && (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512) 
-            && !(l4i == l4j && l3i == l3j) ==> 
+        forall|l4i: L4Index, l3i: L3Index, l4j: L4Index,l3j: L3Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512)
+            && (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512)
+            && !(l4i == l4j && l3i == l3j) ==>
                 (self.resolve_mapping_l3(l4i,l3i).is_None() || self.resolve_mapping_l3(l4j,l3j).is_None() || self.resolve_mapping_l3(l4i,l3i).get_Some_0().addr != self.resolve_mapping_l3(l4j,l3j).get_Some_0().addr)
     }
 
 
     pub open spec fn wf_l2_mapping(&self) -> bool{
-        forall|l4i: L4Index,l3i: L3Index,l2i: L2Index,l4j: L4Index,l3j: L3Index,l2j: L2Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512) 
-        && (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512) 
-        && !(l4i == l4j && l3i == l3j && l2i == l2j ) ==> 
+        forall|l4i: L4Index,l3i: L3Index,l2i: L2Index,l4j: L4Index,l3j: L3Index,l2j: L2Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512)
+        && (KERNEL_MEM_END_L4INDEX<= l4j < 512 && 0<= l3j < 512 && 0<= l2j < 512)
+        && !(l4i == l4j && l3i == l3j && l2i == l2j ) ==>
         self.resolve_mapping_l2(l4i,l3i,l2i).is_None() || self.resolve_mapping_l2(l4j,l3j,l2j).is_None() || self.resolve_mapping_l2(l4i,l3i,l2i).get_Some_0().addr != self.resolve_mapping_l2(l4j,l3j,l2j).get_Some_0().addr
-            
+
 
     }
 
     pub open spec fn wf_mapping(&self) -> bool{
         (
-            forall|va: VAddr| #![auto] spec_va_valid(va) ==> self.mapping@.dom().contains(va) 
+            forall|va: VAddr| #![auto] spec_va_valid(va) ==> self.mapping@.dom().contains(va)
         )
         // &&
         // (forall|va: usize| #![auto] spec_va_valid(va) ==> self.mapping@[va] == self.resolve_mapping_l1(spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va)))
         &&
-        (forall|l4i: L4Index,l3i: L3Index,l2i: L2Index, l1i: L1Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512) 
+        (forall|l4i: L4Index,l3i: L3Index,l2i: L2Index, l1i: L1Index| #![auto] (KERNEL_MEM_END_L4INDEX<= l4i < 512 && 0<= l3i < 512 && 0<= l2i < 512 && 0<= l1i < 512)
         ==> self.mapping@[spec_index2va((l4i,l3i,l2i,l1i))] == self.resolve_mapping_l1(l4i,l3i,l2i,l1i))
-        
+
     }
 
     pub open spec fn l4_l3_l2_rwx(&self) -> bool {
         &&&
         (
-                forall|l4i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= l4i< 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].is_Some() ==> 
+                forall|l4i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= l4i< 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].is_Some() ==>
                     self.l4_table@[self.cr3]@.value.get_Some_0()[l4i].get_Some_0().perm == READ_WRITE_EXECUTE
         )
         &&&
         (
-            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l3_tables@.dom().contains(i) ==>
                 forall|j: L3Index| #![auto] 0 <= j < 512 && self.l3_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
-                    self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().perm == READ_WRITE_EXECUTE    
+                    self.l3_tables@[i]@.value.get_Some_0()[j].get_Some_0().perm == READ_WRITE_EXECUTE
         )
         &&&
         (
-            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==> 
+            forall|i: PAddr| #![auto] self.l2_tables@.dom().contains(i) ==>
                 forall|j: L2Index| #![auto] 0 <= j < 512 && self.l2_tables@[i]@.value.get_Some_0()[j].is_Some() ==>
-                    self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().perm == READ_WRITE_EXECUTE    
+                    self.l2_tables@[i]@.value.get_Some_0()[j].get_Some_0().perm == READ_WRITE_EXECUTE
         )
     }
     pub open spec fn wf(&self) -> bool
@@ -492,7 +491,7 @@ impl PageTable{
     }
 
     pub open spec fn is_va_entry_exist(&self, va:VAddr) -> bool
-        recommends spec_va_valid(va),    
+        recommends spec_va_valid(va),
     {
         let (l4i,l3i,l2i,_) = spec_va2index(va);
 
@@ -504,14 +503,14 @@ impl PageTable{
     }
 
     pub proof fn l4_empty_derive(&self)
-        requires 
+        requires
             self.wf(),
             forall|i: L4Index| #![auto] KERNEL_MEM_END_L4INDEX <= i < 512 && self.l4_table@[self.cr3]@.value.get_Some_0()[i].is_None()
     {
         assert(self.l3_tables@.dom() =~= Set::empty());
         assert(self.l2_tables@.dom() =~= Set::empty());
         assert(self.l1_tables@.dom() =~= Set::empty());
-    }   
+    }
 
 
 }

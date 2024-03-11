@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -21,7 +21,7 @@ impl Kernel {
         requires
             old(self).wf(),
     {
-        let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();  
+        let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();
         if cpu_id >= NUM_CPUS{
             return SyscallReturnStruct::new(CPU_ID_INVALID,default_pcid,default_cr3,pt_regs);
         }
@@ -38,7 +38,7 @@ impl Kernel {
 
         let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
         let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
-        
+
         if endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS{
             return SyscallReturnStruct::new(ENDPOINT_INDEX_INVALID,pcid,cr3,pt_regs);
         }
@@ -52,7 +52,7 @@ impl Kernel {
             return SyscallReturnStruct::new(SYSTEM_OUT_OF_MEM,pcid,cr3,pt_regs);
         }
 
-        let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem(); 
+        let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem();
         self.proc_man.new_endpoint(page_ptr1, page_perm1,current_thread_ptr, endpoint_index);
 
         assert(self.wf());

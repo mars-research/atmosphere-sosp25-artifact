@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -39,7 +39,7 @@ impl Kernel {
 
         let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
         let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
-        
+
         if endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS{
             return (SyscallReturnStruct::new(ENDPOINT_INDEX_INVALID,pcid,cr3,pt_regs),None,None);
         }
@@ -68,8 +68,8 @@ impl Kernel {
         if self.proc_man.get_proc_num_of_threads_by_proc_ptr(current_proc_ptr) >= MAX_NUM_THREADS_PER_PROC {
             return (SyscallReturnStruct::new(PROC_THREAD_LIST_FULL,pcid,cr3,pt_regs),None,None);
         }
- 
-        let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem(); 
+
+        let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem();
         let new_thread = self.proc_man.new_thread(pt_regs_new_thread,page_ptr1, page_perm1,current_proc_ptr);
 
         assert(self.wf());

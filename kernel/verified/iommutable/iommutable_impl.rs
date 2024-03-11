@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::page_alloc::*;
@@ -10,7 +10,7 @@ use crate::iommutable::*;
 
 impl IOMMUTable{
     pub fn map(&mut self, va:VAddr, dst:PageEntry) -> (ret: bool)
-        requires 
+        requires
             old(self).dummy.wf(),
             spec_va_valid(va),
             //old(self).dummy.is_va_entry_exist(va),
@@ -21,28 +21,28 @@ impl IOMMUTable{
         ensures
             self.dummy.wf(),
             old(self).dummy.is_va_entry_exist(va) == ret ,
-            old(self).dummy.is_va_entry_exist(va) ==> 
+            old(self).dummy.is_va_entry_exist(va) ==>
                 self.dummy.mapping@ =~= old(self).dummy.mapping@.insert(va,Some(dst)),
-            !old(self).dummy.is_va_entry_exist(va) ==> 
+            !old(self).dummy.is_va_entry_exist(va) ==>
                 self.dummy.mapping@ =~= old(self).dummy.mapping@,
     {
         return self.dummy.map(va,dst);
     }
 
     pub fn unmap(&mut self, va:VAddr) -> (ret: Option<PageEntry>)
-        requires 
+        requires
             old(self).dummy.wf(),
             spec_va_valid(va),
             // old(self).dummy.mapping@[va] != 0,
         ensures
             self.dummy.wf(),
-            old(self).dummy.is_va_entry_exist(va) ==> 
+            old(self).dummy.is_va_entry_exist(va) ==>
                 self.dummy.mapping@ =~= old(self).dummy.mapping@.insert(va,None),
-            !old(self).dummy.is_va_entry_exist(va) ==> 
+            !old(self).dummy.is_va_entry_exist(va) ==>
                 self.dummy.mapping@ =~= old(self).dummy.mapping@,
-            old(self).dummy.mapping@[va].is_Some() ==> 
+            old(self).dummy.mapping@[va].is_Some() ==>
                 self.dummy.mapping@ =~= old(self).dummy.mapping@.insert(va,None),
-            old(self).dummy.mapping@[va].is_None() ==> 
+            old(self).dummy.mapping@[va].is_None() ==>
                 self.dummy.mapping@ =~= old(self).dummy.mapping@,
             ret == old(self).dummy.mapping@[va],
     {

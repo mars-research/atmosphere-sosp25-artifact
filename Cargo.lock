@@ -38,7 +38,6 @@ dependencies = [
  "goblin",
  "kernel-logger",
  "log",
- "multiboot",
  "nasm-rs",
  "ns16550a",
  "num-derive",
@@ -2166,6 +2165,7 @@ dependencies = [
  "num-traits",
  "realjump",
  "verified",
+ "vstd",
  "x86 0.47.0",
 ]
 
@@ -2368,15 +2368,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "359f76430b20a79f9e20e115b3428614e654f04fab314482fc0fda0ebd3c6044"
 dependencies = [
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "multiboot"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f87ad3b7b7bcf5da525c22221e3eb3a020cd68b2d55ae62f629c15e8bc3bd56e"
-dependencies = [
- "paste",
 ]
 
 [[package]]
@@ -2652,12 +2643,6 @@ dependencies = [
  "time",
  "zeroize",
 ]
-
-[[package]]
-name = "paste"
-version = "1.0.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
 
 [[package]]
 name = "pathdiff"

@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::PPtr;
 
 use crate::mem::size_of;
@@ -319,7 +319,7 @@ impl<T> PageElementPtr<T> {
     //     Self {
     //         page_pptr: self.page_pptr.clone(),
     //         index: self.index,
-        
+
     //         phantom: self.phantom,
     //     }
     // }
@@ -327,7 +327,7 @@ impl<T> PageElementPtr<T> {
     // Specs
 
     pub open spec fn same_ptr(&self, other: &Self) -> bool {
-        &&& self.page_pptr().id() === other.page_pptr().id() 
+        &&& self.page_pptr().id() === other.page_pptr().id()
         &&& self.index() == other.index()
         &&& self.page_base() === other.page_base()
     }

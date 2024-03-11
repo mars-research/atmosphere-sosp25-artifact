@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::*;
 
 use crate::define::*;
@@ -73,7 +73,7 @@ pub fn page_index2page_ptr(i: usize) -> (ret:usize)
     proof{
         lemma_usize_u64(MAX_USIZE);
     }
-    i * 4096usize 
+    i * 4096usize
 }
 
 #[verifier(inline)]
@@ -110,13 +110,13 @@ impl PageAllocator {
     {
         self.allocated_pages@
     }
-    
+
     #[verifier(inline)]
     pub open spec fn get_mapped_pages(&self) -> Set<PagePtr>
     {
         self.mapped_pages@
     }
-    
+
     #[verifier(inline)]
     pub open spec fn get_free_pages_as_set(&self) -> Set<PagePtr>
     {
@@ -126,7 +126,7 @@ impl PageAllocator {
     #[verifier(inline)]
     pub open spec fn get_available_pages(&self) -> Set<PagePtr>
     {
-        
+
         self.available_pages@
     }
 
@@ -163,9 +163,9 @@ impl PageAllocator {
 
 
     pub proof fn page_array_wf_derive(&self)
-    requires 
+    requires
         self.page_array_wf(),
-    ensures 
+    ensures
         forall|i:int| #![auto] 0<=i<NUM_PAGES ==> page_ptr_valid(self.page_array@[i].start),
         forall|i:int,j:int| #![auto] 0<=i<NUM_PAGES && 0<=j<NUM_PAGES && i != j==> self.page_array@[i].start != self.page_array@[j].start,
     {
@@ -247,17 +247,17 @@ impl PageAllocator {
     pub open spec fn pagetable_mapping_wf(&self) -> bool{
         &&&
         (
-            forall|pcid:Pcid, pa:PAddr,va:VAddr| #![auto] self.get_available_pages().contains(pa) && self.get_page_mappings(pa).contains((pcid,va)) ==> 
+            forall|pcid:Pcid, pa:PAddr,va:VAddr| #![auto] self.get_available_pages().contains(pa) && self.get_page_mappings(pa).contains((pcid,va)) ==>
             (0<=pcid<PCID_MAX && spec_va_valid(va))
         )
     }
 
-    
+
     // #[verifier(inline)]
     pub open spec fn pagetable_io_mapping_wf(&self) -> bool{
         &&&
         (
-            forall|ioid:IOid, pa:PAddr,va:VAddr| #![auto] self.get_available_pages().contains(pa) && self.get_page_io_mappings(pa).contains((ioid,va)) ==> 
+            forall|ioid:IOid, pa:PAddr,va:VAddr| #![auto] self.get_available_pages().contains(pa) && self.get_page_io_mappings(pa).contains((ioid,va)) ==>
             (0<=ioid<IOID_MAX && spec_va_valid(va))
         )
     }
@@ -291,10 +291,10 @@ impl PageAllocator {
         (self.get_free_pages_as_set().disjoint(self.get_page_table_pages()))
         &&&
         (self.get_mapped_pages().disjoint(self.get_page_table_pages()))
-        //Not sure if we can prove this, but this ensures exact 1 ownership of all pages, 
-        //hence No memory leak. 
+        //Not sure if we can prove this, but this ensures exact 1 ownership of all pages,
+        //hence No memory leak.
         &&&
-        ((self.get_allocated_pages() + self.get_mapped_pages() + self.get_free_pages_as_set() + self.get_page_table_pages()) =~= self.get_available_pages()) 
+        ((self.get_allocated_pages() + self.get_mapped_pages() + self.get_free_pages_as_set() + self.get_page_table_pages()) =~= self.get_available_pages())
     }
     // #[verifier(inline)]
     pub open spec fn rf_wf(&self) -> bool{
@@ -329,10 +329,10 @@ impl PageAllocator {
         self.pagetable_mapping_wf()
         &&
         self.pagetable_io_mapping_wf()
-           
+
     }
 
-    
+
     #[verifier(inline)]
     pub open spec fn get_page(&self, page_ptr:PagePtr) -> Page
         recommends

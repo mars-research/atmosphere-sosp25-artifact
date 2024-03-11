@@ -1,7 +1,7 @@
 use super::*;
 
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::*;
 
 use crate::define::*;
@@ -12,7 +12,7 @@ use crate::trap::*;
 impl ProcessManager {
 
     // pub fn push_scheduler_with_error_code(&mut self, thread_ptr: ThreadPtr, error_code: Option<ErrorCodeType>, pt_regs: PtRegs)
-    //     requires 
+    //     requires
     //         old(self).wf(),
     //         old(self).scheduler.len() < MAX_NUM_THREADS,
     //         old(self).get_thread_ptrs().contains(thread_ptr),
@@ -45,7 +45,7 @@ impl ProcessManager {
     //         self.get_thread(thread_ptr).error_code =~= error_code,
     //         // self.get_thread(thread_ptr).trap_frame =~= pt_regs,
     // {
-        
+
     //     let ret = self.scheduler.push(thread_ptr);
     //     let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
     //     let mut thread_perm =
@@ -69,7 +69,7 @@ impl ProcessManager {
     // }
 
     // pub fn pop_scheduler_with_error_code(&mut self) -> (ret: (ThreadPtr,Option<ErrorCodeType>))
-    //     requires 
+    //     requires
     //         old(self).wf(),
     //         old(self).scheduler.len() > 0,
     //     ensures
@@ -121,7 +121,7 @@ impl ProcessManager {
     // }
 
     pub fn push_scheduler(&mut self, thread_ptr: ThreadPtr, error_code: Option<ErrorCodeType>, pt_regs: PtRegs)
-        requires 
+        requires
             old(self).wf(),
             old(self).scheduler.len() < MAX_NUM_THREADS,
             old(self).get_thread_ptrs().contains(thread_ptr),
@@ -153,7 +153,7 @@ impl ProcessManager {
             self.get_thread(thread_ptr).ipc_payload =~= old(self).get_thread(thread_ptr).ipc_payload,
             self.get_thread(thread_ptr).error_code =~= error_code,
     {
-        
+
         let ret = self.scheduler.push(thread_ptr);
         let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
         let mut thread_perm =
@@ -177,7 +177,7 @@ impl ProcessManager {
     }
 
     pub fn pop_scheduler(&mut self) -> (ret: (ThreadPtr, PtRegs, Option<ErrorCodeType>))
-        requires 
+        requires
             old(self).wf(),
             old(self).scheduler.len() > 0,
         ensures

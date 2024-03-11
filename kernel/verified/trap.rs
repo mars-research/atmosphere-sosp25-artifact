@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 
 /// Registers passed to the ISR.
@@ -40,7 +40,7 @@ pub struct PtRegs {
     /* top of stack page */
 }
 
-impl PtRegs {  
+impl PtRegs {
 
     pub open spec fn view(&self) -> PtRegs
     {
@@ -75,7 +75,7 @@ impl PtRegs {
         self.rflags = input.rflags;
         self.rsp = input.rsp;
         self.ss = input.ss;
-    
+
     }
 
     pub fn new_empty()-> (ret : Self)

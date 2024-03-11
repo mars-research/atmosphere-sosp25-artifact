@@ -1,7 +1,7 @@
-use core::mem::MaybeUninit;
 use crate::trap::PtRegs;
+use core::mem::MaybeUninit;
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::{
     PPtr, PointsTo,
     // PAGE_SZ,
@@ -136,13 +136,13 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
         perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
         perm@@.value.get_Some_0().trap_frame == old(perm)@@.value.get_Some_0().trap_frame,
-        perm@@.value.get_Some_0().endpoint_descriptors.wf(), 
+        perm@@.value.get_Some_0().endpoint_descriptors.wf(),
         perm@@.value.get_Some_0().endpoint_descriptors@ =~= old(perm)@@.value.get_Some_0().endpoint_descriptors@.update(index as int, endpoint_pointer),
-        forall|_endpoint_ptr:EndpointPtr|#![auto] old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) ==> 
+        forall|_endpoint_ptr:EndpointPtr|#![auto] old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) ==>
             perm@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr),
         perm@@.value.get_Some_0().endpoint_descriptors@.contains(endpoint_pointer),
         ret == old(perm)@@.value.get_Some_0().endpoint_descriptors@[index as int],
-        forall|_endpoint_ptr: EndpointPtr| #![auto]  _endpoint_ptr != ret 
+        forall|_endpoint_ptr: EndpointPtr| #![auto]  _endpoint_ptr != ret
             ==> perm@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) == old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr),
 {
 unsafe {
@@ -364,7 +364,7 @@ ensures pptr.id() == perm@@.pptr,
 
 #[verifier(external_body)]
 pub fn endpoint_remove_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, rf: Index) -> (ret: ThreadPtr)
-    requires 
+    requires
         endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
         old(endpoint_perm)@@.value.is_Some(),
         old(endpoint_perm)@@.value.get_Some_0().queue.wf(),

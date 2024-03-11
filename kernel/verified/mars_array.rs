@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use core::mem::MaybeUninit;
 
 
@@ -11,8 +11,8 @@ pub struct MarsArray<A, const N: usize>{
 
 impl<const N: usize> MarsArray<u8, N> {
 
-    pub fn init2zero(&mut self) 
-        requires 
+    pub fn init2zero(&mut self)
+        requires
             old(self).wf(),
             N <= usize::MAX,
         ensures
@@ -43,8 +43,8 @@ impl<const N: usize> MarsArray<u8, N> {
 
 impl<const N: usize> MarsArray<usize, N> {
 
-    pub fn init2zero(&mut self) 
-        requires 
+    pub fn init2zero(&mut self)
+        requires
             old(self).wf(),
             N <= usize::MAX,
         ensures
@@ -90,8 +90,8 @@ impl<A, const N: usize> MarsArray<A, N> {
     }
 
     #[verifier(external_body)]
-    pub fn get(&self, i: usize) -> (out: &A) 
-        requires 
+    pub fn get(&self, i: usize) -> (out: &A)
+        requires
             0 <= i < N,
             self.seq@.len() == N,
         ensures
@@ -102,8 +102,8 @@ impl<A, const N: usize> MarsArray<A, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set(&mut self, i: usize, out: A) 
-        requires 
+    pub fn set(&mut self, i: usize, out: A)
+        requires
             0 <= i < N,
             old(self).wf(),
         ensures
@@ -114,7 +114,7 @@ impl<A, const N: usize> MarsArray<A, N> {
     }
 
     #[verifier(inline)]
-    pub open spec fn spec_index(self, i: int) -> A 
+    pub open spec fn spec_index(self, i: int) -> A
         recommends self.seq@.len() == N,
                    0 <= i < N,
     {
@@ -137,11 +137,11 @@ impl<A, const N: usize> MarsArray<A, N> {
 }
 
     fn test<const N: usize>(ar: &mut MarsArray<u64, N>)
-    requires 
+    requires
         old(ar).wf(),
         old(ar)[1] == 0,
         N == 2,
-            
+
     {
     let v_1 = ar.get(1);
     assert(v_1 == 0);

@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
-verus!{
+verus! {
 
 
 

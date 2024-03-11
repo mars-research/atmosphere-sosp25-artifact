@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -19,8 +19,8 @@ impl Kernel{
             0<=pcid<PCID_MAX,
             0<=target<PCID_MAX,
             // pcid != target,
-            spec_va_valid(va_src),   
-            spec_va_valid(va_dst),           
+            spec_va_valid(va_src),
+            spec_va_valid(va_dst),
             old(self).page_alloc.free_pages.len() >= 3,
             old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
             old(self).mmu_man.get_free_pcids_as_set().contains(target) == false,
@@ -32,9 +32,9 @@ impl Kernel{
         ensures
             self.wf(),
             self.page_alloc.free_pages.len() >= old(self).page_alloc.free_pages.len() - 3,
-            self.page_alloc.page_array@[page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].get_Some_0().addr) as int].rf_count == 
+            self.page_alloc.page_array@[page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].get_Some_0().addr) as int].rf_count ==
                 old(self).page_alloc.page_array@[page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].get_Some_0().addr) as int].rf_count + 1,
-            forall|i:int|#![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].get_Some_0().addr) 
+            forall|i:int|#![auto] 0<=i<NUM_PAGES && i != page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[va_src].get_Some_0().addr)
                 ==> self.page_alloc.page_array@[i].rf_count == old(self).page_alloc.page_array@[i].rf_count,
             self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
             self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
@@ -73,8 +73,8 @@ impl Kernel{
             0<=pcid<PCID_MAX,
             0<=target<IOID_MAX,
             // pcid != target,
-            forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_src,i)),    
-            forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_dst,i)),           
+            forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_src,i)),
+            forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_dst,i)),
             old(self).page_alloc.free_pages.len() >= 3 * range,
             old(self).mmu_man.get_free_pcids_as_set().contains(pcid) == false,
             old(self).mmu_man.get_free_pcids_as_set().contains(target) == false,
@@ -83,7 +83,7 @@ impl Kernel{
                 page_ptr2page_index(old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va_src,i)].get_Some_0().addr) as int].rf_count < usize::MAX - range,
             forall|i:usize| #![auto] 0<=i<range ==> old(self).mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va_dst,i)].is_None(),
             spec_va_perm_bits_valid(perm_bits),
-        ensures 
+        ensures
             self.wf(),
             forall|j:usize| #![auto] 0<=j<range ==> self.mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va_dst,j)].is_Some(),
     {
@@ -95,8 +95,8 @@ impl Kernel{
                 0<=pcid<PCID_MAX,
                 0<=target<IOID_MAX,
                 // pcid != target,
-                forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_src,i)),    
-                forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_dst,i)),         
+                forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_src,i)),
+                forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va_dst,i)),
                 self.page_alloc.free_pages.len() >= 3 * (range - i),
                 self.mmu_man.get_free_pcids_as_set().contains(pcid) == false,
                 self.mmu_man.get_free_pcids_as_set().contains(target) == false,

@@ -98,9 +98,9 @@ fn main(boot_info: *const BootInfo) -> isize {
     let boot_info = boot::get_boot_info();
     let dom0 = boot_info.dom0.as_ref().unwrap();
     let pml4 = boot_info.pml4;
-    let mut kernel_pml4:usize = 0;
-    unsafe{
-        kernel_pml4 = *(pml4 as * const usize);
+    let mut kernel_pml4: usize = 0;
+    unsafe {
+        kernel_pml4 = *(pml4 as *const usize);
     }
     log::info!("dom0: {:?}", dom0);
     log::info!("pml4: {:?}", pml4);

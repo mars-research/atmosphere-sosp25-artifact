@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use vstd::ptr::PointsTo;
@@ -17,7 +17,7 @@ pub fn va_perm_bits_valid(perm:usize) -> (ret:bool)
     ||
     perm == READ_WRITE
     ||
-    perm == READ_EXECUTE    
+    perm == READ_EXECUTE
     ||
     perm == READ_WRITE_EXECUTE
 }
@@ -28,14 +28,14 @@ pub open spec fn spec_va_perm_bits_valid(perm:usize) -> bool{
     ||
     perm == READ_WRITE
     ||
-    perm == READ_EXECUTE    
+    perm == READ_EXECUTE
     ||
     perm == READ_WRITE_EXECUTE
 }
 
 // #[verifier(external_body)]
-// pub fn LookUpTable_set(pptr:&PPtr<LookUpTable>, Tracked(perm): Tracked<&mut PointsTo<LookUpTable>>, i: usize, value:usize) 
-//     requires 
+// pub fn LookUpTable_set(pptr:&PPtr<LookUpTable>, Tracked(perm): Tracked<&mut PointsTo<LookUpTable>>, i: usize, value:usize)
+//     requires
 //         pptr.id() == old(perm)@.pptr,
 //         old(perm)@.value.is_Some(),
 //         old(perm)@.value.get_Some_0().table.wf(),
@@ -44,7 +44,7 @@ pub open spec fn spec_va_perm_bits_valid(perm:usize) -> bool{
 //         pptr.id() == perm@.pptr,
 //         perm@.value.is_Some(),
 //         perm@.value.get_Some_0().table.wf(),
-//         forall|j:usize| 0<=j<512 && j != i ==> 
+//         forall|j:usize| 0<=j<512 && j != i ==>
 //             perm@.value.get_Some_0().table@[j as int] == old(perm)@.value.get_Some_0().table@[j as int],
 //         perm@.value.get_Some_0().table@[i as int] == value,
 // {
@@ -70,8 +70,8 @@ pub open spec fn spec_va_perm_bits_valid(perm:usize) -> bool{
 // }
 
 #[verifier(external_body)]
-pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>) 
-    requires 
+pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>)
+    requires
         pptr.id() == old(perm)@.pptr,
         old(perm)@.value.is_Some(),
         old(perm)@.value.get_Some_0().wf(),
@@ -82,7 +82,7 @@ pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<Pag
         pptr.id() == perm@.pptr,
         perm@.value.is_Some(),
         perm@.value.get_Some_0().wf(),
-        forall|j:usize| 0<=j<512 && j != i ==> 
+        forall|j:usize| 0<=j<512 && j != i ==>
             perm@.value.get_Some_0()[j] =~= old(perm)@.value.get_Some_0()[j],
         perm@.value.get_Some_0()[i] =~= value,
         value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().addr =~= value.get_Some_0().addr,
@@ -95,8 +95,8 @@ pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<Pag
 }
 
 #[verifier(external_body)]
-pub fn pagemap_set_kernel_pml4_entry(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>) 
-    requires 
+pub fn pagemap_set_kernel_pml4_entry(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>)
+    requires
         pptr.id() == old(perm)@.pptr,
         old(perm)@.value.is_Some(),
         old(perm)@.value.get_Some_0().wf(),
@@ -107,7 +107,7 @@ pub fn pagemap_set_kernel_pml4_entry(pptr:&PPtr<PageMap>, Tracked(perm): Tracked
         pptr.id() == perm@.pptr,
         perm@.value.is_Some(),
         perm@.value.get_Some_0().wf(),
-        forall|j:usize| 0<=j<512 && j != i ==> 
+        forall|j:usize| 0<=j<512 && j != i ==>
             perm@.value.get_Some_0()[j] =~= old(perm)@.value.get_Some_0()[j],
         perm@.value.get_Some_0()[i] =~= value,
         value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().addr =~= value.get_Some_0().addr,
@@ -141,7 +141,7 @@ pub fn page_to_pagemap(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tra
 
 #[verifier(external_body)]
 pub fn va_valid(va:usize) -> (ret:bool)
-    ensures 
+    ensures
         ret == spec_va_valid(va),
 {
     (va & (!VA_MASK) as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX.try_into().unwrap()
@@ -191,14 +191,14 @@ pub open spec fn spec_va2index(va: usize) -> (L4Index,L3Index,L2Index,L1Index)
 }
 
 pub open spec fn spec_index2va(i:(L4Index,L3Index,L2Index,L1Index)) -> usize
-    recommends 
+    recommends
     i.0 <= 0x1ff,
-    i.1 <= 0x1ff, 
+    i.1 <= 0x1ff,
     i.2 <= 0x1ff,
-    i.3 <= 0x1ff,           
+    i.3 <= 0x1ff,
 {
-    (i.0 as usize)<<39 & (i.1 as usize)<<30 & (i.2 as usize)<<21 & (i.3 as usize)<<12 
-} 
+    (i.0 as usize)<<39 & (i.1 as usize)<<30 & (i.2 as usize)<<21 & (i.3 as usize)<<12
+}
 
 #[verifier(external_body)]
 pub fn v2l1index(va: usize) -> (ret: L1Index)
@@ -254,7 +254,7 @@ pub fn va2index(va: usize) -> (ret : (L4Index,L3Index,L2Index,L1Index))
 pub proof fn pagetable_virtual_mem_lemma()
     ensures
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize|  #![auto] (
-            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff 
+            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff
             ) ==>
                 spec_va_valid(spec_index2va((l4i,l3i,l2i,l1i)))
                 &&
@@ -278,36 +278,36 @@ pub proof fn pagetable_virtual_mem_lemma()
             spec_index2va(spec_va2index(va_1)) == va_1
         )),
         (forall|va_1:usize, va_2:usize| #![auto] spec_va_valid(va_1) && spec_va_valid(va_2) && va_1 == va_2 ==> (
-            spec_va2index(va_1).0 == spec_va2index(va_2).0 
+            spec_va2index(va_1).0 == spec_va2index(va_2).0
             &&
-            spec_va2index(va_1).1 == spec_va2index(va_2).1  
+            spec_va2index(va_1).1 == spec_va2index(va_2).1
             &&
-            spec_va2index(va_1).2 == spec_va2index(va_2).2 
+            spec_va2index(va_1).2 == spec_va2index(va_2).2
             &&
             spec_va2index(va_1).3 == spec_va2index(va_2).3
         )),
         (forall|va_1:usize, va_2:usize| #![auto] spec_va_valid(va_1) && spec_va_valid(va_2) && va_1 != va_2 ==> (
-            spec_va2index(va_1).0 != spec_va2index(va_2).0 
+            spec_va2index(va_1).0 != spec_va2index(va_2).0
             ||
-            spec_va2index(va_1).1 != spec_va2index(va_2).1  
+            spec_va2index(va_1).1 != spec_va2index(va_2).1
             ||
-            spec_va2index(va_1).2 != spec_va2index(va_2).2 
+            spec_va2index(va_1).2 != spec_va2index(va_2).2
             ||
             spec_va2index(va_1).3 != spec_va2index(va_2).3
         )),
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
             KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
-            l4i == l4j && l3i == l3j && l2i == l2j && l1i == l1j  
+            l4i == l4j && l3i == l3j && l2i == l2j && l1i == l1j
         ) ==>
             spec_index2va((l4i,l3i,l2i,l1i)) == spec_index2va((l4j,l3j,l2j,l1j))
         ),
         (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
             KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
-            l4i != l4j || l3i != l3j || l2i != l2j || l1i != l1j  
+            l4i != l4j || l3i != l3j || l2i != l2j || l1i != l1j
         ) ==>
             spec_index2va((l4i,l3i,l2i,l1i)) != spec_index2va((l4j,l3j,l2j,l1j))
         )
-        
+
 {
 
 }
@@ -317,7 +317,7 @@ pub proof fn pagemap_permission_bits_lemma()
     ensures
         (0usize & (PAGE_ENTRY_PRESENT_MASK as usize) == 0),
         (forall|i:usize| #![auto] (i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (PAGE_ENTRY_PRESENT_MASK as usize) == 1),
-        (forall|i:usize| #![auto] page_ptr_valid(i) ==> 
+        (forall|i:usize| #![auto] page_ptr_valid(i) ==>
             ((i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_MASK as usize)) == i),
         (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
             (

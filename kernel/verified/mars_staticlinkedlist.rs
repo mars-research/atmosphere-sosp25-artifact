@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use core::mem::MaybeUninit;
 
 use vstd::seq_lib::*;
@@ -149,7 +149,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
                         lemma_seq_contains_after_push(s, v, x);
                     }
                 }
-                
+
                 self.free_list = Ghost(self.free_list@.push((index as Index)));
                 self.set_prev(index,(index - 1));
                 self.set_next(index,-1);
@@ -335,7 +335,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         self.spec_seq@.len() == self.value_list_len
         &&
         forall|i:int| #![auto] 0<= i < self.value_list_len ==> self.arr_seq@[self.value_list@[i as int] as int].value == self.spec_seq@[i as int]
-        
+
     }
 
     pub open spec fn wf(&self) -> bool{
@@ -358,13 +358,13 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     fn set_ptr(&mut self, index: Index, v: usize)
         requires
             old(self).array_wf(),
-        ensures 
+        ensures
             self.array_wf(),
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                 self.arr_seq@[i].next == old(self).arr_seq@[i].next && self.arr_seq@[i].prev == old(self).arr_seq@[i].prev,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==>
                 self.arr_seq@[i].value == old(self).arr_seq@[i].value,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==>
                 self.arr_seq@[i].value == v,
             self.spec_seq@ == old(self).spec_seq@,
             self.value_list@ == old(self).value_list@,
@@ -385,13 +385,13 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     fn set_next(&mut self, index: Index, v: Index)
         requires
             old(self).array_wf(),
-        ensures 
+        ensures
             self.array_wf(),
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                 self.arr_seq@[i].value == old(self).arr_seq@[i].value && self.arr_seq@[i].prev == old(self).arr_seq@[i].prev,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==>
                 self.arr_seq@[i].next == old(self).arr_seq@[i].next,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==>
                 self.arr_seq@[i].next == v,
             self.spec_seq@ == old(self).spec_seq@,
             self.value_list@ == old(self).value_list@,
@@ -410,13 +410,13 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     fn set_prev(&mut self, index: Index, v: Index)
         requires
             old(self).array_wf(),
-        ensures 
+        ensures
             self.array_wf(),
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                 self.arr_seq@[i].value == old(self).arr_seq@[i].value && self.arr_seq@[i].next == old(self).arr_seq@[i].next,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==>
                 self.arr_seq@[i].prev == old(self).arr_seq@[i].prev,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==>
                 self.arr_seq@[i].prev == v,
             self.spec_seq@ == old(self).spec_seq@,
             self.value_list@ == old(self).value_list@,
@@ -436,9 +436,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     pub fn put_ptr(&mut self, new_ptr: usize)
         requires
             old(self).array_wf(),
-        ensures 
+        ensures
         self.array_wf(),
-        forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+        forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
             self.arr_seq@[i].next == old(self).arr_seq@[i].next && self.arr_seq@[i].prev == old(self).arr_seq@[i].prev && self.arr_seq@[i].value == old(self).arr_seq@[i].value,
         self.spec_seq@ == old(self).spec_seq@.push(new_ptr),
         self.value_list@ == old(self).value_list@,
@@ -457,7 +457,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
 
     pub open spec fn spec_get_ptr(&self, index: Index) -> (ptr:usize)
-        recommends 
+        recommends
             self.wf(),
             0 <= index < N,
     {
@@ -496,7 +496,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     {
         self.ar[index as usize].prev
     }
-    
+
 
     #[verifier(inline)]
     pub open spec fn get_raw_element(&self, i: int) -> Node
@@ -535,10 +535,10 @@ impl<const N: usize> MarsStaticLinkedList<N> {
                 forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i),
                 self.free_list@.contains(index) == false,
                 self.value_list@.contains(index) == false,
-                self.spec_seq_wf(),          
+                self.spec_seq_wf(),
                 0 <= index < N,
                 self.spec_seq == old(self).spec_seq,
-                forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+                forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                     self.arr_seq@[i].value == old(self).arr_seq@[i].value,
                 self.value_list@ == old(self).value_list@,
                 self.free_list_ptr_all_null(),
@@ -631,7 +631,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             forall|i:Index| #![auto] 0<= i < N && i != index ==> old(self).free_list@.contains(i) ^ old(self).value_list@.contains(i),
             old(self).free_list@.contains(index) == false,
             old(self).value_list@.contains(index) == false,
-            old(self).spec_seq_wf(), 
+            old(self).spec_seq_wf(),
             0 <= index < N,
             old(self).value_list_len < old(self).size,
         ensures
@@ -646,9 +646,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             self.free_list_len == old(self).free_list_len,
             self.value_list_len == old(self).value_list_len + 1,
             self.spec_seq_wf(),
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i != index ==>
                 self.arr_seq@[i].value == old(self).arr_seq@[i].value,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() && i == index ==>
                 self.arr_seq@[i].value == new_ptr,
     {
 
@@ -753,7 +753,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i));
         assert(forall|i:Index| #![auto] 0<= i < N ==> self.free_list@.contains(i) ^ self.value_list@.contains(i));
     }
-        
+
 
     pub fn push(&mut self, new_ptr: usize) -> (free_node_index : Index)
         requires old(self).wf(),
@@ -776,18 +776,18 @@ impl<const N: usize> MarsStaticLinkedList<N> {
     {
         assert(self.spec_seq_wf());
         let free_node_index = self.alloc_node_index();
-        assert(self.free_list_len == old(self).free_list_len - 1); 
-        assert(self.array_wf()); 
-        assert(self.value_list_len ==  old(self).value_list_len); 
-        assert(self.value_list_wf()); 
-        assert(self.free_list_wf()); 
-        assert(forall|i:Index| #![auto] 0<= i < N && i != free_node_index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i)); 
-        assert(self.free_list@.contains(free_node_index) == false); 
-        assert(self.value_list@.contains(free_node_index) == false); 
+        assert(self.free_list_len == old(self).free_list_len - 1);
+        assert(self.array_wf());
+        assert(self.value_list_len ==  old(self).value_list_len);
+        assert(self.value_list_wf());
+        assert(self.free_list_wf());
+        assert(forall|i:Index| #![auto] 0<= i < N && i != free_node_index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i));
+        assert(self.free_list@.contains(free_node_index) == false);
+        assert(self.value_list@.contains(free_node_index) == false);
         assert(self.spec_seq_wf());
         self.put_node_index(free_node_index, new_ptr);
-        assert(self.free_list_len == old(self).free_list_len - 1); 
-        assert(self.value_list_len ==  old(self).value_list_len + 1); 
+        assert(self.free_list_len == old(self).free_list_len - 1);
+        assert(self.value_list_len ==  old(self).value_list_len + 1);
         assert(self.array_wf());
         assert(self.free_list_len + self.value_list_len == N);
         assert(self.value_list_wf());
@@ -821,14 +821,14 @@ impl<const N: usize> MarsStaticLinkedList<N> {
                 forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i),
                 self.free_list@.contains(index) == false,
                 self.value_list@.contains(index) == false,
-                self.spec_seq@ == old(self).spec_seq@.subrange(1,old(self).spec_seq@.len() as int), 
-                self.spec_seq_wf(),       
+                self.spec_seq@ == old(self).spec_seq@.subrange(1,old(self).spec_seq@.len() as int),
+                self.spec_seq_wf(),
                 0 <= index < N,
                 self.value_list@ == old(self).value_list@.subrange(1,old(self).value_list@.len() as int),
                 index == old(self).value_list@[0],
-                forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+                forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                     self.arr_seq@[i].value == old(self).arr_seq@[i].value,
-                forall|i:Index| #![auto] i != index ==> 
+                forall|i:Index| #![auto] i != index ==>
                     old(self).value_list@.contains(i) == self.value_list@.contains(i),
                 //self.free_list_ptr_all_null(),
     {
@@ -905,7 +905,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             assert(self.wf_free_node_tail());
             assert(self.free_list_len == self.free_list@.len());
             assert(self.free_list_wf());
-            
+
             assert(self.spec_seq_wf());
         }
         assert(forall|i:Index| #![auto] 0<= i < N && i != node_index ==> old(self).free_list@.contains(i) ^ old(self).value_list@.contains(i));
@@ -940,7 +940,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             forall|i:Index| #![auto] 0<= i < N && i != index ==> old(self).free_list@.contains(i) ^ old(self).value_list@.contains(i),
             old(self).free_list@.contains(index) == false,
             old(self).value_list@.contains(index) == false,
-            old(self).spec_seq_wf(), 
+            old(self).spec_seq_wf(),
             0 <= index < N,
             old(self).free_list_len < old(self).size,
         ensures
@@ -953,7 +953,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             self.value_list_len == old(self).value_list_len,
             self.spec_seq == old(self).spec_seq,
             self.value_list == old(self).value_list,
-            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+            forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                 self.arr_seq@[i].value == old(self).arr_seq@[i].value,
     {
         if self.free_list_len == 0{
@@ -967,7 +967,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             proof{self.free_list@ = self.free_list@.push(index);}
             assert(self.free_list@[0] == index);
             assert(self.free_list@.contains(index) == true);
-        
+
             assert(self.wf_value_node_head());
             assert(self.wf_value_node_tail());
             assert(self.free_list_len == self.free_list@.len());
@@ -979,7 +979,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             assert(forall|i: nat| #![auto] 0 <= i < self.free_list@.len() ==> self.arr_seq@[self.free_list@[i as int] as int].prev == self.prev_free_node_of(i));
             assert(forall|i: nat|  #![auto] 0 <= i < self.free_list@.len() ==> (self.free_list@[i as int] < N) );
             assert(forall|i: nat|  #![auto] 0 <= i < self.free_list@.len() ==> (self.free_list@[i as int] >= 0) );
-        
+
             assert(self.free_list_wf());
 
 
@@ -996,7 +996,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             assert(self.free_list_wf());
             assert(self.free_list@.len() > 0);
             assert(self.free_list_tail != -1);
-        
+
             assert(self.free_list_tail == self.free_list@[self.free_list@.len() - 1]);
             // assert(self.prev_free_node_of((self.free_list@.len() - 1) as nat) != -1);
             assert(self.next_free_node_of((self.free_list@.len() - 1) as nat) == -1);
@@ -1005,7 +1005,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             let prev = self.get_prev(tail_index);
             let next = self.get_next(tail_index);
             assert(next == -1);
-        
+
             self.set_next(tail_index, index);
             self.set_prev(index, tail_index);
             self.set_next(index, -1);
@@ -1014,8 +1014,8 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             assert(self.free_list@.contains(index) == true);
             self.free_list_len = self.free_list_len + 1;
             self.free_list_tail = index;
-        
-        
+
+
             assert(self.value_list@.contains(tail_index) == false);
             assert(forall|i: int| #![auto] 0 <= i < self.value_list@.len() ==> self.arr_seq@[self.value_list@[i as int] as int].next == old(self).arr_seq@[old(self).value_list@[i as int] as int].next);
             assert(forall|i: int| #![auto] 0 <= i < self.value_list@.len() ==> old(self).next_value_node_of(i) == self.next_value_node_of(i));
@@ -1055,13 +1055,13 @@ impl<const N: usize> MarsStaticLinkedList<N> {
 
     }
 
-    
+
 
     pub fn pop(&mut self) -> (ret: usize)
         requires old(self).wf(),
                  old(self).len() > 0,
                  old(self).unique(),
-        ensures 
+        ensures
                 self.wf(),
                 self.value_list_len == old(self).value_list_len - 1,
                 self.value_list@ == old(self).value_list@.subrange(1, old(self).value_list@.len() as int),
@@ -1139,11 +1139,11 @@ impl<const N: usize> MarsStaticLinkedList<N> {
                  forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i),
                  self.free_list@.contains(index) == false,
                  self.value_list@.contains(index) == false,
-                 self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)), 
-                 self.spec_seq_wf(),       
+                 self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)),
+                 self.spec_seq_wf(),
                  0 <= index < N,
                  self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)),
-                 forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+                 forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                      self.arr_seq@[i].value == old(self).arr_seq@[i].value,
     {
         assert(self.value_list_head != -1);
@@ -1216,7 +1216,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             assert(self.wf_free_node_tail());
             assert(self.free_list_len == self.free_list@.len());
             assert(self.free_list_wf());
-            
+
             assert(self.spec_seq_wf());
         }
         assert(forall|i:Index| #![auto] 0<= i < N && i != index ==> old(self).free_list@.contains(i) ^ old(self).value_list@.contains(i));
@@ -1259,7 +1259,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).len() == 0);
         assert( old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index))=~=Seq::<usize>::empty());
         assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)));
-        assert(self.spec_seq_wf());      
+        assert(self.spec_seq_wf());
         assert(0 <= index < N);
         assert(self.value_list@ == old(self).value_list@.subrange(1, old(self).value_list@.len() as int));
         assert(old(self).value_list@.index_of(index) == 0);
@@ -1285,11 +1285,11 @@ impl<const N: usize> MarsStaticLinkedList<N> {
                  forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i),
                  self.free_list@.contains(index) == false,
                  self.value_list@.contains(index) == false,
-                 self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)), 
-                 self.spec_seq_wf(),       
+                 self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)),
+                 self.spec_seq_wf(),
                  0 <= index < N,
                  self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)),
-                 forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+                 forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                      self.arr_seq@[i].value == old(self).arr_seq@[i].value,
     {
         assert(self.value_list_tail != self.value_list_head);
@@ -1353,7 +1353,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i));
         assert(self.free_list@.contains(index) == false);
         assert(self.value_list@.contains(index) == false);
-        
+
         assert(old(self).spec_seq@.len() == old(self).value_list@.len());
         assert(self.spec_seq@ == old(self).spec_seq@.drop_last());
         assert(old(self).value_list@.index_of(index) == old(self).value_list@.len() - 1);
@@ -1364,8 +1364,8 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         assert(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)=~=Seq::<usize>::empty());
 
         assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)));
-        
-        assert(self.spec_seq_wf());      
+
+        assert(self.spec_seq_wf());
         assert(0 <= index < N);
         assert(self.value_list@ == old(self).value_list@.drop_last());
         assert(self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)));
@@ -1390,11 +1390,11 @@ impl<const N: usize> MarsStaticLinkedList<N> {
              forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i),
              self.free_list@.contains(index) == false,
              self.value_list@.contains(index) == false,
-             self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)), 
-             self.spec_seq_wf(),       
+             self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)),
+             self.spec_seq_wf(),
              0 <= index < N,
              self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)),
-             forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+             forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                  self.arr_seq@[i].value == old(self).arr_seq@[i].value,
     {
         assert(self.value_list_tail != self.value_list_head);
@@ -1468,9 +1468,9 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             assert(forall|i:Index| #![auto] 0<= i < N && i != index ==> old(self).free_list@.contains(i) == self.free_list@.contains(i));
             assert(forall|i:Index| #![auto] 0<= i < N && i != index && !old(self).value_list@.contains(i) ==> !self.value_list@.contains(i));
             assert(old(self).value_list@.contains(index) && !self.value_list@.contains(index));
-    
+
             assert(forall|i:Index| #![auto] 0<= i < N && !old(self).value_list@.contains(i) ==> !self.value_list@.contains(i));
-    
+
             assert(forall|i:int| #![auto] 0<= i < index_in_list@ ==> old(self).value_list@.index_of(self.value_list@[i]) == i);
             assert(forall|i:int| #![auto] index_in_list@ <= i < self.value_list@.len() ==> old(self).value_list@.index_of(self.value_list@[i]) == i + 1);
             assert(forall|i:int| #![auto] 0<= i < index_in_list@ ==> old(self).value_list@[i] == self.value_list@[i]);
@@ -1478,7 +1478,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             // assert(forall|i:int| #![auto] 1<= i <old(self).value_list@.len() ==> self.value_list@.index_of(old(self).value_list@[i]) == i - 1);
             // assert(forall|i:int| #![auto] 1<= i <old(self).value_list@.len() && i != index_in_list@ ==> self.value_list@.contains(old(self).value_list@[i]));
             assert(forall|i:Index| #![auto] 0<= i < N && i != index && old(self).value_list@.contains(i) ==> self.value_list@.contains(i));
-    
+
             assert(forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i));
         }
         // assert(self.free_list_len == old(self).free_list_len);
@@ -1490,7 +1490,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         // assert(self.free_list@.contains(index) == false);
         // assert(self.value_list@.contains(index) == false);
         // assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)));
-        // assert(self.spec_seq_wf());      
+        // assert(self.spec_seq_wf());
         // assert(0 <= index < N);
         // assert(self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)));
         // assert(forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> self.arr_seq@[i].value == old(self).arr_seq@[i].value);
@@ -1507,11 +1507,11 @@ impl<const N: usize> MarsStaticLinkedList<N> {
                 forall|i:Index| #![auto] 0<= i < N && i != index ==> self.free_list@.contains(i) ^ self.value_list@.contains(i),
                 self.free_list@.contains(index) == false,
                 self.value_list@.contains(index) == false,
-                self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)), 
-                self.spec_seq_wf(),       
+                self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)),
+                self.spec_seq_wf(),
                 0 <= index < N,
                 self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)),
-                forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==> 
+                forall|i:int| #![auto] 0<=i<self.arr_seq@.len() ==>
                     self.arr_seq@[i].value == old(self).arr_seq@[i].value,
     {
         assert(self.value_list@.len() > 0);
@@ -1536,7 +1536,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         ensures self.wf(),
                 self.value_list_len == old(self).value_list_len - 1,
                 ret == old(self).node_ref_resolve(index),
-                //self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).spec_seq@.index_of(old(self).node_ref_resolve(index))).add(old(self).spec_seq@.subrange(old(self).spec_seq@.index_of(old(self).node_ref_resolve(index)) + 1, old(self).spec_seq@.len() as int)), 
+                //self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).spec_seq@.index_of(old(self).node_ref_resolve(index))).add(old(self).spec_seq@.subrange(old(self).spec_seq@.index_of(old(self).node_ref_resolve(index)) + 1, old(self).spec_seq@.len() as int)),
                 self.spec_seq@ == old(self).spec_seq@.remove(old(self).spec_seq@.index_of(old(self).node_ref_resolve(index))),
                 forall| value:usize|  #![auto]  ret != value ==> old(self).spec_seq@.contains(value) == self.spec_seq@.contains(value),
                     self.spec_seq@.contains(ret) == false,
@@ -1567,7 +1567,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             // assert(self.free_list_ptr_all_null());
 
             // assert(self.value_list_len == old(self).value_list_len - 1);
-            // assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int))); 
+            // assert(self.spec_seq@ == old(self).spec_seq@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).spec_seq@.subrange(old(self).value_list@.index_of(index) + 1, old(self).spec_seq@.len() as int)));
             // assert(self.value_list@ == old(self).value_list@.subrange(0,old(self).value_list@.index_of(index)).add(old(self).value_list@.subrange(old(self).value_list@.index_of(index) + 1, old(self).value_list@.len() as int)));
             assert(ret == old(self).arr_seq@[index as int].value);
 
@@ -1614,7 +1614,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
         }
 
     // fn test(sll: &mut MarsStaticLinkedList<2>)
-    //     requires 
+    //     requires
     //         old(sll).wf(),
     //         old(sll).arr_seq@.len() == 2,
     //         old(sll).get_raw_element(0).next == 0,

@@ -48,20 +48,23 @@ struct Entry(u64);
 
 impl AddressSpace {
     pub fn new(allocator: &mut impl PhysicalAllocator) -> Self {
-        let pml4 = unsafe {
-            Self::allocate_page_table(allocator)
-        };
+        let pml4 = unsafe { Self::allocate_page_table(allocator) };
 
-        Self {
-            pml4,
-        }
+        Self { pml4 }
     }
 
     pub fn pml4(&self) -> *const c_void {
         self.pml4 as *const _
     }
 
-    pub unsafe fn map(&mut self, allocator: &mut impl PhysicalAllocator, vaddr: u64, paddr: u64, user: bool, huge: bool) {
+    pub unsafe fn map(
+        &mut self,
+        allocator: &mut impl PhysicalAllocator,
+        vaddr: u64,
+        paddr: u64,
+        user: bool,
+        huge: bool,
+    ) {
         //log::info!("Mapping VA 0x{:x} -> PA 0x{:x}", vaddr, paddr);
 
         let mut cur = self.pml4;
@@ -139,8 +142,8 @@ impl AddressSpace {
         match level {
             0 => None,
             1 => Some(1 * 1024 * 1024), // 1 GiB
-            2 => Some(2 * 1024), // 2 MiB
-            3 => None, // Regular 4 KiB page
+            2 => Some(2 * 1024),        // 2 MiB
+            3 => None,                  // Regular 4 KiB page
             _ => panic!("Invalid level"),
         }
     }

@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::mars_array::*;
@@ -11,7 +11,7 @@ use crate::pagetable::*;
 
 
 impl MarsArray<IOMMUTable,IOID_MAX>{
-    
+
     // new
 
     #[verifier(external_body)]
@@ -40,7 +40,7 @@ impl MarsArray<IOMMUTable,IOID_MAX>{
                 i = i + 1;
             }
         }
-    
+
 
     #[verifier(external_body)]
     pub fn init_into_wf_by_ioid(&mut self, ioid:Pcid, page_ptr: PagePtr, page_perm: Tracked<PagePerm>)
@@ -77,13 +77,13 @@ impl MarsArray<IOMMUTable,IOID_MAX>{
             old(self)@[ioid as int].get_iommutable_mapping()[va].is_None(),
             page_ptr_valid(dst.addr),
             spec_va_perm_bits_valid(dst.perm),
-        ensures 
+        ensures
             self.wf(),
             self@[ioid as int].wf(),
             old(self)@[ioid as int].dummy.is_va_entry_exist(va) == ret ,
-            old(self)@[ioid as int].dummy.is_va_entry_exist(va) ==> 
+            old(self)@[ioid as int].dummy.is_va_entry_exist(va) ==>
                 self@[ioid as int].get_iommutable_mapping() =~= old(self)@[ioid as int].get_iommutable_mapping().insert(va,Some(dst)),
-            !old(self)@[ioid as int].dummy.is_va_entry_exist(va) ==> 
+            !old(self)@[ioid as int].dummy.is_va_entry_exist(va) ==>
                 self@[ioid as int].get_iommutable_mapping() =~=old(self)@[ioid as int].get_iommutable_mapping(),
             self@[ioid as int].get_iommutable_page_closure() =~= old(self)@[ioid as int].get_iommutable_page_closure(),
             forall|i:int| #![auto] 0<=i<IOID_MAX && i != ioid ==> self@[i as int] =~= old(self)@[i as int],

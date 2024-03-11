@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use crate::define::*;
 use crate::page_alloc::*;
 
@@ -8,8 +8,8 @@ use crate::mars_array::*;
 impl<const N: usize> MarsArray<Page, N> {
 
     #[verifier(external_body)]
-    pub fn set_page_start(&mut self, index: usize, start: PagePtr) 
-        requires 
+    pub fn set_page_start(&mut self, index: usize, start: PagePtr)
+        requires
             0 <= index < N,
             old(self).wf(),
         ensures
@@ -27,8 +27,8 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_page_state(&mut self, index: usize, state: PageState) 
-        requires 
+    pub fn set_page_state(&mut self, index: usize, state: PageState)
+        requires
             0 <= index < N,
             state <= MAPPED,
             old(self).wf(),
@@ -47,8 +47,8 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_get_page_is_io_page(&mut self, index: usize, is_io_page: bool) 
-        requires 
+    pub fn set_get_page_is_io_page(&mut self, index: usize, is_io_page: bool)
+        requires
             0 <= index < N,
             old(self).wf(),
         ensures
@@ -66,8 +66,8 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_page_rf_count(&mut self, index: usize, rf_count: usize) 
-        requires 
+    pub fn set_page_rf_count(&mut self, index: usize, rf_count: usize)
+        requires
             0 <= index < N,
             old(self).wf(),
         ensures
@@ -85,8 +85,8 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_page_mappings(&mut self, index: usize, mappings: Ghost<Map<(Pcid,VAddr),PageType>>) 
-        requires 
+    pub fn set_page_mappings(&mut self, index: usize, mappings: Ghost<Map<(Pcid,VAddr),PageType>>)
+        requires
             0 <= index < N,
             old(self).wf(),
         ensures
@@ -104,8 +104,8 @@ impl<const N: usize> MarsArray<Page, N> {
     }
 
     #[verifier(external_body)]
-    pub fn set_page_io_mappings(&mut self, index: usize, io_mappings: Ghost<Map<(IOid,VAddr),PageType>>) 
-        requires 
+    pub fn set_page_io_mappings(&mut self, index: usize, io_mappings: Ghost<Map<(IOid,VAddr),PageType>>)
+        requires
             0 <= index < N,
             old(self).wf(),
         ensures

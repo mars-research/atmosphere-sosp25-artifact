@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 
 use crate::pagetable::*;
@@ -33,14 +33,14 @@ impl MMUManager{
             forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> self.get_pagetable_by_pcid(_pcid) =~= old(self).get_pagetable_by_pcid(_pcid),
             self.get_pagetable_page_closure_by_pcid(pcid) =~= old(self).get_pagetable_page_closure_by_pcid(pcid),
             old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) == ret,
-            old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==> 
+            old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==>
                 self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid).insert(va,Some(dst)),
-            !old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==> 
+            !old(self).get_pagetable_by_pcid(pcid).is_va_entry_exist(va) ==>
                 self.get_pagetable_mapping_by_pcid(pcid) =~= old(self).get_pagetable_mapping_by_pcid(pcid),
             forall|_ioid:IOid| #![auto] 0<=_ioid<IOID_MAX ==> self.get_iommutable_by_ioid(_ioid) =~= old(self).get_iommutable_by_ioid(_ioid),
             forall|_ioid:IOid| #![auto] 0<=_ioid<IOID_MAX ==> self.get_iommutable_mapping_by_ioid(_ioid) =~= old(self).get_iommutable_mapping_by_ioid(_ioid),
     {
-        let ret = self.page_tables.map_pagetable_page_by_pcid(pcid,va,dst);     
+        let ret = self.page_tables.map_pagetable_page_by_pcid(pcid,va,dst);
         assert(self.wf());
         return ret;
     }
@@ -91,14 +91,14 @@ impl MMUManager{
             forall|_ioid:IOid| #![auto] 0<=_ioid<IOID_MAX && _ioid != ioid ==> self.get_iommutable_by_ioid(_ioid) =~= old(self).get_iommutable_by_ioid(_ioid),
             self.get_iommutable_page_closure_by_ioid(ioid) =~= old(self).get_iommutable_page_closure_by_ioid(ioid),
             old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) == ret,
-            old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) ==> 
+            old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) ==>
                 self.get_iommutable_mapping_by_ioid(ioid) =~= old(self).get_iommutable_mapping_by_ioid(ioid).insert(va,Some(dst)),
-            !old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) ==> 
+            !old(self).get_iommutable_by_ioid(ioid).dummy.is_va_entry_exist(va) ==>
                 self.get_iommutable_mapping_by_ioid(ioid) =~= old(self).get_iommutable_mapping_by_ioid(ioid),
             forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX ==> self.get_pagetable_by_pcid(_pcid) =~= old(self).get_pagetable_by_pcid(_pcid),
             forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(_pcid) =~= old(self).get_pagetable_mapping_by_pcid(_pcid),
         {
-        let ret = self.iommu_tables.map_iommutable_page_by_ioid(ioid,va,dst);     
+        let ret = self.iommu_tables.map_iommutable_page_by_ioid(ioid,va,dst);
         assert(self.wf());
         return ret;
         }
@@ -114,7 +114,7 @@ impl MMUManager{
         ensures
             self.wf(),
             self.get_free_pcids_as_set() =~= old(self).get_free_pcids_as_set().remove(ret),
-            old(self).get_free_pcids_as_set().contains(ret),            
+            old(self).get_free_pcids_as_set().contains(ret),
             self.free_ioids =~= old(self).free_ioids,
             self.iommu_tables =~= old(self).iommu_tables,
             self.iommu_table_pages =~= old(self).iommu_table_pages,
@@ -149,7 +149,7 @@ impl MMUManager{
         ensures
             self.wf(),
             self.get_free_ioids_as_set() =~= old(self).get_free_ioids_as_set().remove(ret),
-            old(self).get_free_ioids_as_set().contains(ret),            
+            old(self).get_free_ioids_as_set().contains(ret),
             self.free_pcids =~= old(self).free_pcids,
             self.page_tables =~= old(self).page_tables,
             self.page_table_pages =~= old(self).page_table_pages,
@@ -287,7 +287,7 @@ impl MMUManager{
     }
 
     pub fn mmu_get_va_entry_by_pcid(&self, pcid: Pcid, va:VAddr) -> (ret:Option<PageEntry>)
-        requires 
+        requires
             self.wf(),
             0<=pcid<PCID_MAX,
             spec_va_valid(va),
@@ -301,7 +301,7 @@ impl MMUManager{
     }
 
     pub fn mmu_get_va_entry_by_ioid(&self, ioid: IOid, va:VAddr) -> (ret:Option<PageEntry>)
-        requires 
+        requires
             self.wf(),
             0<=ioid<IOID_MAX,
             spec_va_valid(va),
@@ -318,7 +318,7 @@ impl MMUManager{
             self.get_free_ioids_as_set().contains(ioid) == false,
             0<=ioid<IOID_MAX,
             0<=bus<256 && 0<=dev<32 && 0<=fun<8,
-        ensures 
+        ensures
             ret =~= self.pci_bitmap@[(ioid, bus,dev,fun)],
     {
         return self.pci_bitmap.get(ioid, bus,dev,fun);
@@ -332,8 +332,8 @@ impl MMUManager{
             0<=bus<256 && 0<=dev<32 && 0<=fun<8,
         ensures
             self.wf(),
-            self.get_free_ioids_as_set() =~= old(self).get_free_ioids_as_set(),            
-            self.get_free_pcids_as_set() =~= old(self).get_free_pcids_as_set(),  
+            self.get_free_ioids_as_set() =~= old(self).get_free_ioids_as_set(),
+            self.get_free_pcids_as_set() =~= old(self).get_free_pcids_as_set(),
             self.get_mmu_page_closure() =~= old(self).get_mmu_page_closure(),
             forall|i:Pcid|#![auto] 0<=i<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(i) =~= old(self).get_pagetable_mapping_by_pcid(i),
             forall|ioid:IOid| #![auto] 0<=ioid<IOID_MAX ==> self.get_iommutable_mapping_by_ioid(ioid) =~= old(self).get_iommutable_mapping_by_ioid(ioid),

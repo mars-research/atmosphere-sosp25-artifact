@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::*;
 use crate::trap::PtRegs;
 
@@ -31,10 +31,10 @@ impl SyscallReturnStruct{
 
 pub type ErrorCodeType = usize;
 
-// NO_ERROR_CODE is used for timer interrupt or an ipc syscall when the current thread gives up the cpu and 
+// NO_ERROR_CODE is used for timer interrupt or an ipc syscall when the current thread gives up the cpu and
 // scheduler picks a next thread to run. We do not need to return a syscall error code for a thread coming
-// from the scheduler. 
-// However, if the thread was sent to the scheduler due to its previous syscall, most likely from endpoint related ones, 
+// from the scheduler.
+// However, if the thread was sent to the scheduler due to its previous syscall, most likely from endpoint related ones,
 // we do need to return an error code that is stored in the thread struct.
 pub const NO_ERROR_CODE:ErrorCodeType = 233;
 // The TCB needs to spin at the kernel entry until the next thread is available.

@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 
 
@@ -110,7 +110,7 @@ impl<T: Default> LinkedList<T> {
         }
     }
 
-    fn push_back(&mut self, v: T) 
+    fn push_back(&mut self, v: T)
         requires
             old(self).wf(),
             old(self).free_ptrs@.len() > 0,
@@ -139,12 +139,12 @@ impl<T: Default> LinkedList<T> {
         }
 
         assert(self.perms@.dom().contains(ptr.page_base()));
-        
+
         // Assert that the current perms map is wf
         assert(Self::wf_perms(self.perms@));
         // So ptr.page_base() is wf
         assert(Self::wf_perm(ptr.page_base(), self.perms@[ptr.page_base()]));
-        
+
         // Use lemma to show that after removing the permission, the map is still well formed
         proof {
             Self::lemma_remove_wf_perms(self.perms@, ptr.page_base());
@@ -157,7 +157,7 @@ impl<T: Default> LinkedList<T> {
         assert(perm.wf());
         assert(perm.page_base() == ptr.page_base());
         assert(perm.has_element(&ptr));
-        
+
         // Update free ptrs linked list and model sequence
         let node: &Node<T> = ptr.borrow::<PageNode>(Tracked(&perm));
 
@@ -236,16 +236,16 @@ impl<T: Default> LinkedList<T> {
     // Lemmas *************
     // ********************
 
-    proof fn lemma_remove_wf_perms(perms: Map<int, Arena<T>>, key: int) 
-        requires 
+    proof fn lemma_remove_wf_perms(perms: Map<int, Arena<T>>, key: int)
+        requires
             Self::wf_perms(perms)
         ensures
             Self::wf_perms(perms.remove(key))
     {
     }
 
-    proof fn lemma_insert_wf_perms(perms: Map<int, Arena<T>>, key: int, perm: Arena<T>) 
-        requires 
+    proof fn lemma_insert_wf_perms(perms: Map<int, Arena<T>>, key: int, perm: Arena<T>)
+        requires
             Self::wf_perms(perms),
             Self::wf_perm(key, perm),
         ensures
@@ -303,13 +303,13 @@ impl<T: Default> LinkedList<T> {
     // ********************
 
     pub closed spec fn wf(&self) -> bool {
-        &&& Self::wf_perms(self.perms@) 
+        &&& Self::wf_perms(self.perms@)
         &&& Self::wf_free_ptrs(self.free_head, self.free_ptrs@, self.perms@)
     }
 
-    
-    
-    
+
+
+
 
     // // Ensures each ptr is valid
     // spec fn wf_ptrs(&self) -> bool {
@@ -320,7 +320,7 @@ impl<T: Default> LinkedList<T> {
     //     let ptr: &NodePtr<T> = &self.ptrs@[i as int];
     //     let arena: &Arena<T> = &self.perms@[ptr.page_base()];
     //     let node = arena.value_at(ptr.index());
-    //     node.prev == self.prev_of(i) && node.next == self.next_of(i)  
+    //     node.prev == self.prev_of(i) && node.next == self.next_of(i)
     // }
 
     // spec fn wf_head(&self) -> bool {
@@ -346,7 +346,7 @@ impl<T: Default> LinkedList<T> {
     // spec fn wf_page_ptr(&self, i: nat) -> bool {
     //     let ptr: &PageNodePtr = &self.page_ptrs@[i as int];
     //     let arena: &Arena<T> = &self.perms@[ptr.page_base()];
-    //     arena.metadata().next == self.page_next_of(i)     
+    //     arena.metadata().next == self.page_next_of(i)
     // }
 
     // spec fn wf_page_head(&self) -> bool {

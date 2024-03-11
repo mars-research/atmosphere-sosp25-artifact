@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 
 use crate::pagetable::*;
@@ -21,8 +21,8 @@ pub struct MMUManager{
     pub iommu_tables:  MarsArray<IOMMUTable,IOID_MAX>,
     pub iommu_table_pages: Ghost<Set<PagePtr>>,
 
-    pub root_table:RootTable,        
-    
+    pub root_table:RootTable,
+
     // pub device_table:MarsArray<MarsArray<Option<(u8,u8,u8)>,256>,IOID_MAX>,
     // pub ioid_device_table: Ghost<Seq<Set<(u8,u8,u8)>>>,
 
@@ -44,32 +44,32 @@ impl MMUManager{
         self.page_tables.wf()
         &&&
         (
-            forall|i:int,va:VAddr| #![auto] 0<=i<self.free_pcids.len() && spec_va_valid(va) ==> 
+            forall|i:int,va:VAddr| #![auto] 0<=i<self.free_pcids.len() && spec_va_valid(va) ==>
                 self.page_tables[self.free_pcids@[i] as int].get_pagetable_mapping()[va].is_None()
         )
         &&&
         (
-            forall|i:int| #![auto] 0<=i<self.free_pcids.len() ==> 
+            forall|i:int| #![auto] 0<=i<self.free_pcids.len() ==>
                 self.page_tables[self.free_pcids@[i] as int].get_pagetable_page_closure() =~= Set::empty()
         )
         &&&
         (
-            forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) && self.page_tables[i].get_pagetable_mapping()[va].is_Some() ==> 
+            forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) && self.page_tables[i].get_pagetable_mapping()[va].is_Some() ==>
                 page_ptr_valid(self.page_tables[i].get_pagetable_mapping()[va].get_Some_0().addr)
-        )           
+        )
         &&&
         (
-            forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) && self.page_tables[i].get_pagetable_mapping()[va].is_Some() ==> 
+            forall|i:int,va:usize| #![auto] 0<=i<PCID_MAX && spec_va_valid(va) && self.page_tables[i].get_pagetable_mapping()[va].is_Some() ==>
                 spec_va_perm_bits_valid(self.page_tables[i].get_pagetable_mapping()[va].get_Some_0().perm)
-        )     
+        )
         &&&
         (
-            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==> 
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX ==>
                 self.page_tables[pcid as int].wf_mapping()
         )
         &&&
         (
-            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX && self.get_free_pcids_as_set().contains(pcid) == false ==> 
+            forall|pcid:Pcid| #![auto] 0<=pcid<PCID_MAX && self.get_free_pcids_as_set().contains(pcid) == false ==>
                 self.page_tables[pcid as int].wf()
         )
         &&&
@@ -95,32 +95,32 @@ impl MMUManager{
         self.iommu_tables.wf()
         &&&
         (
-            forall|i:int,va:VAddr| #![auto] 0<=i<self.free_ioids.len() && spec_va_valid(va) ==> 
+            forall|i:int,va:VAddr| #![auto] 0<=i<self.free_ioids.len() && spec_va_valid(va) ==>
                 self.iommu_tables[self.free_ioids@[i] as int].get_iommutable_mapping()[va].is_None()
         )
         &&&
         (
-            forall|i:int| #![auto] 0<=i<self.free_ioids.len() ==> 
+            forall|i:int| #![auto] 0<=i<self.free_ioids.len() ==>
                 self.iommu_tables[self.free_ioids@[i] as int].get_iommutable_page_closure() =~= Set::empty()
         )
         &&&
         (
-            forall|i:int,va:usize| #![auto] 0<=i<IOID_MAX && spec_va_valid(va) && self.iommu_tables[i].get_iommutable_mapping()[va].is_Some() ==> 
+            forall|i:int,va:usize| #![auto] 0<=i<IOID_MAX && spec_va_valid(va) && self.iommu_tables[i].get_iommutable_mapping()[va].is_Some() ==>
                 page_ptr_valid(self.iommu_tables[i].get_iommutable_mapping()[va].get_Some_0().addr)
-        )           
+        )
         &&&
         (
-            forall|i:int,va:usize| #![auto] 0<=i<IOID_MAX && spec_va_valid(va) && self.iommu_tables[i].get_iommutable_mapping()[va].is_Some() ==> 
+            forall|i:int,va:usize| #![auto] 0<=i<IOID_MAX && spec_va_valid(va) && self.iommu_tables[i].get_iommutable_mapping()[va].is_Some() ==>
                 spec_va_perm_bits_valid(self.iommu_tables[i].get_iommutable_mapping()[va].get_Some_0().perm)
-        )     
+        )
         &&&
         (
-            forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX ==> 
+            forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX ==>
                 self.iommu_tables[ioid as int].wf_mapping()
         )
         &&&
         (
-            forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX && self.get_free_ioids_as_set().contains(ioid) == false ==> 
+            forall|ioid:Pcid| #![auto] 0<=ioid<IOID_MAX && self.get_free_ioids_as_set().contains(ioid) == false ==>
                 self.iommu_tables[ioid as int].wf()
         )
         &&&
@@ -143,7 +143,7 @@ impl MMUManager{
         &&
         (self.pci_bitmap.wf())
         &&
-        (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==> 
+        (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==>
             (
                 0<=self.root_table.resolve(bus,dev,fun).get_Some_0().0<IOID_MAX
                 &&
@@ -151,14 +151,14 @@ impl MMUManager{
                 &&
                 self.root_table.resolve(bus,dev,fun).get_Some_0().1 == self.get_iommutable_by_ioid(self.root_table.resolve(bus,dev,fun).get_Some_0().0).dummy.cr3
             )
-        )        
+        )
         &&
-        (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==> 
+        (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==>
         (
             self.pci_bitmap@[(self.root_table.resolve(bus,dev,fun).get_Some_0().0,bus,dev,fun)]== true
         ))
         &&
-        (forall|ioid:IOid,bus:u8,dev:u8,fun:u8|#![auto] 0<=ioid<IOID_MAX && self.get_free_ioids_as_set().contains(ioid) && 0<=bus<256 && 0<=dev<32 && 0<=fun<8 ==> 
+        (forall|ioid:IOid,bus:u8,dev:u8,fun:u8|#![auto] 0<=ioid<IOID_MAX && self.get_free_ioids_as_set().contains(ioid) && 0<=bus<256 && 0<=dev<32 && 0<=fun<8 ==>
         (
             self.pci_bitmap@[(ioid,bus,dev,fun)] == false
         ))
@@ -178,7 +178,7 @@ impl MMUManager{
         //         // self.ioid_device_table@[ioid as int].contains(self.device_table@[ioid as int]@[i].get_Some_0())
         //     )
         // &&
-        // forall|ioid:Pcid, dev:(u8,u8,u8)| #![auto] 0<=ioid<IOID_MAX && self.ioid_device_table@[ioid as int].contains(dev) ==> 
+        // forall|ioid:Pcid, dev:(u8,u8,u8)| #![auto] 0<=ioid<IOID_MAX && self.ioid_device_table@[ioid as int].contains(dev) ==>
         //     (
         //         0<=dev.0<256
         //         &&
@@ -194,7 +194,7 @@ impl MMUManager{
         //     self.device_table@[ioid as int]@[i].get_Some_0() =~= self.device_table@[ioid as int]@[j].get_Some_0() == false
         // )
         // &&
-        // forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==> 
+        // forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 && self.root_table.resolve(bus,dev,fun).is_Some() ==>
         //     (
         //         exists|i:int|#![auto]  0<i<256 && self.device_table@[self.root_table.resolve(bus,dev,fun).get_Some_0().0 as int][i].is_Some()
         //             && self.device_table@[self.root_table.resolve(bus,dev,fun).get_Some_0().0 as int][i].get_Some_0() =~= (bus,dev,fun)
@@ -220,19 +220,19 @@ impl MMUManager{
     #[verifier(inline)]
     pub open spec fn get_pagetable_mapping_by_pcid(&self, pcid: Pcid) -> Map<VAddr,Option<PageEntry>>
         recommends 0<=pcid<PCID_MAX,
-    {   
+    {
         self.page_tables[pcid as int].get_pagetable_mapping()
     }
     #[verifier(inline)]
     pub open spec fn get_pagetable_page_closure_by_pcid(&self, pcid: Pcid) -> Set<PagePtr>
         recommends 0<=pcid<PCID_MAX,
-    {   
+    {
         self.page_tables[pcid as int].get_pagetable_page_closure()
     }
     #[verifier(inline)]
     pub open spec fn get_pagetable_mapped_pages_by_pcid(&self, pcid: Pcid) -> Set<PagePtr>
         recommends 0<=pcid<PCID_MAX,
-    {   
+    {
         self.page_tables[pcid as int].get_pagetable_mapped_pages()
     }
 
@@ -250,19 +250,19 @@ impl MMUManager{
     #[verifier(inline)]
     pub open spec fn get_iommutable_mapping_by_ioid(&self, ioid: IOid) -> Map<VAddr,Option<PageEntry>>
         recommends 0<=ioid<IOID_MAX,
-    {   
+    {
         self.iommu_tables[ioid as int].get_iommutable_mapping()
     }
     #[verifier(inline)]
     pub open spec fn get_iommutable_page_closure_by_ioid(&self, ioid: IOid) -> Set<PagePtr>
         recommends 0<=ioid<IOID_MAX,
-    {   
+    {
         self.iommu_tables[ioid as int].get_iommutable_page_closure()
     }
     #[verifier(inline)]
     pub open spec fn get_iommutable_mapped_pages_by_ioid(&self, ioid: IOid) -> Set<PagePtr>
         recommends 0<=ioid<IOID_MAX,
-    {   
+    {
         self.iommu_tables[ioid as int].get_iommutable_mapped_pages()
     }
 

@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use crate::array::Array;
 
 
@@ -65,7 +65,7 @@ impl<T, const N: usize> ArrayVec<T, N> {
         &&& forall |i: nat| (0 <= i < self.len()) == self.data.has_index(i)
     }
 
-    
+
     #[verifier(inline)]
     pub open spec fn spec_index(&self, index: int) -> (ret: &T) {
         &self@[index]
@@ -98,7 +98,7 @@ impl<T, const N: usize> ArrayVec<T, N> {
 
         ret
     }
-    
+
     pub fn push_unique(&mut self, value: T) -> (ret: &T)
     requires
         old(self).wf(),
@@ -168,13 +168,13 @@ impl<T, const N: usize> ArrayVec<T, N> {
         assert(self@ =~= old(self)@.drop_last());
         assert(self.unique());
         assert(ret == old(self)@[old(self).len() - 1]);
-        assert(forall|i:int| #![auto] 0<=i<old(self).len() - 1 ==> !(self@[i] =~= ret)); 
+        assert(forall|i:int| #![auto] 0<=i<old(self).len() - 1 ==> !(self@[i] =~= ret));
 
         assert(old(self)@.contains(ret));
         assert(self@.contains(ret) == false);
         assert(forall|t:T| #![auto] !( t =~= ret) ==> self@.contains(t) ==> old(self)@.contains(t));
 
-        
+
         assert(forall|t:T| #![auto] !( t =~= ret) ==> !self@.contains(t) ==> !old(self)@.drop_last().contains(t));
         assert(old(self)@[old(self)@.len() - 1] == ret);
         assert(forall|t:T| #![auto] !( t =~= ret) ==> !self@.contains(t) ==> !old(self)@.subrange(old(self)@.len() - 1, old(self)@.len() as int).contains(t));

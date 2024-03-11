@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 
 use vstd::prelude::*;
-verus!{
+verus! {
 use vstd::ptr::{
     PPtr, PointsTo,
     // PAGE_SZ,
@@ -14,7 +14,7 @@ use crate::mars_staticlinkedlist::*;
 
 #[verifier(external_body)]
 pub fn endpoint_set_queue_state(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, queue_state: EndpointState)
-    requires 
+    requires
         endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
         old(endpoint_perm)@@.value.is_Some(),
     ensures
@@ -33,7 +33,7 @@ pub fn endpoint_set_queue_state(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &
 
 #[verifier(external_body)]
 pub fn endpoint_remove_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr:ThreadPtr)
-    requires 
+    requires
         endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
         old(endpoint_perm)@@.value.is_Some(),
         old(endpoint_perm)@@.value.get_Some_0().owning_threads@.contains(thread_ptr),
@@ -53,7 +53,7 @@ pub fn endpoint_remove_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_pe
 
 #[verifier(external_body)]
 pub fn endpoint_add_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr:ThreadPtr)
-    requires 
+    requires
         endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
         old(endpoint_perm)@@.value.is_Some(),
         old(endpoint_perm)@@.value.get_Some_0().owning_threads@.contains(thread_ptr) == false,
@@ -73,7 +73,7 @@ pub fn endpoint_add_owning_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm:
 
 #[verifier(external_body)]
 pub fn endpoint_pop_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>) -> (ret: ThreadPtr)
-    requires 
+    requires
         endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
         old(endpoint_perm)@@.value.is_Some(),
         old(endpoint_perm)@@.value.get_Some_0().queue.wf(),
@@ -107,7 +107,7 @@ pub fn endpoint_pop_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut T
 
 #[verifier(external_body)]
 pub fn endpoint_push_thread(endpoint_pptr: PPtr::<Endpoint>,endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr: ThreadPtr) -> (ret: Index)
-    requires 
+    requires
         endpoint_pptr.id() == old(endpoint_perm)@@.pptr,
         old(endpoint_perm)@@.value.is_Some(),
         old(endpoint_perm)@@.value.get_Some_0().queue.wf(),
@@ -154,7 +154,7 @@ pub fn page_to_endpoint(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<End
             ret.1@@.value.get_Some_0().queue_state == true,
             ret.1@@.value.get_Some_0().owning_threads@ =~= Set::empty(),
 {
-    let uptr = page.0.to_usize() as *mut MaybeUninit<Endpoint>; 
+    let uptr = page.0.to_usize() as *mut MaybeUninit<Endpoint>;
     unsafe{
         (*uptr).assume_init_mut().queue.init();
         (*uptr).assume_init_mut().rf_counter = 0;

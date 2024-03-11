@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -17,14 +17,14 @@ use crate::kernel::*;
 
 
 impl Kernel {
-    
+
     pub fn syscall_receive_wait(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, ipc_payload:IPCPayLoad) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures
             self.wf(),
     {
-        let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();  
+        let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();
         if cpu_id >= NUM_CPUS{
             return SyscallReturnStruct::new(CPU_ID_INVALID,default_pcid,default_cr3,pt_regs);
         }else if self.cpu_list.get(cpu_id).get_is_idle() {
@@ -34,10 +34,10 @@ impl Kernel {
             let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
             assert(current_thread_ptr_op.is_Some());
             let current_thread_ptr = current_thread_ptr_op.unwrap();
-    
+
             let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
             let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
-            
+
             if endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS{
                 return SyscallReturnStruct::new(ENDPOINT_INDEX_INVALID,pcid,cr3,pt_regs);
             }else{
@@ -50,7 +50,7 @@ impl Kernel {
                         if self.proc_man.get_endpoint_len_by_endpoint_ptr(target_endpoint_ptr) == MAX_NUM_THREADS_PER_ENDPOINT{
                             return SyscallReturnStruct::new(ENDPOINT_FULL,pcid,cr3,pt_regs);
                         }
-            
+
                         // self.kernel_push_current_thread_to_endpoint()
                         if self.proc_man.scheduler.len() == 0{
                             assert(self.proc_man.get_thread(current_thread_ptr).endpoint_descriptors@[endpoint_index as int] != 0);
@@ -76,7 +76,7 @@ impl Kernel {
                         //sender queue
                         if self.proc_man.get_endpoint_len_by_endpoint_ptr(target_endpoint_ptr) == 0{
                             //change the endpoint to a receiver queue.
-            
+
                             // self.proc_man.proc_man_set_endpoint_queue_state_by_endpoint_ptr(target_endpoint_ptr, SEND);
                             // assert(self.wf());
                             if self.proc_man.scheduler.len() == 0{
@@ -98,36 +98,36 @@ impl Kernel {
                                     return SyscallReturnStruct::new(error_code.unwrap(),new_pcid,new_cr3,new_pt_regs);
                                 }
                             }
-            
+
                         }
-                            // pop the sender. 
+                            // pop the sender.
                             if self.proc_man.scheduler.len() == MAX_NUM_THREADS {
                                 return SyscallReturnStruct::new(SCHEDULER_NO_SPACE,pcid,cr3,pt_regs);
                             }
-            
+
                             let (new_thread_ptr,new_pt_regs) = self.proc_man.pop_endpoint_to_running(current_thread_ptr, endpoint_index);
-            
+
                             let receiver_caller = self.proc_man.get_thread_caller(current_thread_ptr);
-            
+
                             let receiver_ipc_payload = ipc_payload;
                             let sender_ipc_payload = self.proc_man.get_ipc_payload_by_thread_ptr(new_thread_ptr);
-            
+
                             let receiver_pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
                             let sender_pcid = self.proc_man.get_pcid_by_thread_ptr(new_thread_ptr);
                             assert(0<=sender_pcid<PCID_MAX);
                             assert(self.mmu_man.get_free_pcids_as_set().contains(sender_pcid) == false);
                             assert(0<=receiver_pcid<PCID_MAX);
                             assert(self.mmu_man.get_free_pcids_as_set().contains(receiver_pcid) == false);
-            
+
                             let new_pcid = self.proc_man.get_pcid_by_thread_ptr(new_thread_ptr);
                             let new_cr3 = self.mmu_man.get_cr3_by_pcid(new_pcid);
                             if sender_ipc_payload.calling == true || receiver_ipc_payload.calling == true {
-                                //one of them is calling 
+                                //one of them is calling
                                 if sender_ipc_payload.calling != true || receiver_ipc_payload.calling != true || receiver_caller.is_some()
-                                    || sender_ipc_payload.message.is_none() || receiver_ipc_payload.message.is_none() 
-                                    || sender_ipc_payload.page_payload.is_some() || receiver_ipc_payload.page_payload.is_some() 
-                                    || sender_ipc_payload.endpoint_payload.is_some() || receiver_ipc_payload.endpoint_payload.is_some() 
-                                    || sender_ipc_payload.pci_payload.is_some() || receiver_ipc_payload.pci_payload.is_some() 
+                                    || sender_ipc_payload.message.is_none() || receiver_ipc_payload.message.is_none()
+                                    || sender_ipc_payload.page_payload.is_some() || receiver_ipc_payload.page_payload.is_some()
+                                    || sender_ipc_payload.endpoint_payload.is_some() || receiver_ipc_payload.endpoint_payload.is_some()
+                                    || sender_ipc_payload.pci_payload.is_some() || receiver_ipc_payload.pci_payload.is_some()
                                 {
                                     self.proc_man.push_scheduler(current_thread_ptr, Some(CALL_FAILED),pt_regs);
                                     self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
@@ -135,38 +135,38 @@ impl Kernel {
                                 }else{
                                     let sender_va = sender_ipc_payload.message.unwrap().0;
                                     let receiver_va = receiver_ipc_payload.message.unwrap().0;
-                
+
                                     let sender_len = sender_ipc_payload.message.unwrap().1;
                                     let receiver_len = receiver_ipc_payload.message.unwrap().1;
-                
-                                    if (va_valid(sender_va) == false) || (va_valid(receiver_va) == false) || (sender_len != receiver_len) 
+
+                                    if (va_valid(sender_va) == false) || (va_valid(receiver_va) == false) || (sender_len != receiver_len)
                                         || (receiver_len>4096) || (receiver_len<=0)
                                     {
                                         self.proc_man.push_scheduler(current_thread_ptr, Some(CALL_FAILED),pt_regs);
                                         self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                        return SyscallReturnStruct::new(CALL_FAILED,new_pcid,new_cr3,new_pt_regs); 
+                                        return SyscallReturnStruct::new(CALL_FAILED,new_pcid,new_cr3,new_pt_regs);
                                     }else{
                                         let sender_pa_op = self.mmu_man.mmu_get_va_entry_by_pcid(pcid,sender_va);
                                         let receiver_pa_op = self.mmu_man.mmu_get_va_entry_by_pcid(new_pcid,receiver_va);
-                    
+
                                         if sender_pa_op.is_none() || receiver_pa_op.is_none() {
                                             self.proc_man.push_scheduler(current_thread_ptr, Some(CALL_FAILED),pt_regs);
                                             self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                            return SyscallReturnStruct::new(CALL_FAILED,new_pcid,new_cr3,new_pt_regs); 
+                                            return SyscallReturnStruct::new(CALL_FAILED,new_pcid,new_cr3,new_pt_regs);
                                         }else{
                                             let sender_pa = sender_pa_op.unwrap().addr;
                                             let receiver_pa = receiver_pa_op.unwrap().addr;
-                                            
+
                                             if sender_pa == receiver_pa {
                                                 self.proc_man.push_scheduler(current_thread_ptr, Some(CALL_FAILED),pt_regs);
                                                 self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                                return SyscallReturnStruct::new(CALL_FAILED,new_pcid,new_cr3,new_pt_regs); 
+                                                return SyscallReturnStruct::new(CALL_FAILED,new_pcid,new_cr3,new_pt_regs);
                                             }else{
                                                 self.kernel_pass_message(sender_pa, receiver_pa, receiver_len);
-                        
+
                                                 self.proc_man.set_thread_caller(new_thread_ptr,current_thread_ptr,new_pt_regs);
                                                 self.cpu_list.set_current_thread(cpu_id,Some(current_thread_ptr));
-                                                
+
                                                 return SyscallReturnStruct::new(SUCCESS,pcid,cr3,pt_regs);
                                             }
                                         }
@@ -180,46 +180,46 @@ impl Kernel {
                                     self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
                                     return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs);
                                 }
-                                else if sender_ipc_payload.page_payload.is_some() || receiver_ipc_payload.page_payload.is_some() 
-                                    || sender_ipc_payload.endpoint_payload.is_some() || receiver_ipc_payload.endpoint_payload.is_some() 
-                                    || sender_ipc_payload.pci_payload.is_some() || receiver_ipc_payload.pci_payload.is_some() 
+                                else if sender_ipc_payload.page_payload.is_some() || receiver_ipc_payload.page_payload.is_some()
+                                    || sender_ipc_payload.endpoint_payload.is_some() || receiver_ipc_payload.endpoint_payload.is_some()
+                                    || sender_ipc_payload.pci_payload.is_some() || receiver_ipc_payload.pci_payload.is_some()
                                 {
                                     self.proc_man.push_scheduler(current_thread_ptr, Some(MESSAGE_INVALID),pt_regs);
                                     self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
                                     return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs);
-                                } 
+                                }
                                 else{
                                     let sender_va = sender_ipc_payload.message.unwrap().0;
                                     let receiver_va = receiver_ipc_payload.message.unwrap().0;
-                
+
                                     let sender_len = sender_ipc_payload.message.unwrap().1;
                                     let receiver_len = receiver_ipc_payload.message.unwrap().1;
-                
-                                    if (va_valid(sender_va) == false) || (va_valid(receiver_va) == false) || (sender_len != receiver_len) 
+
+                                    if (va_valid(sender_va) == false) || (va_valid(receiver_va) == false) || (sender_len != receiver_len)
                                         || (receiver_len>4096) || (receiver_len<=0)
                                     {
                                         self.proc_man.push_scheduler(current_thread_ptr, Some(MESSAGE_INVALID),pt_regs);
                                         self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                        return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs); 
+                                        return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs);
                                     }else{
                                         let sender_pa_op = self.mmu_man.mmu_get_va_entry_by_pcid(new_pcid,sender_va);
                                         let receiver_pa_op = self.mmu_man.mmu_get_va_entry_by_pcid(pcid,receiver_va);
-                    
+
                                         if sender_pa_op.is_none() || receiver_pa_op.is_none() {
                                             self.proc_man.push_scheduler(current_thread_ptr, Some(MESSAGE_INVALID),pt_regs);
                                             self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                            return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs); 
+                                            return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs);
                                         }else{
                                             let sender_pa = sender_pa_op.unwrap().addr;
                                             let receiver_pa = receiver_pa_op.unwrap().addr;
-                                            
+
                                             if sender_pa == receiver_pa {
                                                 self.proc_man.push_scheduler(current_thread_ptr, Some(MESSAGE_INVALID),pt_regs);
                                                 self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                                return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs); 
+                                                return SyscallReturnStruct::new(MESSAGE_INVALID,new_pcid,new_cr3,new_pt_regs);
                                             }else{
                                                 self.kernel_pass_message(sender_pa, receiver_pa, receiver_len);
-                        
+
                                                 self.proc_man.push_scheduler(current_thread_ptr, Some(SUCCESS),pt_regs);
                                                 self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
                                                 return SyscallReturnStruct::new(SUCCESS,new_pcid,new_cr3,new_pt_regs);
@@ -227,22 +227,22 @@ impl Kernel {
                                         }
                                     }
                                 }
-            
+
                             }else if sender_ipc_payload.page_payload.is_some() || receiver_ipc_payload.page_payload.is_some()
                             {
                                 //sharing pages
-                                if sender_ipc_payload.page_payload.is_none() || receiver_ipc_payload.page_payload.is_none() 
-                                    || sender_ipc_payload.endpoint_payload.is_some() || receiver_ipc_payload.endpoint_payload.is_some() 
-                                    || sender_ipc_payload.pci_payload.is_some() || receiver_ipc_payload.pci_payload.is_some() 
+                                if sender_ipc_payload.page_payload.is_none() || receiver_ipc_payload.page_payload.is_none()
+                                    || sender_ipc_payload.endpoint_payload.is_some() || receiver_ipc_payload.endpoint_payload.is_some()
+                                    || sender_ipc_payload.pci_payload.is_some() || receiver_ipc_payload.pci_payload.is_some()
                                 {
                                     self.proc_man.push_scheduler(current_thread_ptr, Some(PAGE_PAYLOAD_INVALID),pt_regs);
                                     self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
                                     return SyscallReturnStruct::new(PAGE_PAYLOAD_INVALID,new_pcid,new_cr3,new_pt_regs);
-                                }else{                                            
+                                }else{
                                     let (sender_page_start,sender_page_len) = sender_ipc_payload.page_payload.unwrap();
                                     let (receiver_page_start,receiver_page_len) = receiver_ipc_payload.page_payload.unwrap();
                                     let perm_bits = READ_WRITE_EXECUTE as usize;
-            
+
                                     if sender_page_len != receiver_page_len || sender_page_len >= usize::MAX/3 || va_perm_bits_valid(perm_bits) == false
                                         || self.page_alloc.free_pages.len() < 3 * sender_page_len
                                     {   self.proc_man.push_scheduler(current_thread_ptr, Some(PAGE_PAYLOAD_INVALID),pt_regs);
@@ -261,9 +261,9 @@ impl Kernel {
                                         }
                                     }
                                 }
-                            
+
                             }else if sender_ipc_payload.endpoint_payload.is_some() || receiver_ipc_payload.endpoint_payload.is_some()
-                            {                    
+                            {
                                 //sharing endpoint
                                 if sender_ipc_payload.endpoint_payload.is_none() || receiver_ipc_payload.endpoint_payload.is_none() {
                                     self.proc_man.push_scheduler(current_thread_ptr, Some(ENDPOINT_PAYLOAD_INVALID),pt_regs);
@@ -272,7 +272,7 @@ impl Kernel {
                                 }else{
                                     let sender_endpoint_index = sender_ipc_payload.endpoint_payload.unwrap();
                                     let receiver_endpoint_index = receiver_ipc_payload.endpoint_payload.unwrap();
-                
+
                                     if sender_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS || receiver_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS {
                                         self.proc_man.push_scheduler(current_thread_ptr, Some(ENDPOINT_PAYLOAD_INVALID),pt_regs);
                                         self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
@@ -281,8 +281,8 @@ impl Kernel {
                                         let sender_endpoint_ptr = self.proc_man.get_thread_endpoint_ptr_by_endpoint_idx(new_thread_ptr, sender_endpoint_index);
                                         let receiver_endpoint_ptr = self.proc_man.get_thread_endpoint_ptr_by_endpoint_idx(current_thread_ptr, receiver_endpoint_index);
 
-                                        if sender_endpoint_ptr == 0 || receiver_endpoint_ptr != 0 
-                                            ||self.proc_man.get_endpoint_rf_counter_by_endpoint_ptr(sender_endpoint_ptr) == usize::MAX 
+                                        if sender_endpoint_ptr == 0 || receiver_endpoint_ptr != 0
+                                            ||self.proc_man.get_endpoint_rf_counter_by_endpoint_ptr(sender_endpoint_ptr) == usize::MAX
                                             ||self.proc_man.check_receiver_endpoint_descriptors(current_thread_ptr, sender_endpoint_ptr) == false
                                         {
                                             self.proc_man.push_scheduler(current_thread_ptr, Some(ENDPOINT_PAYLOAD_INVALID),pt_regs);
@@ -296,9 +296,9 @@ impl Kernel {
                                         return SyscallReturnStruct::new(SUCCESS,new_pcid,new_cr3,new_pt_regs);
                                         }
                                     }
-                                } 
+                                }
                             }else if sender_ipc_payload.pci_payload.is_some() || receiver_ipc_payload.pci_payload.is_some()
-                            {   
+                            {
                                 if sender_ipc_payload.pci_payload.is_none() || receiver_ipc_payload.pci_payload.is_none() {
                                     self.proc_man.push_scheduler(current_thread_ptr, Some(PCI_DEV_PAYLOAD_INVALID),pt_regs);
                                     self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
@@ -306,8 +306,8 @@ impl Kernel {
                                 }else{
                                     let (sender_bus,sender_dev,sender_fun) = sender_ipc_payload.pci_payload.unwrap();
                                     let (receiver_bus,receiver_dev,receiver_fun) = receiver_ipc_payload.pci_payload.unwrap();
-                
-                                    if sender_dev >= 32u8 || sender_fun >= 8u8 
+
+                                    if sender_dev >= 32u8 || sender_fun >= 8u8
                                         || receiver_dev >= 32u8 || receiver_fun >= 8u8
                                     {
                                         self.proc_man.push_scheduler(current_thread_ptr, Some(PCI_DEV_PAYLOAD_INVALID),pt_regs);
@@ -316,10 +316,10 @@ impl Kernel {
                                     }else{
                                         let sender_ioid_op = self.proc_man.get_ioid_by_thread_ptr(new_thread_ptr);
                                         let receive_ioid_op = self.proc_man.get_ioid_by_thread_ptr(current_thread_ptr);
-                    
-                                        if sender_ioid_op.is_none() || receive_ioid_op.is_none() 
-                                            ||self.mmu_man.mmu_get_pci_dev_by_ioid(sender_ioid_op.unwrap(),sender_bus,sender_dev,sender_fun) == false 
-                                            || self.mmu_man.mmu_get_pci_dev_by_ioid(receive_ioid_op.unwrap(),receiver_bus,receiver_dev,receiver_fun) == true 
+
+                                        if sender_ioid_op.is_none() || receive_ioid_op.is_none()
+                                            ||self.mmu_man.mmu_get_pci_dev_by_ioid(sender_ioid_op.unwrap(),sender_bus,sender_dev,sender_fun) == false
+                                            || self.mmu_man.mmu_get_pci_dev_by_ioid(receive_ioid_op.unwrap(),receiver_bus,receiver_dev,receiver_fun) == true
                                         {
                                             self.proc_man.push_scheduler(current_thread_ptr, Some(PCI_DEV_PAYLOAD_INVALID),pt_regs);
                                             self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
@@ -332,11 +332,11 @@ impl Kernel {
                                         }
                                     }
                                 }
-                                
+
                             }else{
                                 self.proc_man.push_scheduler(current_thread_ptr, Some(SUCCESS),pt_regs);
                                 self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
-                                
+
                                 return SyscallReturnStruct::new(SUCCESS,new_pcid,new_cr3,new_pt_regs);
                             }
                     }

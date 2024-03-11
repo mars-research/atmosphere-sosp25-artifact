@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -13,7 +13,7 @@ use crate::define::*;
 use crate::kernel::*;
 
 impl Kernel{
-    
+
     pub fn kernel_map_new_page_by_pcid(&mut self, pcid: Pcid, va: usize, perm_bits:usize)
         requires
             old(self).wf(),
@@ -37,7 +37,7 @@ impl Kernel{
         assert(self.mmu_man.get_mmu_page_closure().contains(pa) == false);
         let result = self.mmu_man.map_pagetable_page(pcid, va, PageEntry{addr:pa,perm:perm_bits});
         assert(result == true);
-        
+
 
         assert(
             self.proc_man.wf()

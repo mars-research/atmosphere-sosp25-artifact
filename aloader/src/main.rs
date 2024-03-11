@@ -34,7 +34,7 @@ use astd::io::{Cursor, Read, Seek, SeekFrom};
 
 use elf::ElfHandle;
 use memory::{
-    AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper, PAGE_SIZE, HUGE_PAGE_SIZE
+    AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper, HUGE_PAGE_SIZE, PAGE_SIZE,
 };
 
 const KERNEL_RESERVATION: usize = 1024 * 1024 * 1024; // 1 GiB
@@ -61,7 +61,8 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     log::info!("Mapping all physical memory");
     let mut cur = 0;
-    while cur < 0x240000000 { // FIXME
+    while cur < 0x240000000 {
+        // FIXME
         unsafe {
             address_space.map(bootstrap_allocator, cur, cur, false, true);
         }
@@ -82,12 +83,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     let kernel_file = {
         let range = boot::get_kernel_image_range().expect("No kernel image was passed");
 
-        let f = unsafe {
-            slice::from_raw_parts(
-                range.base() as *const _,
-                range.size() as usize,
-            )
-        };
+        let f = unsafe { slice::from_raw_parts(range.base() as *const _, range.size() as usize) };
         Cursor::new(f)
     };
 
@@ -114,16 +110,21 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         }
     }
 
-    let mut cur = 0; 
+    let mut cur = 0;
     log::info!("Populating physical page list");
     for (region, label) in memory::get_physical_memory_map().regions.iter() {
         let page_type: PhysicalMemoryType = (*label).into();
-        log::info!("region.base() {:x}, region.end_inclusive() {:x}, page_type {:?}", region.base(), region.end_inclusive(),page_type);
-        while cur < region.base(){
+        log::info!(
+            "region.base() {:x}, region.end_inclusive() {:x}, page_type {:?}",
+            region.base(),
+            region.end_inclusive(),
+            page_type
+        );
+        while cur < region.base() {
             boot_info
-            .pages
-            .push((cur, PhysicalMemoryType::Reserved))
-            .expect("Too many pages");
+                .pages
+                .push((cur, PhysicalMemoryType::Reserved))
+                .expect("Too many pages");
             cur += PAGE_SIZE as u64;
         }
         while cur < region.end_inclusive() {
@@ -134,11 +135,11 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
             cur += PAGE_SIZE as u64;
         }
     }
-    while cur < 4*1024*1024*4096{
+    while cur < 4 * 1024 * 1024 * 4096 {
         boot_info
-        .pages
-        .push((cur, PhysicalMemoryType::Reserved))
-        .expect("Too many pages");
+            .pages
+            .push((cur, PhysicalMemoryType::Reserved))
+            .expect("Too many pages");
         cur += PAGE_SIZE as u64;
     }
 
@@ -200,7 +201,8 @@ where
 
     let (reserved_start, mut allocator) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
 
-    let mut userspace_mapper = UserspaceMapper::new(address_space, &mut allocator, page_table_allocator);
+    let mut userspace_mapper =
+        UserspaceMapper::new(address_space, &mut allocator, page_table_allocator);
     let (dom_map, _) = parsed
         .load(&mut userspace_mapper)
         .expect("Failed to map Dom0");
@@ -214,7 +216,13 @@ where
     let mut cur = virt_base;
     while cur < virt_base + stack_size {
         unsafe {
-            address_space.map(page_table_allocator, cur, cur - virt_base + phys_base, true, false);
+            address_space.map(
+                page_table_allocator,
+                cur,
+                cur - virt_base + phys_base,
+                true,
+                false,
+            );
         }
         cur = cur + PAGE_SIZE as u64;
     }

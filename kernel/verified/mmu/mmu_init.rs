@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use core::mem::MaybeUninit;
 use crate::pagetable::*;
@@ -14,7 +14,7 @@ use crate::mmu::*;
 impl MMUManager{
 
     pub fn mmu_man_init(&mut self)
-        requires 
+        requires
             old(self).free_pcids.wf(),
             old(self).free_pcids.len() == 0,
             old(self).free_pcids@ =~= Seq::empty(),
@@ -43,7 +43,7 @@ impl MMUManager{
             self.iommutables_wf(),
             self.pagetable_iommutable_disjoint(),
             self.root_table_wf(),
-            
+
             self.free_pcids.wf(),
             self.free_pcids.unique(),
             self.free_pcids.len() == PCID_MAX,
@@ -173,9 +173,9 @@ impl MMUManager{
             forall|i:usize, va: VAddr|#![auto] 0<=i<IOID_MAX && spec_va_valid(va) ==>  old(self).get_iommutable_mapping_by_ioid(i)[va].is_None(),
 
             pagetable.wf(),
-            forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==> 
+            forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==>
                 page_ptr_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
-            forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==> 
+            forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==>
                 spec_va_perm_bits_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
         ensures
             self.wf(),

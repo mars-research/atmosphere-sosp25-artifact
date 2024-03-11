@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 use crate::array_vec::*;
 use crate::proc::*;
@@ -77,7 +77,7 @@ impl Kernel{
 
 
     // #[verifier(external_body)]
-    pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>, 
+    pub fn kernel_init(&mut self, boot_page_ptrs: &ArrayVec<(PageState,VAddr),NUM_PAGES>, mut boot_page_perms: Tracked<Map<PagePtr,PagePerm>>,
                         dom0_pagetable: PageTable, kernel_pml4_entry: PageEntry, dom0_pt_regs: PtRegs) -> (ret: isize)
         requires
             old(self).proc_man.proc_ptrs.arr_seq@.len() == MAX_NUM_PROCS,
@@ -91,7 +91,7 @@ impl Kernel{
             old(self).proc_man.endpoint_perms@ =~= Map::empty(),
             old(self).proc_man.pcid_closure@ =~= Set::empty(),
             old(self).proc_man.ioid_closure@ =~= Set::empty(),
-            
+
             old(self).page_alloc.page_array.wf(),
             old(self).page_alloc.free_pages.wf(),
             old(self).page_alloc.free_pages.len() == 0,
@@ -100,7 +100,7 @@ impl Kernel{
             old(self).page_alloc.mapped_pages@ =~= Set::empty(),
             old(self).page_alloc.available_pages@ =~= Set::empty(),
             old(self).page_alloc.page_perms@.dom() =~= Set::empty(),
-            
+
             old(self).mmu_man.free_pcids.wf(),
             old(self).mmu_man.free_pcids@ =~= Seq::empty(),
             old(self).mmu_man.page_tables.wf(),
@@ -129,9 +129,9 @@ impl Kernel{
             (forall|page_ptr:PagePtr| #![auto] page_ptr_valid(page_ptr) ==> boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].1 == page_ptr),
             (forall|i:usize| #![auto] 0<=i<NUM_PAGES ==> boot_page_ptrs@[i as int].0 <= IO),
             (forall|i:usize| #![auto] 0<=i<NUM_PAGES ==> boot_page_ptrs@[i as int].0 != ALLOCATED),
-            (forall|i:usize| #![auto] 0<=i<NUM_PAGES && (boot_page_ptrs@[i as int].0 == FREE || boot_page_ptrs@[i as int].0 == MAPPED || boot_page_ptrs@[i as int].0 == IO)==> 
+            (forall|i:usize| #![auto] 0<=i<NUM_PAGES && (boot_page_ptrs@[i as int].0 == FREE || boot_page_ptrs@[i as int].0 == MAPPED || boot_page_ptrs@[i as int].0 == IO)==>
                 (boot_page_perms@.dom().contains(page_index2page_ptr(i))
-                && 
+                &&
                 boot_page_perms@[page_index2page_ptr(i)]@.pptr == page_index2page_ptr(i)
                 &&
                 boot_page_perms@[page_index2page_ptr(i)]@.value.is_Some()
@@ -142,13 +142,13 @@ impl Kernel{
             NUM_PAGES * 4096 <= usize::MAX,
 
             dom0_pagetable.wf(),
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
+            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==>
                 page_ptr_valid(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
+            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==>
                 spec_va_perm_bits_valid(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
-            
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
-                boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == MAPPED 
+
+            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==>
+                boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == MAPPED
                 ||
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].0 == IO,
 
@@ -161,7 +161,7 @@ impl Kernel{
                     dom0_pagetable.get_pagetable_mapping()[boot_page_ptrs@[page_ptr2page_index(page_ptr) as int].1].get_Some_0().addr == page_ptr
                 ),
 
-            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==> 
+            forall|va:usize| #![auto] spec_va_valid(va) && dom0_pagetable.get_pagetable_mapping()[va].is_Some() ==>
                 boot_page_ptrs[page_ptr2page_index(dom0_pagetable.get_pagetable_mapping()[va].get_Some_0().addr) as int].1 == va,
             forall|page_ptr:PagePtr|#![auto] dom0_pagetable.get_pagetable_page_closure().contains(page_ptr)
                 <==>
@@ -235,7 +235,7 @@ impl Kernel{
             return -1;
         }
         else{
-            let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem(); 
+            let (page_ptr1, page_perm1) = self.page_alloc.alloc_kernel_mem();
             let (page_ptr2, page_perm2) = self.page_alloc.alloc_kernel_mem();
             let new_proc = self.proc_man.new_proc(page_ptr1, page_perm1, 0, None);
             let new_thread = self.proc_man.new_thread(dom0_pt_regs,page_ptr2, page_perm2,new_proc);

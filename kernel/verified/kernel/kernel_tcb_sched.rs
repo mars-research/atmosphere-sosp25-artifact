@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -16,7 +16,7 @@ use crate::kernel::*;
 
 
 impl Kernel {
-    pub fn kernel_timer_int(&mut self, cpu_id:CPUID, pt_regs: PtRegs) -> (ret:SyscallReturnStruct) 
+    pub fn kernel_timer_int(&mut self, cpu_id:CPUID, pt_regs: PtRegs) -> (ret:SyscallReturnStruct)
         requires
             old(self).wf(),
     {
@@ -59,7 +59,7 @@ impl Kernel {
                     return SyscallReturnStruct::new(error_code.unwrap(),new_pcid,new_cr3,new_pt_regs);
                 }
         }
-        else{ 
+        else{
             let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
             assert(current_thread_ptr_op.is_Some());
             let current_thread_ptr = current_thread_ptr_op.unwrap();
@@ -112,7 +112,7 @@ impl Kernel {
         }else{
             return SyscallReturnStruct::new(error_code.unwrap(),new_pcid,new_cr3,new_pt_regs);
         }
-    
+
     }
 }
 

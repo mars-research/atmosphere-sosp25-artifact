@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 
 // use crate::array_vec::*;
 // use crate::proc::*;
@@ -25,7 +25,7 @@ impl Kernel {
             self.wf(),
             //if the syscall is not success, nothing will change, goes back to user level
             ret.0.error_code != SUCCESS ==> (
-                self == old(self) 
+                self == old(self)
             ),
             //if the syscall is success, a new process and a new thread of the new process will be created
             ret.0.error_code == SUCCESS ==> (
@@ -52,15 +52,15 @@ impl Kernel {
                 self.cpu_list[cpu_id as int].current_t.is_Some()
                 &&
                 // the new thread stores the endpoint from the parent process at 1st slot
-                self.proc_man.get_thread(ret.2.unwrap()).endpoint_descriptors@[0] =~= self.proc_man.get_thread(self.cpu_list[cpu_id as int].current_t.unwrap()).endpoint_descriptors@[endpoint_index as int] 
+                self.proc_man.get_thread(ret.2.unwrap()).endpoint_descriptors@[0] =~= self.proc_man.get_thread(self.cpu_list[cpu_id as int].current_t.unwrap()).endpoint_descriptors@[endpoint_index as int]
                 &&
-                // the new thread is scheduled 
+                // the new thread is scheduled
                 self.proc_man.get_thread(ret.2.unwrap()).state == SCHEDULED
                 &&
                 // the new proccess's pagetable is empty. There are kernel and loader mapped in this new pagetable, but they are transparent to user level
                 forall|va:VAddr| #![auto] spec_va_valid(va) ==> self.mmu_man.get_pagetable_by_pcid(self.proc_man.get_proc(self.proc_man.get_thread(ret.2.unwrap()).parent).pcid).get_pagetable_mapping()[va].is_None()),
-    { 
-        let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();  
+    {
+        let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();
         if cpu_id >= NUM_CPUS{
             assert(self == old(self));
             return (SyscallReturnStruct::new(CPU_ID_INVALID,default_pcid,default_cr3,pt_regs),None,None);
@@ -77,7 +77,7 @@ impl Kernel {
 
         let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
         let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
-        
+
         if endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS{
             assert(self == old(self));
             return (SyscallReturnStruct::new(ENDPOINT_INDEX_INVALID,pcid,cr3,pt_regs),None,None);
@@ -113,11 +113,11 @@ impl Kernel {
             assert(self == old(self));
             return (SyscallReturnStruct::new(NO_FREE_PCID,pcid,cr3,pt_regs),None,None);
         }
- 
-        let (page_ptr1, page_perm1) = self.page_alloc.alloc_pagetable_mem(); 
+
+        let (page_ptr1, page_perm1) = self.page_alloc.alloc_pagetable_mem();
         let new_pcid = self.mmu_man.new_pagetable(page_ptr1,page_perm1,Some(self.kernel_pml4_entry));
-        let (page_ptr2, page_perm2) = self.page_alloc.alloc_kernel_mem(); 
-        let (page_ptr3, page_perm3) = self.page_alloc.alloc_kernel_mem(); 
+        let (page_ptr2, page_perm2) = self.page_alloc.alloc_kernel_mem();
+        let (page_ptr3, page_perm3) = self.page_alloc.alloc_kernel_mem();
         let new_proc = self.proc_man.new_proc(page_ptr2, page_perm2, new_pcid, None);
         let new_thread = self.proc_man.new_thread(pt_regs_new_proc,page_ptr3, page_perm3,new_proc);
         assert(self.wf());

@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 use crate::define::*;
 use crate::page_alloc::*;
 
@@ -23,7 +23,7 @@ pub proof fn lemma_usize_int(x: int)
 //TODO: @Xiangdong prove this
 #[verifier(external_body)]
 pub proof fn page_ptr_lemma()
-    ensures 
+    ensures
         forall|ptr:PagePtr| #![auto] page_ptr_valid(ptr) ==> page_index_valid(page_ptr2page_index(ptr)),
         forall|index:usize| #![auto] page_index_valid(index) ==> page_ptr_valid(page_index2page_ptr(index)),
         forall|ptr:PagePtr| #![auto] page_ptr_valid(ptr) ==> page_index2page_ptr(page_ptr2page_index(ptr)) == ptr,

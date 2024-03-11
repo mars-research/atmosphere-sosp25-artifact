@@ -1,7 +1,7 @@
 use super::*;
 
 use vstd::prelude::*;
-verus!{
+verus! {
 
 use crate::mars_staticlinkedlist::*;
 // use crate::pagetable::*;
@@ -24,18 +24,18 @@ pub struct Thread{
 
     pub parent_rf: Index,
     pub scheduler_rf: Option<Index>,
-    
+
     pub endpoint_ptr: Option<EndpointPtr>,
     pub endpoint_rf: Option<Index>,
 
     pub endpoint_descriptors: MarsArray<EndpointPtr,MAX_NUM_ENDPOINT_DESCRIPTORS>,
     pub ipc_payload: IPCPayLoad,
 
-    pub error_code: Option<ErrorCodeType>, //this will only be set when it comes out of endpoint and goes to scheduler. 
+    pub error_code: Option<ErrorCodeType>, //this will only be set when it comes out of endpoint and goes to scheduler.
 
     pub callee: Option<ThreadPtr>,
     pub caller: Option<ThreadPtr>,
-    
+
     pub trap_frame: Option<PtRegs>,
 }
 
@@ -116,7 +116,7 @@ impl ProcessManager {
             (self.thread_perms.borrow_mut())
                 .tracked_insert(callee, callee_perm.get());
         }
-        
+
         self.push_scheduler(callee,callee_error_code,callee_pt_regs);
         assert(self.wf());
         return caller_pt_regs.unwrap();
@@ -167,7 +167,7 @@ impl ProcessManager {
     }
 
     // pub fn set_thread_to_transit(&mut self, thread_ptr:ThreadPtr)
-    //     requires 
+    //     requires
     //         old(self).wf(),
     //         old(self).get_thread_ptrs().contains(thread_ptr),
     //         old(self).get_thread(thread_ptr).state != BLOCKED,
@@ -206,7 +206,7 @@ impl ProcessManager {
     //         (self.thread_perms.borrow_mut())
     //             .tracked_insert(thread_ptr, thread_perm.get());
     //     }
-    //     assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+    //     assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
     //         ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr) == false);
     //     assert(self.wf_threads());
     //     assert(self.wf_procs());
@@ -216,7 +216,7 @@ impl ProcessManager {
     // }
 
 //     pub fn set_thread_to_running(&mut self, thread_ptr:ThreadPtr)
-//     requires 
+//     requires
 //         old(self).wf(),
 //         old(self).get_thread_ptrs().contains(thread_ptr),
 //         old(self).get_thread(thread_ptr).state == TRANSIT,
@@ -256,7 +256,7 @@ impl ProcessManager {
 //         (self.thread_perms.borrow_mut())
 //             .tracked_insert(thread_ptr, thread_perm.get());
 //     }
-//     assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+//     assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
 //         ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(thread_ptr) == false);
 //     assert(self.wf_threads());
 //     assert(self.wf_procs());
@@ -266,7 +266,7 @@ impl ProcessManager {
 // }
 
 // pub fn set_thread_error_code(&mut self, thread_ptr:ThreadPtr, error_code:Option<ErrorCodeType>)
-//     requires 
+//     requires
 //         old(self).wf(),
 //         old(self).get_thread_ptrs().contains(thread_ptr),
 //     ensures
@@ -344,7 +344,7 @@ impl ProcessManager {
         assert(self.proc_perms@.dom().contains(parent_ptr));
         let mut proc_perm =
             Tracked((self.proc_perms.borrow_mut()).tracked_remove(parent_ptr));
-        
+
         let parent_rf = proc_push_thread(PPtr::<Process>::from_usize(parent_ptr), &mut proc_perm, page_ptr);
         assert(self.proc_perms@.dom().contains(parent_ptr) == false);
         proof{
@@ -362,7 +362,7 @@ impl ProcessManager {
         proof{
             self.thread_ptrs@ = self.thread_ptrs@.insert(page_ptr);
         }
-        assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr) 
+        assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
             ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(page_ptr) == false);
 
 
@@ -373,7 +373,7 @@ impl ProcessManager {
         assert(self.wf_pcid_closure());
         assert(self.wf_endpoints());
         assert(self.wf_ipc());
-            
+
         assert(self.wf());
         return page_ptr;
     }
@@ -415,7 +415,7 @@ impl ProcessManager {
 
         let tracked endpoint_perm = self.endpoint_perms.borrow().tracked_borrow(endpoint_ptr);
         let endpoint : &Endpoint = PPtr::<Endpoint>::from_usize(endpoint_ptr).borrow(Tracked(endpoint_perm));
-        
+
         let mut thread_perm =
             Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
         assert(self.thread_perms@.dom().contains(thread_ptr) == false);
@@ -470,7 +470,7 @@ impl ProcessManager {
             (self.thread_perms.borrow_mut())
                 .tracked_insert(caller_thread_ptr, caller_thread_perm.get());
         }
-        
+
         assert(self.wf_ipc());
 
         assert(self.wf());
@@ -481,8 +481,8 @@ impl ProcessManager {
         old(self).wf(),
         old(self).get_proc_ptrs().contains(proc_ptr),
         forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().state == TRANSIT,
-        forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().callee.is_None(),  
-        forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().caller.is_None(),     
+        forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().callee.is_None(),
+        forall|i:int| #![auto] 0<=i< old(self).get_proc(proc_ptr).owned_threads.len() ==> old(self).thread_perms@[old(self).get_proc(proc_ptr).owned_threads@[i]]@.value.get_Some_0().caller.is_None(),
     ensures
         ret@ + self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure(),
         self.wf(),
@@ -490,7 +490,7 @@ impl ProcessManager {
         let mut ret = Ghost(Set::<PagePtr>::empty());
 
         let original_len = self.get_proc_owned_thread_len(proc_ptr);
-        
+
         let mut loop_i = 0;
         assert(self.proc_perms@.dom().contains(proc_ptr));
         assert(self.proc_perms@[proc_ptr]@.value.get_Some_0().owned_threads.wf());
@@ -537,9 +537,9 @@ impl ProcessManager {
             assert(self.get_thread_ptrs().contains(thread_ptr));
             let differential = self.remove_thread_endpoint_descriptors(thread_ptr);
             ret = Ghost(ret@.union(differential@));
-            
+
             assert(self.proc_perms@.dom().contains(proc_ptr));
-            
+
             let mut proc_perm =
                 Tracked((self.proc_perms.borrow_mut()).tracked_remove(proc_ptr));
             let thread_ptr = proc_pop_thread(PPtr::<Process>::from_usize(proc_ptr), &mut proc_perm);
@@ -550,7 +550,7 @@ impl ProcessManager {
                     .tracked_insert(proc_ptr, proc_perm.get());
             }
             assert(self.get_proc(proc_ptr).owned_threads@ =~= old(self).get_proc(proc_ptr).owned_threads@.subrange((loop_i as int) + 1, original_len as int));
-            
+
             let mut thread_perm: Tracked<PointsTo<Thread>>=
                 Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
             assert(self.thread_perms@.dom().contains(thread_ptr) == false);

@@ -1,5 +1,5 @@
 use vstd::prelude::*;
-verus!{
+verus! {
 // use vstd::ptr::PointsTo;
 use crate::define::*;
 use crate::mars_array::*;
@@ -10,8 +10,8 @@ use crate::pagetable::*;
 
 
 // #[verifier(external_body)]
-// fn index_helper(value:usize) -> (ret:bool)   
-//     ensures 
+// fn index_helper(value:usize) -> (ret:bool)
+//     ensures
 //         ret == ((value & (PAGE_ENTRY_PRESENT_MASK as usize)) != 0 )
 // {
 //     return (value & (PAGE_ENTRY_PRESENT_MASK as usize)) != 0
@@ -70,10 +70,10 @@ impl PageMap{
     pub open spec fn view(&self) -> Seq<Option<PageEntry>>
     {
         self.spec_seq@
-    }    
+    }
 
     pub open spec fn spec_index(&self, index:usize) -> Option<PageEntry>
-        recommends 
+        recommends
             0<=index<512,
     {
         self.spec_seq@[index as int]
@@ -169,7 +169,7 @@ impl PageMap{
         }
 
     pub fn index(&self, index:usize) -> (ret:Option<PageEntry>)
-        requires 
+        requires
             self.wf(),
             0<=index<512,
         ensures
@@ -186,7 +186,7 @@ impl PageMap{
     }
 
     pub fn get(&self, index:usize) -> (ret:Option<PageEntry>)
-        requires 
+        requires
             self.wf(),
             0<=index<512,
         ensures
