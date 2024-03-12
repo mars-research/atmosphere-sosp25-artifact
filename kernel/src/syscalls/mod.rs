@@ -7,6 +7,7 @@ use x86::segmentation::SegmentSelector;
 use x86::{msr, Ring};
 
 use crate::gdt::GlobalDescriptorTable;
+use crate::kernel;
 
 const SYSCALL32_ENTRY: u64 = 0; // nein
 const SYSCALL32_ENTRY_EIP: u32 = 0; // nein
@@ -46,6 +47,7 @@ pub unsafe fn init_cpu() {
     CPU0_SYSCALL_SP = CPU0_SYSCALL_STACK.as_ptr().add(CPU0_SYSCALL_STACK.len()) as u64;
 
     SYSCALLS[asys::__NR_PRINT] = sys_print as u64;
+    SYSCALLS[asys::__NR_MMAP] = kernel::sys_mmap as u64;
 }
 
 // rax - syscall number

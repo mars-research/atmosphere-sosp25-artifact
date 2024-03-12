@@ -12,7 +12,16 @@ fn main() -> isize {
 
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
+        log::info!("sys_mmap {:?}", asys::sys_mmap(0xA000000000, 0x0000_0000_0000_0002u64 as usize, 1));
     }
+    let mut user_value: usize = 0;
+    unsafe {
+        log::info!("write 0xA000000000");
+        *(0xA000000000 as *mut usize) = 0x233;
+        log::info!("read 0xA000000000");
+        user_value = *(0xA000000000 as *const usize);
+    }
+    log::info!("*0xA000000000 = {:x?}", user_value);
 
     loop {}
 }
