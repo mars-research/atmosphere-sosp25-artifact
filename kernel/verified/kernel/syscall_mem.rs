@@ -195,5 +195,39 @@ impl Kernel {
 
         return (SyscallReturnStruct::new(SUCCESS,0,0,pt_regs),None,None);
     }
+    pub fn syscall_resolve_va(&self, cpu_id:CPUID, pt_regs: PtRegs, va: usize) -> (ret:(SyscallReturnStruct,PAddr))
+        requires
+            self.wf(),
+    {
+        if cpu_id >= NUM_CPUS{
+            return (SyscallReturnStruct::new(CPU_ID_INVALID,0,0,pt_regs),0);
+        }
+
+        if self.cpu_list.get(cpu_id).get_is_idle() {
+            return (SyscallReturnStruct::new(NO_RUNNING_THREAD,0,0,pt_regs),0);
+        }
+
+
+        assert(self.cpu_list[cpu_id as int].get_is_idle() == false);
+        let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
+        assert(current_thread_ptr_op.is_Some());
+        let current_thread_ptr = current_thread_ptr_op.unwrap();
+        let current_proc_ptr = self.proc_man.get_parent_proc_ptr_by_thread_ptr(current_thread_ptr);
+
+        let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
+        let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
+
+        if va_valid(va) == false{
+            return (SyscallReturnStruct::new(VADDR_INVALID,pcid, cr3,pt_regs),0);
+        }
+
+        let page_entry = self.mmu_man.mmu_get_va_entry_by_pcid(pcid, va);
+
+        if page_entry.is_none() {
+            return (SyscallReturnStruct::new(VADDR_NOMAPPING,pcid, cr3,pt_regs),0);
+        }else{
+            return (SyscallReturnStruct::new(SUCCESS,pcid, cr3,pt_regs),page_entry.unwrap().addr & page_entry.unwrap().perm);
+        }
+    }
 }
 }
