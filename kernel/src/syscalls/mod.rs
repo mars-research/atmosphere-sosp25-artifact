@@ -2,6 +2,7 @@
 
 use core::arch::asm;
 
+use asys::MAX_SYSCALLS;
 use x86::segmentation::SegmentSelector;
 use x86::{msr, Ring};
 
@@ -9,7 +10,8 @@ use crate::gdt::GlobalDescriptorTable;
 
 const SYSCALL32_ENTRY: u64 = 0; // nein
 const SYSCALL32_ENTRY_EIP: u32 = 0; // nein
-const MAX_SYSCALLS: usize = 64;
+
+static mut SYSCALLS: [u64; MAX_SYSCALLS] = [0; MAX_SYSCALLS];
 
 static mut CPU0_SYSCALL_STACK: [u8; 4 * 1024 * 1024] = [0; 4 * 1024 * 1024];
 static mut CPU0_SYSCALL_SP: u64 = 0;
@@ -42,6 +44,8 @@ pub unsafe fn init_cpu() {
     msr::wrmsr(msr::IA32_EFER, efer);
 
     CPU0_SYSCALL_SP = CPU0_SYSCALL_STACK.as_ptr().add(CPU0_SYSCALL_STACK.len()) as u64;
+
+    SYSCALLS[asys::__NR_PRINT] = sys_print as u64;
 }
 
 // rax - syscall number
@@ -63,25 +67,36 @@ unsafe extern "C" fn sys_entry() -> ! {
         "push r11", // original rflags
         "push rcx", // return address
 
+        "cmp rax, {max_syscalls}",
+        "jae 2f",
+
+        // In-range syscall
+        "shl rax, 3",
+        "lea r11, [rip + {syscalls}]",
+        "add r11, rax",
+        "mov r11, [r11]",
+        "cmp r11, 0",
+        "jz 2f",
+
         // rdi, rsi, rdx, rcx, r8, r9
-        "cmp rax, {nr_print}",
-        "je 2f",
-        "mov rax, -1",
+        "call r11",
+
         "jmp 3f",
 
+        // Invalid syscall
         "2:",
-        "call {sys_print}",
+        "mov rax, -1",
 
+        // Cleanup
         "3:",
         "pop rcx",
         "pop r11",
         "pop rsp",
-
         "sysretq",
 
         saved_sp = sym CPU0_SYSCALL_SP,
-        nr_print = const asys::__NR_PRINT,
-        sys_print = sym sys_print,
+        max_syscalls = const MAX_SYSCALLS,
+        syscalls = sym SYSCALLS,
         options(noreturn),
     );
 }
