@@ -66,6 +66,211 @@ impl IPCPayLoad {
 }
 impl ProcessManager {
 
+    pub fn weak_up_caller_change_queue_state_and_receive(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_ipc_payload: IPCPayLoad, endpoint_index:EndpointIdx) -> (ret: PtRegs)
+        requires
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(caller),
+            old(self).get_thread_ptrs().contains(callee),
+            old(self).get_thread(callee).state == RUNNING,
+            old(self).get_thread(callee).caller == Some(caller),
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+            old(self).get_thread(callee).endpoint_descriptors@[endpoint_index as int] != 0,
+            old(self).get_endpoint(old(self).get_thread(callee).endpoint_descriptors@[endpoint_index as int]).len() == 0,
+            old(self).get_endpoint(old(self).get_thread(callee).endpoint_descriptors@[endpoint_index as int]).queue_state == SEND,
+        ensures
+            self.wf(),
+            self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
+            self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
+            self.get_endpoint_ptrs() =~= old(self).get_endpoint_ptrs(),
+            self.pcid_closure =~= old(self).pcid_closure,
+            self.ioid_closure =~= old(self).ioid_closure,
+            // forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr).endpoint_descriptors =~= old(self).get_thread(_thread_ptr).endpoint_descriptors,
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != caller && _thread_ptr != callee ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
+            self.get_thread(caller).state == RUNNING,
+            self.get_thread(callee).state == BLOCKED,
+
+    {
+        assert(self.get_thread(caller).callee =~= Some(callee));
+        assert(self.get_thread(caller).state =~= CALLING);
+
+        let caller_pt_regs = self.get_pt_regs_by_thread_ptr(caller);
+
+        let caller_pptr = PPtr::<Thread>::from_usize(caller);
+        let mut caller_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller));
+        thread_set_state(&caller_pptr, &mut caller_perm, RUNNING);
+        thread_set_callee(&caller_pptr, &mut caller_perm, None);
+        thread_set_trap_frame(&caller_pptr, &mut caller_perm, None);
+        thread_set_error_code(&caller_pptr, &mut caller_perm, None);
+        proof{
+            assert(self.thread_perms@.dom().contains(caller) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(caller, caller_perm.get());
+        }
+
+        assert(self.thread_perms@.dom().contains(callee));
+        let tracked callee_perm = self.thread_perms.borrow().tracked_borrow(callee);
+        let callee_thread : &Thread = PPtr::<Thread>::from_usize(callee).borrow(Tracked(callee_perm));
+        assert(callee_thread.endpoint_descriptors.wf());
+        let endpoint_ptr = *callee_thread.endpoint_descriptors.get(endpoint_index);
+        assert(self.get_endpoint_ptrs().contains(endpoint_ptr));
+
+        let mut endpoint_perm =
+        Tracked((self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr));
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+        endpoint_set_queue_state(PPtr::<Endpoint>::from_usize(endpoint_ptr), &mut endpoint_perm, RECEIVE);
+        let endpoint_rf = endpoint_push_thread(PPtr::<Endpoint>::from_usize(endpoint_ptr), &mut endpoint_perm, callee);
+        proof{
+            assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+            (self.endpoint_perms.borrow_mut())
+                .tracked_insert(endpoint_ptr, endpoint_perm.get());
+        }
+
+        let mut callee_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
+        assert(self.thread_perms@.dom().contains(callee) == false);
+        assert(callee_perm@@.pptr == callee);
+        thread_set_endpoint_rf(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, Some(endpoint_rf));
+        thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, Some(endpoint_ptr));
+        thread_set_state(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, BLOCKED);
+        thread_set_caller(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, None);
+        thread_set_ipc_payload(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, callee_ipc_payload);
+        thread_set_trap_frame(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, Some(callee_pt_regs));
+        thread_set_error_code(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, None);
+        proof{
+            assert(self.thread_perms@.dom().contains(callee) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(callee, callee_perm.get());
+        }
+
+        // let callee_pptr = PPtr::<Thread>::from_usize(callee);
+        // let mut callee_perm =
+        //     Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
+        // thread_set_state(&callee_pptr, &mut callee_perm, BLOCKED);
+        // thread_set_caller(&callee_pptr, &mut callee_perm, None);
+        // thread_set_trap_frame(&callee_pptr, &mut callee_perm, callee_pt_regs);
+        // thread_set_error_code(&callee_pptr, &mut callee_perm, None);
+        // proof{
+        //     assert(self.thread_perms@.dom().contains(callee) == false);
+        //     (self.thread_perms.borrow_mut())
+        //         .tracked_insert(callee, callee_perm.get());
+        // }
+
+        // assert(self.wf_threads());
+        // assert(self.wf_procs());
+        // assert(self.wf_scheduler());
+        // assert(self.wf_mem_closure());
+        // assert(self.wf_pcid_closure());
+        // assert(self.wf_endpoints());
+        // assert(self.wf_ipc());
+        // assert(self.wf_ioid_closure());
+
+        assert(self.wf());
+        return caller_pt_regs.unwrap();
+    }
+
+    pub fn weak_up_caller_and_receive(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_ipc_payload: IPCPayLoad, endpoint_index:EndpointIdx) -> (ret: PtRegs)
+        requires
+            old(self).wf(),
+            old(self).get_thread_ptrs().contains(caller),
+            old(self).get_thread_ptrs().contains(callee),
+            old(self).get_thread(callee).state == RUNNING,
+            old(self).get_thread(callee).caller == Some(caller),
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+            old(self).get_thread(callee).endpoint_descriptors@[endpoint_index as int] != 0,
+            old(self).get_endpoint(old(self).get_thread(callee).endpoint_descriptors@[endpoint_index as int]).len() != MAX_NUM_THREADS_PER_ENDPOINT,
+            old(self).get_endpoint(old(self).get_thread(callee).endpoint_descriptors@[endpoint_index as int]).queue_state == RECEIVE,
+        ensures
+            self.wf(),
+            self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
+            self.get_thread_ptrs() =~= old(self).get_thread_ptrs(),
+            self.get_endpoint_ptrs() =~= old(self).get_endpoint_ptrs(),
+            self.pcid_closure =~= old(self).pcid_closure,
+            self.ioid_closure =~= old(self).ioid_closure,
+            // forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr).endpoint_descriptors =~= old(self).get_thread(_thread_ptr).endpoint_descriptors,
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != caller && _thread_ptr != callee ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
+            self.get_thread(caller).state == RUNNING,
+            self.get_thread(callee).state == BLOCKED,
+
+    {
+        assert(self.get_thread(caller).callee =~= Some(callee));
+        assert(self.get_thread(caller).state =~= CALLING);
+
+        let caller_pt_regs = self.get_pt_regs_by_thread_ptr(caller);
+
+        let caller_pptr = PPtr::<Thread>::from_usize(caller);
+        let mut caller_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(caller));
+        thread_set_state(&caller_pptr, &mut caller_perm, RUNNING);
+        thread_set_callee(&caller_pptr, &mut caller_perm, None);
+        thread_set_trap_frame(&caller_pptr, &mut caller_perm, None);
+        thread_set_error_code(&caller_pptr, &mut caller_perm, None);
+        proof{
+            assert(self.thread_perms@.dom().contains(caller) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(caller, caller_perm.get());
+        }
+
+        assert(self.thread_perms@.dom().contains(callee));
+        let tracked callee_perm = self.thread_perms.borrow().tracked_borrow(callee);
+        let callee_thread : &Thread = PPtr::<Thread>::from_usize(callee).borrow(Tracked(callee_perm));
+        assert(callee_thread.endpoint_descriptors.wf());
+        let endpoint_ptr = *callee_thread.endpoint_descriptors.get(endpoint_index);
+        assert(self.get_endpoint_ptrs().contains(endpoint_ptr));
+
+        let mut endpoint_perm =
+        Tracked((self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr));
+        assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+        let endpoint_rf = endpoint_push_thread(PPtr::<Endpoint>::from_usize(endpoint_ptr), &mut endpoint_perm, callee);
+        proof{
+            assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
+            (self.endpoint_perms.borrow_mut())
+                .tracked_insert(endpoint_ptr, endpoint_perm.get());
+        }
+
+        let mut callee_perm =
+            Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
+        assert(self.thread_perms@.dom().contains(callee) == false);
+        assert(callee_perm@@.pptr == callee);
+        thread_set_endpoint_rf(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, Some(endpoint_rf));
+        thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, Some(endpoint_ptr));
+        thread_set_state(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, BLOCKED);
+        thread_set_caller(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, None);
+        thread_set_ipc_payload(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, callee_ipc_payload);
+        thread_set_trap_frame(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, Some(callee_pt_regs));
+        thread_set_error_code(&PPtr::<Thread>::from_usize(callee), &mut callee_perm, None);
+        proof{
+            assert(self.thread_perms@.dom().contains(callee) == false);
+            (self.thread_perms.borrow_mut())
+                .tracked_insert(callee, callee_perm.get());
+        }
+
+        // let callee_pptr = PPtr::<Thread>::from_usize(callee);
+        // let mut callee_perm =
+        //     Tracked((self.thread_perms.borrow_mut()).tracked_remove(callee));
+        // thread_set_state(&callee_pptr, &mut callee_perm, BLOCKED);
+        // thread_set_caller(&callee_pptr, &mut callee_perm, None);
+        // thread_set_trap_frame(&callee_pptr, &mut callee_perm, callee_pt_regs);
+        // thread_set_error_code(&callee_pptr, &mut callee_perm, None);
+        // proof{
+        //     assert(self.thread_perms@.dom().contains(callee) == false);
+        //     (self.thread_perms.borrow_mut())
+        //         .tracked_insert(callee, callee_perm.get());
+        // }
+
+        // assert(self.wf_threads());
+        // assert(self.wf_procs());
+        // assert(self.wf_scheduler());
+        // assert(self.wf_mem_closure());
+        // assert(self.wf_pcid_closure());
+        // assert(self.wf_endpoints());
+        // assert(self.wf_ipc());
+        // assert(self.wf_ioid_closure());
+
+        assert(self.wf());
+        return caller_pt_regs.unwrap();
+    }
+
     pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_error_code: Option<ErrorCodeType>) -> (ret: PtRegs)
         requires
             old(self).wf(),
