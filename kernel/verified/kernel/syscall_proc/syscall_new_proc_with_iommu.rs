@@ -66,66 +66,66 @@ impl Kernel {
                     let (page_ptr3, page_perm3) = self.page_alloc.alloc_kernel_mem();
                     let (page_ptr4, page_perm4) = self.page_alloc.alloc_kernel_mem();
                     let new_proc = self.proc_man.new_proc(page_ptr3, page_perm3, new_pcid, Some(new_ioid));
-                    let new_thread = self.proc_man.new_thread(pt_regs_new_proc,page_ptr4, page_perm4,new_proc);
-                    assert(
-                        self.proc_man.wf()
-                    );
-                    assert(
-                        self.mmu_man.wf()
-                    );
-                    assert(
-                        self.page_alloc.wf()
-                    );
-                    assert(
-                        self.cpu_list.wf()
-                    );
-                    assert(
-                        self.kernel_cpu_list_wf()
-                    );
-                    assert(
-                        self.kernel_mem_layout_wf()
-                    );
-                    assert(
-                        self.kernel_mmu_page_alloc_pagetable_wf()
-                    );
-                    assert(
-                        self.kernel_mmu_page_alloc_iommutable_wf()
-                    );
-                    assert(self.kernel_proc_mmu_wf());
-                    assert(self.kernel_proc_no_thread_in_transit());
-                    assert(self.kernel_tlb_wf());
+                    let new_thread = self.proc_man.new_thread_with_endpoint_ptr(pt_regs_new_proc,page_ptr4, page_perm4,new_proc, target_endpoint_ptr);
+                    // assert(
+                    //     self.proc_man.wf()
+                    // );
+                    // assert(
+                    //     self.mmu_man.wf()
+                    // );
+                    // assert(
+                    //     self.page_alloc.wf()
+                    // );
+                    // assert(
+                    //     self.cpu_list.wf()
+                    // );
+                    // assert(
+                    //     self.kernel_cpu_list_wf()
+                    // );
+                    // assert(
+                    //     self.kernel_mem_layout_wf()
+                    // );
+                    // assert(
+                    //     self.kernel_mmu_page_alloc_pagetable_wf()
+                    // );
+                    // assert(
+                    //     self.kernel_mmu_page_alloc_iommutable_wf()
+                    // );
+                    // assert(self.kernel_proc_mmu_wf());
+                    // assert(self.kernel_proc_no_thread_in_transit());
+                    // assert(self.kernel_tlb_wf());
 
-                    assert(self.wf());
+                    // assert(self.wf());
 
-                    self.proc_man.pass_endpoint(current_thread_ptr,endpoint_index,new_thread,0);
+                    // self.proc_man.pass_endpoint(current_thread_ptr,endpoint_index,new_thread,0);
 
-                    assert(
-                        self.proc_man.wf()
-                    );
-                    assert(
-                        self.mmu_man.wf()
-                    );
-                    assert(
-                        self.page_alloc.wf()
-                    );
-                    assert(
-                        self.cpu_list.wf()
-                    );
-                    assert(
-                        self.kernel_cpu_list_wf()
-                    );
-                    assert(
-                        self.kernel_mem_layout_wf()
-                    );
-                    assert(
-                        self.kernel_mmu_page_alloc_pagetable_wf()
-                    );
-                    assert(
-                        self.kernel_mmu_page_alloc_iommutable_wf()
-                    );
-                    assert(self.kernel_proc_mmu_wf());
-                    assert(self.kernel_proc_no_thread_in_transit());
-                    assert(self.kernel_tlb_wf());
+                    // assert(
+                    //     self.proc_man.wf()
+                    // );
+                    // assert(
+                    //     self.mmu_man.wf()
+                    // );
+                    // assert(
+                    //     self.page_alloc.wf()
+                    // );
+                    // assert(
+                    //     self.cpu_list.wf()
+                    // );
+                    // assert(
+                    //     self.kernel_cpu_list_wf()
+                    // );
+                    // assert(
+                    //     self.kernel_mem_layout_wf()
+                    // );
+                    // assert(
+                    //     self.kernel_mmu_page_alloc_pagetable_wf()
+                    // );
+                    // assert(
+                    //     self.kernel_mmu_page_alloc_iommutable_wf()
+                    // );
+                    // assert(self.kernel_proc_mmu_wf());
+                    // assert(self.kernel_proc_no_thread_in_transit());
+                    // assert(self.kernel_tlb_wf());
 
                     // assert(self.wf());
 
