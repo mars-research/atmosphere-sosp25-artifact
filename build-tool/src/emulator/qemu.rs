@@ -85,6 +85,7 @@ impl Emulator for Qemu {
         command
             .arg("-nographic")
             .args(&["-serial", "mon:stdio"])
+            .args(&["-smp", "2"])
             // .args(&["-serial", "file:serial.log"])
             .args(&["-m", &format!("{}", memory)])
             .args(&[
