@@ -14,12 +14,49 @@ use crate::trap::*;
 
 use crate::kernel::*;
 
+pub closed spec fn syscall_new_endpoint_spec(old:Kernel,new:Kernel,cpu_id:CPUID, endpoint_index: EndpointIdx) -> bool 
+{
+    if !old.wf() || !new.wf()
+    {
+        false
+    }
+    else{
+        //checking arguments
+        let valid_thread = (cpu_id < NUM_CPUS && 
+            old.cpu_list@[cpu_id as int].get_is_idle() == false);
+        let valid_endpoint = endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS && 
+            old.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_descriptors@[endpoint_index as int] == 0;
+        let system_has_memory = old.page_alloc.free_pages.len() >= 1;
+
+        if valid_thread && valid_endpoint && system_has_memory
+        {
+            new.cpu_list =~= old.cpu_list
+            &&
+            // kernel correctly created a new process
+            new.proc_man.get_proc_ptrs() =~= old.proc_man.get_proc_ptrs()
+            &&
+            // kernel correctly created a new thread for that process
+            new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
+            &&
+            new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_descriptors@[endpoint_index as int] != 0
+            &&
+            new.proc_man.get_endpoint_ptrs().len() == old.proc_man.get_endpoint_ptrs().len() + 1
+        }else{
+            //if the syscall is not success, nothing will change, goes back to user level
+            old =~= new
+        }
+    }
+    
+}
 
 impl Kernel {
 
-    pub fn syscall_new_endpoint(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx) -> (ret:SyscallReturnStruct)
+    pub fn syscall_new_endpoint(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx) -> (ret:(SyscallReturnStruct))
         requires
             old(self).wf(),
+        ensures
+            self.wf(),
+            syscall_new_endpoint_spec(*old(self),*self,cpu_id,endpoint_index),
     {
         let (default_pcid, default_cr3) = self.mmu_man.get_reserved_pcid_and_cr3();
         if cpu_id >= NUM_CPUS{

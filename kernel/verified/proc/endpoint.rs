@@ -588,6 +588,8 @@ impl ProcessManager{
             //self.endpoint_perms =~= old(self).endpoint_perms,
             self.pcid_closure =~= old(self).pcid_closure,
             self.ioid_closure =~= old(self).ioid_closure,
+            self.get_endpoint_ptrs().len() == old(self).get_endpoint_ptrs().len() + 1,
+            self.get_thread(parent_ptr).endpoint_descriptors@[endpoint_index as int] != 0,
     {
         let (endpoint_pptr,mut endpoint_perm) = page_to_endpoint((PPtr::<[u8; PAGE_SZ]>::from_usize(page_ptr),page_perm));
         let endpoint_ptr = endpoint_pptr.to_usize();
