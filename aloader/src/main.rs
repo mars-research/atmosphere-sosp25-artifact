@@ -19,6 +19,7 @@
 
 pub mod boot;
 pub mod console;
+pub mod debugger;
 pub mod elf;
 pub mod logging;
 pub mod memory;
@@ -92,6 +93,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     let (_, mut kernel_allocator) = memory::reserve(KERNEL_RESERVATION, BootMemoryType::Kernel);
     let (kernel_map, mut kernel_file) = kernel_elf.load(&mut kernel_allocator).unwrap();
+    debugger::add_binary("kernel", kernel_map.load_bias);
 
     // Also load dom0 if it exists
     kernel_file
@@ -101,7 +103,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     log::info!("After parsing ELF:");
     memory::dump_physical_memory_map();
 
-    match load_domain(kernel_file, &mut address_space, bootstrap_allocator) {
+    match load_domain("dom0", kernel_file, &mut address_space, bootstrap_allocator) {
         Ok(dom0) => {
             boot_info.dom0 = Some(dom0);
         }
@@ -142,6 +144,8 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
             .expect("Too many pages");
         cur += PAGE_SIZE as u64;
     }
+
+    debugger::on_ready();
 
     log::info!("Calling into kernel @ {:x?}", kernel_map.entry_point);
     let ret: usize;
@@ -184,9 +188,10 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 }
 
 fn load_domain<T, A>(
+    name: &'static str,
     elf: T,
     address_space: &mut AddressSpace,
-    mut page_table_allocator: &mut A,
+    page_table_allocator: &mut A,
 ) -> Result<DomainMapping, elf::Error>
 where
     T: Read + Seek,
@@ -194,7 +199,7 @@ where
     A: PhysicalAllocator,
 {
     let parsed = ElfHandle::parse(elf, PAGE_SIZE)?;
-    log::info!("Loading Dom0...");
+    log::info!("Loading {}...", name);
 
     let (reserved_start, mut allocator) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
 
@@ -223,6 +228,8 @@ where
         }
         cur = cur + PAGE_SIZE as u64;
     }
+
+    debugger::add_binary(name, dom_map.load_bias);
 
     Ok(DomainMapping {
         reserved_start,
