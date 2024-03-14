@@ -183,9 +183,6 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     loop {}
 }
 
-// dom0:
-// ELF: 0x0~0xabcd
-// Reserved: 4GB
 fn load_domain<T, A>(
     elf: T,
     address_space: &mut AddressSpace,
@@ -235,38 +232,6 @@ where
         load_bias: dom_map.load_bias,
     })
 }
-
-/*
-fn bootstrap_system_paging<A>(address_space: &mut AddressSpace<A>/*, kernel_map: &ElfMapping*/)
-where
-    A: PhysicalAllocator,
-{
-    let loader_range = boot::get_loader_image_range();
-    let identity_ranges = [
-        /*
-        (
-            "Kernel",
-            kernel_map.load_addr as u64,
-            kernel_map.load_size as u64,
-        ),
-        */
-        ("Loader", loader_range.base(), loader_range.size()),
-        ("BIOS", 0x0, 1024 * 1024),
-        ("APIC", 0xfee00000, 1024 * 1024),
-    ];
-
-    for (name, base, size) in identity_ranges {
-        log::info!("Mapping {}...", name);
-        let mut cur = base;
-        while cur < base + size {
-            unsafe {
-                address_space.map(cur as u64, cur as u64, false);
-                cur = cur + PAGE_SIZE as u64;
-            }
-        }
-    }
-}
-*/
 
 /// The kernel panic handler.
 #[cfg(not(test))]
