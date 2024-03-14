@@ -65,7 +65,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     while cur < 0x240000000 {
         // FIXME
         unsafe {
-            address_space.map(bootstrap_allocator, cur, cur, false, true);
+            address_space.map(bootstrap_allocator, cur, cur, false, true, false);
         }
         cur = cur + HUGE_PAGE_SIZE as u64;
     }
@@ -223,6 +223,7 @@ where
                 cur,
                 cur - virt_base + phys_base,
                 true,
+                false,
                 false,
             );
         }

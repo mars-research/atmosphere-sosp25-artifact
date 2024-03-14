@@ -64,6 +64,7 @@ impl AddressSpace {
         paddr: u64,
         user: bool,
         huge: bool,
+        cache_disable: bool,
     ) {
         //log::info!("Mapping VA 0x{:x} -> PA 0x{:x}", vaddr, paddr);
 
@@ -106,6 +107,7 @@ impl AddressSpace {
             .with_read_write(true)
             .with_address(paddr)
             .with_page_size_bit(huge)
+            .with_cache_disable(cache_disable)
             .with_user(user);
 
         //log::info!("Physical Mask: 0b{:b}", PHYSICAL_PAGE_MASK);
@@ -198,6 +200,11 @@ impl Entry {
 
     fn with_user(mut self, user: bool) -> Self {
         self.0.set_bit(2, user);
+        self
+    }
+
+    fn with_cache_disable(mut self, cache_disable: bool) -> Self {
+        self.0.set_bit(4, cache_disable);
         self
     }
 
