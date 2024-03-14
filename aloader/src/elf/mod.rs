@@ -241,8 +241,6 @@ where
         log::debug!("  Entry Point: 0x{:x?}", entry_point);
         log::debug!("    Page Size: {}", self.page_size);
 
-        let mut first_exec = 0;
-
         for ph in self.program_headers.iter() {
             if ph.p_type != PT_LOAD || ph.p_memsz == 0 {
                 continue;
@@ -256,9 +254,6 @@ where
             let offset = ph.p_offset as usize;
 
             let prot = ph.prot_flags();
-            if first_exec == 0 && prot.execute {
-                first_exec = vaddr;
-            }
 
             let total_map_size = self.page_align(vend) - self.page_start(vaddr);
             let file_map_size =
@@ -343,7 +338,10 @@ where
             dynamic.fixup();
         }
 
-        log::debug!("GDB: add-symbol-file /path/to/elf 0x{:x}", load_bias + first_exec);
+        log::debug!(
+            "GDB: add-symbol-file /path/to/elf -o 0x{:x}",
+            load_bias
+        );
 
         Ok((
             ElfMapping {
