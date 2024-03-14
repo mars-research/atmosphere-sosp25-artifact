@@ -43,7 +43,7 @@ pub fn get_current() -> &'static mut Cpu {
 }
 
 /// Per-processor data for a CPU.
-#[repr(align(4096))]
+#[repr(C, align(4096))]
 pub struct Cpu {
     // WARNING: If you change the position of `self_ptr`, you must also
     // change `GS_SELF_PTR_OFFSET` above!
