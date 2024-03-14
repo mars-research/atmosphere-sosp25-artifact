@@ -14,6 +14,10 @@ use crate::project::Project;
 #[derive(Debug, Parser)]
 #[clap(trailing_var_arg = true)]
 pub struct Opts {
+    /// Pause at the very beginning.
+    #[clap(long)]
+    pause: bool,
+
     /// Extra arguments for GDB.
     extra_args: Vec<String>,
 }
@@ -33,7 +37,7 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
     let json = fs::read(&json_path).await?;
     let gdb_info: GdbConnectionInfo = serde_json::from_slice(&json)?;
 
-    gdb_info.launch_gdb(local.extra_args).await?;
+    gdb_info.launch_gdb(local.pause, local.extra_args).await?;
 
     Ok(())
 }

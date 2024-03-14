@@ -3,24 +3,27 @@
 //! When launching `atmo run --gdb`, the build tool writes a JSON file
 //! at `.gdb` under the workspace root with information in `GdbConnectionInfo`.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, collections::HashMap};
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
+use crate::project::Project;
+
+const GDB_HELPER_PATH: &str = "build-tool/src/emulator/gdb-helper.py";
 
 /// GDB server connection info.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GdbConnectionInfo {
-    /// The kernel.
-    kernel: PathBuf,
-
-    /// The loader.
-    loader: PathBuf,
+    /// The main executable file.
+    file: PathBuf,
 
     /// Method to connect to the GDB server.
     server: GdbServer,
+
+    /// Paths to other binaries.
+    binaries: HashMap<String, PathBuf>,
 }
 
 /// GDB server configurations.
@@ -34,28 +37,49 @@ pub enum GdbServer {
 }
 
 impl GdbConnectionInfo {
-    pub fn new(kernel: PathBuf, loader: PathBuf, server: GdbServer) -> Self {
+    pub fn new(file: PathBuf, server: GdbServer) -> Self {
         Self {
-            kernel,
-            loader,
+            file,
             server,
+            binaries: HashMap::new(),
         }
     }
 
-    pub async fn launch_gdb(&self, extra_args: Vec<String>) -> Result<()> {
+    pub fn add_binary(&mut self, name: String, path: PathBuf) {
+        self.binaries.insert(name, path);
+    }
+
+    pub async fn launch_gdb(&self, pause: bool, extra_args: Vec<String>) -> Result<()> {
         let file_command = format!(
             "file {}",
-            self.loader
+            self.file
                 .to_str()
                 .expect("Executable path contains non-UTF-8")
         );
 
-        let error = exec::Command::new("gdb")
+        let project = Project::discover()?;
+        let helper_path = project.root().join(GDB_HELPER_PATH);
+
+        let mut command = exec::Command::new("gdb");
+        command
             .arg("-q")
             .args(&["-ex", &file_command])
-            .args(&["-ex", &self.server.to_gdb_target_command()])
-            .args(&extra_args)
-            .exec();
+            .args(&["-ex", &self.server.to_gdb_target_command()]);
+
+        for (name, path) in &self.binaries {
+            let var_command = format!("set $bin_{} = \"{}\"", name, path.to_str().unwrap());
+            command.args(&["-ex", &var_command]);
+        }
+
+        command
+            .args(&["-ex", &format!("source {}", helper_path.to_str().unwrap())])
+            .args(&extra_args);
+
+        if !pause {
+            command.args(&["-ex", "c"]);
+        }
+
+        let error = command.exec();
 
         Err(error.into())
     }

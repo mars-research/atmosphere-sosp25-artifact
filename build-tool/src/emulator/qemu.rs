@@ -155,11 +155,17 @@ impl Emulator for Qemu {
     /// Returns the GDB connection info for the instance.
     fn gdb_connection_info(&self) -> Option<GdbConnectionInfo> {
         let gdb_server = self.config.gdb_server.as_ref()?;
-        let gdb_info = GdbConnectionInfo::new(
-            self.config.kernel.path().to_owned(),
+        let mut gdb_info = GdbConnectionInfo::new(
             self.config.loader.path().to_owned(),
             gdb_server.to_owned(),
         );
+
+        gdb_info.add_binary("kernel".to_string(), self.config.kernel.path().to_owned());
+
+        if let Some(dom0) = &self.config.dom0 {
+            gdb_info.add_binary("dom0".to_string(), dom0.path().to_owned());
+        }
+
         Some(gdb_info)
     }
 }
