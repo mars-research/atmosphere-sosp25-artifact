@@ -530,16 +530,18 @@ impl ProcessManager {
         self.scheduler@ =~= old(self).scheduler@.push(ret),
         self.get_proc_ptrs() =~= old(self).get_proc_ptrs(),
         self.get_thread(ret).state == SCHEDULED,
+        self.get_thread(ret).endpoint_descriptors@[0] == endpoint_ptr,
         self.get_thread_ptrs() =~= old(self).get_thread_ptrs().insert(ret),
         self.get_proc_man_page_closure() =~= old(self).get_proc_man_page_closure().insert(ret),
         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
         forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
-        forall|endpoint_ptr:EndpointPtr|#![auto] self.get_endpoint_ptrs().contains(endpoint_ptr) ==> self.get_endpoint(endpoint_ptr) =~= old(self).get_endpoint(endpoint_ptr),
+        forall|_endpoint_ptr:EndpointPtr|#![auto] _endpoint_ptr != endpoint_ptr && self.get_endpoint_ptrs().contains(_endpoint_ptr) ==> self.get_endpoint(_endpoint_ptr) =~= old(self).get_endpoint(_endpoint_ptr),
         self.get_ioid_closure() =~= old(self).get_ioid_closure(),
         self.get_pcid_closure() =~= old(self).get_pcid_closure(),
-        forall|endpoint_index:EndpointIdx|#![auto] 0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.get_thread(ret).endpoint_descriptors[endpoint_index as int] == 0,
+        forall|endpoint_index:EndpointIdx|#![auto] 1<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.get_thread(ret).endpoint_descriptors[endpoint_index as int] == 0,
         self.get_proc(self.get_thread(ret).parent).pcid == old(self).get_proc(parent_ptr).pcid,
     {
+
     assert(self.thread_ptrs@.contains(page_ptr) == false);
     assert(forall|_proc_ptr: usize| #![auto] self.proc_perms@.dom().contains(_proc_ptr) ==> self.proc_perms@[_proc_ptr]@.value.get_Some_0().owned_threads@.contains(page_ptr) == false);
 
@@ -574,6 +576,7 @@ impl ProcessManager {
     assert(forall|endpoint_ptr: EndpointPtr| #![auto] self.endpoint_perms@.dom().contains(endpoint_ptr)
         ==>  self.endpoint_perms@[endpoint_ptr]@.value.get_Some_0().queue@.contains(page_ptr) == false);
 
+
     let mut endpoint_perm =
     Tracked((self.endpoint_perms.borrow_mut()).tracked_remove(endpoint_ptr));
     assert(self.endpoint_perms@.dom().contains(endpoint_ptr) == false);
@@ -594,8 +597,6 @@ impl ProcessManager {
     assert(self.wf_ipc());
 
     assert(self.wf());
-
-
     return page_ptr;
     }
 

@@ -138,12 +138,8 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().trap_frame == old(perm)@@.value.get_Some_0().trap_frame,
         perm@@.value.get_Some_0().endpoint_descriptors.wf(),
         perm@@.value.get_Some_0().endpoint_descriptors@ =~= old(perm)@@.value.get_Some_0().endpoint_descriptors@.update(index as int, endpoint_pointer),
-        forall|_endpoint_ptr:EndpointPtr|#![auto] old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) ==>
-            perm@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr),
         perm@@.value.get_Some_0().endpoint_descriptors@.contains(endpoint_pointer),
         ret == old(perm)@@.value.get_Some_0().endpoint_descriptors@[index as int],
-        forall|_endpoint_ptr: EndpointPtr| #![auto]  _endpoint_ptr != ret
-            ==> perm@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr) == old(perm)@@.value.get_Some_0().endpoint_descriptors@.contains(_endpoint_ptr),
 {
 unsafe {
     let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
