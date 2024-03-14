@@ -26,9 +26,14 @@ impl Kernel{
             old(self).mmu_man.get_pagetable_by_pcid(pcid).is_va_entry_exist(va),
         ensures
             self.wf(),
+            self.proc_man =~= old(self).proc_man,
+            self.cpu_list =~= old(self).cpu_list,
+            self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
+            self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
             self.page_alloc.free_pages.len() == old(self).page_alloc.free_pages.len() - 1,
             self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
             forall|i:Pcid| #![auto] 0<=i<PCID_MAX && i !=pcid ==> self.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i),
+            forall|i:IOid| #![auto] 0<=i<IOID_MAX ==> self.mmu_man.get_iommutable_mapping_by_ioid(i) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i),
             forall|_va:VAddr| #![auto] spec_va_valid(_va) && va != _va ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va] =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va],
             self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va].is_Some(),
     {
@@ -80,8 +85,21 @@ impl Kernel{
             forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va,i)),
             forall|i:usize| #![auto] 0<=i<range ==> old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,i)].is_None(),
         ensures
-            self.wf(),
+            self.wf(),                
+            self.proc_man =~= old(self).proc_man,
+            self.cpu_list =~= old(self).cpu_list,
+            self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
+            self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
+            forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && self.mmu_man.get_free_pcids_as_set().contains(_pcid) == false && _pcid != pcid ==> 
+                self.mmu_man.get_pagetable_mapping_by_pcid(_pcid) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(_pcid),
+            forall|ioid:IOid| #![auto] 0<=ioid<IOID_MAX && self.mmu_man.get_free_ioids_as_set().contains(ioid) == false ==> 
+                self.mmu_man.get_iommutable_mapping_by_ioid(ioid) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(ioid),
             forall|j:usize| #![auto] 0<=j<range ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_Some(),
+            forall|_va:VAddr| #![auto] spec_va_valid(_va) && 
+            (
+                forall|j:usize| #![auto] 0<=j<range ==> spec_va_add_range(va,j) != _va
+            )
+            ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va] == old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va],
     {
         let mut i = 0;
         while i != range
@@ -92,14 +110,41 @@ impl Kernel{
                 // spec_va_valid(va),
                 self.page_alloc.free_pages.len() >= 4*(range - i),
                 self.mmu_man.get_free_pcids_as_set().contains(pcid) == false,
+                self.proc_man =~= old(self).proc_man,
+                self.cpu_list =~= old(self).cpu_list,
+                self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
+                self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
+                forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> 
+                    self.mmu_man.get_pagetable_mapping_by_pcid(_pcid) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(_pcid),
+                forall|ioid:IOid| #![auto] 0<=ioid<IOID_MAX ==> 
+                    self.mmu_man.get_iommutable_mapping_by_ioid(ioid) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(ioid),
                 spec_va_perm_bits_valid(perm_bits),
                 forall|i:usize| #![auto] 0<=i<range ==> spec_va_valid(spec_va_add_range(va,i)),
                 forall|j:usize| #![auto] i<=j<range ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_None(),
                 forall|j:usize| #![auto] 0<=j<i ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_Some(),
+                // Seq::new(i, |j: usize| spec_va_add_range(va,j)).contains(_va) == false
+                forall|_va:VAddr| #![auto] spec_va_valid(_va) && 
+                    (
+                        forall|j:usize| #![auto] 0<=j<i ==> spec_va_add_range(va,j) != _va
+                    )
+                    ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va] == old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va],
             ensures
                 i == range,
                 self.wf(),
+                self.proc_man =~= old(self).proc_man,
+                self.cpu_list =~= old(self).cpu_list,
+                self.mmu_man.free_pcids =~= old(self).mmu_man.free_pcids,
+                self.mmu_man.free_ioids =~= old(self).mmu_man.free_ioids,
+                forall|_pcid:Pcid| #![auto] 0<=_pcid<PCID_MAX && _pcid != pcid ==> 
+                    self.mmu_man.get_pagetable_mapping_by_pcid(_pcid) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(_pcid),
+                forall|ioid:IOid| #![auto] 0<=ioid<IOID_MAX ==> 
+                    self.mmu_man.get_iommutable_mapping_by_ioid(ioid) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(ioid),
                 forall|j:usize| #![auto] 0<=j<range ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va,j)].is_Some(),
+                forall|_va:VAddr| #![auto] spec_va_valid(_va) && 
+                (
+                    forall|j:usize| #![auto] 0<=j<i ==> spec_va_add_range(va,j) != _va
+                )
+                ==> self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va] == old(self).mmu_man.get_pagetable_mapping_by_pcid(pcid)[_va],
         {
             // TODO: @Xiangdong prove or make this a lemma
             assume(forall|i:usize, j:usize| #![auto] i != j ==>  spec_va_add_range(va,i) != spec_va_add_range(va,j));
