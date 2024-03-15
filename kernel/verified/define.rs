@@ -76,6 +76,7 @@ pub const PCI_DEV_PAYLOAD_INVALID:ErrorCodeType = 32;
 pub const VADDR_INVALID:ErrorCodeType = 33;
 pub const VADDR_NOMAPPING:ErrorCodeType = 34;
 pub const ENDPOINT_SENDER_QUEUE:ErrorCodeType = 35;
+pub const IPC_TYPE_NOT_MATCH:ErrorCodeType = 36;
 
 pub type ThreadState = usize;
 pub const SCHEDULED:ThreadState = 1;

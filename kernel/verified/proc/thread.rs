@@ -54,7 +54,14 @@ pub struct IPCPayLoad{
     pub pci_payload: Option<(u8,u8,u8)>,
 }
 impl IPCPayLoad {
-    pub fn new_to_none() -> (ret:Self){
+    pub fn new_to_none() -> (ret:Self)
+        ensures
+            ret.calling == false,
+            ret.message.is_None(),
+            ret.page_payload.is_None(),
+            ret.endpoint_payload.is_None(),
+            ret.pci_payload.is_None(),
+    {
         Self{
             calling: false,
             message: None,

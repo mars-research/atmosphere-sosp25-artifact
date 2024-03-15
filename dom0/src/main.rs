@@ -13,7 +13,7 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
         log::info!("sys_mmap {:?}", asys::sys_mmap(0xA000000000, 0x0000_0000_0000_0002u64 as usize, 20));
-        log::info!("sys_mresolve {:x?}", asys::sys_mresolve(0xA000000000));
+        log::info!("sys_mresolve {:x?}", asys::sys_mresolve(0xA00000000F));
     }
     // for i in 0..20{
     //     let mut user_value: usize = 0;

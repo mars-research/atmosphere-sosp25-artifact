@@ -241,6 +241,7 @@ impl ProcessManager{
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) == old(self).get_thread_ptrs().contains(_thread_ptr),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret.0 ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
             forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != ret.0 ==> self.get_thread(_thread_ptr).state =~= old(self).get_thread(_thread_ptr).state,
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) ==> self.get_thread(_thread_ptr).ipc_payload =~= old(self).get_thread(_thread_ptr).ipc_payload,
             self.proc_ptrs =~= old(self).proc_ptrs,
             self.proc_perms =~= old(self).proc_perms,
             self.thread_ptrs =~= old(self).thread_ptrs,
@@ -346,6 +347,7 @@ impl ProcessManager{
             self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
             self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
             self.get_thread(thread_ptr).ipc_payload =~= endpoint_payload,
+            self.get_thread(thread_ptr).endpoint_ptr == Some(old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]),
             self.get_thread(thread_ptr).state == BLOCKED,
     {
         assert(self.thread_perms@.dom().contains(thread_ptr));
@@ -416,6 +418,7 @@ impl ProcessManager{
             self.get_thread(thread_ptr).scheduler_rf =~= old(self).get_thread(thread_ptr).scheduler_rf,
             self.get_thread(thread_ptr).endpoint_descriptors =~= old(self).get_thread(thread_ptr).endpoint_descriptors,
             self.get_thread(thread_ptr).ipc_payload =~= endpoint_payload,
+            self.get_thread(thread_ptr).endpoint_ptr == Some(old(self).get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]),
             self.get_thread(thread_ptr).state == BLOCKED,
     {
         assert(self.thread_perms@.dom().contains(thread_ptr));
