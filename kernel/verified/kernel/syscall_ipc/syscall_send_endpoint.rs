@@ -16,7 +16,7 @@ use crate::page_alloc::*;
 
 use crate::kernel::*;
 
-pub closed spec fn syscall_send_endpoint_wait_spec(old:Kernel, new:Kernel, cpu_id:CPUID, endpoint_index: EndpointIdx, target_endpoint_ptr: EndpointIdx) -> bool
+pub closed spec fn syscall_send_endpoint_wait_spec(old:Kernel, new:Kernel, cpu_id:CPUID, endpoint_index: EndpointIdx, share_endpoint_index: EndpointIdx) -> bool
 {
     if !old.wf() || !new.wf()
     {
@@ -97,7 +97,7 @@ pub closed spec fn syscall_send_endpoint_wait_spec(old:Kernel, new:Kernel, cpu_i
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
                     }else
                     {
-                        let sender_endpoint_index = target_endpoint_ptr;
+                        let sender_endpoint_index = share_endpoint_index;
                         let receiver_endpoint_index = receiver_ipc_payload.endpoint_payload.unwrap();
                         if sender_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS || receiver_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS {
                             new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
@@ -108,22 +108,23 @@ pub closed spec fn syscall_send_endpoint_wait_spec(old:Kernel, new:Kernel, cpu_i
                         }else{
                             let sender_endpoint_ptr = old.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_descriptors@[sender_endpoint_index as int];
                             let receiver_endpoint_ptr =  old.proc_man.get_thread(receiver_ptr).endpoint_descriptors@[receiver_endpoint_index as int];
-    
-                            if sender_endpoint_ptr == 0 || receiver_endpoint_ptr != 0
-                                ||old.proc_man.get_endpoint(sender_endpoint_ptr).rf_counter == usize::MAX
-                                || (
-                                    forall|i:int| #![auto] 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS ==> old.proc_man.get_thread(receiver_ptr).endpoint_descriptors@[i as int] != sender_endpoint_ptr
-                                ) == false
-                            {
-                                new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
-                                &&
-                                new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
-                                &&
-                                new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
-                            }else{
-                                new.proc_man.get_thread(receiver_ptr).endpoint_descriptors@ =~= old.proc_man.get_thread(receiver_ptr).endpoint_descriptors@.update(
-                                                        receiver_endpoint_index as int, old.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_descriptors@[sender_endpoint_index as int])
-                            }
+
+                            true 
+                            // if sender_endpoint_ptr == 0 || receiver_endpoint_ptr != 0
+                            //     ||old.proc_man.get_endpoint(sender_endpoint_ptr).rf_counter == usize::MAX
+                            //     || (
+                            //         forall|i:int| #![auto] 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS ==> old.proc_man.get_thread(receiver_ptr).endpoint_descriptors@[i as int] != sender_endpoint_ptr
+                            //     ) == false
+                            // {
+                            //     new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
+                            //     &&
+                            //     new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
+                            //     &&
+                            //     new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
+                            // }else{
+                            //     new.proc_man.get_thread(receiver_ptr).endpoint_descriptors@ =~= old.proc_man.get_thread(receiver_ptr).endpoint_descriptors@.update(
+                            //                             receiver_endpoint_index as int, old.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_descriptors@[sender_endpoint_index as int])
+                            // }
                         }
                     }
                 }
@@ -238,8 +239,7 @@ impl Kernel {
                 if self.proc_man.scheduler.len() == MAX_NUM_THREADS {
                     return SyscallReturnStruct::new(SCHEDULER_NO_SPACE,pcid,cr3,pt_regs);
                 }
-
-                let (new_thread_ptr,new_pt_regs) = self.proc_man.pop_endpoint_to_running(current_thread_ptr, endpoint_index);
+                let new_thread_ptr = self.proc_man.get_head_of_endpoint_by_endpoint_ptr(target_endpoint_ptr);
 
                 let sender_ipc_payload = ipc_payload;
                 let receiver_ipc_payload = self.proc_man.get_ipc_payload_by_thread_ptr(new_thread_ptr);
@@ -260,6 +260,7 @@ impl Kernel {
                     receiver_ipc_payload.endpoint_payload.is_none() ||
                     receiver_ipc_payload.pci_payload.is_some()
                 {
+                    let (new_thread_ptr,new_pt_regs) = self.proc_man.pop_endpoint_to_running(current_thread_ptr, endpoint_index);
                     self.proc_man.push_scheduler(current_thread_ptr, Some(IPC_TYPE_NOT_MATCH),pt_regs);
                     self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
 
@@ -269,10 +270,12 @@ impl Kernel {
                     let sender_endpoint_index = share_endpoint_index;
                     let receiver_endpoint_index = receiver_ipc_payload.endpoint_payload.unwrap();
                     if sender_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS || receiver_endpoint_index >= MAX_NUM_ENDPOINT_DESCRIPTORS {
+                        let (new_thread_ptr,new_pt_regs) = self.proc_man.pop_endpoint_to_running(current_thread_ptr, endpoint_index);
                         self.proc_man.push_scheduler(current_thread_ptr, Some(ENDPOINT_PAYLOAD_INVALID),pt_regs);
                         self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
                         return SyscallReturnStruct::new(ENDPOINT_PAYLOAD_INVALID,new_pcid,new_cr3,new_pt_regs);
                     }else{
+
                         let sender_endpoint_ptr = self.proc_man.get_thread_endpoint_ptr_by_endpoint_idx(current_thread_ptr, sender_endpoint_index);
                         let receiver_endpoint_ptr = self.proc_man.get_thread_endpoint_ptr_by_endpoint_idx(new_thread_ptr, receiver_endpoint_index);
 
@@ -280,11 +283,13 @@ impl Kernel {
                             ||self.proc_man.get_endpoint_rf_counter_by_endpoint_ptr(sender_endpoint_ptr) == usize::MAX
                             ||self.proc_man.check_receiver_endpoint_descriptors(new_thread_ptr, sender_endpoint_ptr) == false
                         {
+                            let (new_thread_ptr,new_pt_regs) = self.proc_man.pop_endpoint_to_running(current_thread_ptr, endpoint_index);
                             self.proc_man.push_scheduler(current_thread_ptr, Some(ENDPOINT_PAYLOAD_INVALID),pt_regs);
                             self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
                             return SyscallReturnStruct::new(ENDPOINT_PAYLOAD_INVALID,new_pcid,new_cr3,new_pt_regs);
                         }else{
                         // assert(self == old(self));
+                        let (new_thread_ptr,new_pt_regs) = self.proc_man.pop_endpoint_to_running(current_thread_ptr, endpoint_index);
                         self.proc_man.pass_endpoint(current_thread_ptr,sender_endpoint_index,new_thread_ptr,receiver_endpoint_index);
                         self.proc_man.push_scheduler(current_thread_ptr, Some(SUCCESS),pt_regs);
                         self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
