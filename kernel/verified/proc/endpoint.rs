@@ -467,7 +467,7 @@ impl ProcessManager{
             self.wf(),
             self.get_thread_ptrs().contains(receiver_ptr),
         ensures
-            ret == true ==> (
+            ret == (
                 forall|i:int| #![auto] 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.get_thread(receiver_ptr).endpoint_descriptors@[i as int] != target_endpoint_ptr
             )
         {
