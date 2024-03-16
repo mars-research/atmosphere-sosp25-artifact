@@ -149,10 +149,12 @@ impl MMUManager{
         ensures
             self.wf(),
             self.get_free_ioids_as_set() =~= old(self).get_free_ioids_as_set().remove(ret),
+            ret == old(self).free_ioids@[old(self).free_ioids@.len() - 1],
             old(self).get_free_ioids_as_set().contains(ret),
             self.free_pcids =~= old(self).free_pcids,
             self.page_tables =~= old(self).page_tables,
             self.page_table_pages =~= old(self).page_table_pages,
+            self.root_table =~= old(self).root_table,
             self.get_mmu_page_closure() =~= old(self).get_mmu_page_closure().insert(page_ptr),
             forall|i:Pcid|#![auto] 0<=i<PCID_MAX ==> self.get_pagetable_mapping_by_pcid(i) =~= old(self).get_pagetable_mapping_by_pcid(i),
             forall|ioid:IOid| #![auto] 0<=ioid<IOID_MAX ==> self.get_iommutable_mapping_by_ioid(ioid) =~= old(self).get_iommutable_mapping_by_ioid(ioid),

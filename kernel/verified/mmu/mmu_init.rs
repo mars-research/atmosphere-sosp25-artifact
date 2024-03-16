@@ -177,6 +177,8 @@ impl MMUManager{
                 page_ptr_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().addr),
             forall|va:usize| #![auto] spec_va_valid(va) && pagetable.get_pagetable_mapping()[va].is_Some() ==>
                 spec_va_perm_bits_valid(pagetable.get_pagetable_mapping()[va].get_Some_0().perm),
+
+            forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 ==> old(self).root_table.resolve(bus,dev,fun).is_None(),
         ensures
             self.wf(),
             self.free_ioids.wf(),
@@ -202,6 +204,8 @@ impl MMUManager{
             self.get_mmu_page_closure() =~= pagetable.get_pagetable_page_closure(),
             forall|i:usize, va: VAddr|#![auto] 1<=i<PCID_MAX && spec_va_valid(va) ==>  self.get_pagetable_mapping_by_pcid(i)[va].is_None(),
             self.get_free_pcids_as_set().contains(0) == false,
+            
+            forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 ==> self.root_table.resolve(bus,dev,fun).is_None(),
     {
         let pcid = self.free_pcids.pop_unique();
         assert(pcid == 0);

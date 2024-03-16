@@ -18,6 +18,7 @@ use verified::proc::Process;
 use verified::proc::ProcessManager;
 use verified::proc::Thread;
 use verified::trap::PtRegs as vPtRegs;
+use verified::mmu::PCIBitMap as vPCIBitMap;
 use crate::cpu;
 static KERNEL: Mutex<Option<Kernel>> = Mutex::new(None);
 
@@ -637,12 +638,14 @@ pub fn kernel_init(
     let mut dom0_pt_regs = vPtRegs::new_empty();
     dom0_pt_regs.r15 = 233;
     let page_perms: Tracked<Map<PagePtr, PagePerm>> = Tracked::assume_new();
+    let init_pci_map = vPCIBitMap::new();
     let ret_code = KERNEL.lock().as_mut().unwrap().kernel_init(
         &boot_pages,
         page_perms,
         dom0_pagetable,
         kernel_page_entry,
         dom0_pt_regs,
+        init_pci_map,
     );
     log::info!("kernel init ret_code {:?}", ret_code);
     let dom0_retstruc = KERNEL
