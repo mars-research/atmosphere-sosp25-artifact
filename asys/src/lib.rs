@@ -11,6 +11,8 @@ pub const __NR_PRINT: usize = 0;
 pub const __NR_MMAP: usize = 1;
 pub const __NR_MRESOLVE: usize = 2;
 pub const __NR_NEW_END: usize = 3;
+pub const __NR_NEW_PROC: usize = 4;
+pub const __NR_NEW_THREAD: usize = 5;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -48,4 +50,8 @@ pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
 
 pub unsafe fn sys_new_endpoint(endpoint_index:usize) -> usize {
     return syscall!(__NR_NEW_END,endpoint_index,0,0) as usize;
+}
+
+pub unsafe fn sys_new_proc(endpoint_index:usize, ip:usize) -> usize{
+    return syscall!(__NR_NEW_PROC,endpoint_index,ip,0) as usize;
 }
