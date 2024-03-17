@@ -3,6 +3,7 @@
 #![feature(start)]
 
 use core::panic::PanicInfo;
+use core::arch::x86_64::_rdtsc;
 
 #[start]
 #[no_mangle]
@@ -12,8 +13,8 @@ fn main() -> isize {
 
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
-        log::info!("sys_mmap {:?}", asys::sys_mmap(0xA000000000, 0x0000_0000_0000_0002u64 as usize, 20));
-        log::info!("sys_mresolve {:x?}", asys::sys_mresolve(0xA00000000F));
+        // log::info!("sys_mmap {:?}", asys::sys_mmap(0xA000000000, 0x0000_0000_0000_0002u64 as usize, 20));
+        // log::info!("sys_mresolve {:x?}", asys::sys_mresolve(0xA00000000F));
     }
     // for i in 0..20{
     //     let mut user_value: usize = 0;
@@ -27,6 +28,22 @@ fn main() -> isize {
     // }
 
     loop {}
+}
+
+fn test_mmap(){
+    let iter = 50000;
+    unsafe {
+        let start = _rdtsc();
+        for i in 0..iter{
+            let error_code = asys::sys_mmap(0xA000000000 + 4096 * i, 0x0000_0000_0000_0002u64 as usize, 1);
+            if error_code != 0 {
+                log::info!("sys_mmap failed {:?}", error_code);
+                return;
+            }
+        }
+        let end = _rdtsc();
+        log::info!("mmap cycle per syscall {:?}",(end-start) as usize /iter);
+    }
 }
 
 /// The kernel panic handler.
