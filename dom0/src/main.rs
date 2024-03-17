@@ -16,7 +16,7 @@ fn main() -> isize {
         // log::info!("sys_mmap {:?}", asys::sys_mmap(0xA000000000, 0x0000_0000_0000_0002u64 as usize, 20));
         // log::info!("sys_mresolve {:x?}", asys::sys_mresolve(0xA00000000F));
     }
-    // test_new_thread();
+    // test_new_send_no_wait();
     // for i in 0..20{
     //     let mut user_value: usize = 0;
     //     unsafe {
@@ -31,6 +31,26 @@ fn main() -> isize {
     loop {}
 }
 
+fn test_new_send_no_wait(){
+    unsafe {
+        let error_code = asys::sys_new_endpoint(0);
+            if error_code != 0 {
+                log::info!("sys_new_endpoint failed {:?}", error_code);
+                return;
+            }
+        let iter = 50000;
+            let start = _rdtsc();
+            for i in 0..iter{
+                let error_code = asys::sys_send_empty_no_wait(0);
+                if error_code != 5 {
+                    log::info!("sys_send_empty_no_wait failed {:?}", error_code);
+                    return;
+                }
+            }
+            let end = _rdtsc();
+            log::info!("send no wait cycle per syscall {:?}",(end-start) as usize /iter);
+        }
+}
 
 fn test_new_thread(){
     unsafe {

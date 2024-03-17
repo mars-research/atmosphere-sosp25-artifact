@@ -53,6 +53,7 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_NEW_PROC] = kernel::sys_new_proc as u64;
     SYSCALLS[asys::__NR_NEW_PROC_W_IO] = kernel::sys_new_proc_with_iommu as u64;
     SYSCALLS[asys::__NR_NEW_THREAD] = kernel::sys_new_thread as u64;
+    SYSCALLS[asys::__NR_SEND_EMPTY_NW] = kernel::sys_send_empty_no_wait as u64;
 }
 
 // rax - syscall number
