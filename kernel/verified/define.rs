@@ -94,7 +94,7 @@ pub type ProcPtr = usize;
 pub type EndpointIdx = usize;
 pub type EndpointPtr = usize;
 
-pub const MAX_NUM_ENDPOINT_DESCRIPTORS:usize = 32;
+pub const MAX_NUM_ENDPOINT_DESCRIPTORS:usize = 128;
 pub const MAX_NUM_THREADS_PER_PROC:usize = 250;
 pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 250;
 pub const MAX_NUM_PROCS:usize = PCID_MAX;

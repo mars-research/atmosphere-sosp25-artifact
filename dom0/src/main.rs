@@ -15,7 +15,6 @@ fn main() -> isize {
         asys::sys_print("meow".as_ptr(), 4);
         // log::info!("sys_mmap {:?}", asys::sys_mmap(0xA000000000, 0x0000_0000_0000_0002u64 as usize, 20));
         // log::info!("sys_mresolve {:x?}", asys::sys_mresolve(0xA00000000F));
-    }
     // for i in 0..20{
     //     let mut user_value: usize = 0;
     //     unsafe {
@@ -28,6 +27,22 @@ fn main() -> isize {
     // }
 
     loop {}
+}
+
+fn test_new_endpoint(){
+    let iter = 128;
+    unsafe {
+        let start = _rdtsc();
+        for i in 0..iter{
+            let error_code = asys::sys_new_endpoint(i);
+            if error_code != 0 {
+                log::info!("sys_new_endpoint failed {:?}", error_code);
+                return;
+            }
+        }
+        let end = _rdtsc();
+        log::info!("new endpoint cycle per syscall {:?}",(end-start) as usize /iter);
+    }
 }
 
 fn test_mmap(){

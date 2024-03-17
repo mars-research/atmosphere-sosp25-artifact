@@ -10,6 +10,7 @@ pub const MAX_SYSCALLS: usize = 64;
 pub const __NR_PRINT: usize = 0;
 pub const __NR_MMAP: usize = 1;
 pub const __NR_MRESOLVE: usize = 2;
+pub const __NR_NEW_END: usize = 3;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -43,4 +44,8 @@ pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
     let low_bits = va & 0xFFFu64 as usize;
     let ret = syscall!(__NR_MRESOLVE,va_masked,0,0) as usize;
     return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFusize);
+}
+
+pub unsafe fn sys_new_endpoint(endpoint_index:usize) -> usize {
+    return syscall!(__NR_NEW_END,endpoint_index,0,0) as usize;
 }

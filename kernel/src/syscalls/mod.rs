@@ -49,6 +49,7 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_PRINT] = sys_print as u64;
     SYSCALLS[asys::__NR_MMAP] = kernel::sys_mmap as u64;
     SYSCALLS[asys::__NR_MRESOLVE] = kernel::sys_resolve as u64;
+    SYSCALLS[asys::__NR_NEW_END] = kernel::sys_new_endpoint as u64;
 }
 
 // rax - syscall number

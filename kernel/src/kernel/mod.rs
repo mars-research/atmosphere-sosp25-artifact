@@ -688,3 +688,13 @@ pub fn sys_resolve(va:usize) -> usize{
     }
 }
 
+pub fn sys_new_endpoint(endpoint_index:usize) -> usize{
+    let cpu_id = cpu::get_cpu_id();
+    let pt_regs = vPtRegs::new_empty();
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_endpoint(
+        cpu_id,
+        pt_regs,
+        endpoint_index,
+    );
+    ret_struc.error_code
+}
