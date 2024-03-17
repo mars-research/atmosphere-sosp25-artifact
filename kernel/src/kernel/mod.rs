@@ -711,3 +711,29 @@ pub fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize) -> usize{
     );
     ret_struc.0.error_code
 }
+
+pub fn sys_new_proc_with_iommu(endpoint_index:usize, ip:usize, sp:usize) -> usize{
+    let cpu_id = cpu::get_cpu_id();
+    let pt_regs = vPtRegs::new_empty();
+    let new_proc_pt_regs = vPtRegs::new_empty();
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_proc_with_iommu(
+        cpu_id,
+        pt_regs,
+        endpoint_index,
+        new_proc_pt_regs,
+    );
+    ret_struc.0.error_code
+}
+
+pub fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize) -> usize{
+    let cpu_id = cpu::get_cpu_id();
+    let pt_regs = vPtRegs::new_empty();
+    let new_proc_pt_regs = vPtRegs::new_empty();
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_thread(
+        cpu_id,
+        pt_regs,
+        endpoint_index,
+        new_proc_pt_regs,
+    );
+    ret_struc.0.error_code
+}
