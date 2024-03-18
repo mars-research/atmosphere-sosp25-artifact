@@ -41,6 +41,8 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                 }else if scheduler_len == 0{
                     new.cpu_list@[cpu_id as int].get_is_idle() == true
                     &&
+                    forall|_cpu_id:CPUID| #![auto] 0 <= _cpu_id < NUM_CPUS && _cpu_id != cpu_id ==> new.cpu_list@[_cpu_id as int] =~= old.cpu_list@[_cpu_id as int]
+                    &&
                     new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                     &&
                     new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == BLOCKED
@@ -61,6 +63,8 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                     if scheduler_len == 0{
                         new.cpu_list@[cpu_id as int].get_is_idle() == true
                         &&
+                        forall|_cpu_id:CPUID| #![auto] 0 <= _cpu_id < NUM_CPUS && _cpu_id != cpu_id ==> new.cpu_list@[_cpu_id as int] =~= old.cpu_list@[_cpu_id as int]
+                        &&
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == BLOCKED
@@ -69,6 +73,8 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                     }
                     else{
                         new.cpu_list@[cpu_id as int].get_current_thread() == Some(old.proc_man.scheduler@[0])
+                        &&
+                        forall|_cpu_id:CPUID| #![auto] 0 <= _cpu_id < NUM_CPUS && _cpu_id != cpu_id ==> new.cpu_list@[_cpu_id as int] =~= old.cpu_list@[_cpu_id as int]
                         &&
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&
@@ -93,6 +99,8 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                     {
                         new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
                         &&
+                        forall|_cpu_id:CPUID| #![auto] 0 <= _cpu_id < NUM_CPUS && _cpu_id != cpu_id ==> new.cpu_list@[_cpu_id as int] =~= old.cpu_list@[_cpu_id as int]
+                        &&
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
@@ -102,6 +110,8 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                                 old.page_alloc.free_pages.len() < 3 * range
                     {
                         new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
+                        &&
+                        forall|_cpu_id:CPUID| #![auto] 0 <= _cpu_id < NUM_CPUS && _cpu_id != cpu_id ==> new.cpu_list@[_cpu_id as int] =~= old.cpu_list@[_cpu_id as int]
                         &&
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&
@@ -113,6 +123,8 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                     }else
                     {
                         new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
+                        &&
+                        forall|_cpu_id:CPUID| #![auto] 0 <= _cpu_id < NUM_CPUS && _cpu_id != cpu_id ==> new.cpu_list@[_cpu_id as int] =~= old.cpu_list@[_cpu_id as int]
                         &&
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&

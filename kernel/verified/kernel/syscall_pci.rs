@@ -6,7 +6,7 @@ verus! {
 // use crate::page_alloc::*;
 // use crate::cpu::*;
 // use crate::mars_array::MarsArray;
-// use crate::pagetable::*;
+use crate::pagetable::*;
 use crate::cpu::*;
 use crate::define::*;
 use crate::trap::*;
@@ -16,6 +16,50 @@ use crate::kernel::*;
 
 
 impl Kernel {
+
+pub closed spec fn syscall_register_pci_dev_spec(old:Kernel,new:Kernel,cpu_id:CPUID, bus:u8, dev:u8, fun:u8) -> bool 
+{
+    if !old.wf() || !new.wf()
+    {
+        false
+    }
+    else{
+        //checking arguments
+        let valid_thread = (cpu_id < NUM_CPUS && 
+            old.cpu_list@[cpu_id as int].get_is_idle() == false);
+        let pci_dev_valid = dev < 32 && fun < 8;
+        let proc_has_iommu = old.proc_man.get_proc(old.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).parent).ioid.is_Some();
+        let proc_owns_pci_dev = old.mmu_man.pci_bitmap@[(old.proc_man.get_proc(old.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).parent).ioid.get_Some_0(), bus,dev,fun)] == true;
+        let pci_dev_free = old.mmu_man.root_table.resolve(bus,dev,fun).is_None(); 
+
+        if valid_thread && pci_dev_valid && proc_has_iommu && proc_owns_pci_dev && pci_dev_free
+        {
+            (
+                new.cpu_list =~= old.cpu_list
+                &&
+                new.proc_man =~= old.proc_man
+                &&
+                new.page_alloc =~= old.page_alloc
+                &&
+                new.mmu_man =~= old.mmu_man
+                &&
+                forall|_bus:u8,_dev:u8,_fun:u8|#![auto] 0<=_bus<256 && 0<=_dev<32 && 0<=_fun<8 &&
+                (_bus != bus || _dev != dev || _fun != fun)
+                    ==> new.mmu_man.root_table.resolve(_bus,_dev,_fun) =~= old.mmu_man.root_table.resolve(_bus,_dev,_fun)
+                &&
+                forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                &&
+                forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
+                &&
+                new.mmu_man.root_table.resolve(bus,dev,fun).is_Some() && new.mmu_man.root_table.resolve(bus,dev,fun).get_Some_0().0 == 
+                    old.proc_man.get_proc(old.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).parent).ioid.get_Some_0()
+            )
+        }else{
+            //if the syscall is not success, nothing will change, goes back to user level
+            old =~= new
+        }
+    }
+}
 
     pub fn syscall_register_pci_dev(&mut self, cpu_id:CPUID, pt_regs: PtRegs, bus:u8, dev:u8, fun:u8) -> (ret:SyscallReturnStruct)
         requires

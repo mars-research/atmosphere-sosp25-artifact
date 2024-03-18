@@ -589,12 +589,15 @@ impl ProcessManager{
             self.thread_ptrs =~= old(self).thread_ptrs,
             //self.thread_perms=@ =~= old(self).thread_perms@,
             self.scheduler =~= old(self).scheduler,
-            // self.endpoint_ptrs =~= old(self).endpoint_ptrs,
+            self.endpoint_ptrs@ =~= old(self).endpoint_ptrs@.insert(page_ptr),
             //self.endpoint_perms =~= old(self).endpoint_perms,
             self.pcid_closure =~= old(self).pcid_closure,
             self.ioid_closure =~= old(self).ioid_closure,
             self.get_endpoint_ptrs().len() == old(self).get_endpoint_ptrs().len() + 1,
             self.get_thread(parent_ptr).endpoint_descriptors@[endpoint_index as int] != 0,
+            forall|_thread_ptr:ThreadPtr| #![auto] self.get_thread_ptrs().contains(_thread_ptr) && _thread_ptr != parent_ptr ==> self.get_thread(_thread_ptr) =~= old(self).get_thread(_thread_ptr),
+            forall|_proc_ptr:ProcPtr| #![auto] self.get_proc_ptrs().contains(_proc_ptr) ==> self.get_proc(_proc_ptr) =~= old(self).get_proc(_proc_ptr),
+            forall|_endpoint_ptr:EndpointPtr| #![auto] old(self).endpoint_ptrs@.contains(_endpoint_ptr) ==> self.get_endpoint(_endpoint_ptr) =~= old(self).get_endpoint(_endpoint_ptr),
     {
         let (endpoint_pptr,mut endpoint_perm) = page_to_endpoint((PPtr::<[u8; PAGE_SZ]>::from_usize(page_ptr),page_perm));
         let endpoint_ptr = endpoint_pptr.to_usize();
