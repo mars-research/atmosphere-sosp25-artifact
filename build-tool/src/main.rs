@@ -15,6 +15,7 @@ mod command;
 mod emulator;
 mod error;
 mod project;
+mod grub;
 
 #[tokio::main]
 #[quit::main]

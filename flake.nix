@@ -60,6 +60,8 @@
 
         pkg-config
 
+        x86Pkgs.grub2
+
         util-linuxMinimal
 
         nasm
