@@ -8,6 +8,7 @@ pub mod syscall_ipc;
 pub mod syscall_mem;
 pub mod syscall_proc;
 pub mod syscall_thread;
+pub mod syscall_pci;
 
 pub use kernel_init::*;
 pub use kernel_ipc_impl::*;
@@ -19,3 +20,4 @@ pub use syscall_ipc::*;
 pub use syscall_mem::*;
 pub use syscall_proc::*;
 pub use syscall_thread::*;
+pub use syscall_pci::*;

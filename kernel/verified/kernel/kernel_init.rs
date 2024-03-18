@@ -121,8 +121,12 @@ impl Kernel{
             forall|i:int|#![auto] 0<=i<IOID_MAX ==> old(self).mmu_man.iommu_tables[i].dummy.l2_tables@ =~= Map::empty(),
             forall|i:int|#![auto] 0<=i<IOID_MAX ==> old(self).mmu_man.iommu_tables[i].dummy.l1_tables@ =~= Map::empty(),
             forall|i:usize, va: VAddr|#![auto] 0<=i<IOID_MAX && spec_va_valid(va) ==>   old(self).mmu_man.get_iommutable_by_ioid(i).wf() && old(self).mmu_man.get_iommutable_mapping_by_ioid(i)[va].is_None(),
-            old(self).cpu_list.wf(),
+            old(self).mmu_man.root_table_cache@.len() == 256,
+            forall|bus:u8|#![auto] 0<=bus<256 ==> old(self).mmu_man.root_table_cache@[bus as int].len() == 32,
+            forall|bus:u8,dev:u8|#![auto] 0<=bus<256 && 0<=dev<32 ==> old(self).mmu_man.root_table_cache@[bus as int][dev as int].len() == 8,
+            (forall|bus:u8,dev:u8,fun:u8|#![auto] 0<=bus<256 && 0<=dev<32 && 0<=fun<8 ==> old(self).mmu_man.root_table_cache@[bus as int][dev as int][fun as int].is_None()),
 
+            old(self).cpu_list.wf(),
             boot_page_ptrs.wf(),
             boot_page_ptrs.len() == NUM_PAGES,
             (forall|i:usize| #![auto] 0<=i<NUM_PAGES ==> boot_page_ptrs@[i as int].1 == page_index2page_ptr(i)),
