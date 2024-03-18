@@ -61,7 +61,7 @@ fn main(boot_info: *const BootInfo) -> isize {
         console::early_init();
         logging::early_init();
 
-        cpu::init_cpu0(); // Now get_current() can be used
+        cpu::init_cpu(0); // Now get_current() can be used
 
         interrupt::init();
         interrupt::init_cpu();
