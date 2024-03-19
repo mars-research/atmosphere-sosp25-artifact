@@ -153,7 +153,8 @@ impl ProcessManager {
             self.get_thread_ptrs().contains(thread_ptr),
             0<=endpoint_index<MAX_NUM_ENDPOINT_DESCRIPTORS,
         ensures
-            ret =~= self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]
+            ret =~= self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int],
+            ret != 0 ==> self.get_endpoint_ptrs().contains(ret),
 
     {
         assert(self.thread_perms@.dom().contains(thread_ptr));

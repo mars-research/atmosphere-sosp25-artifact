@@ -10,6 +10,10 @@ pub mod syscall_send_empty_no_wait;
 pub mod syscall_send_message;
 pub mod syscall_send_pages;
 pub mod syscall_send_endpoint;
+pub mod syscall_receive_empty;
+pub mod syscall_receive_message;
+pub mod syscall_receive_pages;
+pub mod syscall_receive_endpoint;
 
 pub use syscall_receive::*;
 pub use syscall_reply::*;
@@ -23,3 +27,7 @@ pub use syscall_send_empty_no_wait::*;
 pub use syscall_send_message::*;
 pub use syscall_send_pages::*;
 pub use syscall_send_endpoint::*;
+pub use syscall_receive_empty::*;
+pub use syscall_receive_message::*;
+pub use syscall_receive_pages::*;
+pub use syscall_receive_endpoint::*;
