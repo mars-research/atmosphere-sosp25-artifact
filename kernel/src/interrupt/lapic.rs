@@ -53,9 +53,3 @@ pub unsafe fn boot_ap(cpu_id: u32, stack: u64, code: u64) {
     xapic.ipi_init(apic_id);
     xapic.ipi_startup(apic_id, start_page);
 }
-
-/// Returns the current processor's APIC ID.
-pub fn cpu_id() -> u32 {
-    let xapic = unsafe { cpu::get_current().xapic.assume_init_ref() };
-    xapic.id()
-}

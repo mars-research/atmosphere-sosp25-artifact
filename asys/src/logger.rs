@@ -1,12 +1,16 @@
-use log::{Metadata, Record};
+use log::{Metadata, Record, Level};
 
 use astd::io::Write;
 
 static LOGGER: Logger = Logger;
 
 pub fn init_logging() {
+    init_logging_with_level(Level::Trace);
+}
+
+pub fn init_logging_with_level(level: Level) {
     log::set_logger(&LOGGER)
-        .map(|_| log::set_max_level(log::LevelFilter::Trace))
+        .map(|_| log::set_max_level(level.to_level_filter()))
         .unwrap();
 }
 
