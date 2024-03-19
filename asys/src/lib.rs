@@ -15,6 +15,7 @@ pub const __NR_NEW_PROC: usize = 4;
 pub const __NR_NEW_PROC_W_IO: usize = 5;
 pub const __NR_NEW_THREAD: usize = 6;
 pub const __NR_SEND_EMPTY_NW: usize = 7;
+pub const __NR_LOG: usize = 8;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -37,6 +38,10 @@ macro_rules! syscall {
 
 pub unsafe fn sys_print(data: *const u8, len: usize) -> isize {
     syscall!(__NR_PRINT, data, len, 0)
+}
+
+pub unsafe fn sys_log(data: *const u8, len: usize, level: log::Level) -> isize {
+    syscall!(__NR_LOG, data, len, level as usize)
 }
 
 pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {

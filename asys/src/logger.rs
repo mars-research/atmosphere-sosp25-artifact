@@ -32,7 +32,7 @@ impl log::Log for Logger {
         let written = buffer.len() - remaining;
 
         unsafe {
-            crate::sys_print(buffer.as_ptr(), written);
+            crate::sys_log(buffer.as_ptr(), written, record.level());
         }
     }
 
