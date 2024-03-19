@@ -89,6 +89,11 @@ impl Kernel{
         ensures
             self.wf(),
             forall|j:usize| #![auto] 0<=j<range ==> self.mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va_dst,j)].is_Some(),
+            forall|j:usize| #![auto] 0<=j<range  ==> self.mmu_man.get_pagetable_mapping_by_pcid(target)[spec_va_add_range(va_dst,j)].get_Some_0().addr =~= self.mmu_man.get_pagetable_mapping_by_pcid(pcid)[spec_va_add_range(va_src,j)].get_Some_0().addr,
+            forall|i:IOid| #![auto] 0<=i<PCID_MAX ==> self.mmu_man.get_iommutable_mapping_by_ioid(i) =~= old(self).mmu_man.get_iommutable_mapping_by_ioid(i),
+            forall|i:Pcid| #![auto] 0<=i<PCID_MAX && i != target ==> self.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old(self).mmu_man.get_pagetable_mapping_by_pcid(i),
+            self.cpu_list =~= old(self).cpu_list,
+            self.proc_man =~= old(self).proc_man,
     {
         let mut i = 0;
         while i != range

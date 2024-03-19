@@ -47,7 +47,13 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                     &&
                     new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == BLOCKED
                     &&
-                    new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_ptr == Some(endpoint_ptr)
+                    new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_ptr == Some(endpoint_ptr) 
+                    &&
+                    new.mmu_man =~= old.mmu_man
+                    &&
+                    forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                    &&
+                    forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
                 }
                 else{
                     new.cpu_list@[cpu_id as int].get_current_thread() == Some(old.proc_man.scheduler@[0])
@@ -57,6 +63,12 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                     new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == BLOCKED
                     &&
                     new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_ptr == Some(endpoint_ptr)
+                    &&
+                    new.mmu_man =~= old.mmu_man
+                    &&
+                    forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                    &&
+                    forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
                 }
             }else{
                 if endpoint_len == 0 {
@@ -70,6 +82,12 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == BLOCKED
                         &&
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_ptr == Some(endpoint_ptr)
+                        &&
+                        new.mmu_man =~= old.mmu_man
+                        &&
+                        forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                        &&
+                        forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
                     }
                     else{
                         new.cpu_list@[cpu_id as int].get_current_thread() == Some(old.proc_man.scheduler@[0])
@@ -81,6 +99,12 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == BLOCKED
                         &&
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).endpoint_ptr == Some(endpoint_ptr)
+                        &&
+                        new.mmu_man =~= old.mmu_man
+                        &&
+                        forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                        &&
+                        forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
                     }
                 }else{
                     let receiver_ptr = old.proc_man.get_endpoint(endpoint_ptr).queue@[0];
@@ -104,6 +128,12 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
+                        &&
+                        new.mmu_man =~= old.mmu_man
+                        &&
+                        forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                        &&
+                        forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
 
                     }else if receiver_ipc_payload.page_payload.unwrap().1 != range ||
                                 range >= usize::MAX/3 || 
@@ -116,10 +146,30 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&
                         new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
+                        &&
+                        new.mmu_man =~= old.mmu_man
+                        // &&
+                        // forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                        // &&
+                        // forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
                     }
                     else if kernel_page_sharing_spec_helper(old,sender_pcid,receiver_pcid, va, receiver_ipc_payload.page_payload.unwrap().0, range)
                     {
+                        new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
+                        &&
+                        forall|_cpu_id:CPUID| #![auto] 0 <= _cpu_id < NUM_CPUS && _cpu_id != cpu_id ==> new.cpu_list@[_cpu_id as int] =~= old.cpu_list@[_cpu_id as int]
+                        &&
+                        new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
+                        &&
+                        new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
+                        &&
                         forall|j:usize| #![auto] 0<=j<range ==> new.mmu_man.get_pagetable_mapping_by_pcid(receiver_pcid)[spec_va_add_range(receiver_ipc_payload.page_payload.unwrap().0,j)].is_Some()
+                        &&
+                        forall|j:usize| #![auto] 0<=j<range ==> new.mmu_man.get_pagetable_mapping_by_pcid(receiver_pcid)[spec_va_add_range(receiver_ipc_payload.page_payload.unwrap().0,j)].get_Some_0().addr =~= new.mmu_man.get_pagetable_mapping_by_pcid(sender_pcid)[spec_va_add_range(va,j)].get_Some_0().addr
+                        &&
+                        forall|i:IOid| #![auto] 0<=i<PCID_MAX ==> new.mmu_man.get_iommutable_mapping_by_ioid(i) =~= old.mmu_man.get_iommutable_mapping_by_ioid(i)
+                        &&
+                        forall|i:Pcid| #![auto] 0<=i<PCID_MAX && i != receiver_pcid ==> new.mmu_man.get_pagetable_mapping_by_pcid(i) =~= old.mmu_man.get_pagetable_mapping_by_pcid(i)
                     }else
                     {
                         new.cpu_list@[cpu_id as int].get_current_thread() == Some(receiver_ptr)
@@ -128,7 +178,13 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
                         &&
                         new.proc_man.get_thread_ptrs() =~= old.proc_man.get_thread_ptrs()
                         &&
-                        new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED  
+                        new.proc_man.get_thread(old.cpu_list@[cpu_id as int].get_current_thread().unwrap()).state == SCHEDULED
+                        &&
+                        new.mmu_man =~= old.mmu_man
+                        // &&
+                        // forall|pcid:Pcid, va:usize| #![auto] 0<=pcid<PCID_MAX && spec_va_valid(va) ==> new.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va] =~= old.mmu_man.get_pagetable_mapping_by_pcid(pcid)[va]
+                        // &&
+                        // forall|ioid:IOid, va:usize| #![auto] 0<=ioid<IOID_MAX && spec_va_valid(va) ==> new.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va] =~= old.mmu_man.get_iommutable_mapping_by_ioid(ioid)[va]
                     }
 
 
