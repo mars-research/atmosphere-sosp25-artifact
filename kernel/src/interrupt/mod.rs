@@ -12,13 +12,13 @@ mod lapic;
 mod ioapic;
 pub mod x86_xapic;
 
-use x86::io::{inb, outb};
-
+use core::arch::asm;
 use core::convert::{Into, TryFrom};
 use core::mem::MaybeUninit;
 
 use bit_field::BitField;
 use x86::bits64::paging::VAddr;
+use x86::io::{inb, outb};
 
 use crate::boot::spin_forever;
 pub use exception::Exception;
@@ -35,12 +35,73 @@ static mut GLOBAL_IDT: MaybeUninit<Idt> = MaybeUninit::zeroed();
 const PIC1_DATA: u16 = 0x21;
 const PIC2_DATA: u16 = 0xa1;
 
-/*
-boot page
-page retyping
-arrayvec
-page manager
-*/
+#[repr(C)]
+struct TrampolineMarker(());
+
+macro_rules! wrap_interrupt {
+    ($handler:path) => {{
+        let _: unsafe extern "C" fn(&mut Registers<InterruptStackFrame>) = $handler;
+
+        /// Interrupt trampoline
+        #[naked]
+        unsafe extern "C" fn trampoline(_: TrampolineMarker) {
+            // Figure 6-7. Stack Usage on Transfers to Interrupt and Exception Handling Routines 
+
+            // Here rsp is at an InterruptStackFrame
+            // [rip][cs][eflags][esp][ss]
+            core::arch::asm!(
+                "cli",
+                //"call {breakpoint}",
+
+                "cld",
+                "push rax",
+                "push rdi",
+                "push rsi",
+                "push rdx",
+                "push rcx",
+                "push r8",
+                "push r9",
+                "push r10",
+                "push r11",
+                "push rbx",
+                "push rbp",
+                "push r12",
+                "push r13",
+                "push r14",
+                "push r15",
+
+                // fn handler(registers: &mut Registers<InterruptStackFrame>)
+                "mov rdi, rsp",
+                "call {handler}",
+
+                "pop r15",
+                "pop r14",
+                "pop r13",
+                "pop r12",
+                "pop rbp",
+                "pop rbx",
+                "pop r11",
+                "pop r10",
+                "pop r9",
+                "pop r8",
+                "pop rcx",
+                "pop rdx",
+                "pop rsi",
+                "pop rdi",
+                "pop rax",
+
+                "sti",
+                "iretq",
+
+                //breakpoint = sym crate::debugger::breakpoint,
+                handler = sym $handler,
+                options(noreturn),
+            );
+        }
+
+        trampoline
+    }}
+}
 
 // "x86-interrupt" is gated behind #![feature(abi_x86_interrupt)].
 
@@ -49,6 +110,9 @@ pub type HandlerFunc = unsafe extern "C" fn(&mut PtRegs);
 
 /// A handler function for an exception that pushes an error code.
 pub type HandlerFuncWithErrCode = unsafe extern "x86-interrupt" fn(&mut InterruptStackFrame, u64);
+
+/// A handler function wrapped by the interrupt trampoline.
+pub type TrampolineHandlerFunc = unsafe extern "C" fn(TrampolineMarker);
 
 /// A page fault handler function that pushes a page fault error code.
 pub type PageFaultHandlerFunc =
@@ -69,8 +133,8 @@ unsafe extern "C" fn double_fault(regs: &mut PtRegs) {
 }
 
 /// Breakpoint handler.
-unsafe extern "C" fn breakpoint(regs: &mut PtRegs) {
-    log::warn!("Breakpoint");
+unsafe extern "C" fn breakpoint(regs: &mut Registers<InterruptStackFrame>) {
+    log::warn!("Breakpoint: {:#x?}", regs);
     crate::debugger::breakpoint(2);
     spin_forever();
 }
@@ -113,6 +177,13 @@ unsafe extern "x86-interrupt" fn page_fault(
     spin_forever();
 }
 
+/// Timer handler.
+unsafe extern "C" fn timer(regs: &mut Registers<InterruptStackFrame>) {
+    log::warn!("Timer: {:#x?}", regs);
+
+    end_of_interrupt();
+}
+
 /// An interrupt.
 #[derive(Copy, Clone, Debug)]
 pub enum Interrupt {
@@ -148,38 +219,44 @@ impl TryFrom<usize> for Interrupt {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PtRegs {
-    /*
-     * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
-     * unless syscall needs a complete, fully filled "struct pt_regs".
-     */
     pub r15: u64,
     pub r14: u64,
     pub r13: u64,
     pub r12: u64,
     pub rbp: u64,
     pub rbx: u64,
-    /* These regs are callee-clobbered. Always saved on kernel entry. */
     pub r11: u64,
     pub r10: u64,
     pub r9: u64,
     pub r8: u64,
-    pub rax: u64,
     pub rcx: u64,
     pub rdx: u64,
     pub rsi: u64,
     pub rdi: u64,
-    /*
-     * On syscall entry, this is syscall#. On CPU exception, this is error code.
-     * On hw interrupt, it's IRQ number:
-     */
-    pub orig_ax: u64,
-    /* Return frame for iretq */
-    pub rip: u64,
-    pub rcs: u64,
-    pub rflags: u64,
-    pub rsp: u64,
-    pub ss: u64,
-    /* top of stack page */
+    pub rax: u64,
+}
+
+/// Registers saved by the interrupt trampoline.
+#[repr(C)]
+#[derive(Debug)]
+pub struct Registers<ISF> {
+    pub r15: u64,
+    pub r14: u64,
+    pub r13: u64,
+    pub r12: u64,
+    pub rbp: u64,
+    pub rbx: u64,
+    pub r11: u64,
+    pub r10: u64,
+    pub r9: u64,
+    pub r8: u64,
+    pub rcx: u64,
+    pub rdx: u64,
+    pub rsi: u64,
+    pub rdi: u64,
+    pub rax: u64,
+
+    pub interrupt_frame: ISF,
 }
 
 /// An interrupt stack frame.
@@ -276,20 +353,16 @@ pub unsafe fn init_cpu() {
 
     let mut idt = GLOBAL_IDT.assume_init_mut();
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
-    idt.breakpoint.set_handler_fn(breakpoint);
+    idt.breakpoint.set_handler_fn(wrap_interrupt!(breakpoint));
     idt.double_fault.set_handler_fn(double_fault);
     idt.stack_segment_fault.set_handler_fn(stack_segment_fault);
     idt.general_protection_fault
         .set_handler_fn(general_protection_fault);
     idt.page_fault.set_handler_fn(page_fault);
 
-    idt.interrupts[0].set_handler_fn(timer);
+    idt.interrupts[0].set_handler_fn(wrap_interrupt!(timer));
     idt.load();
-}
 
-unsafe extern "C" fn timer(regs: &mut PtRegs) {
-    log::error!("TIMER");
 
-    loop {
-    }
+    asm!("sti");
 }

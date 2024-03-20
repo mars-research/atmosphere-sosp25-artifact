@@ -18,7 +18,7 @@ use core::mem;
 use bit_field::BitField;
 use x86::{segmentation, Ring};
 
-use super::{HandlerFunc, HandlerFuncWithErrCode, PageFaultHandlerFunc};
+use super::{HandlerFunc, HandlerFuncWithErrCode, PageFaultHandlerFunc, TrampolineHandlerFunc};
 
 /// An X86-64 Interrupt Descriptor Table.
 #[derive(Clone)]
@@ -35,7 +35,7 @@ pub struct Idt {
     pub non_maskable_interrupt: Entry<HandlerFunc>,
 
     /// Breakpoint (`#BP`)
-    pub breakpoint: Entry<HandlerFunc>,
+    pub breakpoint: Entry<TrampolineHandlerFunc>,
 
     /// Overflow (`#OF`)
     pub overflow: Entry<HandlerFunc>,
@@ -98,7 +98,7 @@ pub struct Idt {
     reserved_3: Entry<HandlerFunc>,
 
     /// Other interrupts
-    interrupts: [Entry<HandlerFunc>; 256 - 32],
+    pub interrupts: [Entry<TrampolineHandlerFunc>; 256 - 32],
 }
 
 impl Idt {
@@ -228,6 +228,7 @@ macro_rules! impl_set_handler_fn {
 }
 
 impl_set_handler_fn!(HandlerFunc);
+impl_set_handler_fn!(TrampolineHandlerFunc);
 impl_set_handler_fn!(HandlerFuncWithErrCode);
 impl_set_handler_fn!(PageFaultHandlerFunc);
 
