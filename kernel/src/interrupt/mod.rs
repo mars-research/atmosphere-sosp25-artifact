@@ -9,6 +9,8 @@
 mod exception;
 mod idt;
 mod lapic;
+mod ioapic;
+pub mod x86_xapic;
 
 use x86::io::{inb, outb};
 
@@ -261,6 +263,8 @@ pub unsafe fn init() {
     // Disable 8259 PIC
     outb(PIC1_DATA, 0xff);
     outb(PIC2_DATA, 0xff);
+
+    ioapic::init();
 }
 
 /// Initializes per-CPU interrupt controllers.
@@ -268,6 +272,7 @@ pub unsafe fn init() {
 /// This should be called only once per CPU.
 pub unsafe fn init_cpu() {
     lapic::init();
+    ioapic::init_cpu();
 
     let mut idt = GLOBAL_IDT.assume_init_mut();
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
@@ -277,5 +282,14 @@ pub unsafe fn init_cpu() {
     idt.general_protection_fault
         .set_handler_fn(general_protection_fault);
     idt.page_fault.set_handler_fn(page_fault);
+
+    idt.interrupts[0].set_handler_fn(timer);
     idt.load();
+}
+
+unsafe extern "C" fn timer(regs: &mut PtRegs) {
+    log::error!("TIMER");
+
+    loop {
+    }
 }

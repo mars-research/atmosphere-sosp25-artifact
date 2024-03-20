@@ -11,9 +11,9 @@ use core::arch::asm;
 use core::mem::MaybeUninit;
 use core::ptr;
 
-use x86::apic::xapic::XAPIC;
 use x86::msr;
 
+use crate::interrupt::x86_xapic::XAPIC;
 use crate::gdt::{GlobalDescriptorTable, IstStack, TaskStateSegment};
 
 const NEW_CPU: Cpu = Cpu::new();
@@ -58,6 +58,9 @@ pub struct Cpu {
     /// We also want to be able to easily access other fields directly.
     pub self_ptr: *const Cpu,
 
+    /// The CPU ID.
+    ///
+    /// Currently it's the logical APIC ID.
     pub id: usize,
 
     /// State for the xAPIC driver.

@@ -22,7 +22,7 @@ use super::{HandlerFunc, HandlerFuncWithErrCode, PageFaultHandlerFunc};
 
 /// An X86-64 Interrupt Descriptor Table.
 #[derive(Clone)]
-#[repr(align(8))]
+#[repr(align(4096))]
 #[repr(C)]
 pub struct Idt {
     /// Device-By-Zero (`#DE`).
@@ -149,7 +149,7 @@ impl Idt {
 
 /// An entry in an X86-64 Interrupt Descriptor Table.
 #[derive(Clone, Copy)]
-#[repr(C)]
+#[repr(C, packed)]
 pub struct Entry<F> {
     /// Bits 0 to 15 of the ISR entrypoint.
     entry_low: u16,

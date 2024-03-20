@@ -5,7 +5,7 @@
 use core::arch::asm;
 use core::slice;
 
-use x86::apic::xapic::XAPIC;
+use super::x86_xapic::XAPIC;
 use x86::apic::{ApicControl, ApicId};
 use x86::msr;
 
@@ -29,6 +29,7 @@ pub unsafe fn init() {
 
     let mut xapic = XAPIC::new(apic_region);
     xapic.attach();
+    xapic.tsc_enable(32);
 
     cpu.xapic.write(xapic);
 }
