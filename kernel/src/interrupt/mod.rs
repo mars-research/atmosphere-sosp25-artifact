@@ -24,7 +24,7 @@ use crate::boot::spin_forever;
 pub use exception::Exception;
 use exception::EXCEPTION_MAX;
 use idt::Idt;
-pub use lapic::boot_ap;
+pub use lapic::{boot_ap, set_timer, end_of_interrupt};
 
 /// The IRQ offset.
 pub const IRQ_OFFSET: usize = 32;

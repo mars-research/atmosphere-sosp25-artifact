@@ -34,6 +34,21 @@ pub unsafe fn init() {
     cpu.xapic.write(xapic);
 }
 
+/// Arms the timer interrupt.
+pub fn set_timer(timeout: u32) {
+    let mut cpu = crate::cpu::get_current();
+    let xapic = unsafe { cpu.xapic.assume_init_mut() };
+    xapic.tsc_set_oneshot(timeout);
+}
+
+/// Acknowledges an interrupt.
+pub fn end_of_interrupt() {
+    let mut cpu = crate::cpu::get_current();
+    let xapic = unsafe { cpu.xapic.assume_init_mut() };
+
+    xapic.eoi();
+}
+
 /// Boots an application processor.
 pub unsafe fn boot_ap(cpu_id: u32, stack: u64, code: u64) {
     let cpu = cpu::get_current();
