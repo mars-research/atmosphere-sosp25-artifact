@@ -40,7 +40,7 @@ struct TrampolineMarker(());
 
 macro_rules! wrap_interrupt {
     ($handler:path) => {{
-        let _: unsafe extern "C" fn(&mut Registers<InterruptStackFrame>) = $handler;
+        let _: unsafe extern "C" fn(&mut Registers) = $handler;
 
         /// Interrupt trampoline
         #[naked]
@@ -70,7 +70,7 @@ macro_rules! wrap_interrupt {
                 "push r14",
                 "push r15",
 
-                // fn handler(registers: &mut Registers<InterruptStackFrame>)
+                // fn handler(registers: &mut Registers)
                 "mov rdi, rsp",
                 "call {handler}",
 
@@ -133,7 +133,7 @@ unsafe extern "C" fn double_fault(regs: &mut PtRegs) {
 }
 
 /// Breakpoint handler.
-unsafe extern "C" fn breakpoint(regs: &mut Registers<InterruptStackFrame>) {
+unsafe extern "C" fn breakpoint(regs: &mut Registers) {
     log::warn!("Breakpoint: {:#x?}", regs);
     crate::debugger::breakpoint(2);
     spin_forever();
@@ -178,7 +178,7 @@ unsafe extern "x86-interrupt" fn page_fault(
 }
 
 /// Timer handler.
-unsafe extern "C" fn timer(regs: &mut Registers<InterruptStackFrame>) {
+unsafe extern "C" fn timer(regs: &mut Registers) {
     log::warn!("Timer: {:#x?}", regs);
 
     end_of_interrupt();
@@ -239,7 +239,7 @@ pub struct PtRegs {
 /// Registers saved by the interrupt trampoline.
 #[repr(C)]
 #[derive(Debug)]
-pub struct Registers<ISF> {
+pub struct Registers {
     pub r15: u64,
     pub r14: u64,
     pub r13: u64,
@@ -256,7 +256,21 @@ pub struct Registers<ISF> {
     pub rdi: u64,
     pub rax: u64,
 
-    pub interrupt_frame: ISF,
+    // Original interrupt stack frame
+
+    pub rip: u64,
+    pub cs: u64,
+    pub flags: u64,
+    pub rsp: u64,
+    pub ss: u64,
+}
+
+impl Registers {
+    pub const fn zeroed() -> Self {
+        unsafe {
+            MaybeUninit::zeroed().assume_init()
+        }
+    }
 }
 
 /// An interrupt stack frame.
