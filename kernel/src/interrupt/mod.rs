@@ -55,12 +55,21 @@ pub type PageFaultHandlerFunc =
 /// Invalid Opcode handler.
 unsafe extern "C" fn invalid_opcode(regs: &mut PtRegs) {
     log::error!("Invalid Opcode: {:#x?}", regs);
+    crate::debugger::breakpoint(2);
     spin_forever();
 }
 
 /// Double Fault handler.
 unsafe extern "C" fn double_fault(regs: &mut PtRegs) {
     log::error!("Double Fault: {:#x?}", regs);
+    crate::debugger::breakpoint(2);
+    spin_forever();
+}
+
+/// Breakpoint handler.
+unsafe extern "C" fn breakpoint(regs: &mut PtRegs) {
+    log::warn!("Breakpoint");
+    crate::debugger::breakpoint(2);
     spin_forever();
 }
 
@@ -70,10 +79,11 @@ unsafe extern "x86-interrupt" fn stack_segment_fault(
     error_code: u64,
 ) {
     log::error!(
-        "General Protection Fault (error code {:#b}): {:#x?}",
+        "Stack Segment Fault (error code {:#b}): {:#x?}",
         error_code,
         frame
     );
+    crate::debugger::breakpoint(2);
     spin_forever();
 }
 
@@ -87,6 +97,7 @@ unsafe extern "x86-interrupt" fn general_protection_fault(
         error_code,
         frame
     );
+    crate::debugger::breakpoint(2);
     spin_forever();
 }
 
@@ -96,9 +107,7 @@ unsafe extern "x86-interrupt" fn page_fault(
     error_code: PageFaultErrorCode,
 ) {
     log::info!("Page Fault (error code {:?}): {:#x?}", error_code, frame);
-
-    // FIXME
-
+    crate::debugger::breakpoint(2);
     spin_forever();
 }
 
@@ -262,6 +271,7 @@ pub unsafe fn init_cpu() {
 
     let mut idt = GLOBAL_IDT.assume_init_mut();
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
+    idt.breakpoint.set_handler_fn(breakpoint);
     idt.double_fault.set_handler_fn(double_fault);
     idt.stack_segment_fault.set_handler_fn(stack_segment_fault);
     idt.general_protection_fault

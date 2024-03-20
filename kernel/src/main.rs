@@ -35,6 +35,7 @@
 mod boot;
 mod console;
 mod cpu;
+mod debugger;
 mod error;
 mod gdt;
 mod interrupt;
@@ -178,6 +179,8 @@ fn print_logo() {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     log::error!("panic! {:#?}", info);
+
+    debugger::breakpoint(1);
 
     unsafe {
         if SHUTDOWN_ON_PANIC {
