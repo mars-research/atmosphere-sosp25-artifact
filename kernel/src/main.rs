@@ -45,6 +45,7 @@ mod scripts;
 mod syscalls;
 mod thread;
 mod utils;
+mod ring_buffer;
 
 use core::arch::asm;
 use core::sync::atomic::{AtomicUsize, Ordering};
