@@ -13,6 +13,7 @@ use core::ptr;
 
 use x86::msr;
 
+use crate::interrupt::Registers;
 use crate::interrupt::x86_xapic::XAPIC;
 use crate::gdt::{GlobalDescriptorTable, IstStack, TaskStateSegment};
 
@@ -63,6 +64,9 @@ pub struct Cpu {
     /// Currently it's the logical APIC ID.
     pub id: usize,
 
+    /// The state of the parked thread.
+    pub parked: Registers,
+
     /// State for the xAPIC driver.
     pub xapic: MaybeUninit<XAPIC>,
 
@@ -86,6 +90,7 @@ impl Cpu {
         Self {
             self_ptr: ptr::null(),
             id: 0,
+            parked: Registers::zeroed(),
             xapic: MaybeUninit::uninit(),
             gdt: GlobalDescriptorTable::empty(),
             tss: TaskStateSegment::new(),

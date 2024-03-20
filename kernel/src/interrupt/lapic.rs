@@ -11,6 +11,7 @@ use x86::msr;
 
 use crate::{boot, cpu};
 use crate::boot::ap_start::StartTrampoline;
+use super::Cycles;
 
 /// Returns the 4KiB LAPIC region.
 unsafe fn probe_apic() -> &'static mut [u32] {
@@ -35,10 +36,12 @@ pub unsafe fn init() {
 }
 
 /// Arms the timer interrupt.
-pub fn set_timer(timeout: u32) {
+pub fn set_timer(cycles: Cycles) {
     let mut cpu = crate::cpu::get_current();
     let xapic = unsafe { cpu.xapic.assume_init_mut() };
-    xapic.tsc_set_oneshot(timeout);
+
+    // FIXME: Truncated
+    xapic.tsc_set_oneshot(cycles.0 as u32);
 }
 
 /// Acknowledges an interrupt.

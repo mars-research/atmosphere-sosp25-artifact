@@ -35,6 +35,11 @@ static mut GLOBAL_IDT: MaybeUninit<Idt> = MaybeUninit::zeroed();
 const PIC1_DATA: u16 = 0x21;
 const PIC2_DATA: u16 = 0xa1;
 
+/// An amount of cycles.
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct Cycles(pub usize);
+
 #[repr(C)]
 struct TrampolineMarker(());
 
@@ -179,7 +184,9 @@ unsafe extern "x86-interrupt" fn page_fault(
 
 /// Timer handler.
 unsafe extern "C" fn timer(regs: &mut Registers) {
-    log::warn!("Timer: {:#x?}", regs);
+    if let Some(slice) = crate::thread::schedule(regs) {
+        set_timer(slice);
+    }
 
     end_of_interrupt();
 }
