@@ -43,9 +43,11 @@ mod kernel;
 mod logging;
 mod scripts;
 mod syscalls;
+mod thread;
 mod utils;
 
 use core::arch::asm;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use core::{ffi::c_void, panic::PanicInfo};
 
 use astd::boot::{BootInfo, PhysicalMemoryType};
@@ -53,6 +55,8 @@ use astd::boot::{BootInfo, PhysicalMemoryType};
 static mut SHUTDOWN_ON_PANIC: bool = false;
 
 static mut AP_STACK: [u8; 64 * 1024 * 1024] = [0; 64 * 1024 * 1024];
+static mut THREAD_STACK: [u8; 64 * 1024 * 1024] = [0; 64 * 1024 * 1024];
+static THREAD_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 use verified::array_vec::ArrayVec as vArrayVec;
 
@@ -81,6 +85,18 @@ fn main(boot_info: *const BootInfo) -> isize {
 
     if !cmdline.nologo {
         print_logo();
+    }
+
+    // Thread test
+    unsafe {
+        thread::start_thread(
+            thread_main as u64,
+            &THREAD_STACK as *const _ as u64 + THREAD_STACK.len() as u64,
+        );
+    }
+    loop {
+        let counter = THREAD_COUNTER.load(Ordering::SeqCst);
+        log::debug!("Counter: {}", counter);
     }
 
     unsafe {
@@ -144,6 +160,14 @@ fn ap_main(cpu_id: u64) {
     log::info!("Hello from CPU {}", cpu::get_cpu_id());
 
     loop {
+    }
+}
+
+/// Thread entry point.
+fn thread_main(cpu_id: u64) {
+    //debugger::breakpoint(1);
+    loop {
+        THREAD_COUNTER.fetch_add(1, Ordering::SeqCst);
     }
 }
 
