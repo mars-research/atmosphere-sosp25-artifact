@@ -64,11 +64,11 @@ fn main(boot_info: *const BootInfo) -> isize {
         logging::early_init();
 
         cpu::init_cpu(0); // Now get_current() can be used
+        gdt::init_cpu();
 
         interrupt::init();
         interrupt::init_cpu();
 
-        gdt::init_cpu();
         syscalls::init_cpu();
 
         boot::init(boot_info);

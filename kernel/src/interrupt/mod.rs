@@ -13,12 +13,12 @@ mod lapic;
 use x86::io::{inb, outb};
 
 use core::convert::{Into, TryFrom};
+use core::mem::MaybeUninit;
 
 use bit_field::BitField;
 use x86::bits64::paging::VAddr;
 
 use crate::boot::spin_forever;
-use astd::sync::Mutex;
 pub use exception::Exception;
 use exception::EXCEPTION_MAX;
 use idt::Idt;
@@ -28,7 +28,7 @@ pub use lapic::boot_ap;
 pub const IRQ_OFFSET: usize = 32;
 
 /// The global IDT.
-static GLOBAL_IDT: Mutex<Idt> = Mutex::new(Idt::new());
+static mut GLOBAL_IDT: MaybeUninit<Idt> = MaybeUninit::zeroed();
 
 const PIC1_DATA: u16 = 0x21;
 const PIC2_DATA: u16 = 0xa1;
@@ -260,7 +260,7 @@ pub unsafe fn init() {
 pub unsafe fn init_cpu() {
     lapic::init();
 
-    let mut idt = GLOBAL_IDT.lock();
+    let mut idt = GLOBAL_IDT.assume_init_mut();
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
     idt.double_fault.set_handler_fn(double_fault);
     idt.stack_segment_fault.set_handler_fn(stack_segment_fault);
