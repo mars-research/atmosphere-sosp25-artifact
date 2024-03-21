@@ -33,7 +33,23 @@ macro_rules! syscall {
             out("r11") _,
         );
         ret
-    }}
+    }};
+    ($nr:expr, $a:expr, $b:expr, $c:expr, $d:expr, $e:expr) => {{
+        let ret: isize;
+        asm!(
+            "syscall",
+            inout("rax") $nr => ret,
+            inout("rdi") $a => _,
+            inout("rsi") $b => _,
+            inout("rdx") $c => _,
+            out("rcx") _,
+            inout("r8") $d => _,
+            inout("r9") $e => _,
+            out("r10") _,
+            out("r11") _,
+        );
+        ret
+    }};
 }
 
 pub unsafe fn sys_print(data: *const u8, len: usize) -> isize {
