@@ -179,7 +179,7 @@ unsafe extern "C" fn sys_entry() -> ! {
     );
 }
 
-extern "C" fn sys_print(data: *const u8, len: usize) -> isize {
+extern "C" fn sys_print(data: *const u8, len: usize, _: usize, regs: &mut Registers) -> isize {
     let s = unsafe {
         let slice = core::slice::from_raw_parts(data, len);
         core::str::from_utf8_unchecked(slice)
