@@ -6,78 +6,32 @@ verus! {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct PtRegs {
-    /*
-     * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
-     * unless syscall needs a complete, fully filled "struct pt_regs".
-     */
     pub r15: u64,
     pub r14: u64,
     pub r13: u64,
     pub r12: u64,
     pub rbp: u64,
     pub rbx: u64,
-    /* These regs are callee-clobbered. Always saved on kernel entry. */
     pub r11: u64,
     pub r10: u64,
     pub r9: u64,
     pub r8: u64,
-    pub rax: u64,
     pub rcx: u64,
     pub rdx: u64,
     pub rsi: u64,
     pub rdi: u64,
-    /*
-     * On syscall entry, this is syscall#. On CPU exception, this is error code.
-     * On hw interrupt, it's IRQ number:
-     */
-    pub orig_ax: u64,
-    /* Return frame for iretq */
+    pub rax: u64,
+
+    // Original interrupt stack frame
+
     pub rip: u64,
-    pub rcs: u64,
-    pub rflags: u64,
+    pub cs: u64,
+    pub flags: u64,
     pub rsp: u64,
     pub ss: u64,
-    /* top of stack page */
 }
 
 impl PtRegs {
-
-    pub open spec fn view(&self) -> PtRegs
-    {
-        *self
-    }
-
-    pub fn set(&mut self, input: &PtRegs)
-        ensures
-            self@ =~= input@,
-    {
-        self.r15 = input.r15;
-        self.r14 = input.r14;
-        self.r13 = input.r13;
-        self.r12 = input.r12;
-        self.rbp = input.rbp;
-        self.rbx = input.rbx;
-
-        self.r11 = input.r11;
-        self.r10 = input.r10;
-        self.r9 = input.r9;
-        self.r8 = input.r8;
-        self.rax = input.rax;
-        self.rcx = input.rcx;
-        self.rdx = input.rdx;
-        self.rsi = input.rsi;
-        self.rdi = input.rdi;
-
-        self.orig_ax = input.orig_ax;
-
-        self.rip = input.rip;
-        self.rcs = input.rcs;
-        self.rflags = input.rflags;
-        self.rsp = input.rsp;
-        self.ss = input.ss;
-
-    }
-
     pub fn new_empty()-> (ret : Self)
     {
         let ret = Self {
@@ -87,22 +41,19 @@ impl PtRegs {
             r12 : 0,
             rbp : 0,
             rbx : 0,
-
             r11 : 0,
             r10 : 0,
             r9 : 0,
             r8 : 0,
-            rax : 0,
             rcx : 0,
             rdx : 0,
             rsi : 0,
             rdi : 0,
-
-            orig_ax : 0,
+            rax : 0,
 
             rip : 0,
-            rcs : 0,
-            rflags : 0,
+            cs : 0,
+            flags : 0,
             rsp : 0,
             ss : 0,
         };
@@ -125,17 +76,15 @@ impl PtRegs {
             r10 : input.r10,
             r9 : input.r9,
             r8 : input.r8,
-            rax : input.rax,
             rcx : input.rcx,
             rdx : input.rdx,
             rsi : input.rsi,
             rdi : input.rdi,
-
-            orig_ax : input.orig_ax,
+            rax : input.rax,
 
             rip : input.rip,
-            rcs : input.rcs,
-            rflags : input.rflags,
+            cs : input.cs,
+            flags : input.flags,
             rsp : input.rsp,
             ss : input.ss,
         };
