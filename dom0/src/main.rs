@@ -62,6 +62,31 @@ fn thread_1_main(){
     }
 }
 
+fn try_new_proc(){
+    unsafe {
+        let error_code = asys::sys_new_endpoint(0);
+            if error_code != 0 {
+                log::info!("sys_new_endpoint failed {:?}", error_code);
+                return;
+            }
+        let mut range = 0;
+        loop{
+            let (pa,perm) = asys::sys_mresolve(0x8000000000usize + range * 4096);
+            log::info!("va:{:x?}, pa:{:x?}, perm:{:?}", 0x8000000000usize + range * 4096, pa, perm);
+            range = range + 1;
+            if perm == 34{
+                break;
+            }
+        }
+        log::info!("find {:?} pages", range);
+        let error_code = asys::sys_new_proc_with_iommu_pass_mem(0,thread_1_main as *const () as usize, ((&array as *const  u8 as u64) + 0x800)as usize, 0x8000000000usize, 1);
+            if error_code != 0 {
+                log::info!("sys_new_proc_with_iommu_pass_mem failed {:?}", error_code);
+                return;
+            }
+    }
+}
+
 fn test_new_send_no_wait(){
     unsafe {
         let error_code = asys::sys_new_endpoint(0);
@@ -172,15 +197,16 @@ fn test_pingpong(){
             return;
         }
 
-        // log::info!("sys_mresolve sp {:x?}", asys::sys_mresolve(0x800ffff000));
-        // log::info!("sys_mresolve new stack {:x?}", asys::sys_mresolve(new_stack));
-        // unsafe {
-        //     asm!(
-        //         "mov rsp, {rsp}",
-        //         rsp = inout(reg) new_stack => _,
-        //     );
-        // }
-        // log::info!("hello from new rsp");
+        log::info!("sys_mresolve sp {:x?}", asys::sys_mresolve(0x800ffff000));
+        log::info!("sys_mresolve new stack {:x?}", asys::sys_mresolve(new_stack));
+        unsafe {
+            asm!(
+                "mov rsp, {rsp}",
+                rsp = inout(reg) new_stack => _,
+            );
+        }
+        log::info!("hello from new rsp");
+
 
         let error_code = asys::sys_new_thread(0,thread_1_main as *const () as usize, ((&array as *const  u8 as u64) + 0x800)as usize);
         if error_code != 0 {

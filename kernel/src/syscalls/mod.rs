@@ -58,6 +58,7 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_LOG] = sys_log as u64;
     SYSCALLS[asys::__NR_SEND_EMPTY] = kernel::sys_send_empty as u64;
     SYSCALLS[asys::__NR_RECEIVE_EMPTY] = kernel::sys_receive_empty as u64;
+    SYSCALLS[asys::__NR_NEW_PROC_W_IO_MEM] = kernel::sys_new_proc_with_iommu_pass_mem as u64;
 }
 
 // Syscall ABI

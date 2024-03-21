@@ -18,6 +18,7 @@ pub const __NR_SEND_EMPTY_NW: usize = 7;
 pub const __NR_LOG: usize = 8;
 pub const __NR_SEND_EMPTY: usize = 9;
 pub const __NR_RECEIVE_EMPTY: usize = 10;
+pub const __NR_NEW_PROC_W_IO_MEM: usize = 11;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -70,7 +71,7 @@ pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
     let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
     let low_bits = va & 0xFFFu64 as usize;
     let ret = syscall!(__NR_MRESOLVE,va_masked,0,0) as usize;
-    return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFusize);
+    return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
 }
 
 pub unsafe fn sys_new_endpoint(endpoint_index:usize) -> usize {
@@ -99,4 +100,8 @@ pub unsafe fn sys_send_empty(endpoint_index:usize) -> usize{
 
 pub unsafe fn sys_receive_empty(endpoint_index:usize) -> usize{
     return syscall!(__NR_RECEIVE_EMPTY,endpoint_index,0,0) as usize;
+}
+
+pub unsafe fn sys_new_proc_with_iommu_pass_mem(endpoint_index:usize, ip: usize, sp: usize, va: usize, range:usize) -> usize{
+    return syscall!(__NR_NEW_PROC_W_IO_MEM,endpoint_index,ip,sp,va,range) as usize;
 }

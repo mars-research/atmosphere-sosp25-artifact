@@ -672,7 +672,7 @@ pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vP
     regs.rax = ret_struc.0.error_code as u64;
 }
 
-pub fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vPtRegs){
+pub extern "C" fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vPtRegs){
     let cpu_id = cpu::get_cpu_id();
     let pt_regs = vPtRegs::new_empty();
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_resolve_va(
@@ -815,4 +815,21 @@ pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs
         }
         // log::info!("regs {:x?}", regs);
     }
+}
+
+pub extern "C" fn sys_new_proc_with_iommu_pass_mem(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vPtRegs, va:usize, range:usize){
+    let cpu_id = cpu::get_cpu_id();
+    let pt_regs = *regs;
+    let mut new_proc_pt_regs = *regs;
+    new_proc_pt_regs.rip = ip as u64;
+    new_proc_pt_regs.rsp = sp as u64;
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_proc_with_iommu_pass_mem(
+        cpu_id,
+        pt_regs,
+        endpoint_index,
+        new_proc_pt_regs,
+        va,
+        range
+    );
+    regs.rax = ret_struc.0.error_code as u64;
 }

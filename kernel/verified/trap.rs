@@ -62,7 +62,7 @@ impl PtRegs {
 
     pub fn new(input: &PtRegs) -> (ret : Self)
         ensures
-        ret@ =~= input@,
+        ret =~= *input,
     {
         let ret = Self {
             r15 : input.r15,
