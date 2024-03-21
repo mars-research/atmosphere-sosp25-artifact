@@ -3,6 +3,7 @@
 //! We just use the xAPIC implementation in the x86 crate.
 
 use core::arch::asm;
+use core::mem::MaybeUninit;
 use core::slice;
 
 use super::x86_xapic::XAPIC;
@@ -37,8 +38,9 @@ pub unsafe fn init() {
 
 /// Arms the timer interrupt.
 pub fn set_timer(cycles: Cycles) {
-    let mut cpu = crate::cpu::get_current();
-    let xapic = unsafe { cpu.xapic.assume_init_mut() };
+    let xapic = unsafe {
+        (&mut *crate::cpu::get_current_cpu_field_ptr!(xapic, MaybeUninit<XAPIC>)).assume_init_mut()
+    };
 
     // FIXME: Truncated
     xapic.tsc_set_oneshot(cycles.0 as u32);
@@ -46,16 +48,18 @@ pub fn set_timer(cycles: Cycles) {
 
 /// Acknowledges an interrupt.
 pub fn end_of_interrupt() {
-    let mut cpu = crate::cpu::get_current();
-    let xapic = unsafe { cpu.xapic.assume_init_mut() };
+    let xapic = unsafe {
+        (&mut *crate::cpu::get_current_cpu_field_ptr!(xapic, MaybeUninit<XAPIC>)).assume_init_mut()
+    };
 
     xapic.eoi();
 }
 
 /// Boots an application processor.
 pub unsafe fn boot_ap(cpu_id: u32, stack: u64, code: u64) {
-    let cpu = cpu::get_current();
-    let xapic = cpu.xapic.assume_init_mut();
+    let xapic = unsafe {
+        (&mut *crate::cpu::get_current_cpu_field_ptr!(xapic, MaybeUninit<XAPIC>)).assume_init_mut()
+    };
 
     let start_page = StartTrampoline::new(0x7000)
         .unwrap()

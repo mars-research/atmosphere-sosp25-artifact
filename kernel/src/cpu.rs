@@ -12,6 +12,7 @@ use core::mem::MaybeUninit;
 use core::ptr;
 
 use x86::msr;
+use memoffset::offset_of;
 
 use crate::interrupt::Registers;
 use crate::interrupt::x86_xapic::XAPIC;
@@ -22,37 +23,48 @@ const NEW_CPU: Cpu = Cpu::new();
 /// Per-processor data.
 static mut CPUS: [Cpu; 16] = [NEW_CPU; 16];
 
-/// Offset of GS where the pointer to `Cpu` is stored.
-const GS_SELF_PTR_OFFSET: usize = 0;
-
 /// Offset of GS where the CPU ID is located.
 const GS_CPU_ID_OFFSET: usize = 8;
 
-/// Returns a handle to the current CPU's data structure.
-pub fn get_current() -> &'static mut Cpu {
-    let address: u64;
-
-    unsafe {
-        asm!(
-            "mov rax, gs:[{gs_offset}]",
-            gs_offset = const GS_SELF_PTR_OFFSET,
-            lateout("rax") address,
-        );
-    }
-
-    let address = address as *mut Cpu;
-
-    unsafe { &mut *address }
+macro_rules! read_current_cpu_offset {
+    ($offset:expr) => {{
+        let value: u64;
+        unsafe {
+            asm!(
+                "mov {result}, gs:[{offset}]",
+                offset = const $offset,
+                result = out(reg) value,
+            );
+        }
+        value
+    }}
 }
+
+macro_rules! read_current_cpu_field {
+    ($field:ident) => {
+        read_current_cpu_offset!(memoffset::offset_of!($crate::cpu::Cpu, $field))
+    }
+}
+
+macro_rules! get_current_cpu_field_ptr {
+    ($field:ident, $type:ty) => {{
+        let mut address: u64 = memoffset::offset_of!($crate::cpu::Cpu, $field) as u64;
+        #[allow(unused_unsafe)] // nested unsafe
+        unsafe {
+            asm!(
+                "add {result}, gs:{self_offset}",
+                self_offset = const memoffset::offset_of!($crate::cpu::Cpu, self_ptr),
+                result = inout(reg) address => address,
+            );
+        }
+        address as *mut $type
+    }}
+}
+pub(crate) use get_current_cpu_field_ptr;
 
 /// Per-processor data for a CPU.
 #[repr(C, align(4096))]
 pub struct Cpu {
-    // WARNING: If you change the position of `self_ptr`, you must also
-    // change `GS_SELF_PTR_OFFSET` above!
-
-    // WARNING: If you change the position of `self_ptr`, you must also
-    // change `GS_SELF_PTR_OFFSET` above!
     /// A pointer to ourselves.
     ///
     /// We do a `mov rax, gs:[GS_SELF_PTR_OFFSET]` to get our own address.
@@ -107,6 +119,23 @@ impl Cpu {
     }
 }
 
+/// Returns a handle to the current CPU's data structure.
+pub fn get_current() -> &'static mut Cpu {
+    let address = read_current_cpu_field!(self_ptr) as *mut Cpu;
+    unsafe { &mut *address }
+}
+
+/// Returns the current CPU ID.
+pub fn get_cpu_id() -> usize {
+    read_current_cpu_field!(id) as usize
+}
+
+pub fn get_meow() -> usize {
+    const PARKED_OFFSET: usize = offset_of!(Cpu, parked);
+    const RAX_OFFSET: usize = offset_of!(Registers, rax);
+    read_current_cpu_offset!(PARKED_OFFSET + RAX_OFFSET) as usize
+}
+
 /// Initialize the CPU-local data structure.
 ///
 /// This should only be called once.
@@ -121,18 +150,4 @@ pub unsafe fn init_cpu(cpu_id: usize) {
     cpu.id = cpu_id;
 
     msr::wrmsr(msr::IA32_GS_BASE, address as u64);
-}
-
-pub fn get_cpu_id() -> usize {
-    let cpu_id;
-
-    unsafe {
-        asm!(
-            "mov {result}, gs:{offset}",
-            offset = const GS_CPU_ID_OFFSET,
-            result = out(reg) cpu_id,
-        );
-    }
-
-    cpu_id
 }
