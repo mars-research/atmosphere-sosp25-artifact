@@ -14,7 +14,7 @@ use core::ptr;
 use x86::msr;
 use memoffset::offset_of;
 
-use crate::interrupt::Registers;
+use verified::trap::Registers;
 use crate::interrupt::x86_xapic::XAPIC;
 use crate::gdt::{GlobalDescriptorTable, IstStack, TaskStateSegment};
 

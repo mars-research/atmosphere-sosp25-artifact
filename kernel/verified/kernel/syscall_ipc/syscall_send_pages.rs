@@ -200,7 +200,7 @@ pub closed spec fn syscall_send_pages_wait_spec(old:Kernel, new:Kernel, cpu_id:C
 
 
 impl Kernel {
-    pub fn syscall_send_pages_wait(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, va: VAddr, range: usize) -> (ret: SyscallReturnStruct)
+    pub fn syscall_send_pages_wait(&mut self, cpu_id:CPUID, pt_regs: Registers, endpoint_index: EndpointIdx, va: VAddr, range: usize) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures

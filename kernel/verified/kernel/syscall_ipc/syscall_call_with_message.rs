@@ -236,7 +236,7 @@ pub closed spec fn syscall_call_with_message_wait_spec(old:Kernel, new:Kernel, c
 
 
 impl Kernel {
-    pub fn syscall_call_with_message_wait(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, message_va: VAddr, length:usize) -> (ret: SyscallReturnStruct)
+    pub fn syscall_call_with_message_wait(&mut self, cpu_id:CPUID, pt_regs: Registers, endpoint_index: EndpointIdx, message_va: VAddr, length:usize) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures

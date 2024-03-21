@@ -11,7 +11,7 @@ use crate::trap::*;
 
 impl ProcessManager {
 
-    // pub fn push_scheduler_with_error_code(&mut self, thread_ptr: ThreadPtr, error_code: Option<ErrorCodeType>, pt_regs: PtRegs)
+    // pub fn push_scheduler_with_error_code(&mut self, thread_ptr: ThreadPtr, error_code: Option<ErrorCodeType>, pt_regs: Registers)
     //     requires
     //         old(self).wf(),
     //         old(self).scheduler.len() < MAX_NUM_THREADS,
@@ -120,7 +120,7 @@ impl ProcessManager {
     //     return (ret,error_code);
     // }
 
-    pub fn push_scheduler(&mut self, thread_ptr: ThreadPtr, error_code: Option<ErrorCodeType>, pt_regs: PtRegs)
+    pub fn push_scheduler(&mut self, thread_ptr: ThreadPtr, error_code: Option<ErrorCodeType>, pt_regs: Registers)
         requires
             old(self).wf(),
             old(self).scheduler.len() < MAX_NUM_THREADS,
@@ -177,7 +177,7 @@ impl ProcessManager {
         assert(self.wf_ipc());
     }
 
-    pub fn pop_scheduler(&mut self) -> (ret: (ThreadPtr, PtRegs, Option<ErrorCodeType>))
+    pub fn pop_scheduler(&mut self) -> (ret: (ThreadPtr, Registers, Option<ErrorCodeType>))
         requires
             old(self).wf(),
             old(self).scheduler.len() > 0,

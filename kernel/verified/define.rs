@@ -1,19 +1,19 @@
 use vstd::prelude::*;
 verus! {
 use vstd::ptr::*;
-use crate::trap::PtRegs;
+use crate::trap::Registers;
 
 #[derive(Debug)]
 pub struct SyscallReturnStruct{
     pub error_code: ErrorCodeType,
     pub pcid: Pcid,
     pub cr3: usize,
-    pub pt_regs: PtRegs,
+    pub pt_regs: Registers,
 }
 
 impl SyscallReturnStruct{
 
-    pub fn new(error_code:ErrorCodeType,pcid:Pcid,cr3:usize,pt_regs:PtRegs )->(ret:Self)
+    pub fn new(error_code:ErrorCodeType,pcid:Pcid,cr3:usize,pt_regs:Registers )->(ret:Self)
         ensures
             ret.error_code == error_code,
             ret.pcid == pcid,

@@ -155,7 +155,7 @@ pub closed spec fn syscall_reply_and_receive_spec(old:Kernel, new:Kernel, cpu_id
 }
 
 impl Kernel {
-    pub fn syscall_reply_and_receive(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index:EndpointIdx, message_va: VAddr, length:usize, return_message: Option<(VAddr, usize)>) -> (ret: SyscallReturnStruct)
+    pub fn syscall_reply_and_receive(&mut self, cpu_id:CPUID, pt_regs: Registers, endpoint_index:EndpointIdx, message_va: VAddr, length:usize, return_message: Option<(VAddr, usize)>) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures

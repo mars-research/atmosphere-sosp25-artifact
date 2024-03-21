@@ -57,7 +57,7 @@ pub closed spec fn syscall_new_endpoint_spec(old:Kernel,new:Kernel,cpu_id:CPUID,
 
 impl Kernel {
 
-    pub fn syscall_new_endpoint(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx) -> (ret:(SyscallReturnStruct))
+    pub fn syscall_new_endpoint(&mut self, cpu_id:CPUID, pt_regs: Registers, endpoint_index: EndpointIdx) -> (ret:(SyscallReturnStruct))
         requires
             old(self).wf(),
         ensures

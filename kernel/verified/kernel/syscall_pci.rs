@@ -61,7 +61,7 @@ pub closed spec fn syscall_register_pci_dev_spec(old:Kernel,new:Kernel,cpu_id:CP
     }
 }
 
-    pub fn syscall_register_pci_dev(&mut self, cpu_id:CPUID, pt_regs: PtRegs, bus:u8, dev:u8, fun:u8) -> (ret:SyscallReturnStruct)
+    pub fn syscall_register_pci_dev(&mut self, cpu_id:CPUID, pt_regs: Registers, bus:u8, dev:u8, fun:u8) -> (ret:SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures

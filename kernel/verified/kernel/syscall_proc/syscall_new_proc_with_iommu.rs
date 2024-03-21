@@ -72,7 +72,7 @@ pub closed spec fn syscall_new_proc_with_iommu_spec(old:Kernel,new:Kernel,cpu_id
 impl Kernel {
 
 
-    pub fn syscall_new_proc_with_iommu(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, pt_regs_new_proc: PtRegs) -> (ret:(SyscallReturnStruct,Option<ProcPtr>, Option<ThreadPtr>,Option<usize>))
+    pub fn syscall_new_proc_with_iommu(&mut self, cpu_id:CPUID, pt_regs: Registers, endpoint_index: EndpointIdx, pt_regs_new_proc: Registers) -> (ret:(SyscallReturnStruct,Option<ProcPtr>, Option<ThreadPtr>,Option<usize>))
         requires
             old(self).wf(),
         ensures

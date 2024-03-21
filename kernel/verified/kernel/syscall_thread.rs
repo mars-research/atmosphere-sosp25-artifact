@@ -80,7 +80,7 @@ pub closed spec fn syscall_new_thread_spec(old:Kernel,new:Kernel,cpu_id:CPUID, e
 
 impl Kernel {
 
-    pub fn syscall_new_thread(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, pt_regs_new_thread: PtRegs) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
+    pub fn syscall_new_thread(&mut self, cpu_id:CPUID, pt_regs: Registers, endpoint_index: EndpointIdx, pt_regs_new_thread: Registers) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
         requires
             old(self).wf(),
         ensures

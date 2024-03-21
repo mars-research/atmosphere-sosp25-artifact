@@ -25,6 +25,7 @@ pub use exception::Exception;
 use exception::EXCEPTION_MAX;
 use idt::Idt;
 pub use lapic::{boot_ap, set_timer, end_of_interrupt};
+use verified::trap::Registers;
 
 /// The IRQ offset.
 pub const IRQ_OFFSET: usize = 32;
@@ -243,42 +244,6 @@ pub struct PtRegs {
     pub rax: u64,
 }
 
-/// Registers saved by the interrupt trampoline.
-#[repr(C)]
-#[derive(Debug)]
-pub struct Registers {
-    pub r15: u64,
-    pub r14: u64,
-    pub r13: u64,
-    pub r12: u64,
-    pub rbp: u64,
-    pub rbx: u64,
-    pub r11: u64,
-    pub r10: u64,
-    pub r9: u64,
-    pub r8: u64,
-    pub rcx: u64,
-    pub rdx: u64,
-    pub rsi: u64,
-    pub rdi: u64,
-    pub rax: u64,
-
-    // Original interrupt stack frame
-
-    pub rip: u64,
-    pub cs: u64,
-    pub flags: u64,
-    pub rsp: u64,
-    pub ss: u64,
-}
-
-impl Registers {
-    pub const fn zeroed() -> Self {
-        unsafe {
-            MaybeUninit::zeroed().assume_init()
-        }
-    }
-}
 
 /// An interrupt stack frame.
 #[derive(Debug, Clone)]

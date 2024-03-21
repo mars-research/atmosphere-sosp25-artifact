@@ -19,7 +19,7 @@ use crate::kernel::*;
 
 impl Kernel {
 
-    pub fn syscall_new_proc_pass_mem(&mut self, cpu_id:CPUID, pt_regs: PtRegs, endpoint_index: EndpointIdx, pt_regs_new_proc: PtRegs) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
+    pub fn syscall_new_proc_pass_mem(&mut self, cpu_id:CPUID, pt_regs: Registers, endpoint_index: EndpointIdx, pt_regs_new_proc: Registers) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
         requires
             old(self).wf(),
         ensures

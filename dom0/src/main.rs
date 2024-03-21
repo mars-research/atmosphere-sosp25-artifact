@@ -16,7 +16,7 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    // try_new_proc();
+    // try_new_thread();
 
     loop {}
 }
@@ -36,6 +36,12 @@ fn thread_1_main(){
     }
 }
 
+fn thread_1_hello(){
+    log::info!("hello from thread_1_main");
+    loop {
+    }
+}
+
 fn dom_1_main(){
     log::info!("hello from dom_1_main");
     loop {
@@ -50,7 +56,33 @@ fn dom_1_main(){
     }
 }
 
-fn try_new_proc(){
+fn try_new_thread(){
+    log::info!("thread_1_hello at {:p}", thread_1_hello as *const ());
+    unsafe {
+        let error_code = asys::sys_new_endpoint(0);
+            if error_code != 0 {
+                log::info!("sys_new_endpoint failed {:?}", error_code);
+                return;
+            }
+        let new_stack = 0xA000000000;
+        let size = 16 * 1024 * 1024;
+        let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, size / 4096);
+        if error_code != 0 {
+            log::info!("sys_mmap failed {:?}", error_code);
+            return;
+        }
+
+        let rsp: usize = (new_stack + size) & !(4096 - 1);
+
+        let error_code = asys::sys_new_thread(0,thread_1_hello as *const () as usize, rsp);
+        if error_code != 0 {
+            log::info!("sys_new_thread failed {:?}", error_code);
+            return;
+        }
+    }
+}
+
+fn test_proc_pingpong(){
     unsafe {
         let error_code = asys::sys_new_endpoint(0);
             if error_code != 0 {

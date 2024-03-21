@@ -52,6 +52,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use core::{ffi::c_void, panic::PanicInfo};
 
 use astd::boot::{BootInfo, PhysicalMemoryType};
+use x86::Ring;
 
 static mut SHUTDOWN_ON_PANIC: bool = false;
 
@@ -101,13 +102,6 @@ fn main(boot_info: *const BootInfo) -> isize {
     //     log::debug!("Counter: {}", counter);
     // }
 
-    // unsafe {
-    //     interrupt::boot_ap(
-    //         1,
-    //         &AP_STACK as *const _ as u64 + AP_STACK.len() as u64,
-    //         ap_main as u64,
-    //     );
-    // }
 
     kernel::kernel_test();
     kernel::kernel_new();
@@ -138,6 +132,15 @@ fn main(boot_info: *const BootInfo) -> isize {
 
     kernel::kernel_init(&boot_info.pages, pml4 as usize, kernel_pml4 as usize);
 
+    // unsafe {
+    //     let ap_rsp = (&AP_STACK as *const _ as u64 + AP_STACK.len() as u64) & !(4096 - 1);
+    //     interrupt::boot_ap(
+    //         1,
+    //         ap_rsp,
+    //         ap_main as u64,
+    //     );
+    // }
+
     let initial_sp = unsafe { dom0.virt_start.add(dom0.reserved_size - 0x1000) };
     log::info!("initial_sp: {:?}", initial_sp);
     unsafe {
@@ -151,15 +154,23 @@ fn main(boot_info: *const BootInfo) -> isize {
 }
 
 /// AP entry point.
-fn ap_main(cpu_id: u64) {
+fn ap_main(cpu_id: u64, rsp: u64) {
     unsafe {
         cpu::init_cpu(cpu_id as usize);
-        interrupt::init_cpu();
         gdt::init_cpu();
+        interrupt::init_cpu();
         syscalls::init_cpu();
     }
 
     log::info!("Hello from CPU {}", cpu::get_cpu_id());
+
+    unsafe {
+        thread::start_thread(
+            thread_main as u64,
+            (&THREAD_STACK as *const _ as u64 + THREAD_STACK.len() as u64) & !(4096 - 1),
+            Ring::Ring3,
+        );
+    }
 
     loop {
     }

@@ -36,7 +36,7 @@ pub struct Thread{
     pub callee: Option<ThreadPtr>,
     pub caller: Option<ThreadPtr>,
 
-    pub trap_frame: Option<PtRegs>,
+    pub trap_frame: Option<Registers>,
 }
 
 impl Thread {
@@ -73,7 +73,7 @@ impl IPCPayLoad {
 }
 impl ProcessManager {
 
-    pub fn weak_up_caller_change_queue_state_and_receive(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_ipc_payload: IPCPayLoad, endpoint_index:EndpointIdx) -> (ret: PtRegs)
+    pub fn weak_up_caller_change_queue_state_and_receive(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: Registers, callee_ipc_payload: IPCPayLoad, endpoint_index:EndpointIdx) -> (ret: Registers)
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(caller),
@@ -176,7 +176,7 @@ impl ProcessManager {
         return caller_pt_regs.unwrap();
     }
 
-    pub fn weak_up_caller_and_receive(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_ipc_payload: IPCPayLoad, endpoint_index:EndpointIdx) -> (ret: PtRegs)
+    pub fn weak_up_caller_and_receive(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: Registers, callee_ipc_payload: IPCPayLoad, endpoint_index:EndpointIdx) -> (ret: Registers)
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(caller),
@@ -278,7 +278,7 @@ impl ProcessManager {
         return caller_pt_regs.unwrap();
     }
 
-    pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: PtRegs, callee_error_code: Option<ErrorCodeType>) -> (ret: PtRegs)
+    pub fn weak_up_caller_and_schedule(&mut self, caller:ThreadPtr, callee:ThreadPtr, callee_pt_regs: Registers, callee_error_code: Option<ErrorCodeType>) -> (ret: Registers)
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(caller),
@@ -334,7 +334,7 @@ impl ProcessManager {
         return caller_pt_regs.unwrap();
     }
 
-    pub fn set_thread_caller(&mut self, caller:ThreadPtr, callee:ThreadPtr, caller_trap_frame: PtRegs)
+    pub fn set_thread_caller(&mut self, caller:ThreadPtr, callee:ThreadPtr, caller_trap_frame: Registers)
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(caller),
@@ -520,7 +520,7 @@ impl ProcessManager {
 //     assert(self.wf_pcid_closure());
 // }
 
-    pub fn new_thread_with_endpoint_ptr(&mut self, pt_regs:PtRegs, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr, endpoint_ptr:EndpointPtr) -> (ret: ThreadPtr)
+    pub fn new_thread_with_endpoint_ptr(&mut self, pt_regs:Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr, endpoint_ptr:EndpointPtr) -> (ret: ThreadPtr)
     requires
         old(self).wf(),
         old(self).get_proc_ptrs().contains(parent_ptr),
@@ -611,7 +611,7 @@ impl ProcessManager {
     return page_ptr;
     }
 
-    pub fn new_thread(&mut self, pt_regs:PtRegs, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr) -> (ret: ThreadPtr)
+    pub fn new_thread(&mut self, pt_regs:Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm>, parent_ptr:ProcPtr) -> (ret: ThreadPtr)
         requires
             old(self).wf(),
             old(self).get_proc_ptrs().contains(parent_ptr),

@@ -76,7 +76,7 @@ pub closed spec fn kernel_idle_pop_sched_spec(old:Kernel,new:Kernel,cpu_id:CPUID
 }
 
 impl Kernel {
-    pub fn kernel_timer_int(&mut self, cpu_id:CPUID, pt_regs: PtRegs) -> (ret:SyscallReturnStruct)
+    pub fn kernel_timer_int(&mut self, cpu_id:CPUID, pt_regs: Registers) -> (ret:SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures
@@ -145,7 +145,7 @@ impl Kernel {
             }
         }
     }
-    pub fn kernel_idle_pop_sched(&mut self, cpu_id:CPUID, pt_regs: PtRegs) -> (ret:SyscallReturnStruct)
+    pub fn kernel_idle_pop_sched(&mut self, cpu_id:CPUID, pt_regs: Registers) -> (ret:SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures

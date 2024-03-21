@@ -65,7 +65,7 @@ pub closed spec fn syscall_malloc_spec(old:Kernel, new:Kernel, cpu_id:CPUID, va:
 impl Kernel {
 
     
-    pub fn syscall_malloc(&mut self, cpu_id:CPUID, pt_regs: PtRegs, va: usize, perm_bits:usize, range: usize) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
+    pub fn syscall_malloc(&mut self, cpu_id:CPUID, pt_regs: Registers, va: usize, perm_bits:usize, range: usize) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
         requires
             old(self).wf(),
         ensures
@@ -174,7 +174,7 @@ impl Kernel {
        
     }
 
-    pub fn syscall_map_pagetable_pages_to_iommutable(&mut self, cpu_id:CPUID, pt_regs: PtRegs, va:VAddr, perm_bits:usize, range:usize) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
+    pub fn syscall_map_pagetable_pages_to_iommutable(&mut self, cpu_id:CPUID, pt_regs: Registers, va:VAddr, perm_bits:usize, range:usize) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
 
         requires
             old(self).wf(),
@@ -277,7 +277,7 @@ impl Kernel {
 
         return (SyscallReturnStruct::new(SUCCESS,0,0,pt_regs),None,None);
     }
-    pub fn syscall_resolve_va(&self, cpu_id:CPUID, pt_regs: PtRegs, va: usize) -> (ret:(SyscallReturnStruct,PAddr))
+    pub fn syscall_resolve_va(&self, cpu_id:CPUID, pt_regs: Registers, va: usize) -> (ret:(SyscallReturnStruct,PAddr))
         requires
             self.wf(),
     {

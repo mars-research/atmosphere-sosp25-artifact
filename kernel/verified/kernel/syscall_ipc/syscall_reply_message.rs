@@ -115,7 +115,7 @@ pub closed spec fn syscall_reply_message_spec(old:Kernel, new:Kernel, cpu_id:CPU
 }
 
 impl Kernel {
-    pub fn syscall_reply_message(&mut self, cpu_id:CPUID, pt_regs: PtRegs, message_va: VAddr, length:usize) -> (ret: SyscallReturnStruct)
+    pub fn syscall_reply_message(&mut self, cpu_id:CPUID, pt_regs: Registers, message_va: VAddr, length:usize) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures

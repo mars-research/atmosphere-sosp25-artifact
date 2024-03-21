@@ -7,7 +7,7 @@ use x86::segmentation::SegmentSelector;
 use x86::{msr, Ring};
 
 use crate::gdt::GlobalDescriptorTable;
-use crate::interrupt::Registers;
+use verified::trap::Registers;
 use crate::kernel;
 
 const SYSCALL32_ENTRY: u64 = 0; // nein

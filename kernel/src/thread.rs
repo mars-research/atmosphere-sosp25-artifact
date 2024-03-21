@@ -5,8 +5,11 @@ use core::mem;
 use x86::{segmentation, Ring};
 
 use crate::gdt::GlobalDescriptorTable;
-use crate::interrupt::{self, Registers, Cycles};
+use crate::interrupt::{self, Cycles};
+use verified::trap::Registers;
+use core::arch::asm;
 use crate::cpu;
+use crate::kernel;
 
 const TIME_SLICE: Cycles = Cycles(1_000_000);
 
@@ -40,4 +43,19 @@ pub fn schedule(regs: &mut Registers) -> Option<Cycles> {
     let cpu = cpu::get_current();
     mem::swap(&mut cpu.parked, regs);
     Some(TIME_SLICE)
+
+    // log::info!("hello from cpu 1 scheduler");
+    // loop{
+    //     unsafe{
+    //         let has_next_thread = kernel::sched_get_next_thread(regs);
+    //         if has_next_thread == false{
+    //             for i in 0..1000{
+    //                 asm!("nop");
+    //             }
+    //         }else{
+    //             break;
+    //         }
+    //     }
+    // }
+    // None
 }

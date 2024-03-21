@@ -45,7 +45,7 @@ pub closed spec fn syscall_reply_empty_spec(old:Kernel, new:Kernel, cpu_id:CPUID
 }
 
 impl Kernel {
-    pub fn syscall_reply_empty(&mut self, cpu_id:CPUID, pt_regs: PtRegs) -> (ret: SyscallReturnStruct)
+    pub fn syscall_reply_empty(&mut self, cpu_id:CPUID, pt_regs: Registers) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures

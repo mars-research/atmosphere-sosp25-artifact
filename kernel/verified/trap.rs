@@ -1,11 +1,12 @@
 use vstd::prelude::*;
+use core::mem::MaybeUninit;
 verus! {
 
 
 /// Registers passed to the ISR.
-#[repr(C)]
+#[repr(C, align(8))]
 #[derive(Clone, Copy, Debug)]
-pub struct PtRegs {
+pub struct Registers {
     pub r15: u64,
     pub r14: u64,
     pub r13: u64,
@@ -31,7 +32,14 @@ pub struct PtRegs {
     pub ss: u64,
 }
 
-impl PtRegs {
+impl Registers {
+    #[verifier(external_body)]
+    pub const fn zeroed() -> Self {
+        unsafe {
+            MaybeUninit::zeroed().assume_init()
+        }
+    }
+
     pub fn new_empty()-> (ret : Self)
     {
         let ret = Self {
@@ -60,7 +68,7 @@ impl PtRegs {
         ret
     }
 
-    pub fn new(input: &PtRegs) -> (ret : Self)
+    pub fn new(input: &Registers) -> (ret : Self)
         ensures
         ret =~= *input,
     {

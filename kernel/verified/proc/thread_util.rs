@@ -1,4 +1,4 @@
-use crate::trap::PtRegs;
+use crate::trap::Registers;
 use core::mem::MaybeUninit;
 use vstd::prelude::*;
 verus! {
@@ -336,7 +336,7 @@ ensures pptr.id() == perm@@.pptr,
 }
 
 #[verifier(external_body)]
-pub fn thread_set_trap_frame(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, trap_frame: Option<PtRegs>)
+pub fn thread_set_trap_frame(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, trap_frame: Option<Registers>)
 requires pptr.id() == old(perm)@@.pptr,
             old(perm)@@.value.is_Some(),
 ensures pptr.id() == perm@@.pptr,

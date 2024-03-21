@@ -228,7 +228,7 @@ impl ProcessManager{
     }
 
     //pop endpoint.
-    pub fn pop_endpoint_to_running(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx) -> (ret: (ThreadPtr, PtRegs))
+    pub fn pop_endpoint_to_running(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx) -> (ret: (ThreadPtr, Registers))
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(thread_ptr),
@@ -323,7 +323,7 @@ impl ProcessManager{
         return (ret,ret_pt_regs);
     }
 
-    pub fn push_endpoint_and_set_state(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad, pt_regs: PtRegs, endpoint_queue_state: EndpointState)
+    pub fn push_endpoint_and_set_state(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad, pt_regs: Registers, endpoint_queue_state: EndpointState)
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(thread_ptr),
@@ -394,7 +394,7 @@ impl ProcessManager{
         assert(self.wf());
     }
 
-    pub fn push_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad, pt_regs:PtRegs)
+    pub fn push_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, endpoint_payload: IPCPayLoad, pt_regs:Registers)
         requires
             old(self).wf(),
             old(self).get_thread_ptrs().contains(thread_ptr),

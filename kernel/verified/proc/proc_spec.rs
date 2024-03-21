@@ -13,7 +13,7 @@ use crate::mars_staticlinkedlist::*;
 
 // use crate::setters::*;
 use crate::define::*;
-use crate::trap::PtRegs;
+use crate::trap::Registers;
 
 
 pub struct Process{
@@ -174,7 +174,7 @@ impl ProcessManager {
 
     // #[verifier(when_used_as_spec(spec_get_pcid_by_thread_ptr))]
 
-    pub fn get_pt_regs_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Option<PtRegs>)
+    pub fn get_pt_regs_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Option<Registers>)
         requires
             self.wf(),
             self.get_thread_ptrs().contains(thread_ptr),
