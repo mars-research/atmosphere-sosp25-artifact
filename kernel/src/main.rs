@@ -93,6 +93,7 @@ fn main(boot_info: *const BootInfo) -> isize {
     //     thread::start_thread(
     //         thread_main as u64,
     //         &THREAD_STACK as *const _ as u64 + THREAD_STACK.len() as u64,
+    //         Ring::Ring0,
     //     );
     // }
     // loop {

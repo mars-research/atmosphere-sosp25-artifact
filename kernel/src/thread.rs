@@ -2,24 +2,31 @@
 
 use core::mem;
 
-use x86::segmentation;
+use x86::{segmentation, Ring};
 
+use crate::gdt::GlobalDescriptorTable;
 use crate::interrupt::{self, Registers, Cycles};
 use crate::cpu;
 
 const TIME_SLICE: Cycles = Cycles(1_000_000);
 
 /// Starts a thread.
-pub unsafe fn start_thread(code: u64, stack: u64) {
+pub unsafe fn start_thread(code: u64, stack: u64, ring: Ring) {
     log::info!("Starting thread code={:#x} stack={:#x}", code, stack);
 
     let cpu = cpu::get_current();
     let mut regs = Registers::zeroed();
 
+    let (cs, ss) = match ring {
+        Ring::Ring0 => (GlobalDescriptorTable::KERNEL_CS, GlobalDescriptorTable::KERNEL_SS),
+        Ring::Ring3 => (GlobalDescriptorTable::USER_CS, GlobalDescriptorTable::USER_SS),
+        _ => panic!("Unsupported ring"),
+    };
+
     regs.rip = code;
     regs.rsp = stack;
-    regs.cs = segmentation::cs().bits() as u64;
-    regs.ss = segmentation::ss().bits() as u64;
+    regs.cs = cs as u64;
+    regs.ss = ss as u64;
     regs.flags = 1 << 9; // Interrupt Enable
 
     cpu.parked = regs;
