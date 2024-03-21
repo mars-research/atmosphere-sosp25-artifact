@@ -659,7 +659,7 @@ pub fn kernel_init(
     log::info!("End of kernel syscall test \n\n\n\n\n\n");
 }
 
-pub fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize{
+pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vPtRegs) {
     let cpu_id = cpu::get_cpu_id();
     let pt_regs = vPtRegs::new_empty();
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_malloc(
@@ -669,10 +669,10 @@ pub fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize{
         perm_bits,
         range,
     );
-    return ret_struc.0.error_code;
+    regs.rax = ret_struc.0.error_code as u64;
 }
 
-pub fn sys_resolve(va:usize) -> usize{
+pub fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vPtRegs){
     let cpu_id = cpu::get_cpu_id();
     let pt_regs = vPtRegs::new_empty();
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_resolve_va(
@@ -681,14 +681,14 @@ pub fn sys_resolve(va:usize) -> usize{
         va,
     );
     if ret_struc.0.error_code != 0{
-        ret_struc.0.error_code
+        regs.rax = ret_struc.0.error_code as u64;
     }
     else{
-        return ret_struc.1;
+        regs.rax = ret_struc.1 as u64;
     }
 }
 
-pub fn sys_new_endpoint(endpoint_index:usize) -> usize{
+pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs: &mut vPtRegs) {
     let cpu_id = cpu::get_cpu_id();
     let pt_regs = vPtRegs::new_empty();
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_endpoint(
@@ -696,7 +696,7 @@ pub fn sys_new_endpoint(endpoint_index:usize) -> usize{
         pt_regs,
         endpoint_index,
     );
-    ret_struc.error_code
+    regs.rax = ret_struc.error_code as u64;
 }
 
 pub fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize) -> usize{
@@ -725,17 +725,20 @@ pub fn sys_new_proc_with_iommu(endpoint_index:usize, ip:usize, sp:usize) -> usiz
     ret_struc.0.error_code
 }
 
-pub fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize) -> usize{
+pub extern "C" fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vPtRegs){
     let cpu_id = cpu::get_cpu_id();
-    let pt_regs = vPtRegs::new_empty();
-    let new_proc_pt_regs = vPtRegs::new_empty();
+    let pt_regs = *regs;
+    let mut new_thread_pt_regs = *regs;
+    new_thread_pt_regs.rip = ip as u64;
+    new_thread_pt_regs.rsp = sp as u64;
+    log::info!("new_thread_pt_regs {:x?}", new_thread_pt_regs);
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_thread(
         cpu_id,
         pt_regs,
         endpoint_index,
-        new_proc_pt_regs,
+        new_thread_pt_regs,
     );
-    ret_struc.0.error_code
+    regs.rax = ret_struc.0.error_code as u64;
 }
 
 pub fn sys_send_empty_no_wait(endpoint_index:usize) -> usize{
@@ -748,4 +751,68 @@ pub fn sys_send_empty_no_wait(endpoint_index:usize) -> usize{
         endpoint_index,
     );
     ret_struc.error_code
+}
+
+pub extern "C" fn sys_send_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vPtRegs){
+    log::info!("regs {:x?}", regs);
+    let cpu_id = cpu::get_cpu_id();
+    let pt_regs = *regs;
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_send_empty_wait(
+        cpu_id,
+        pt_regs,
+        endpoint_index,
+    );
+    if ret_struc.error_code == vdefine::NO_NEXT_THREAD {
+        loop{
+
+        }
+    }else{
+        // log::info!("switching to new cr3");
+        // unsafe {
+        //     asm!(
+        //         "mov cr3, {pml4}",
+        //         pml4 = inout(reg) ret_struc.cr3 => _,
+        //     );
+        // }
+        // log::info!("hello from new cr3");
+        *regs = ret_struc.pt_regs;
+        // log::info!("ret_struc.pt_regs {:x?}", ret_struc.pt_regs);
+        if ret_struc.error_code != vdefine::NO_ERROR_CODE {
+            regs.rax = ret_struc.error_code as u64;
+        }
+        // log::info!("regs {:x?}", regs);
+    }
+}
+
+pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vPtRegs){
+    log::info!("regs {:x?}", regs);
+    log::info!("sys_receive_empty");
+    let cpu_id = cpu::get_cpu_id();
+    let pt_regs = *regs;
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_receive_empty_wait(
+        cpu_id,
+        pt_regs,
+        endpoint_index,
+    );
+    if ret_struc.error_code == vdefine::NO_NEXT_THREAD {
+        log::info!("NO_NEXT_THREAD");
+        loop{
+
+        }
+    }else{
+        // log::info!("switching to new cr3");
+        // unsafe {
+        //     asm!(
+        //         "mov cr3, {pml4}",
+        //         pml4 = inout(reg) ret_struc.cr3 => _,
+        //     );
+        // }
+        // log::info!("hello from new cr3");
+        *regs = ret_struc.pt_regs;
+        log::info!("ret_struc {:x?}", ret_struc);
+        if ret_struc.error_code != vdefine::NO_ERROR_CODE {
+            regs.rax = ret_struc.error_code as u64;
+        }
+        // log::info!("regs {:x?}", regs);
+    }
 }

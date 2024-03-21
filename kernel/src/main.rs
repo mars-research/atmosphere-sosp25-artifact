@@ -89,24 +89,24 @@ fn main(boot_info: *const BootInfo) -> isize {
     }
 
     // Thread test
-    unsafe {
-        thread::start_thread(
-            thread_main as u64,
-            &THREAD_STACK as *const _ as u64 + THREAD_STACK.len() as u64,
-        );
-    }
-    loop {
-        let counter = THREAD_COUNTER.load(Ordering::SeqCst);
-        log::debug!("Counter: {}", counter);
-    }
+    // unsafe {
+    //     thread::start_thread(
+    //         thread_main as u64,
+    //         &THREAD_STACK as *const _ as u64 + THREAD_STACK.len() as u64,
+    //     );
+    // }
+    // loop {
+    //     let counter = THREAD_COUNTER.load(Ordering::SeqCst);
+    //     log::debug!("Counter: {}", counter);
+    // }
 
-    unsafe {
-        interrupt::boot_ap(
-            1,
-            &AP_STACK as *const _ as u64 + AP_STACK.len() as u64,
-            ap_main as u64,
-        );
-    }
+    // unsafe {
+    //     interrupt::boot_ap(
+    //         1,
+    //         &AP_STACK as *const _ as u64 + AP_STACK.len() as u64,
+    //         ap_main as u64,
+    //     );
+    // }
 
     kernel::kernel_test();
     kernel::kernel_new();

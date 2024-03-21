@@ -56,6 +56,8 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_NEW_THREAD] = kernel::sys_new_thread as u64;
     SYSCALLS[asys::__NR_SEND_EMPTY_NW] = kernel::sys_send_empty_no_wait as u64;
     SYSCALLS[asys::__NR_LOG] = sys_log as u64;
+    SYSCALLS[asys::__NR_SEND_EMPTY] = kernel::sys_send_empty as u64;
+    SYSCALLS[asys::__NR_RECEIVE_EMPTY] = kernel::sys_receive_empty as u64;
 }
 
 // Syscall ABI
