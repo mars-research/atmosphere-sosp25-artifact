@@ -7,6 +7,7 @@ use x86::segmentation::SegmentSelector;
 use x86::{msr, Ring};
 
 use crate::gdt::GlobalDescriptorTable;
+use crate::interrupt::Registers;
 use crate::kernel;
 
 const SYSCALL32_ENTRY: u64 = 0; // nein
@@ -57,12 +58,19 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_LOG] = sys_log as u64;
 }
 
-// rax - syscall number
-// rdi - arg #1
-// rsi - arg #2
-// rdx - arg #3
+// Syscall ABI
 //
-// rcx - return address (implicit)
+// Register | User           | Kernel Handler
+// ------------------------------------------
+// rax      | Syscall Number | Return Value
+// rdi      | Arg #1         | Arg #1
+// rsi      | Arg #2         | Arg #2
+// rdx      | Arg #3         | Arg #3
+// rcx      | N/A            | Registers (Arg #4)
+// r8       | Arg #4         | Arg #5
+// r9       | Arg #5         | Arg #6
+//
+// All caller-saved registers are considered clobbered once invoked
 #[naked]
 unsafe extern "C" fn sys_entry() -> ! {
     asm!(
@@ -72,9 +80,33 @@ unsafe extern "C" fn sys_entry() -> ! {
         "mov r10, rsp",
         "mov rsp, [rip + {saved_sp}]", // FIXME: per-CPU stack
 
-        "push r10", // original rsp
-        "push r11", // original rflags
-        "push rcx", // return address
+        // Here we construct the Registers struct and only save
+        // a subset of registers
+        "push {user_ss}", // ss
+        "push r10",       // rsp
+        "push r11",       // rflags
+        "push {user_cs}", // cs
+        "push rcx",       // rip
+
+        // TODO: Optimize
+        "push 0",         // rax
+        "push 0",         // rdi
+        "push 0",         // rsi
+        "push 0",         // rdx
+        "push 0",         // rcx (taken by original rip)
+        "push 0",         // r8
+        "push 0",         // r9
+        "push 0",         // r10 (taken by original rsp)
+        "push 0",         // r11 (taken by original rflags across syscall)
+
+        "push rbx",       // rbx
+        "push rbp",       // rbp
+        "push r12",       // r12
+        "push r13",       // r13
+        "push r14",       // r14
+        "push r15",       // r15
+
+        "mov rcx, rsp",
 
         "cmp rax, {max_syscalls}",
         "jae 2f",
@@ -87,7 +119,8 @@ unsafe extern "C" fn sys_entry() -> ! {
         "cmp r11, 0",
         "jz 2f",
 
-        // rdi, rsi, rdx, rcx, r8, r9
+        // handler(arg1, arg2, arg3, registers, arg4, arg5)
+        // rdi, rsi, rdx, (rcx), r8, r9
         "call r11",
 
         "jmp 3f",
@@ -98,11 +131,47 @@ unsafe extern "C" fn sys_entry() -> ! {
 
         // Cleanup
         "3:",
-        "pop rcx",
-        "pop r11",
-        "pop rsp",
-        "sysretq",
 
+        // Two cases:
+        // 1. Return to the same thread or another thread that was suspended due to a syscall
+        //    ("clean" thread)
+        // 2. Switch to a different preempted thread
+        //
+        // For 1, we can directly skip over restoring most registers since
+        // we trust the handler to have already restored callee-saved registers
+        //
+        // TODO: Clear registers?
+
+        // 1. Return to a clean thread
+        // Fast return that clobbers rcx, r11
+
+        //"add rsp, 120", // skip r15~rax (15 registers)
+        //"pop rcx", // rip
+        //"add rsp, 8", // cs
+        //"pop r11", // rflags
+        //"pop rsp", // rsp
+        //"sysretq",
+
+        // 2. Switch to a preempted thread (slow)
+        "pop r15",
+        "pop r14",
+        "pop r13",
+        "pop r12",
+        "pop rbp",
+        "pop rbx",
+        "pop r11",
+        "pop r10",
+        "pop r9",
+        "pop r8",
+        "pop rcx",
+        "pop rdx",
+        "pop rsi",
+        "pop rdi",
+        "pop rax",
+        "iretq",
+
+        user_ss = const GlobalDescriptorTable::USER_SS,
+        user_cs = const GlobalDescriptorTable::USER_CS,
         saved_sp = sym CPU0_SYSCALL_SP,
         max_syscalls = const MAX_SYSCALLS,
         syscalls = sym SYSCALLS,
