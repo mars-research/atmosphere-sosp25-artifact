@@ -731,7 +731,6 @@ pub extern "C" fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize, regs:
     let mut new_thread_pt_regs = *regs;
     new_thread_pt_regs.rip = ip as u64;
     new_thread_pt_regs.rsp = sp as u64;
-    log::info!("new_thread_pt_regs {:x?}", new_thread_pt_regs);
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_thread(
         cpu_id,
         pt_regs,
@@ -754,7 +753,7 @@ pub fn sys_send_empty_no_wait(endpoint_index:usize) -> usize{
 }
 
 pub extern "C" fn sys_send_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vPtRegs){
-    log::info!("regs {:x?}", regs);
+    // log::info!("regs {:x?}", regs);
     let cpu_id = cpu::get_cpu_id();
     let pt_regs = *regs;
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_send_empty_wait(
@@ -767,26 +766,20 @@ pub extern "C" fn sys_send_empty(endpoint_index:usize, _:usize, _:usize, regs: &
 
         }
     }else{
-        // log::info!("switching to new cr3");
-        // unsafe {
-        //     asm!(
-        //         "mov cr3, {pml4}",
-        //         pml4 = inout(reg) ret_struc.cr3 => _,
-        //     );
-        // }
-        // log::info!("hello from new cr3");
+        unsafe {
+            asm!(
+                "mov cr3, {pml4}",
+                pml4 = inout(reg) ret_struc.cr3 => _,
+            );
+        }
         *regs = ret_struc.pt_regs;
-        // log::info!("ret_struc.pt_regs {:x?}", ret_struc.pt_regs);
         if ret_struc.error_code != vdefine::NO_ERROR_CODE {
             regs.rax = ret_struc.error_code as u64;
         }
-        // log::info!("regs {:x?}", regs);
     }
 }
 
 pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vPtRegs){
-    log::info!("regs {:x?}", regs);
-    log::info!("sys_receive_empty");
     let cpu_id = cpu::get_cpu_id();
     let pt_regs = *regs;
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_receive_empty_wait(
@@ -800,20 +793,16 @@ pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs
 
         }
     }else{
-        // log::info!("switching to new cr3");
-        // unsafe {
-        //     asm!(
-        //         "mov cr3, {pml4}",
-        //         pml4 = inout(reg) ret_struc.cr3 => _,
-        //     );
-        // }
-        // log::info!("hello from new cr3");
+        unsafe {
+            asm!(
+                "mov cr3, {pml4}",
+                pml4 = inout(reg) ret_struc.cr3 => _,
+            );
+        }
         *regs = ret_struc.pt_regs;
-        log::info!("ret_struc {:x?}", ret_struc);
         if ret_struc.error_code != vdefine::NO_ERROR_CODE {
             regs.rax = ret_struc.error_code as u64;
         }
-        // log::info!("regs {:x?}", regs);
     }
 }
 
