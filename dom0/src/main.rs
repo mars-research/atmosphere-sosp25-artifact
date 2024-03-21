@@ -11,15 +11,15 @@ static mut array:[u8;4096] = [0;4096];
 #[start]
 #[no_mangle]
 fn main() -> isize {
-    asys::init_logging();
-    log::info!("hello {}", "world");
+    asys::logger::init_logging_with_level(log::Level::Trace);
+    log::trace!("hello {}", "world");
 
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
         // log::info!("sys_mmap {:?}", asys::sys_mmap(0xA000000000, 0x0000_0000_0000_0002u64 as usize, 20));
         // log::info!("sys_mresolve {:x?}", asys::sys_mresolve(0xA00000000F));
     }
-    // test_pingpong();
+    test_pingpong();
     // for i in 0..20{
     //     let mut user_value: usize = 0;
     //     unsafe {
@@ -191,7 +191,8 @@ fn test_pingpong(){
                 return;
             }
         let new_stack = 0xA000000000;
-        let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, 2);
+        let size = 16 * 1024 * 1024;
+        let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, size / 4096);
         if error_code != 0 {
             log::info!("sys_mmap failed {:?}", error_code);
             return;
@@ -199,10 +200,11 @@ fn test_pingpong(){
 
         log::info!("sys_mresolve sp {:x?}", asys::sys_mresolve(0x800ffff000));
         log::info!("sys_mresolve new stack {:x?}", asys::sys_mresolve(new_stack));
+        let rsp: usize = (new_stack + size) & !(4096 - 1);
         unsafe {
             asm!(
                 "mov rsp, {rsp}",
-                rsp = inout(reg) new_stack => _,
+                rsp = in(reg) rsp,
             );
         }
         log::info!("hello from new rsp");
