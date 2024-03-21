@@ -148,6 +148,9 @@ impl GlobalDescriptorTable {
     pub const USER_CODE_INDEX: u16 = 4;
     pub const TSS_INDEX: u16 = 5;
 
+    pub const USER_CS: u16 = SegmentSelector::new(Self::USER_CODE_INDEX, Ring::Ring3).bits();
+    pub const USER_SS: u16 = SegmentSelector::new(Self::USER_DATA_INDEX, Ring::Ring3).bits();
+
     /// Zero-initializes the GDT.
     ///
     /// It must be correctly initialized before being loaded.
