@@ -142,7 +142,6 @@ unsafe extern "C" fn double_fault(regs: &mut PtRegs) {
 unsafe extern "C" fn breakpoint(regs: &mut Registers) {
     log::warn!("Breakpoint: {:#x?}", regs);
     crate::debugger::breakpoint(2);
-    spin_forever();
 }
 
 /// Stack Segment Fault handler
@@ -327,16 +326,6 @@ pub unsafe fn init() {
     outb(PIC1_DATA, 0xff);
     outb(PIC2_DATA, 0xff);
 
-    ioapic::init();
-}
-
-/// Initializes per-CPU interrupt controllers.
-///
-/// This should be called only once per CPU.
-pub unsafe fn init_cpu() {
-    lapic::init();
-    ioapic::init_cpu();
-
     let mut idt = GLOBAL_IDT.assume_init_mut();
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
     idt.breakpoint.set_handler_fn(wrap_interrupt!(breakpoint));
@@ -347,8 +336,19 @@ pub unsafe fn init_cpu() {
     idt.page_fault.set_handler_fn(page_fault);
 
     idt.interrupts[0].set_handler_fn(wrap_interrupt!(timer));
-    idt.load();
 
+    ioapic::init();
+}
+
+/// Initializes per-CPU interrupt controllers.
+///
+/// This should be called only once per CPU.
+pub unsafe fn init_cpu() {
+    lapic::init();
+    ioapic::init_cpu();
+
+    let idt = GLOBAL_IDT.assume_init_mut();
+    idt.load();
 
     asm!("sti");
 }
