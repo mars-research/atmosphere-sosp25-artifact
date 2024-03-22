@@ -728,35 +728,72 @@ pub extern "C" fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize, regs:
     regs.rax = ret_struc.0.error_code as u64;
 }
 
-pub fn sys_send_empty_no_wait(endpoint_index:usize,_:usize, _:usize, regs: &mut vRegisters) -> usize{
+pub fn sys_send_empty_no_wait(endpoint_index:usize,_:usize, _:usize, regs: &mut vRegisters){
     let cpu_id = cpu::get_cpu_id();
-    let new_proc_pt_regs = vRegisters::new_empty();
-    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_send_empty_no_wait(
+    let mut kernel = KERNEL.lock();
+    let address_space_op = kernel.as_mut().unwrap().until_get_current_address_space(cpu_id);
+    let ret_struc =  kernel.as_mut().unwrap().syscall_send_empty_no_wait(
         cpu_id,
         regs,
         endpoint_index,
     );
-    ret_struc.error_code
-}
-
-pub extern "C" fn sys_send_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
-    // log::info!("regs {:x?}", regs);
-    let cpu_id = cpu::get_cpu_id();
-    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_send_empty_wait(
-        cpu_id,
-        regs,
-        endpoint_index,
-    );
+    drop(kernel);
     if ret_struc.error_code == vdefine::NO_NEXT_THREAD {
         loop{
 
         }
     }else{
-        unsafe {
-            asm!(
-                "mov cr3, {pml4}",
-                pml4 = inout(reg) ret_struc.cr3 => _,
-            );
+        if address_space_op.is_none(){
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
+        }else if address_space_op.unwrap().1 != ret_struc.cr3 {
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
+        }
+        if ret_struc.error_code != vdefine::NO_ERROR_CODE {
+            regs.rax = ret_struc.error_code as u64;
+        }
+    }
+}
+
+pub extern "C" fn sys_send_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
+    // log::info!("regs {:x?}", regs);
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let address_space_op = kernel.as_mut().unwrap().until_get_current_address_space(cpu_id);
+    let ret_struc =  kernel.as_mut().unwrap().syscall_send_empty_wait(
+        cpu_id,
+        regs,
+        endpoint_index,
+    );
+    drop(kernel);
+    if ret_struc.error_code == vdefine::NO_NEXT_THREAD {
+        loop{
+
+        }
+    }else{
+        if address_space_op.is_none(){
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
+        }else if address_space_op.unwrap().1 != ret_struc.cr3 {
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
         }
         if ret_struc.error_code != vdefine::NO_ERROR_CODE {
             regs.rax = ret_struc.error_code as u64;
@@ -766,22 +803,34 @@ pub extern "C" fn sys_send_empty(endpoint_index:usize, _:usize, _:usize, regs: &
 
 pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
     let cpu_id = cpu::get_cpu_id();
-    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_receive_empty_wait(
+    let mut kernel = KERNEL.lock();
+    let address_space_op = kernel.as_mut().unwrap().until_get_current_address_space(cpu_id);
+    let ret_struc =  kernel.as_mut().unwrap().syscall_receive_empty_wait(
         cpu_id,
         regs,
         endpoint_index,
     );
+    drop(kernel);
     if ret_struc.error_code == vdefine::NO_NEXT_THREAD {
         log::info!("NO_NEXT_THREAD");
         loop{
 
         }
     }else{
-        unsafe {
-            asm!(
-                "mov cr3, {pml4}",
-                pml4 = inout(reg) ret_struc.cr3 => _,
-            );
+        if address_space_op.is_none(){
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
+        }else if address_space_op.unwrap().1 != ret_struc.cr3 {
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
         }
         if ret_struc.error_code != vdefine::NO_ERROR_CODE {
             regs.rax = ret_struc.error_code as u64;
@@ -806,7 +855,9 @@ pub extern "C" fn sys_new_proc_with_iommu_pass_mem(endpoint_index:usize, ip:usiz
 
 pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
     let cpu_id = cpu::get_cpu_id();
-    let ret_struc =  KERNEL.lock().as_mut().unwrap().kernel_idle_pop_sched(
+    let mut kernel = KERNEL.lock();
+    let address_space_op = kernel.as_mut().unwrap().until_get_current_address_space(cpu_id);
+    let ret_struc =  kernel.as_mut().unwrap().kernel_idle_pop_sched(
         cpu_id,
         regs,
 
@@ -818,11 +869,20 @@ pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
     }else if ret_struc.error_code == vdefine::SCHEDULER_EMPTY{
         false
     }else{
-        unsafe {
-            asm!(
-                "mov cr3, {pml4}",
-                pml4 = inout(reg) ret_struc.cr3 => _,
-            );
+        if address_space_op.is_none(){
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
+        }else if address_space_op.unwrap().1 != ret_struc.cr3 {
+            unsafe {
+                asm!(
+                    "mov cr3, {pml4}",
+                    pml4 = inout(reg) ret_struc.cr3 => _,
+                );
+            }
         }
         if ret_struc.error_code != vdefine::NO_ERROR_CODE {
             regs.rax = ret_struc.error_code as u64;

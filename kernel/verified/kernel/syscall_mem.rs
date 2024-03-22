@@ -311,5 +311,30 @@ impl Kernel {
             return (SyscallReturnStruct::new(SUCCESS,pcid, cr3),page_entry.unwrap().addr | page_entry.unwrap().perm);
         }
     }
+
+    pub fn until_get_current_address_space(&self, cpu_id:CPUID) -> (ret:Option<(Pcid,usize)>)
+        requires
+            self.wf(),
+    {
+        if cpu_id >= NUM_CPUS{
+            return None;
+        }
+
+        if self.cpu_list.get(cpu_id).get_is_idle() {
+            return None;
+        }
+
+
+        assert(self.cpu_list[cpu_id as int].get_is_idle() == false);
+        let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
+        assert(current_thread_ptr_op.is_Some());
+        let current_thread_ptr = current_thread_ptr_op.unwrap();
+        let current_proc_ptr = self.proc_man.get_parent_proc_ptr_by_thread_ptr(current_thread_ptr);
+
+        let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
+        let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
+
+        return Some((pcid,cr3));
+    }
 }
 }
