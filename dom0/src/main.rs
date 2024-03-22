@@ -16,7 +16,7 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    // try_new_thread();
+    test_pingpong();
 
     loop {}
 }
