@@ -161,7 +161,11 @@ impl ProcessManager {
             Tracked((self.thread_perms.borrow_mut()).tracked_remove(thread_ptr));
         thread_set_scheduler_rf(&thread_pptr, &mut thread_perm, Some(ret));
         thread_set_state(&thread_pptr,&mut thread_perm, SCHEDULED);
-        thread_set_trap_frame(&thread_pptr,&mut thread_perm, pt_regs);
+        if error_code.is_none(){
+            thread_set_trap_frame(&thread_pptr,&mut thread_perm, pt_regs);
+        }else{
+            thread_set_trap_frame_fast(&thread_pptr,&mut thread_perm, pt_regs);
+        }
         thread_set_error_code(&thread_pptr,&mut thread_perm, error_code);
         proof{
             assert(self.thread_perms@.dom().contains(thread_ptr) == false);
@@ -208,8 +212,12 @@ impl ProcessManager {
         let tmp_thread_ptr = self.scheduler.get_head();
         assert(self.scheduler@.contains(tmp_thread_ptr));
         assert(self.get_thread_ptrs().contains(tmp_thread_ptr));
-        self.set_kernel_pt_regs_by_thread_ptr(tmp_thread_ptr,regs);
         let thread_error_code = self.get_error_code_by_thread_ptr(tmp_thread_ptr);
+        if thread_error_code.is_none(){
+            self.set_kernel_pt_regs_by_thread_ptr(tmp_thread_ptr,regs);
+        }else{
+            self.set_kernel_pt_regs_by_thread_ptr_fast(tmp_thread_ptr,regs);
+        }
         let thread_ptr = self.scheduler.pop();
         let thread_pptr = PPtr::<Thread>::from_usize(thread_ptr);
         let mut thread_perm =

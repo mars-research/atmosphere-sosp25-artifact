@@ -290,7 +290,9 @@ impl ProcessManager{
         assert(thread_perm@.pptr == ret);
         let thread : &Thread = PPtr::<Thread>::from_usize(ret).borrow(Tracked(thread_perm));
         assert(thread.trap_frame.is_Some());
-        *regs = thread.trap_frame.unwrap();
+
+        thread.trap_frame.set_dst_fast(regs);
+        // *regs = thread.trap_frame.unwrap();
 
         let mut ret_thread_perm =
             Tracked((self.thread_perms.borrow_mut()).tracked_remove(ret));
@@ -378,7 +380,7 @@ impl ProcessManager{
         thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, Some(endpoint_ptr));
         thread_set_state(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, BLOCKED);
         thread_set_ipc_payload(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, endpoint_payload);
-        thread_set_trap_frame(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, pt_regs);
+        thread_set_trap_frame_fast(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, pt_regs);
         proof{
             assert(self.thread_perms@.dom().contains(thread_ptr) == false);
             (self.thread_perms.borrow_mut())
@@ -448,7 +450,7 @@ impl ProcessManager{
         thread_set_endpoint_ptr(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, Some(endpoint_ptr));
         thread_set_state(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, BLOCKED);
         thread_set_ipc_payload(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, endpoint_payload);
-        thread_set_trap_frame(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, pt_regs);
+        thread_set_trap_frame_fast(&PPtr::<Thread>::from_usize(thread_ptr), &mut thread_perm, pt_regs);
         proof{
             assert(self.thread_perms@.dom().contains(thread_ptr) == false);
             (self.thread_perms.borrow_mut())

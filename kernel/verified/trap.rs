@@ -2,6 +2,112 @@ use vstd::prelude::*;
 use core::mem::MaybeUninit;
 verus! {
 
+pub struct RegistersOption{
+    pub reg: Registers,
+    pub exists: bool,
+}
+impl RegistersOption {
+    pub open spec fn is_Some(&self) -> bool{
+        self.exists
+    }
+    pub open spec fn is_None(&self) -> bool{
+        self.exists == false
+    }
+    pub open spec fn get_Some_0(&self) -> &Registers
+        recommends self.is_Some()
+    {
+        &self.reg
+    }
+    pub fn is_some(&self) -> (ret:bool)
+        ensures 
+            ret == self.is_Some()
+    {
+        self.exists
+    }
+    pub fn is_none(&self) -> (ret:bool)
+        ensures 
+            ret == self.is_None()
+    {
+        self.exists == false
+    }
+    pub fn unwrap(&self) -> (ret: &Registers)
+        ensures
+            self.get_Some_0() =~= ret,
+    {
+        &self.reg
+    }
+
+    #[verifier(external_body)]
+    pub fn set_self_fast(&mut self, src: &Registers)
+        ensures
+            self.is_Some(),
+            self.get_Some_0() =~= src
+    {
+        self.exists = true;
+        self.reg.rbx = src.rbx;
+        self.reg.rbp = src.rbp;
+        self.reg.r12 = src.r12;
+        self.reg.r13 = src.r13;
+        self.reg.r14 = src.r14;
+        self.reg.r15 = src.r15;
+        self.reg.rsp = src.rsp;
+        self.reg.rip = src.rip;
+        self.reg.flags = src.flags;
+    }
+
+    pub fn set_self(&mut self, src: &Registers)
+        ensures
+            self.is_Some(),
+            self.get_Some_0() =~= src
+    {
+        self.exists = true;
+        self.reg = *src;
+    }
+
+    #[verifier(external_body)]
+    pub fn set_dst_fast(&self, dst: &mut Registers)
+        requires
+            self.is_Some(),
+        ensures
+            *dst =~= *self.get_Some_0(),
+    {
+        dst.rbx = self.reg.rbx;
+        dst.rbp = self.reg.rbp;
+        dst.r12 = self.reg.r12;
+        dst.r13 = self.reg.r13;
+        dst.r14 = self.reg.r14;
+        dst.r15 = self.reg.r15;
+        dst.rsp = self.reg.rsp;
+        dst.rip = self.reg.rip;
+        dst.flags = self.reg.flags;
+    }
+
+    pub fn set_dst(&self, dst: &mut Registers)
+        requires
+            self.is_Some(),
+        ensures
+            *dst =~= *self.get_Some_0(),
+    {
+        *dst = self.reg;
+    }
+    
+    pub fn set_to_none(&mut self)
+        ensures
+            self.is_None(),
+    {
+        self.exists = false;
+    }
+
+    pub fn zeroed_none() -> (ret: Self)
+        ensures
+            ret.is_None(),
+    {
+        Self{
+            reg: Registers::zeroed(),
+            exists: false,
+        }
+    }
+}
 
 /// Registers passed to the ISR.
 #[repr(C, align(8))]
@@ -37,6 +143,14 @@ impl Registers {
     pub const fn zeroed() -> Self {
         unsafe {
             MaybeUninit::zeroed().assume_init()
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn random() -> (ret: Self)
+    {
+        unsafe{
+            return MaybeUninit::uninit().assume_init();
         }
     }
 

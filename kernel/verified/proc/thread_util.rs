@@ -26,7 +26,7 @@ pub fn page_to_thread(page: (PagePPtr,Tracked<PagePerm>)) -> (ret :(PPtr::<Threa
             ret.1@@.value.get_Some_0().ipc_payload.endpoint_payload =~= None,
             ret.1@@.value.get_Some_0().callee =~= None,
             ret.1@@.value.get_Some_0().caller =~= None,
-            ret.1@@.value.get_Some_0().trap_frame =~= None,
+            ret.1@@.value.get_Some_0().trap_frame.is_None(),
 {
     unsafe{let uptr = page.0.to_usize() as *mut MaybeUninit<Thread>;
     (*uptr).assume_init_mut().endpoint_descriptors.init2zero();
@@ -352,11 +352,38 @@ ensures pptr.id() == perm@@.pptr,
         perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
         perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
         perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
-        perm@@.value.get_Some_0().trap_frame == Some(*trap_frame),
+        perm@@.value.get_Some_0().trap_frame.is_Some(),
+        perm@@.value.get_Some_0().trap_frame.get_Some_0() =~= trap_frame,
 {
     unsafe {
         let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
-        (*uptr).assume_init_mut().trap_frame = Some(*trap_frame);
+        (*uptr).assume_init_mut().trap_frame.set_self(trap_frame);
+    }
+}
+
+#[verifier(external_body)]
+pub fn thread_set_trap_frame_fast(pptr: &PPtr::<Thread>,perm: &mut Tracked<PointsTo<Thread>>, trap_frame: &Registers)
+requires pptr.id() == old(perm)@@.pptr,
+            old(perm)@@.value.is_Some(),
+ensures pptr.id() == perm@@.pptr,
+        perm@@.value.is_Some(),
+        perm@@.value.get_Some_0().parent == old(perm)@@.value.get_Some_0().parent,
+        perm@@.value.get_Some_0().state == old(perm)@@.value.get_Some_0().state,
+        perm@@.value.get_Some_0().parent_rf == old(perm)@@.value.get_Some_0().parent_rf,
+        perm@@.value.get_Some_0().scheduler_rf == old(perm)@@.value.get_Some_0().scheduler_rf,
+        perm@@.value.get_Some_0().endpoint_ptr == old(perm)@@.value.get_Some_0().endpoint_ptr,
+        perm@@.value.get_Some_0().endpoint_rf == old(perm)@@.value.get_Some_0().endpoint_rf,
+        perm@@.value.get_Some_0().endpoint_descriptors == old(perm)@@.value.get_Some_0().endpoint_descriptors,
+        perm@@.value.get_Some_0().ipc_payload == old(perm)@@.value.get_Some_0().ipc_payload,
+        perm@@.value.get_Some_0().error_code == old(perm)@@.value.get_Some_0().error_code,
+        perm@@.value.get_Some_0().callee == old(perm)@@.value.get_Some_0().callee,
+        perm@@.value.get_Some_0().caller == old(perm)@@.value.get_Some_0().caller,
+        perm@@.value.get_Some_0().trap_frame.is_Some(),
+        perm@@.value.get_Some_0().trap_frame.get_Some_0() =~= trap_frame,
+{
+    unsafe {
+        let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().trap_frame.set_self_fast(trap_frame);
     }
 }
 
@@ -381,7 +408,7 @@ ensures pptr.id() == perm@@.pptr,
 {
     unsafe {
         let uptr = pptr.to_usize() as *mut MaybeUninit<Thread>;
-        (*uptr).assume_init_mut().trap_frame = None;
+        (*uptr).assume_init_mut().trap_frame.set_to_none();
     }
 }
 

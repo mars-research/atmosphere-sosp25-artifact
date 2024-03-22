@@ -179,13 +179,31 @@ impl ProcessManager {
             self.wf(),
             self.get_thread_ptrs().contains(thread_ptr),
         ensures
-            ret =~= self.get_thread(thread_ptr).trap_frame,
+            ret.is_Some() ==> self.get_thread(thread_ptr).trap_frame.is_Some() && ret.unwrap() =~= *self.get_thread(thread_ptr).trap_frame.get_Some_0(),
+            ret.is_None() ==> self.get_thread(thread_ptr).trap_frame.is_None()
             // ret =~= self.get_pcid_by_thread_ptr(thread_ptr),
         {
             let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
             let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
-            let trap_frame = thread.trap_frame;
-            return trap_frame;
+            if thread.trap_frame.is_none(){
+                return None;
+            }else{
+                Some(*thread.trap_frame.unwrap())
+            }
+        }
+
+    pub fn set_kernel_pt_regs_by_thread_ptr_fast(&self, thread_ptr:ThreadPtr, regs: &mut Registers)
+        requires
+            self.wf(),
+            self.get_thread_ptrs().contains(thread_ptr),
+            self.get_thread(thread_ptr).trap_frame.is_Some(),
+        ensures
+            *regs =~= *self.get_thread(thread_ptr).trap_frame.get_Some_0(),
+            // ret =~= self.get_pcid_by_thread_ptr(thread_ptr),
+        {
+            let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+            let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+            thread.trap_frame.set_dst_fast(regs);
         }
 
     pub fn set_kernel_pt_regs_by_thread_ptr(&self, thread_ptr:ThreadPtr, regs: &mut Registers)
@@ -194,12 +212,12 @@ impl ProcessManager {
             self.get_thread_ptrs().contains(thread_ptr),
             self.get_thread(thread_ptr).trap_frame.is_Some(),
         ensures
-            *regs =~= self.get_thread(thread_ptr).trap_frame.unwrap(),
+            *regs =~= *self.get_thread(thread_ptr).trap_frame.get_Some_0(),
             // ret =~= self.get_pcid_by_thread_ptr(thread_ptr),
         {
             let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
             let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
-            *regs = thread.trap_frame.unwrap();
+            thread.trap_frame.set_dst(regs);
         }
 
     pub fn get_pcid_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret: Pcid)

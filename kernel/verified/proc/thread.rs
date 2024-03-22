@@ -36,7 +36,7 @@ pub struct Thread{
     pub callee: Option<ThreadPtr>,
     pub caller: Option<ThreadPtr>,
 
-    pub trap_frame: Option<Registers>,
+    pub trap_frame: RegistersOption,
 }
 
 impl Thread {
