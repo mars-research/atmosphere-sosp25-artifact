@@ -64,7 +64,7 @@ impl OptRegisters {
             self.spec_set_callee_saved(registers),
     {
         self.present = true;
-        self.registers = registers;
+        self.registers.rbx = registers.rbx;
     }
 
     pub open spec fn spec_set_callee_saved(&self, registers: Registers) -> bool {
