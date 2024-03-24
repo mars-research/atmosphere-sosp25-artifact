@@ -55,6 +55,7 @@ macro_rules! get_current_cpu_field_ptr {
                 "add {result}, gs:{self_offset}",
                 self_offset = const memoffset::offset_of!($crate::cpu::Cpu, self_ptr),
                 result = inout(reg) address => address,
+                options(pure),
             );
         }
         address as *mut $type
@@ -128,12 +129,6 @@ pub fn get_current() -> &'static mut Cpu {
 /// Returns the current CPU ID.
 pub fn get_cpu_id() -> usize {
     read_current_cpu_field!(id) as usize
-}
-
-pub fn get_meow() -> usize {
-    const PARKED_OFFSET: usize = offset_of!(Cpu, parked);
-    const RAX_OFFSET: usize = offset_of!(Registers, rax);
-    read_current_cpu_offset!(PARKED_OFFSET + RAX_OFFSET) as usize
 }
 
 /// Initialize the CPU-local data structure.
