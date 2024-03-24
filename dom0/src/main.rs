@@ -5,7 +5,15 @@
 use core::panic::PanicInfo;
 use core::arch::x86_64::_rdtsc;
 use core::arch::asm;
+mod ring_buffer;
+use crate::ring_buffer::RingBuffer;
 
+pub const size_of_queue:usize = 4096;
+
+static mut request_queue:RingBuffer::<usize,size_of_queue> = RingBuffer::<usize,size_of_queue>::new();
+static mut reply_queue:RingBuffer::<usize,size_of_queue> = RingBuffer::<usize,size_of_queue>::new();
+static mut free_stack:[usize;size_of_queue] = [0;size_of_queue];
+static mut len:usize = 0;
 
 #[start]
 #[no_mangle]
@@ -16,11 +24,96 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    test_pingpong();
+    // test_null_driver();
 
     loop {}
 }
 
+fn test_null_driver_ap(){
+    log::info!("hello from test_null_driver_ap");
+
+    let target = 10000000;
+    let mut counter = 0;
+        unsafe{
+            for i in 0..size_of_queue{
+                free_stack[len] = i;
+                len = len + 1;
+            }
+            // log::info!("free_stack init done");
+            let start = _rdtsc();
+            while counter <= target{
+                //push free stack into request queue
+                // log::info!("counter: {:?}",counter);
+                while len != 0{
+                    let result = request_queue.try_push(free_stack[len-1]);
+                    // log::info!("result: {:?} i: {:?}",result,free_stack[len-1]);
+                    if result{
+                        len = len -1;
+                    }
+                    
+
+                }
+                //pop reply queue to free stack
+                loop{
+                    let result = reply_queue.try_pop();
+                    if result.is_none(){
+                        break;
+                    }else{
+                        counter = counter + 1;
+                        free_stack[len] = result.unwrap();
+                        len = len + 1;
+                    }
+                }
+            }
+            let end = _rdtsc();
+            log::info!("null_driver cycles per request {:?}",(end-start) as usize /target);
+        }
+
+    loop {}
+}
+fn test_null_driver(){
+    unsafe {
+        let error_code = asys::sys_new_endpoint(0);
+            if error_code != 0 {
+                log::info!("sys_new_endpoint failed {:?}", error_code);
+                return;
+            }
+        let mut range = 0;
+        loop{
+            let (pa,perm) = asys::sys_mresolve(0x8000000000usize + range * 4096);
+            log::info!("va:{:x?}, pa:{:x?}, perm:{:?}", 0x8000000000usize + range * 4096, pa, perm);
+            if perm == 34{
+                break;
+            }
+            range = range + 1;
+        }
+        log::info!("find {:?} pages until {:x?}", range, 0x8000000000usize + range * 4096);
+
+        let new_stack = 0x8000000000usize + range * 4096;
+        log::info!("allocating dom1 stack from {:x?}", new_stack);
+        let size = 16 * 1024 * 1024;
+        let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, size / 4096);
+        if error_code != 0 {
+            log::info!("sys_mmap failed {:?}", error_code);
+            return;
+        }
+        let rsp: usize = (new_stack + size) & !(4096 - 1);
+        let error_code = asys::sys_new_proc_with_iommu_pass_mem(0,test_null_driver_ap as *const () as usize, rsp, 0x8000000000usize, range + size / 4096);
+            if error_code != 0 {
+                log::info!("sys_new_proc_with_iommu_pass_mem failed {:?}", error_code);
+                return;
+            }
+        // log::info!("request_queue address: {:p}", &request_queue);   
+
+        loop{
+            let result = request_queue.try_pop();
+            if result.is_none(){
+            }else{
+                reply_queue.try_push(result.unwrap());
+            }
+        }
+    }
+}
 
 fn thread_1_main(){
     log::info!("hello from thread_1_main");
@@ -36,10 +129,8 @@ fn thread_1_main(){
     }
 }
 
-fn thread_1_hello(){
+fn thread_1_hello_ap(){
     log::info!("hello from thread_1_main");
-    loop {
-    }
 }
 
 fn dom_1_main(){
@@ -56,8 +147,8 @@ fn dom_1_main(){
     }
 }
 
-fn try_new_thread(){
-    log::info!("thread_1_hello at {:p}", thread_1_hello as *const ());
+fn try_new_thread_ap(){
+    log::info!("thread_1_hello_ap at {:p}", thread_1_hello_ap as *const ());
     unsafe {
         let error_code = asys::sys_new_endpoint(0);
             if error_code != 0 {
@@ -74,7 +165,7 @@ fn try_new_thread(){
 
         let rsp: usize = (new_stack + size) & !(4096 - 1);
 
-        let error_code = asys::sys_new_thread(0,thread_1_hello as *const () as usize, rsp);
+        let error_code = asys::sys_new_thread(0,thread_1_hello_ap as *const () as usize, rsp);
         if error_code != 0 {
             log::info!("sys_new_thread failed {:?}", error_code);
             return;
