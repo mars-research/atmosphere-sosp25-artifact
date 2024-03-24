@@ -1,14 +1,17 @@
 //! Syscalls.
 
-use core::arch::asm;
+use core::arch::{asm, global_asm};
 
 use asys::MAX_SYSCALLS;
+use memoffset::offset_of;
 use x86::segmentation::SegmentSelector;
 use x86::{msr, Ring};
 
+use crate::cpu::Cpu;
 use crate::gdt::GlobalDescriptorTable;
-use verified::trap::Registers;
 use crate::kernel;
+use crate::thread::SwitchDecision;
+use verified::trap::Registers;
 
 const SYSCALL32_ENTRY: u64 = 0; // nein
 const SYSCALL32_ENTRY_EIP: u32 = 0; // nein
@@ -61,6 +64,28 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_NEW_PROC_W_IO_MEM] = kernel::sys_new_proc_with_iommu_pass_mem as u64;
 }
 
+#[cfg(debug_assertions)]
+global_asm!(
+    ".macro push_dummy_caller_saved",
+    "push 0",         // rax
+    "push 0",         // rdi
+    "push 0",         // rsi
+    "push 0",         // rdx
+    "push 0",         // rcx (taken by original rip)
+    "push 0",         // r8
+    "push 0",         // r9
+    "push 0",         // r10 (taken by original rsp)
+    "push 0",         // r11 (taken by original rflags across syscall)
+    ".endm",
+);
+
+#[cfg(not(debug_assertions))]
+global_asm!(
+    ".macro push_dummy_caller_saved",
+    "sub rsp, 9*8",
+    ".endm",
+);
+
 // Syscall ABI
 //
 // Register | User           | Kernel Handler
@@ -91,16 +116,7 @@ unsafe extern "C" fn sys_entry() -> ! {
         "push {user_cs}", // cs
         "push rcx",       // rip
 
-        // TODO: Optimize
-        "push 0",         // rax
-        "push 0",         // rdi
-        "push 0",         // rsi
-        "push 0",         // rdx
-        "push 0",         // rcx (taken by original rip)
-        "push 0",         // r8
-        "push 0",         // r9
-        "push 0",         // r10 (taken by original rsp)
-        "push 0",         // r11 (taken by original rflags across syscall)
+        "push_dummy_caller_saved",
 
         "push rbx",       // rbx
         "push rbp",       // rbp
@@ -135,27 +151,54 @@ unsafe extern "C" fn sys_entry() -> ! {
         // Cleanup
         "3:",
 
-        // Two cases:
-        // 1. Return to the same thread or another thread that was suspended due to a syscall
+        // Three cases:
+        // 1. Switch to another thread that was suspended due to a syscall
         //    ("clean" thread)
-        // 2. Switch to a different preempted thread
+        // 2. Return to the same thread
+        // 3. Switch to a different preempted thread
         //
         // For 1, we can directly skip over restoring most registers since
         // we trust the handler to have already restored callee-saved registers
         //
         // TODO: Clear registers?
 
-        // 1. Return to a clean thread
+        "mov r10, gs:{switch_decision_offset}",
+        "cmp r10, {decision_no_switching}",
+        "je 22f",
+        "cmp r10, {decision_switch_to_preempted}",
+        "je 23f",
+
+        // 1. Switch to another clean thread
         // Fast return that clobbers rcx, r11
+        "21:",
+        "pop r15",
+        "pop r14",
+        "pop r13",
+        "pop r12",
+        "pop rbp",
+        "pop rbx",
+        "add rsp, 8*8", // skip r11~rdi (8 registers)
+        "pop rax",      // rax
+        "pop rcx",      // rip
+        "add rsp, 8",   // skip cs
+        "pop r11",      // rflags
+        "pop rsp",      // rsp
+        "sti",
+        "sysretq",
 
-        //"add rsp, 120", // skip r15~rax (15 registers)
-        //"pop rcx", // rip
-        //"add rsp, 8", // cs
-        //"pop r11", // rflags
-        //"pop rsp", // rsp
-        //"sysretq",
+        // 2. Return to the same thread
+        "22:",
+        "add rsp, 14*8", // skip r15~rdi (14 registers)
+        "pop rax",       // rax
+        "pop rcx",       // rip
+        "add rsp, 8",    // skip cs
+        "pop r11",       // rflags
+        "pop rsp",       // rsp
+        "sti",
+        "sysretq",
 
-        // 2. Switch to a preempted thread (slow)
+        // 3. Switch to a preempted thread (slow)
+        "23:",
         "pop r15",
         "pop r14",
         "pop r13",
@@ -178,6 +221,10 @@ unsafe extern "C" fn sys_entry() -> ! {
         saved_sp = sym CPU0_SYSCALL_SP,
         max_syscalls = const MAX_SYSCALLS,
         syscalls = sym SYSCALLS,
+
+        switch_decision_offset = const offset_of!(Cpu, switch_decision),
+        decision_no_switching = const SwitchDecision::NoSwitching as u64,
+        decision_switch_to_preempted = const SwitchDecision::SwitchToPreempted as u64,
         options(noreturn),
     );
 }

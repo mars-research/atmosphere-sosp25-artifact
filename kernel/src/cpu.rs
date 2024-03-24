@@ -12,11 +12,11 @@ use core::mem::MaybeUninit;
 use core::ptr;
 
 use x86::msr;
-use memoffset::offset_of;
 
 use verified::trap::Registers;
 use crate::interrupt::x86_xapic::XAPIC;
 use crate::gdt::{GlobalDescriptorTable, IstStack, TaskStateSegment};
+use crate::thread::SwitchDecision;
 
 const NEW_CPU: Cpu = Cpu::new();
 
@@ -83,6 +83,9 @@ pub struct Cpu {
     /// State for the xAPIC driver.
     pub xapic: MaybeUninit<XAPIC>,
 
+    /// The context switch decision upon exiting the kernel.
+    pub switch_decision: SwitchDecision,
+
     /// The Global Descriptor Table.
     ///
     /// See [crate::gdt] for a list of indices and their associated usages.
@@ -105,6 +108,7 @@ impl Cpu {
             id: 0,
             parked: Registers::zeroed(),
             xapic: MaybeUninit::uninit(),
+            switch_decision: SwitchDecision::NoSwitching,
             gdt: GlobalDescriptorTable::empty(),
             tss: TaskStateSegment::new(),
             ist: [

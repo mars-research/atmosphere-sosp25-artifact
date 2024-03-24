@@ -13,6 +13,21 @@ use crate::kernel;
 
 const TIME_SLICE: Cycles = Cycles(1_000_000);
 
+#[derive(Debug)]
+#[repr(u8)]
+pub enum SwitchDecision {
+    /// The kernel will return to the same thread.
+    NoSwitching = 0,
+
+    /// The kernel will switch to a clean thread.
+    ///
+    /// Clean means it entered the kernel through a syscall.
+    SwitchToClean = 1,
+
+    /// The kernel will switch to a clean thread.
+    SwitchToPreempted = 2,
+}
+
 /// Starts a thread.
 pub unsafe fn start_thread(code: u64, stack: u64, ring: Ring) {
     log::info!("Starting thread code={:#x} stack={:#x}", code, stack);
