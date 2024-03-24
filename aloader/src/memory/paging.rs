@@ -137,18 +137,6 @@ impl AddressSpace {
             _ => panic!("Invalid level"),
         }
     }
-
-    /// Returns the size of the huge page at a level, supported by the platform.
-    fn huge_page_size(level: usize) -> Option<usize> {
-        // TODO: Check support
-        match level {
-            0 => None,
-            1 => Some(1 * 1024 * 1024), // 1 GiB
-            2 => Some(2 * 1024),        // 2 MiB
-            3 => None,                  // Regular 4 KiB page
-            _ => panic!("Invalid level"),
-        }
-    }
 }
 
 impl PageTable {
