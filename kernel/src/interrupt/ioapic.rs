@@ -6,10 +6,8 @@ use x86::apic::{ioapic::IoApic, ApicControl};
 
 pub static mut IOAPIC: MaybeUninit<IoApic> = MaybeUninit::zeroed();
 
-pub unsafe fn init() {
-    // FIXME
-    let ioapic_base = 0xfec0_0000usize;
-
+pub unsafe fn init(ioapic_base: usize) {
+    log::debug!("IOAPIC base: {:#x}", ioapic_base);
     let mut ioapic = IoApic::new(ioapic_base);
     IOAPIC.write(ioapic);
 }

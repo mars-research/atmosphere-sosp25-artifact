@@ -27,7 +27,7 @@ pub unsafe fn init() {
     let cpu = cpu::get_current();
 
     let apic_region = probe_apic();
-    log::info!("APIC region: {:?}", apic_region as *mut _ as *mut u8);
+    log::info!("APIC base: {:?}", apic_region as *mut _ as *mut u8);
 
     let mut xapic = XAPIC::new(apic_region);
     xapic.attach();

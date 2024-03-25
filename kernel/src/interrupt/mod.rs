@@ -8,8 +8,9 @@
 
 mod exception;
 mod idt;
-mod lapic;
 mod ioapic;
+mod lapic;
+mod mps;
 pub mod x86_xapic;
 
 use core::arch::asm;
@@ -337,7 +338,8 @@ pub unsafe fn init() {
 
     idt.interrupts[0].set_handler_fn(wrap_interrupt!(timer));
 
-    ioapic::init();
+    let ioapic_base = mps::probe_ioapic();
+    ioapic::init(ioapic_base);
 }
 
 /// Initializes per-CPU interrupt controllers.
