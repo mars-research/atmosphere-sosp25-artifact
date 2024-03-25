@@ -55,7 +55,7 @@ macro_rules! get_current_cpu_field_ptr {
                 "add {result}, gs:{self_offset}",
                 self_offset = const memoffset::offset_of!($crate::cpu::Cpu, self_ptr),
                 result = inout(reg) address => address,
-                options(pure),
+                options(pure, readonly),
             );
         }
         address as *mut $type
