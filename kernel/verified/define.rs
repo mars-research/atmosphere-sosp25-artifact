@@ -8,20 +8,23 @@ pub struct SyscallReturnStruct{
     pub error_code: ErrorCodeType,
     pub pcid: Pcid,
     pub cr3: usize,
+    pub thread_ptr:ThreadPtr ,
 }
 
 impl SyscallReturnStruct{
 
-    pub fn new(error_code:ErrorCodeType,pcid:Pcid,cr3:usize )->(ret:Self)
+    pub fn new(error_code:ErrorCodeType,pcid:Pcid,cr3:usize,thread_ptr:ThreadPtr )->(ret:Self)
         ensures
             ret.error_code == error_code,
             ret.pcid == pcid,
             ret.cr3 == cr3,
+            ret.thread_ptr == thread_ptr,
     {
         return Self{
             error_code:error_code,
             pcid:pcid,
             cr3:cr3,
+            thread_ptr:thread_ptr,
         };
     }
 }
@@ -148,6 +151,7 @@ pub const READ:usize = 0x8000_0000_0000_0000u64 as usize;
 pub const READ_WRITE:usize = 0x8000_0000_0000_0002u64 as usize;
 pub const READ_EXECUTE:usize = 0x0000_0000_0000_0000u64 as usize;
 pub const READ_WRITE_EXECUTE:usize = 0x0000_0000_0000_0002u64 as usize;
+pub const PCID_ENABLE_MASK:usize = 0x8000_0000_0000_0000u64 as usize;
 
 pub const NUM_CPUS:usize = 32;
 pub const PAGE_ENTRY_PRESENT_MASK:u64 = 0x5; //Hack, force the verified pagetable to map everything as user.
