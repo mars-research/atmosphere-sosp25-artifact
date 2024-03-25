@@ -10,9 +10,9 @@ use super::x86_xapic::XAPIC;
 use x86::apic::{ApicControl, ApicId};
 use x86::msr;
 
-use crate::{boot, cpu};
-use crate::boot::ap_start::StartTrampoline;
 use super::Cycles;
+use crate::boot::ap_start::StartTrampoline;
+use crate::{boot, cpu};
 
 /// Returns the 4KiB LAPIC region.
 unsafe fn probe_apic() -> &'static mut [u32] {
