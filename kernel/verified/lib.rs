@@ -5,6 +5,7 @@
 
 pub mod array;
 pub mod array_vec;
+pub mod bridge;
 pub mod linked_list;
 pub mod mem;
 pub mod page_arena;

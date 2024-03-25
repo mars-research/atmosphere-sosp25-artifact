@@ -33,6 +33,7 @@
 #![no_main]
 
 mod boot;
+mod bridge;
 mod console;
 mod cpu;
 mod debugger;
