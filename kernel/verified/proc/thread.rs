@@ -576,7 +576,7 @@ impl ProcessManager {
     }
     thread_set_parent_rf(&thread_pptr, &mut thread_perm,parent_rf);
     thread_set_trap_frame(&thread_pptr, &mut thread_perm,&pt_regs);
-    thread_set_error_code(&thread_pptr, &mut thread_perm,None);
+    thread_set_error_code(&thread_pptr, &mut thread_perm,Some(NEW_THREAD));
     thread_set_endpoint_descriptors(&thread_pptr, &mut thread_perm,0,endpoint_ptr);
     assert(self.thread_perms@.dom().contains(parent_ptr) == false);
     proof{

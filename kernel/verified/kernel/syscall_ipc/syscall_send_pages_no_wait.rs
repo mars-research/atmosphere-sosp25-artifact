@@ -78,7 +78,7 @@ use crate::kernel::*;
 
 
 impl Kernel {
-    pub fn syscall_send_pages_no_wait(&mut self, cpu_id:CPUID, pt_regs: &mut Registers, endpoint_index: EndpointIdx, va: VAddr, range: usize) -> (ret: SyscallReturnStruct)
+    pub fn syscall_send_pages_no_wait(&mut self, cpu_id:CPUID, endpoint_index: EndpointIdx, va: VAddr, range: usize) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
         ensures
@@ -163,7 +163,7 @@ impl Kernel {
                             self.page_alloc.free_pages.len() < 3 * range
                 {              
                     self.proc_man.pop_endpoint_to_scheduler(current_thread_ptr,endpoint_index,Some(PAGE_PAYLOAD_INVALID));
-                    return SyscallReturnStruct::new(IPC_TYPE_NOT_MATCH,pcid,cr3,current_thread_ptr);     
+                    return SyscallReturnStruct::new(PAGE_PAYLOAD_INVALID,pcid,cr3,current_thread_ptr);     
                 }else if self.kernel_page_sharing_helper(sender_pcid, new_pcid, perm_bits, va, receiver_ipc_payload.page_payload.unwrap().0, range) == true{
                     self.proc_man.pop_endpoint_to_scheduler(current_thread_ptr,endpoint_index,Some(SUCCESS));
                     self.kernel_map_pagetable_range_page_to_pagetable(sender_pcid, new_pcid, va, receiver_ipc_payload.page_payload.unwrap().0, perm_bits,range);
@@ -172,7 +172,7 @@ impl Kernel {
                 else {
                     // assert(kernel_page_sharing_spec_helper(*old(self),sender_pcid,receiver_pcid, va, receiver_ipc_payload.page_payload.unwrap().0, range) == false);
                     self.proc_man.pop_endpoint_to_scheduler(current_thread_ptr,endpoint_index,Some(PAGE_PAYLOAD_INVALID));
-                    return SyscallReturnStruct::new(IPC_TYPE_NOT_MATCH,pcid,cr3,current_thread_ptr);     
+                    return SyscallReturnStruct::new(PAGE_PAYLOAD_INVALID,pcid,cr3,current_thread_ptr);     
                 }
  
 
