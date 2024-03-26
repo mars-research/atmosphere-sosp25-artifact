@@ -6,14 +6,9 @@ use core::panic::PanicInfo;
 use core::arch::x86_64::_rdtsc;
 use core::arch::asm;
 mod ring_buffer;
-use crate::ring_buffer::RingBuffer;
+use crate::ring_buffer::*;
 
-pub const size_of_queue:usize = 4096;
-
-static mut request_queue:RingBuffer::<usize,size_of_queue> = RingBuffer::<usize,size_of_queue>::new();
-static mut reply_queue:RingBuffer::<usize,size_of_queue> = RingBuffer::<usize,size_of_queue>::new();
-static mut free_stack:[usize;size_of_queue] = [0;size_of_queue];
-static mut len:usize = 0;
+pub const data_buffer_addr:u64 = 0xF000000000;
 
 #[start]
 #[no_mangle]
@@ -32,41 +27,52 @@ fn main() -> isize {
 fn test_null_driver_ap(){
     log::info!("hello from test_null_driver_ap");
 
+    unsafe{
+        let size = core::mem::size_of::<DataBufferAllocWrapper>();
+        let error_code = asys::sys_receive_pages(0,data_buffer_addr as usize, size / 4096 + 1);
+        if error_code != 0 {
+            log::info!("sys_receive_pages failed {:?}", error_code);
+            return;
+        }
+        
+    }
+
     let target = 10000000;
     let mut counter = 0;
         unsafe{
-            for i in 0..size_of_queue{
-                free_stack[len] = i;
-                len = len + 1;
-            }
-            // log::info!("free_stack init done");
-            let start = _rdtsc();
-            while counter <= target{
-                //push free stack into request queue
-                // log::info!("counter: {:?}",counter);
-                while len != 0{
-                    let result = request_queue.try_push(free_stack[len-1]);
-                    // log::info!("result: {:?} i: {:?}",result,free_stack[len-1]);
-                    if result{
-                        len = len -1;
-                    }
+            let buff_ref:&mut DataBufferAllocWrapper = &mut*(data_buffer_addr as *mut DataBufferAllocWrapper);
+            // for i in 0..size_of_queue{
+            //     free_stack[len] = i;
+            //     len = len + 1;
+            // }
+            // // log::info!("free_stack init done");
+            // let start = _rdtsc();
+            // while counter <= target{
+            //     //push free stack into request queue
+            //     // log::info!("counter: {:?}",counter);
+            //     while len != 0{
+            //         let result = request_queue.try_push(free_stack[len-1]);
+            //         // log::info!("result: {:?} i: {:?}",result,free_stack[len-1]);
+            //         if result{
+            //             len = len -1;
+            //         }
                     
 
-                }
-                //pop reply queue to free stack
-                loop{
-                    let result = reply_queue.try_pop();
-                    if result.is_none(){
-                        break;
-                    }else{
-                        counter = counter + 1;
-                        free_stack[len] = result.unwrap();
-                        len = len + 1;
-                    }
-                }
-            }
-            let end = _rdtsc();
-            log::info!("null_driver cycles per request {:?}",(end-start) as usize /target);
+            //     }
+            //     //pop reply queue to free stack
+            //     loop{
+            //         let result = reply_queue.try_pop();
+            //         if result.is_none(){
+            //             break;
+            //         }else{
+            //             counter = counter + 1;
+            //             free_stack[len] = result.unwrap();
+            //             len = len + 1;
+            //         }
+            //     }
+            // }
+            // let end = _rdtsc();
+            // log::info!("null_driver cycles per request {:?}",(end-start) as usize /target);
         }
 
     loop {}
@@ -94,7 +100,7 @@ fn test_null_driver(){
         let size = 16 * 1024 * 1024;
         let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, size / 4096);
         if error_code != 0 {
-            log::info!("sys_mmap failed {:?}", error_code);
+            log::info!("sys_mmap for dom1 stack failed {:?}", error_code);
             return;
         }
         let rsp: usize = (new_stack + size) & !(4096 - 1);
@@ -105,13 +111,38 @@ fn test_null_driver(){
             }
         // log::info!("request_queue address: {:p}", &request_queue);   
 
+        let size = core::mem::size_of::<DataBufferAllocWrapper>();
+        let error_code = asys::sys_mmap(data_buffer_addr as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1);
+        if error_code != 0 {
+            log::info!("sys_mmap for data_buffer failed {:?}", error_code);
+            return;
+        }
+        
+        let buff_ref:&mut DataBufferAllocWrapper = &mut*(data_buffer_addr as *mut DataBufferAllocWrapper);
+        buff_ref.init();
+        log::info!("data_buffer init done");
+
         loop{
-            let result = request_queue.try_pop();
-            if result.is_none(){
+            let error_code = asys::sys_send_pages_no_wait(0,data_buffer_addr as usize, size / 4096 + 1);
+            if error_code == 5  {
             }else{
-                reply_queue.try_push(result.unwrap());
+                if error_code == 0{
+                    log::info!("data_buffer sent to dom1");
+                    break;
+                }else{
+                    log::info!("sys_send_pages_no_wait failed {:?}", error_code);
+                    break;
+                }
             }
         }
+
+        // loop{
+        //     let result = request_queue.try_pop();
+        //     if result.is_none(){
+        //     }else{
+        //         reply_queue.try_push(result.unwrap());
+        //     }
+        // }
     }
 }
 
