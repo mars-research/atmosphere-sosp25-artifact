@@ -27,7 +27,7 @@ static mut CPUS: [Cpu; 16] = [NEW_CPU; 16];
 const GS_CPU_ID_OFFSET: usize = 8;
 
 /// Size of an IST stack.
-const IST_STACK_SIZE: usize = 4096;
+const IST_STACK_SIZE: usize = 1 * 1024 * 1024; // 1 MiB
 
 macro_rules! read_current_cpu_offset {
     ($offset:expr) => {{

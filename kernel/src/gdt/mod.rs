@@ -45,7 +45,8 @@ pub unsafe fn init_cpu() {
     // Initialize TSS
     let tss_addr = {
         for i in 0..min(cpu.ist.len(), 7) {
-            let ist_addr = &cpu.ist[i] as *const IstStack;
+            let ist_addr = cpu.ist[i].bottom();
+            //log::debug!("IST {}: {:?}", i + 1, ist_addr);
             cpu.tss.set_ist(i, ist_addr as u64);
         }
 

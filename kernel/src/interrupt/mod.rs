@@ -31,8 +31,11 @@ use verified::trap::Registers;
 /// The IRQ offset.
 pub const IRQ_OFFSET: usize = 32;
 
+pub const IST_EXCEPTION: usize = 1;
+pub const IST_IRQ: usize = 2;
+
 /// The global IDT.
-static mut GLOBAL_IDT: MaybeUninit<Idt> = MaybeUninit::zeroed();
+static mut GLOBAL_IDT: Idt = Idt::new();
 
 const PIC1_DATA: u16 = 0x21;
 const PIC2_DATA: u16 = 0xa1;
@@ -326,7 +329,7 @@ pub unsafe fn init() {
     outb(PIC1_DATA, 0xff);
     outb(PIC2_DATA, 0xff);
 
-    let mut idt = GLOBAL_IDT.assume_init_mut();
+    let idt = &mut GLOBAL_IDT;
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
     idt.breakpoint.set_handler_fn(wrap_interrupt!(breakpoint));
     idt.double_fault.set_handler_fn(double_fault);
@@ -348,8 +351,7 @@ pub unsafe fn init_cpu() {
     lapic::init();
     ioapic::init_cpu();
 
-    let idt = GLOBAL_IDT.assume_init_mut();
-    idt.load();
+    GLOBAL_IDT.load();
 
     asm!("sti");
 }
