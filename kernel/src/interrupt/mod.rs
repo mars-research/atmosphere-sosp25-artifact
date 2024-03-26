@@ -8,8 +8,9 @@
 
 mod exception;
 mod idt;
-mod lapic;
 mod ioapic;
+mod lapic;
+mod mps;
 pub mod x86_xapic;
 
 use core::arch::asm;
@@ -24,7 +25,7 @@ use crate::boot::spin_forever;
 pub use exception::Exception;
 use exception::EXCEPTION_MAX;
 use idt::Idt;
-pub use lapic::{boot_ap, set_timer, end_of_interrupt};
+pub use lapic::{boot_ap, end_of_interrupt, set_timer};
 use verified::trap::Registers;
 
 /// The IRQ offset.
@@ -51,7 +52,7 @@ macro_rules! wrap_interrupt {
         /// Interrupt trampoline
         #[naked]
         unsafe extern "C" fn trampoline(_: TrampolineMarker) {
-            // Figure 6-7. Stack Usage on Transfers to Interrupt and Exception Handling Routines 
+            // Figure 6-7. Stack Usage on Transfers to Interrupt and Exception Handling Routines
 
             // Here rsp is at an InterruptStackFrame
             // [rip][cs][eflags][esp][ss]
@@ -243,7 +244,6 @@ pub struct PtRegs {
     pub rax: u64,
 }
 
-
 /// An interrupt stack frame.
 #[derive(Debug, Clone)]
 #[repr(C)]
@@ -337,7 +337,8 @@ pub unsafe fn init() {
 
     idt.interrupts[0].set_handler_fn(wrap_interrupt!(timer));
 
-    ioapic::init();
+    let ioapic_base = mps::probe_ioapic();
+    ioapic::init(ioapic_base);
 }
 
 /// Initializes per-CPU interrupt controllers.

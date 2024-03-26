@@ -150,7 +150,7 @@ impl PageTable {
 
     unsafe fn write(&self, index: usize, value: Entry) {
         //log::info!("writing to 0x{:x?}", self.entry(index));
-        ptr::write_unaligned(self.entry(index), value)
+        ptr::write_volatile(self.entry(index), value)
     }
 
     const fn entry(&self, index: usize) -> *mut Entry {
