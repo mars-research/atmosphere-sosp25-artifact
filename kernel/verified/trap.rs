@@ -131,6 +131,7 @@ pub struct Registers {
 
     // Original interrupt stack frame
 
+    pub error_code: u64,
     pub rip: u64,
     pub cs: u64,
     pub flags: u64,
@@ -173,6 +174,7 @@ impl Registers {
             rdi : 0,
             rax : 0,
 
+            error_code: 0,
             rip : 0,
             cs : 0,
             flags : 0,
@@ -204,6 +206,7 @@ impl Registers {
             rdi : input.rdi,
             rax : input.rax,
 
+            error_code: input.error_code,
             rip : input.rip,
             cs : input.cs,
             flags : input.flags,

@@ -48,7 +48,7 @@ pub struct Cycles(pub usize);
 #[repr(C)]
 struct TrampolineMarker(());
 
-macro_rules! wrap_interrupt {
+macro_rules! wrap_interrupt_with_error_code {
     ($handler:path) => {{
         let _: unsafe extern "C" fn(&mut Registers) = $handler;
 
@@ -99,6 +99,76 @@ macro_rules! wrap_interrupt {
                 "pop rsi",
                 "pop rdi",
                 "pop rax",
+
+                "sti",
+                "iretq",
+
+                //breakpoint = sym crate::debugger::breakpoint,
+                handler = sym $handler,
+                options(noreturn),
+            );
+        }
+
+        trampoline
+    }}
+}
+
+macro_rules! wrap_interrupt {
+    ($handler:path) => {{
+        let _: unsafe extern "C" fn(&mut Registers) = $handler;
+
+        /// Interrupt trampoline
+        #[naked]
+        unsafe extern "C" fn trampoline(_: TrampolineMarker) {
+            // Figure 6-7. Stack Usage on Transfers to Interrupt and Exception Handling Routines
+
+            // Here rsp is at an InterruptStackFrame
+            // [rip][cs][eflags][esp][ss]
+            core::arch::asm!(
+                "cli",
+                //"call {breakpoint}",
+
+                "cld",
+
+                "push 0", // error_code
+
+                "push rax",
+                "push rdi",
+                "push rsi",
+                "push rdx",
+                "push rcx",
+                "push r8",
+                "push r9",
+                "push r10",
+                "push r11",
+                "push rbx",
+                "push rbp",
+                "push r12",
+                "push r13",
+                "push r14",
+                "push r15",
+
+                // fn handler(registers: &mut Registers)
+                "mov rdi, rsp",
+                "call {handler}",
+
+                "pop r15",
+                "pop r14",
+                "pop r13",
+                "pop r12",
+                "pop rbp",
+                "pop rbx",
+                "pop r11",
+                "pop r10",
+                "pop r9",
+                "pop r8",
+                "pop rcx",
+                "pop rdx",
+                "pop rsi",
+                "pop rdi",
+                "pop rax",
+
+                "add rsp, 8", // error_code
 
                 "sti",
                 "iretq",
@@ -177,11 +247,8 @@ unsafe extern "x86-interrupt" fn general_protection_fault(
 }
 
 /// Page Fault handler.
-unsafe extern "x86-interrupt" fn page_fault(
-    frame: &mut InterruptStackFrame,
-    error_code: PageFaultErrorCode,
-) {
-    log::info!("Page Fault (error code {:?}): {:#x?}", error_code, frame);
+unsafe extern "C" fn page_fault(regs: &mut Registers) {
+    log::info!("Page Fault (error code {:?}): {:#x?}", regs.error_code, regs);
     crate::debugger::breakpoint(2);
     spin_forever();
 }
@@ -336,7 +403,7 @@ pub unsafe fn init() {
     idt.stack_segment_fault.set_handler_fn(stack_segment_fault);
     idt.general_protection_fault
         .set_handler_fn(general_protection_fault);
-    idt.page_fault.set_handler_fn(page_fault);
+    idt.page_fault.set_handler_fn(wrap_interrupt_with_error_code!(page_fault));
 
     idt.interrupts[0].set_handler_fn(wrap_interrupt!(timer));
 

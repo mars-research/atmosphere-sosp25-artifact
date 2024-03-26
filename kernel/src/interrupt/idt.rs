@@ -68,7 +68,7 @@ pub struct Idt {
     pub general_protection_fault: Entry<HandlerFuncWithErrCode>,
 
     /// Page Fault (`#PF`)
-    pub page_fault: Entry<PageFaultHandlerFunc>,
+    pub page_fault: Entry<TrampolineHandlerFunc>,
 
     /// Reserved
     exception_15: Entry<HandlerFunc>,
