@@ -173,7 +173,7 @@ pub unsafe fn init_cpu(cpu_id: usize) {
     let mut cpu = &mut CPUS[cpu_id];
     let address = cpu as *const Cpu;
 
-    log::info!("CPU{} @ {:?}", cpu_id, address);
+    log::debug!("CPU{} @ {:?}", cpu_id, address);
 
     cpu.self_ptr = address;
     cpu.id = cpu_id;
