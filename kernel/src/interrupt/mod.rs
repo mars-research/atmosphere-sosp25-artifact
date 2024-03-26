@@ -200,21 +200,21 @@ pub type PageFaultHandlerFunc =
 
 /// Invalid Opcode handler.
 unsafe extern "C" fn invalid_opcode(regs: &mut PtRegs) {
-    log::error!("Invalid Opcode: {:#x?}", regs);
+    log::error!("CPU {}, Invalid Opcode: {:#x?}", crate::cpu::get_cpu_id(), regs);
     crate::debugger::breakpoint(2);
     spin_forever();
 }
 
 /// Double Fault handler.
 unsafe extern "C" fn double_fault(regs: &mut PtRegs) {
-    log::error!("Double Fault: {:#x?}", regs);
+    log::error!("CPU {}: Double Fault: {:#x?}", crate::cpu::get_cpu_id(), regs);
     crate::debugger::breakpoint(2);
     spin_forever();
 }
 
 /// Breakpoint handler.
 unsafe extern "C" fn breakpoint(regs: &mut Registers) {
-    log::warn!("Breakpoint: {:#x?}", regs);
+    log::warn!("CPU {}: Breakpoint: {:#x?}", crate::cpu::get_cpu_id(), regs);
     crate::debugger::breakpoint(2);
 }
 
@@ -226,7 +226,7 @@ unsafe extern "x86-interrupt" fn stack_segment_fault(
     log::error!(
         "Stack Segment Fault (error code {:#b}): {:#x?}",
         error_code,
-        frame
+        frame,
     );
     crate::debugger::breakpoint(2);
     spin_forever();
@@ -235,9 +235,10 @@ unsafe extern "x86-interrupt" fn stack_segment_fault(
 /// General Protection Fault handler.
 unsafe extern "C" fn general_protection_fault(regs: &mut Registers) {
     log::error!(
-        "General Protection Fault (error code {:#b}): {:#x?}",
+        "CPU {}: General Protection Fault (error code {:#b}): {:#x?}",
+        crate::cpu::get_cpu_id(),
         regs.error_code,
-        regs
+        regs,
     );
     crate::debugger::breakpoint(2);
     spin_forever();
@@ -247,7 +248,12 @@ unsafe extern "C" fn general_protection_fault(regs: &mut Registers) {
 unsafe extern "C" fn page_fault(regs: &mut Registers) {
     let address: u64;
     asm!("mov {}, cr2", out(reg) address);
-    log::info!("Page Fault (address {:#x}, error code {:?}): {:#x?}", address, regs.error_code, regs);
+    log::info!("CPU {}: Page Fault (address {:#x}, error code {:?}): {:#x?}",
+        crate::cpu::get_cpu_id(),
+        address,
+        regs.error_code,
+        regs,
+    );
     crate::debugger::breakpoint(2);
     spin_forever();
 }

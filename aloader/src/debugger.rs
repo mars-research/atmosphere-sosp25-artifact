@@ -1,6 +1,6 @@
 //! Debugger integration.
 
-use core::marker::black_box;
+use core::hint::black_box;
 use core::mem::MaybeUninit;
 
 #[used]

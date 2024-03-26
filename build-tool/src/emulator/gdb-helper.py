@@ -54,7 +54,7 @@ def dump_loaded_binaries():
 
 class OnBinaryAdded(gdb.Breakpoint):
     def __init__(self):
-        super().__init__(ON_BINARY_ADDED, gdb.BP_HARDWARE_BREAKPOINT)
+        super().__init__(ON_BINARY_ADDED)
 
     def stop(self):
         global binaries_consumed
@@ -71,7 +71,7 @@ OnBinaryAdded()
 
 class KernelBreakpoint(gdb.Breakpoint):
     def __init__(self):
-        super().__init__(KERNEL_BREAKPOINT, gdb.BP_HARDWARE_BREAKPOINT)
+        super().__init__(KERNEL_BREAKPOINT)
 
     def stop(self):
         global frame
@@ -102,10 +102,12 @@ class KernelBreakpoint(gdb.Breakpoint):
 
 class OnReady(gdb.Breakpoint):
     def __init__(self):
-        super().__init__(ON_READY, gdb.BP_HARDWARE_BREAKPOINT)
+        super().__init__(ON_READY, temporary=True)
 
     def stop(self):
-        KernelBreakpoint()
+        def post():
+            KernelBreakpoint()
+        gdb.post_event(post)
         return True
 
 OnReady()
