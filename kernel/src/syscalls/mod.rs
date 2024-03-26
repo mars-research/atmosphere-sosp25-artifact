@@ -108,7 +108,7 @@ unsafe extern "C" fn sys_entry() -> ! {
         // rax, r10, r11
 
         "mov r10, rsp",
-        "mov rsp, [rip + {saved_sp}]", // FIXME: per-CPU stack
+        "mov rsp, gs:{syscall_sp_offset}",
 
         // Here we construct the Registers struct and only save
         // a subset of registers
@@ -220,7 +220,7 @@ unsafe extern "C" fn sys_entry() -> ! {
 
         user_ss = const GlobalDescriptorTable::USER_SS,
         user_cs = const GlobalDescriptorTable::USER_CS,
-        saved_sp = sym CPU0_SYSCALL_SP,
+        syscall_sp_offset = const offset_of!(Cpu, syscall_sp),
         max_syscalls = const MAX_SYSCALLS,
         syscalls = sym SYSCALLS,
 

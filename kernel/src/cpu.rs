@@ -13,10 +13,10 @@ use core::ptr;
 
 use x86::msr;
 
-use verified::trap::Registers;
+use crate::gdt::{GlobalDescriptorTable, TaskStateSegment};
 use crate::interrupt::x86_xapic::XAPIC;
-use crate::gdt::{GlobalDescriptorTable, IstStack, TaskStateSegment};
 use crate::thread::SwitchDecision;
+use verified::trap::Registers;
 
 const NEW_CPU: Cpu = Cpu::new();
 
@@ -25,6 +25,9 @@ static mut CPUS: [Cpu; 16] = [NEW_CPU; 16];
 
 /// Offset of GS where the CPU ID is located.
 const GS_CPU_ID_OFFSET: usize = 8;
+
+/// Size of an IST stack.
+const IST_STACK_SIZE: usize = 4096;
 
 macro_rules! read_current_cpu_offset {
     ($offset:expr) => {{
@@ -43,7 +46,7 @@ macro_rules! read_current_cpu_offset {
 macro_rules! read_current_cpu_field {
     ($field:ident) => {
         read_current_cpu_offset!(memoffset::offset_of!($crate::cpu::Cpu, $field))
-    }
+    };
 }
 
 macro_rules! get_current_cpu_field_ptr {
@@ -96,6 +99,32 @@ pub struct Cpu {
 
     /// The Interrupt Stacks.
     pub ist: [IstStack; 7],
+
+    pub syscall_stack: IstStack,
+
+    /// The stack pointer for syscalls.
+    ///
+    /// We do not support nested syscalls.
+    pub syscall_sp: u64,
+}
+
+/// A stack.
+#[repr(transparent)]
+pub struct Stack<const SZ: usize>([u8; SZ]);
+
+/// An IST stack.
+pub type IstStack = Stack<IST_STACK_SIZE>;
+
+impl<const SZ: usize> Stack<SZ> {
+    pub const fn new() -> Self {
+        Self([0u8; SZ])
+    }
+
+    pub fn bottom(&self) -> *const u8 {
+        unsafe {
+            (self.0.as_ptr() as *const u8).add(SZ)
+        }
+    }
 }
 
 unsafe impl Send for Cpu {}
@@ -120,6 +149,8 @@ impl Cpu {
                 IstStack::new(),
                 IstStack::new(),
             ],
+            syscall_stack: IstStack::new(),
+            syscall_sp: 0,
         }
     }
 }
@@ -144,9 +175,9 @@ pub unsafe fn init_cpu(cpu_id: usize) {
 
     log::info!("CPU{} @ {:?}", cpu_id, address);
 
-    let self_ptr_ptr = &mut cpu.self_ptr as *mut *const Cpu;
     cpu.self_ptr = address;
     cpu.id = cpu_id;
+    cpu.syscall_sp = cpu.syscall_stack.bottom() as u64;
 
     msr::wrmsr(msr::IA32_GS_BASE, address as u64);
 }
