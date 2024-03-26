@@ -133,14 +133,14 @@ fn main(boot_info: *const BootInfo) -> isize {
 
     kernel::kernel_init(&boot_info.pages, pml4 as usize, kernel_pml4 as usize);
 
-    // unsafe {
-    //     let ap_rsp = (&AP_STACK as *const _ as u64 + AP_STACK.len() as u64) & !(4096 - 1);
-    //     interrupt::boot_ap(
-    //         1,
-    //         ap_rsp,
-    //         ap_main as u64,
-    //     );
-    // }
+    unsafe {
+        let ap_rsp = (&AP_STACK as *const _ as u64 + AP_STACK.len() as u64) & !(4096 - 1);
+        interrupt::boot_ap(
+            1,
+            ap_rsp,
+            ap_main as u64,
+        );
+    }
 
     let initial_sp = unsafe { dom0.virt_start.add(dom0.reserved_size - 0x1000) };
     log::info!("initial_sp: {:?}", initial_sp);
@@ -163,7 +163,7 @@ fn ap_main(cpu_id: u64, rsp: u64) {
         syscalls::init_cpu();
     }
 
-    log::info!("Hello from CPU {}", cpu::get_cpu_id());
+    // log::info!("Hello from CPU {}", cpu::get_cpu_id());
 
     unsafe {
         thread::start_thread(

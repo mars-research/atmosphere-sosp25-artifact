@@ -1,4 +1,5 @@
 pub const size_of_queue:usize = 4096;
+pub const size_of_buffer:usize = 8;
 
 #[repr(align(4096))]
 #[repr(C)]
@@ -6,6 +7,7 @@ pub struct DataBufferAllocWrapper{
     pub request_queue:RingBuffer::<usize,size_of_queue>,
     pub reply_queue:RingBuffer::<usize,size_of_queue>,
     pub free_stack:[usize;size_of_queue],
+    pub data_buffer:[[usize;size_of_buffer];size_of_queue],
     pub len:usize,
 }
 impl DataBufferAllocWrapper{
@@ -13,6 +15,11 @@ impl DataBufferAllocWrapper{
         self.request_queue.init();
         self.reply_queue.init();
         self.len = 0;
+        for i in 0..size_of_queue{
+            for j in 0..size_of_buffer{
+                self.data_buffer[i][j] = 0;
+            }
+        }
     }
 }
 
