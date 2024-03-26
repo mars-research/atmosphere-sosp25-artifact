@@ -233,14 +233,11 @@ unsafe extern "x86-interrupt" fn stack_segment_fault(
 }
 
 /// General Protection Fault handler.
-unsafe extern "x86-interrupt" fn general_protection_fault(
-    frame: &mut InterruptStackFrame,
-    error_code: u64,
-) {
+unsafe extern "C" fn general_protection_fault(regs: &mut Registers) {
     log::error!(
         "General Protection Fault (error code {:#b}): {:#x?}",
-        error_code,
-        frame
+        regs.error_code,
+        regs
     );
     crate::debugger::breakpoint(2);
     spin_forever();
@@ -248,7 +245,9 @@ unsafe extern "x86-interrupt" fn general_protection_fault(
 
 /// Page Fault handler.
 unsafe extern "C" fn page_fault(regs: &mut Registers) {
-    log::info!("Page Fault (error code {:?}): {:#x?}", regs.error_code, regs);
+    let address: u64;
+    asm!("mov {}, cr2", out(reg) address);
+    log::info!("Page Fault (address {:#x}, error code {:?}): {:#x?}", address, regs.error_code, regs);
     crate::debugger::breakpoint(2);
     spin_forever();
 }
@@ -402,7 +401,7 @@ pub unsafe fn init() {
     idt.double_fault.set_handler_fn(double_fault);
     idt.stack_segment_fault.set_handler_fn(stack_segment_fault);
     idt.general_protection_fault
-        .set_handler_fn(general_protection_fault);
+        .set_handler_fn(wrap_interrupt_with_error_code!(general_protection_fault));
     idt.page_fault.set_handler_fn(wrap_interrupt_with_error_code!(page_fault));
 
     idt.interrupts[0].set_handler_fn(wrap_interrupt!(timer));
