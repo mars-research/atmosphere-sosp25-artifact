@@ -77,7 +77,9 @@ fn test_null_driver_ap(){
     //         log::info!("null_driver cycles per request {:?}",(end-start) as usize /target);
     //     }
 
-    loop {}
+    loop {
+        unsafe{asm!("nop");}
+    }
 }
 fn test_null_driver(){
     unsafe {
@@ -89,7 +91,7 @@ fn test_null_driver(){
         let mut range = 0;
         loop{
             let (pa,perm) = asys::sys_mresolve(0x8000000000usize + range * 4096);
-            log::info!("va:{:x?}, pa:{:x?}, perm:{:?}", 0x8000000000usize + range * 4096, pa, perm);
+            // log::info!("va:{:x?}, pa:{:x?}, perm:{:?}", 0x8000000000usize + range * 4096, pa, perm);
             if perm == 34{
                 break;
             }
@@ -105,7 +107,8 @@ fn test_null_driver(){
             log::info!("sys_mmap for dom1 stack failed {:?}", error_code);
             return;
         }
-        let rsp: usize = (new_stack + size) & !(4096 - 1);
+        let rsp: usize = new_stack + size/2;
+        log::info!("request_queue address: {:x?}", rsp);  
         let error_code = asys::sys_new_proc_with_iommu_pass_mem(0,test_null_driver_ap as *const () as usize, rsp, 0x8000000000usize, range + size / 4096);
             if error_code != 0 {
                 log::info!("sys_new_proc_with_iommu_pass_mem failed {:?}", error_code);

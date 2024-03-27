@@ -620,7 +620,7 @@ pub fn kernel_init(
     kernel_pml4_entry_ptr: usize,
 ) {
 
-    log::info!("cpu_list addr {:p}",&(KERNEL.lock().as_ref().unwrap().cpu_list.ar));
+    // log::info!("cpu_list addr {:p}",&(KERNEL.lock().as_ref().unwrap().cpu_list.ar));
     let mut boot_pages = vArrayVec::<(u8, usize), { 1 * 1024 * 1024 }>::new();
     let mut i = 0;
     while i != 1 * 1024 * 1024 {
@@ -911,7 +911,7 @@ pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
         false
     }else{
         if thread_info_op.is_none(){
-            log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
+            // log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
             unsafe {
                 asm!(
                     "mov cr3, {pml4}",
@@ -921,7 +921,7 @@ pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
 
             let cr3: u64;
             unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
-            log::info!("cr3 {:x?}", cr3);
+            // log::info!("cr3 {:x?}", cr3);
 
             if ret_struc.error_code == vdefine::NO_ERROR_CODE{
                 Bridge::set_switch_decision(SwitchDecision::SwitchToPreempted);
@@ -964,8 +964,8 @@ pub extern "C" fn sys_receive_pages(endpoint_index:usize, va:usize, range:usize,
     let cpu_id = cpu::get_cpu_id();
     let mut kernel = KERNEL.lock();
     let thread_info_op = kernel.as_mut().unwrap().until_get_current_thread_info(cpu_id);
-    log::info!("cpu_list addr {:p}",&(kernel.as_ref().unwrap().cpu_list.ar));
-    log::info!("sys_receive_pagestrap frame {:x?} thead_info {:x?} thread{:x?}",regs,thread_info_op,kernel.as_mut().unwrap().cpu_list.ar[cpu_id].current_t, );
+    // log::info!("cpu_list addr {:p}",&(kernel.as_ref().unwrap().cpu_list.ar));
+    // log::info!("sys_receive_pagestrap frame {:x?} thead_info {:x?} thread{:x?}",regs,thread_info_op,kernel.as_mut().unwrap().cpu_list.ar[cpu_id].current_t, );
     let ret_struc =  kernel.as_mut().unwrap().syscall_receive_pages_wait(
         cpu_id,
         regs,
@@ -1009,7 +1009,7 @@ pub extern "C" fn sys_receive_pages(endpoint_index:usize, va:usize, range:usize,
                 if thread_info_op.unwrap().2 != ret_struc.thread_ptr{
                     Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
                 }else{
-                    log::info!("sys_receive_pages NoSwitching trap frame {:x?}",regs);
+                    // log::info!("sys_receive_pages NoSwitching trap frame {:x?}",regs);
                     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
                 }
             }
@@ -1021,9 +1021,9 @@ pub extern "C" fn sys_send_pages_no_wait(endpoint_index:usize, va:usize, range:u
     // log::info!("regs {:x?}", regs);
     let cpu_id = cpu::get_cpu_id();
     let mut kernel = KERNEL.lock();
-    log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?}",regs,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
+    // log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?}",regs,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
     let thread_info_op = kernel.as_mut().unwrap().until_get_current_thread_info(0);
-    log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?} thread{:x?}",regs,thread_info_op,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
+    // log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?} thread{:x?}",regs,thread_info_op,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
     let ret_struc =  kernel.as_mut().unwrap().syscall_send_pages_no_wait(
         cpu_id,
         endpoint_index,
