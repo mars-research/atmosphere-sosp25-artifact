@@ -11,6 +11,7 @@ mod ring_buffer;
 use crate::ring_buffer::*;
 use crate::benchmark_null_driver::*;
 use crate::syscall_benchmark::*;
+use libtime::sys_ns_loopsleep;
 
 pub const DATA_BUFFER_ADDR:u64 = 0xF000000000;
 
@@ -25,6 +26,7 @@ fn main() -> isize {
     }
     // test_proc_pingpong();
 
+    sys_ns_loopsleep(100);
     loop {}
 }
 fn thread_1_main(){

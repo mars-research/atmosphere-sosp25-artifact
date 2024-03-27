@@ -819,6 +819,7 @@ name = "dom0"
 version = "0.1.0"
 dependencies = [
  "asys",
+ "libtime",
  "log",
 ]
 
@@ -2257,6 +2258,10 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
+
+[[package]]
+name = "libtime"
+version = "0.1.0"
 
 [[package]]
 name = "libz-sys"
