@@ -117,6 +117,7 @@ unsafe extern "C" fn sys_entry() -> ! {
         "push r11",       // rflags
         "push {user_cs}", // cs
         "push rcx",       // rip
+        "push 0",         // error_code
 
         "push_dummy_caller_saved",
 
@@ -181,6 +182,7 @@ unsafe extern "C" fn sys_entry() -> ! {
         "pop rbx",
         "add rsp, 8*8", // skip r11~rdi (8 registers)
         "pop rax",      // rax
+        "add rsp, 8",   // error_code
         "pop rcx",      // rip
         "add rsp, 8",   // skip cs
         "pop r11",      // rflags
@@ -190,7 +192,7 @@ unsafe extern "C" fn sys_entry() -> ! {
 
         // 2. Return to the same thread
         "22:",
-        "add rsp, 14*8", // skip r15~rdi (14 registers)
+        "add rsp, 15*8", // skip r15~rdi (14 registers) and error_code
         "pop rax",       // rax
         "pop rcx",       // rip
         "add rsp, 8",    // skip cs
@@ -216,6 +218,7 @@ unsafe extern "C" fn sys_entry() -> ! {
         "pop rsi",
         "pop rdi",
         "pop rax",
+        "add rsp, 8",
         "iretq",
 
         user_ss = const GlobalDescriptorTable::USER_SS,
