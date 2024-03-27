@@ -2,23 +2,41 @@
 #![no_main]
 #![feature(start)]
 
-use core::panic::PanicInfo;
-use core::arch::x86_64::_rdtsc;
+extern crate alloc;
+
 use core::arch::asm;
-mod syscall_benchmark;
+use core::arch::x86_64::_rdtsc;
+use core::panic::PanicInfo;
 mod benchmark_null_driver;
 mod ring_buffer;
-use crate::ring_buffer::*;
+mod syscall_benchmark;
 use crate::benchmark_null_driver::*;
+use crate::ring_buffer::*;
 use crate::syscall_benchmark::*;
+use alloc::vec::Vec;
 use libtime::sys_ns_loopsleep;
 
-pub const DATA_BUFFER_ADDR:u64 = 0xF000000000;
+mod slab_alloc;
+
+pub const DATA_BUFFER_ADDR: u64 = 0xF000000000;
+
+fn test_sleep() {
+    log::trace!("Sleeping for 100 ns");
+    sys_ns_loopsleep(100);
+    log::trace!("Waking up from sleep");
+}
+
+fn test_alloc() {
+    let mut v: Vec<u64> = Vec::with_capacity(32);
+    for i in 0..64 {
+        v.push(i);
+    }
+}
 
 #[start]
 #[no_mangle]
 fn main() -> isize {
-    asys::logger::init_logging_with_level(log::Level::Trace);
+    asys::logger::init_logging_with_level(log::Level::Info);
     log::trace!("hello {}", "world");
 
     unsafe {
@@ -26,10 +44,13 @@ fn main() -> isize {
     }
     // test_proc_pingpong();
 
-    sys_ns_loopsleep(100);
+    test_sleep();
+
+    test_alloc();
+
     loop {}
 }
-fn thread_1_main(){
+fn thread_1_main() {
     log::info!("hello from thread_1_main");
     loop {
         unsafe {
@@ -43,11 +64,11 @@ fn thread_1_main(){
     }
 }
 
-fn thread_1_hello_ap(){
+fn thread_1_hello_ap() {
     log::info!("hello from thread_1_main");
 }
 
-fn dom_1_main(){
+fn dom_1_main() {
     log::info!("hello from dom_1_main");
     loop {
         unsafe {

@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 asys = { path = "../asys" }
 libtime = { path = "../user/libtime" }
-
+slabmalloc = "0.11.0"
+spin = "0.9.8"
 log = "0.4.19"
