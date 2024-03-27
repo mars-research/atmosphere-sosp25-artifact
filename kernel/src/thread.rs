@@ -45,7 +45,7 @@ pub fn schedule(regs: &mut Registers) -> Option<Cycles> {
     // mem::swap(&mut cpu.parked, regs);
     // Some(TIME_SLICE)
 
-    // log::info!("hello from cpu 1 scheduler");
+    log::info!("hello from cpu 1 scheduler");
     loop{
         unsafe{
             let has_next_thread = kernel::sched_get_next_thread(regs);

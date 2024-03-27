@@ -19,63 +19,62 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    test_null_driver();
+    // test_null_driver();
 
     loop {}
 }
 
 #[no_mangle]
-fn test_null_driver_ap(){
+fn test_null_driver_ap()->!{
     log::info!("hello from test_null_driver_ap");
 
     unsafe{
         let size = core::mem::size_of::<DataBufferAllocWrapper>();
-        let error_code = asys::sys_receive_pages(20000,data_buffer_addr as usize, size / 4096 + 1);
+        let error_code = asys::sys_receive_pages(0,data_buffer_addr as usize, size / 4096 + 1);
         if error_code != 0 {
             log::info!("sys_receive_pages failed {:?}", error_code);
-            return;
         }else{
             log::info!("data_buffer received by dom1");
         }   
     }
 
-    // let target = 10000000;
-    // let mut counter = 0;
-    //     unsafe{
-    //         let buff_ref:&mut DataBufferAllocWrapper = &mut*(data_buffer_addr as *mut DataBufferAllocWrapper);
-    //         for i in 0..size_of_queue{
-    //             buff_ref.free_stack[buff_ref.len] = i;
-    //             buff_ref.len = buff_ref.len + 1;
-    //         }
-    //         // log::info!("free_stack init done");
-    //         let start = _rdtsc();
-    //         while counter <= target{
-    //             //push free stack into request queue
-    //             // log::info!("counter: {:?}",counter);
-    //             while buff_ref.len != 0{
-    //                 let result = buff_ref.request_queue.try_push(buff_ref.free_stack[buff_ref.len-1]);
-    //                 // log::info!("result: {:?} i: {:?}",result,free_stack[len-1]);
-    //                 if result{
-    //                     buff_ref.len = buff_ref.len -1;
-    //                 }
+    let target = 10000000;
+    let mut counter = 0;
+        unsafe{
+            let buff_ref:&mut DataBufferAllocWrapper = &mut*(data_buffer_addr as *mut DataBufferAllocWrapper);
+            for i in 0..size_of_queue{
+                buff_ref.free_stack[buff_ref.len] = i;
+                buff_ref.len = buff_ref.len + 1;
+            }
+            // log::info!("free_stack init done");
+            let start = _rdtsc();
+            while counter <= target{
+                //push free stack into request queue
+                // log::info!("counter: {:?}",counter);
+                while buff_ref.len != 0{
+                    let result = buff_ref.request_queue.try_push(buff_ref.free_stack[buff_ref.len-1]);
+                    // log::info!("result: {:?} i: {:?}",result,free_stack[len-1]);
+                    if result{
+                        buff_ref.len = buff_ref.len -1;
+                    }
                     
 
-    //             }
-    //             //pop reply queue to free stack
-    //             loop{
-    //                 let result = buff_ref.reply_queue.try_pop();
-    //                 if result.is_none(){
-    //                     break;
-    //                 }else{
-    //                     counter = counter + 1;
-    //                     buff_ref.free_stack[buff_ref.len] = result.unwrap();
-    //                     buff_ref.len = buff_ref.len + 1;
-    //                 }
-    //             }
-    //         }
-    //         let end = _rdtsc();
-    //         log::info!("null_driver cycles per request {:?}",(end-start) as usize /target);
-    //     }
+                }
+                //pop reply queue to free stack
+                loop{
+                    let result = buff_ref.reply_queue.try_pop();
+                    if result.is_none(){
+                        break;
+                    }else{
+                        counter = counter + 1;
+                        buff_ref.free_stack[buff_ref.len] = result.unwrap();
+                        buff_ref.len = buff_ref.len + 1;
+                    }
+                }
+            }
+            let end = _rdtsc();
+            log::info!("null_driver cycles per request {:?}",(end-start) as usize /target);
+        }
 
     loop {
         unsafe{asm!("nop");}
@@ -127,35 +126,32 @@ fn test_null_driver(){
         buff_ref.init();
         log::info!("data_buffer init done");
 
-        // loop{
-        //     log::info!("heart beat from dom0");
-        // }
-        // loop{
-        //     let error_code = asys::sys_send_pages_no_wait(0,data_buffer_addr as usize, size / 4096 + 1);
-        //     if error_code == 5  {
-        //     }else{
-        //         if error_code == 0{
-        //             log::info!("data_buffer sent to dom1");
-        //             break;
-        //         }else{
-        //             log::info!("sys_send_pages_no_wait failed {:?}", error_code);
-        //             break;
-        //         }
-        //     }
-        // }
-        // loop{
-        //     let result = buff_ref.request_queue.try_pop();
-        //     if result.is_none(){
-        //         for i in 0..100{
-        //             asm!("nop");
-        //         }
-        //     }else{
-        //         // for i in 0..size_of_buffer{
-        //         //     buff_ref.data_buffer[result.unwrap()][i] += 1;
-        //         // }
-        //         buff_ref.reply_queue.try_push(result.unwrap());
-        //     }
-        // }
+        loop{
+            let error_code = asys::sys_send_pages_no_wait(0,data_buffer_addr as usize, size / 4096 + 1);
+            if error_code == 5  {
+            }else{
+                if error_code == 0{
+                    log::info!("data_buffer sent to dom1");
+                    break;
+                }else{
+                    log::info!("sys_send_pages_no_wait failed {:?}", error_code);
+                    break;
+                }
+            }
+        }
+        loop{
+            let result = buff_ref.request_queue.try_pop();
+            if result.is_none(){
+                for i in 0..100{
+                    asm!("nop");
+                }
+            }else{
+                // for i in 0..size_of_buffer{
+                //     buff_ref.data_buffer[result.unwrap()][i] += 1;
+                // }
+                buff_ref.reply_queue.try_push(result.unwrap());
+            }
+        }
     }
 }
 

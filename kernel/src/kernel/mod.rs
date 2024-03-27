@@ -648,7 +648,7 @@ pub fn kernel_init(
         init_pci_map,
     );
     
-    log::info!("cpu 0 thread ptr {:?}",KERNEL.lock().as_ref().unwrap().cpu_list.ar[0].current_t);
+    // log::info!("cpu 0 thread ptr {:?}",KERNEL.lock().as_ref().unwrap().cpu_list.ar[0].current_t);
     log::info!("kernel init ret_code {:?}", ret_code);
     let dom0_retstruc = KERNEL
     .lock()
@@ -667,9 +667,7 @@ pub fn kernel_init(
         );
     }
 
-
-    log::info!("cpu 0 thread ptr {:x?}",KERNEL.lock().as_ref().unwrap().cpu_list.ar[0].current_t);
-    log::info!("End of kernel syscall test \n\n\n\n\n\n");
+    log::trace!("End of kernel init");
 }
 
 pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
