@@ -1,13 +1,13 @@
-pub const size_of_queue:usize = 4096;
-pub const size_of_buffer:usize = 8;
+pub const SIZE_OF_QUEUE:usize = 4096;
+pub const SIZE_OF_BUFFER:usize = 8;
 
 #[repr(align(4096))]
 #[repr(C)]
 pub struct DataBufferAllocWrapper{
-    pub request_queue:RingBuffer::<usize,size_of_queue>,
-    pub reply_queue:RingBuffer::<usize,size_of_queue>,
-    pub free_stack:[usize;size_of_queue],
-    pub data_buffer:[[usize;size_of_buffer];size_of_queue],
+    pub request_queue:RingBuffer::<usize,SIZE_OF_QUEUE>,
+    pub reply_queue:RingBuffer::<usize,SIZE_OF_QUEUE>,
+    pub free_stack:[usize;SIZE_OF_QUEUE],
+    pub data_buffer:[[usize;SIZE_OF_BUFFER];SIZE_OF_QUEUE],
     pub len:usize,
 }
 impl DataBufferAllocWrapper{
@@ -15,10 +15,33 @@ impl DataBufferAllocWrapper{
         self.request_queue.init();
         self.reply_queue.init();
         self.len = 0;
-        for i in 0..size_of_queue{
-            for j in 0..size_of_buffer{
+        for i in 0..SIZE_OF_QUEUE{
+            for j in 0..SIZE_OF_BUFFER{
                 self.data_buffer[i][j] = 0;
             }
+        }
+    }
+
+    pub fn allocator_len(&self) -> usize{
+        self.len
+    }
+
+    pub fn try_push_allocator(&mut self, value:usize) -> bool{
+        if self.len < SIZE_OF_QUEUE{
+            self.free_stack[self.len] = value;
+            self.len += 1;
+            true
+        }else{
+            false
+        }
+    }
+
+    pub fn try_pop_allocator(&mut self) -> Option<usize>{
+        if self.len > 0 {
+            self.len -= 1;
+            Some(self.free_stack[self.len])
+        }else{
+            None
         }
     }
 }
