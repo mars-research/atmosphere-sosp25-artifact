@@ -192,8 +192,9 @@ unsafe extern "C" fn sys_entry() -> ! {
 
         // 2. Return to the same thread
         "22:",
-        "add rsp, 15*8", // skip r15~rdi (14 registers) and error_code
+        "add rsp, 14*8", // skip r15~rdi (14 registers)
         "pop rax",       // rax
+        "add rsp, 8",    // skip error_code
         "pop rcx",       // rip
         "add rsp, 8",    // skip cs
         "pop r11",       // rflags
