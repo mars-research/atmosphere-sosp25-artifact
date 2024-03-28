@@ -660,12 +660,7 @@ pub fn kernel_init(
     let pcid_dom0 = 0;
     log::info!("setting dom0's pcid: {:?}", pcid_dom0);
     let cr3 = dom0_pagetable_ptr | vdefine::PCID_ENABLE_MASK | pcid_dom0;
-    unsafe {
-        asm!(
-            "mov cr3, {pml4}",
-            pml4 = inout(reg)  dom0_pagetable_ptr => _,
-        );
-    }
+    Bridge::set_cr3(cr3 as u64);
 
     log::trace!("End of kernel init");
 }
@@ -777,12 +772,7 @@ pub extern "C" fn sys_send_empty(endpoint_index:usize, _:usize, _:usize, regs: &
             log::info!("fatal: syscall coming from null cpu");
         }else{
             if ret_struc.1.unwrap().1 != ret_struc.0.cr3 {
-                unsafe {
-                    asm!(
-                        "mov cr3, {pml4}",
-                        pml4 = inout(reg) ret_struc.0.cr3 | ret_struc.0.pcid | vdefine::PCID_ENABLE_MASK => _,
-                    );
-                }
+                Bridge::set_cr3((ret_struc.0.cr3 | ret_struc.0.pcid | vdefine::PCID_ENABLE_MASK) as u64);
             }
 
             if ret_struc.0.error_code == vdefine::NO_ERROR_CODE{
@@ -820,12 +810,8 @@ pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs
             log::info!("fatal: syscall coming from null cpu");
         }else{
             if ret_struc.1.unwrap().1 != ret_struc.0.cr3 {
-                unsafe {
-                    asm!(
-                        "mov cr3, {pml4}",
-                        pml4 = inout(reg) ret_struc.0.cr3 | ret_struc.0.pcid | vdefine::PCID_ENABLE_MASK => _,
-                    );
-                }
+
+                Bridge::set_cr3((ret_struc.0.cr3 | ret_struc.0.pcid | vdefine::PCID_ENABLE_MASK) as u64);
             }
 
             if ret_struc.0.error_code == vdefine::NO_ERROR_CODE{
@@ -878,12 +864,8 @@ pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
     }else{
         if thread_info_op.is_none(){
             // log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
-            unsafe {
-                asm!(
-                    "mov cr3, {pml4}",
-                    pml4 = inout(reg) (ret_struc.cr3 | ret_struc.pcid) => _,
-                );
-            }
+
+            Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
 
             let cr3: u64;
             unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
@@ -901,12 +883,8 @@ pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
 
         }else{
             if thread_info_op.unwrap().1 != ret_struc.cr3 {
-                unsafe {
-                    asm!(
-                        "mov cr3, {pml4}",
-                        pml4 = inout(reg) ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK => _,
-                    );
-                }
+
+                Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
             }
 
             if ret_struc.error_code == vdefine::NO_ERROR_CODE{
@@ -958,12 +936,7 @@ pub extern "C" fn sys_receive_pages(endpoint_index:usize, va:usize, range:usize,
             log::info!("fatal: syscall coming from null cpu");
         }else{
             if thread_info_op.unwrap().1 != ret_struc.cr3 {
-                unsafe {
-                    asm!(
-                        "mov cr3, {pml4}",
-                        pml4 = inout(reg) ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK => _,
-                    );
-                }
+                Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
             }
 
             if ret_struc.error_code == vdefine::NO_ERROR_CODE{

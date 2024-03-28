@@ -23,7 +23,7 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    // test_null_syscall();
+    // test_proc_pingpong();
 
     loop {}
 }
