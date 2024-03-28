@@ -48,6 +48,9 @@ pub struct RunConfiguration {
     /// support QEMU-KVM.
     use_virtualization: bool,
 
+    /// Use GRUB.
+    use_grub: bool,
+
     /// The emulated CPU model.
     cpu_model: CpuModel,
 
@@ -86,6 +89,7 @@ impl RunConfiguration {
             dom0: None,
             memory: Byte::from_unit(8.0f64, ByteUnit::GiB).unwrap(),
             use_virtualization: false,
+            use_grub: false,
             cpu_model: CpuModel::Haswell,
             script: None,
             command_line: String::new(),

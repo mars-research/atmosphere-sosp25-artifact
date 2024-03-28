@@ -36,7 +36,7 @@ pub struct BootableImage {
 
 impl BootableImage {
     /// Create a bootable image.
-    pub async fn generate<S: AsRef<str>>(command_line: S, kernel: Option<&Binary>) -> Result<Self> {
+    pub async fn generate<S: AsRef<str>>(command_line: S, kernel: Option<&Binary>, module: Option<&Path>) -> Result<Self> {
         let temp_dir = TempDir::new()?;
 
         let source_dir = temp_dir.path().join("grub");
@@ -62,6 +62,11 @@ impl BootableImage {
             verify_multiboot2(kernel.path()).await?;
             let kernel_path = source_dir.join("boot/atmosphere");
             fs::copy(kernel.path(), kernel_path).await?;
+        }
+
+        if let Some(module) = module {
+            let module_path = source_dir.join("boot/module");
+            fs::copy(module, module_path).await?;
         }
 
         let mut command = Command::new("grub-mkrescue");
@@ -112,11 +117,13 @@ set timeout=0
 set default=0
 
 menuentry "Atmosphere" {{
-    multiboot2 {}/atmosphere {}
+    multiboot2 {root}/atmosphere {command_line}
+    module2 {root}/module "module"
     boot
 }}
 "#,
-        root, command_line
+        root = root,
+        command_line = command_line,
     )
 }
 

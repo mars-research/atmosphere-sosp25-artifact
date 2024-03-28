@@ -61,6 +61,7 @@
         pkg-config
 
         x86Pkgs.grub2
+        xorriso
 
         util-linuxMinimal
 

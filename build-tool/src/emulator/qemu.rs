@@ -14,6 +14,7 @@ use tokio::process::Command;
 use super::output_filter::InitialOutputFilter;
 use super::{CpuModel, Emulator, EmulatorExit, GdbConnectionInfo, GdbServer, RunConfiguration};
 use crate::error::Result;
+use crate::grub::BootableImage;
 use crate::project::{Binary, ProjectHandle};
 
 /// A QEMU instance.
@@ -46,7 +47,7 @@ impl Emulator for Qemu {
         let config = &self.config;
         let memory = config.memory.get_adjusted_unit(ByteUnit::MiB).get_value() as usize;
 
-        let _command_line = config.full_command_line()
+        let command_line = config.full_command_line()
             + &format!(" qemu_debug_exit_io_base={}", self.debug_exit_io_base);
         let suppress_initial_outputs = config.suppress_initial_outputs; // FIXME
 
@@ -61,21 +62,29 @@ impl Emulator for Qemu {
 
         let initrd = initrd.finalize();
 
-        command.args(&[
-            "-kernel",
-            config
-                .loader
-                .path()
-                .to_str()
-                .expect("Early loader path contains non-UTF-8"),
-        ]);
-        command.args(&[
-            "-initrd",
-            initrd
-                .as_os_str()
-                .to_str()
-                .expect("Kernel path contains non-UTF-8"),
-        ]);
+        let iso = if config.use_grub {
+            let iso = BootableImage::generate(command_line, Some(&config.loader), Some(&initrd)).await?;
+            command.arg("-hda");
+            command.arg(iso.iso_path());
+            Some(iso)
+        } else {
+            command.args(&[
+                "-kernel",
+                config
+                    .loader
+                    .path()
+                    .to_str()
+                    .expect("Early loader path contains non-UTF-8"),
+            ]);
+            command.args(&[
+                "-initrd",
+                initrd
+                    .as_os_str()
+                    .to_str()
+                    .expect("Kernel path contains non-UTF-8"),
+            ]);
+            None
+        };
 
         command
             .arg("-nographic")
@@ -133,6 +142,7 @@ impl Emulator for Qemu {
         }
 
         let status = child.wait_with_output().await?.status;
+        drop(iso);
 
         if !status.success() {
             if let Some(code) = status.code() {
