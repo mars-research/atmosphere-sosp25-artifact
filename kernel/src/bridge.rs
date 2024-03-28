@@ -11,4 +11,10 @@ impl TrustedBridge for Bridge {
         };
         *switch_decision = decision;
     }
+
+    fn set_cr3(cr3: u64) {
+        unsafe {
+            asm!("mov cr3, {}", in(reg) cr3);
+        }
+    }
 }
