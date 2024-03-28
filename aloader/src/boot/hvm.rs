@@ -5,8 +5,10 @@
 use core::iter::Iterator;
 use core::ptr;
 
-use crate::memory::{AcpiMemoryType, MemoryRange};
 use num_traits::FromPrimitive;
+
+use crate::memory::{AcpiMemoryType, MemoryRange};
+use super::StartInfo;
 
 pub const HVM_START_INFO_MAGIC: u32 = 0x336ec578;
 
@@ -15,7 +17,7 @@ pub const HVM_START_INFO_MAGIC: u32 = 0x336ec578;
 /// <https://patchwork.kernel.org/project/qemu-devel/patch/1547554687-12687-4-git-send-email-liam.merwick@oracle.com>
 #[repr(C)]
 #[derive(Debug)]
-pub struct StartInfo {
+pub struct HvmStartInfo {
     /// Contains the magic value 0x336ec578.
     magic: u32,
 
@@ -80,38 +82,26 @@ pub struct ModlistEntry {
 
 /// An iterator over the physical memory region table.
 pub struct MemmapTableIterator<'si> {
-    start_info: &'si StartInfo,
+    start_info: &'si HvmStartInfo,
     index: usize,
     done: bool,
 }
 
 /// An iterator over the module list.
 pub struct ModlistIterator<'si> {
-    start_info: &'si StartInfo,
+    start_info: &'si HvmStartInfo,
     index: usize,
 }
 
-impl StartInfo {
-    pub unsafe fn load(start_info_addr: u64) -> Option<Self> {
-        let start_info = ptr::read_unaligned(start_info_addr as *const StartInfo);
-
-        if start_info.validate() {
-            Some(start_info)
-        } else {
-            None
-        }
-    }
-
-    /// Creates an iterator through all memory regions.
-    pub fn iter_memory_regions(
+impl StartInfo for HvmStartInfo {
+    fn iter_memory_regions(
         &self,
     ) -> impl Iterator<Item = (MemoryRange, Option<AcpiMemoryType>)> + '_ {
         self.iter_raw_memmap()
             .map(|entry| (MemoryRange::new(entry.addr, entry.size), entry.map_type()))
     }
 
-    /// Dumps the physical memory map to the log.
-    pub fn dump_memmap(&self) {
+    fn dump_memmap(&self) {
         log::info!("Physical memory map:");
         for memmap in self.iter_raw_memmap() {
             let start = memmap.addr;
@@ -125,18 +115,14 @@ impl StartInfo {
         }
     }
 
-    /// Creates an iterator through the module list entries.
-    pub fn iter_modlist(&self) -> ModlistIterator {
-        ModlistIterator {
-            start_info: self,
-            index: 0,
-        }
+    fn iter_modlist(&self) -> impl Iterator<Item = MemoryRange> + '_ {
+        self.iter_raw_modlist()
+            .map(|entry| entry.to_memory_range())
     }
 
-    /// Dumps the module list to the log.
-    pub fn dump_modlist(&self) {
+    fn dump_modlist(&self) {
         log::info!("Module list:");
-        for module in self.iter_modlist() {
+        for module in self.iter_raw_modlist() {
             let start = module.paddr;
             let end = start + module.size - 1;
             log::info!(
@@ -145,6 +131,26 @@ impl StartInfo {
                 end,
                 module.size
             );
+        }
+    }
+}
+
+impl HvmStartInfo {
+    pub unsafe fn load(start_info_addr: u64) -> Option<Self> {
+        let start_info = ptr::read_unaligned(start_info_addr as *const HvmStartInfo);
+
+        if start_info.validate() {
+            Some(start_info)
+        } else {
+            None
+        }
+    }
+
+    /// Creates an iterator through the module list entries.
+    fn iter_raw_modlist(&self) -> ModlistIterator {
+        ModlistIterator {
+            start_info: self,
+            index: 0,
         }
     }
 

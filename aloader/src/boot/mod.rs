@@ -5,7 +5,7 @@ mod hvm;
 use core::ptr;
 
 use crate::memory::init_physical_memory_map;
-use crate::memory::MemoryRange;
+use crate::memory::{AcpiMemoryType, MemoryRange};
 use astd::sync::Mutex;
 
 /// The kernel image passed by the bootloader.
@@ -38,6 +38,22 @@ enum Bootloader {
     Hvm,
 }
 
+trait StartInfo {
+    /// Creates an iterator through all memory regions.
+    fn iter_memory_regions(
+        &self,
+    ) -> impl Iterator<Item = (MemoryRange, Option<AcpiMemoryType>)> + '_;
+
+    /// Dumps the physical memory map to the log.
+    fn dump_memmap(&self);
+
+    /// Creates an iterator through the module list entries.
+    fn iter_modlist(&self) -> impl Iterator<Item = MemoryRange> + '_;
+
+    /// Dumps the module list to the log.
+    fn dump_modlist(&self);
+}
+
 /// Returns the range of the loader itself.
 pub fn get_loader_image_range() -> MemoryRange {
     let start = unsafe { &__loader_start as *const _ as u64 };
@@ -66,7 +82,7 @@ pub unsafe fn init() {
             log::info!("Booted via Xen x86/HVM");
 
             let start_info =
-                unsafe { hvm::StartInfo::load(bootinfo).expect("Invalid Xen x86/HVM start info") };
+                unsafe { hvm::HvmStartInfo::load(bootinfo).expect("Invalid Xen x86/HVM start info") };
             start_info.dump_memmap();
             start_info.dump_modlist();
 
@@ -75,15 +91,14 @@ pub unsafe fn init() {
                 .map(|(r, t)| (r, t.expect("Unknown memory type")));
             let loader_range = get_loader_image_range();
             let image_ranges = start_info
-                .iter_modlist()
-                .map(|module| module.to_memory_range());
+                .iter_modlist();
 
             init_physical_memory_map(regions, loader_range, image_ranges);
 
             if let Some(module) = start_info.iter_modlist().next() {
                 let mut kernel_image = KERNEL_IMAGE.lock();
-                *kernel_image = Some(MemoryRange::new(module.paddr, module.size));
-            }
+                *kernel_image = Some(module);
+            };
         }
         Some(Bootloader::Multiboot2) => {
             log::info!("Booted via Multiboot2");
