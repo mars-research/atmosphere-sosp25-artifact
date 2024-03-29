@@ -1,6 +1,7 @@
 //! Boot loader integration.
 
 mod hvm;
+mod multiboot2;
 
 use core::ptr;
 
@@ -44,14 +45,34 @@ trait StartInfo {
         &self,
     ) -> impl Iterator<Item = (MemoryRange, Option<AcpiMemoryType>)> + '_;
 
-    /// Dumps the physical memory map to the log.
-    fn dump_memmap(&self);
-
     /// Creates an iterator through the module list entries.
     fn iter_modlist(&self) -> impl Iterator<Item = MemoryRange> + '_;
 
+    /// Dumps the physical memory map to the log.
+    fn dump_memmap(&self) {
+        log::info!("Physical memory map:");
+        for (region, ty) in self.iter_memory_regions() {
+            log::info!(
+                "[mem {:#016x}-{:#016x}] {:?}",
+                region.base(),
+                region.end_inclusive(),
+                ty.unwrap(),
+            );
+        }
+    }
+
     /// Dumps the module list to the log.
-    fn dump_modlist(&self);
+    fn dump_modlist(&self) {
+        log::info!("Module list:");
+        for module in self.iter_modlist() {
+            log::info!(
+                "[mod {:#016x}-{:#016x}] ({} bytes)",
+                module.base(),
+                module.end_inclusive(),
+                module.size(),
+            );
+        }
+    }
 }
 
 /// Returns the range of the loader itself.
@@ -77,32 +98,38 @@ pub unsafe fn init() {
         loader_range.end_inclusive()
     );
 
+    fn consume_start_info<S: StartInfo>(start_info: S) {
+        start_info.dump_memmap();
+        start_info.dump_modlist();
+
+        let regions = start_info
+            .iter_memory_regions()
+            .map(|(r, t)| (r, t.expect("Unknown memory type")));
+        let loader_range = get_loader_image_range();
+        let image_ranges = start_info
+            .iter_modlist();
+
+        init_physical_memory_map(regions, loader_range, image_ranges);
+
+        if let Some(module) = start_info.iter_modlist().next() {
+            let mut kernel_image = KERNEL_IMAGE.lock();
+            *kernel_image = Some(module);
+        };
+    }
+
+    let start_info_ptr = bootinfo as *const u8;
     match detect_bootloader() {
         Some(Bootloader::Hvm) => {
             log::info!("Booted via Xen x86/HVM");
-
             let start_info =
-                unsafe { hvm::HvmStartInfo::load(bootinfo).expect("Invalid Xen x86/HVM start info") };
-            start_info.dump_memmap();
-            start_info.dump_modlist();
-
-            let regions = start_info
-                .iter_memory_regions()
-                .map(|(r, t)| (r, t.expect("Unknown memory type")));
-            let loader_range = get_loader_image_range();
-            let image_ranges = start_info
-                .iter_modlist();
-
-            init_physical_memory_map(regions, loader_range, image_ranges);
-
-            if let Some(module) = start_info.iter_modlist().next() {
-                let mut kernel_image = KERNEL_IMAGE.lock();
-                *kernel_image = Some(module);
-            };
+                unsafe { hvm::HvmStartInfo::load(start_info_ptr).expect("Invalid Xen x86/HVM start info") };
+            consume_start_info(start_info);
         }
         Some(Bootloader::Multiboot2) => {
             log::info!("Booted via Multiboot2");
-            unimplemented!();
+            let start_info =
+                unsafe { multiboot2::Multiboot2StartInfo::load(start_info_ptr).expect("Invalid Multiboot2 start info") };
+            consume_start_info(start_info);
         }
         _ => {
             panic!("Failed to detect bootloader, cannot continue");

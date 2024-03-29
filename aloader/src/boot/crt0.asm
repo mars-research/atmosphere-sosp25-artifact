@@ -35,7 +35,8 @@ section .text
 ; in Rust.
 
 bits 32
-start: ; Multiboot 2 entrypoint
+global _start
+_start: ; Multiboot 2 entrypoint
     mov esp, stack_top
 
     call check_multiboot

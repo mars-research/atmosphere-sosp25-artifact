@@ -101,43 +101,15 @@ impl StartInfo for HvmStartInfo {
             .map(|entry| (MemoryRange::new(entry.addr, entry.size), entry.map_type()))
     }
 
-    fn dump_memmap(&self) {
-        log::info!("Physical memory map:");
-        for memmap in self.iter_raw_memmap() {
-            let start = memmap.addr;
-            let end = start + memmap.size - 1;
-            log::info!(
-                "[mem {:#016x}-{:#016x}] {:?}",
-                start,
-                end,
-                memmap.map_type().unwrap()
-            );
-        }
-    }
-
     fn iter_modlist(&self) -> impl Iterator<Item = MemoryRange> + '_ {
         self.iter_raw_modlist()
             .map(|entry| entry.to_memory_range())
     }
-
-    fn dump_modlist(&self) {
-        log::info!("Module list:");
-        for module in self.iter_raw_modlist() {
-            let start = module.paddr;
-            let end = start + module.size - 1;
-            log::info!(
-                "[mod {:#016x}-{:#016x}] ({} bytes)",
-                start,
-                end,
-                module.size
-            );
-        }
-    }
 }
 
 impl HvmStartInfo {
-    pub unsafe fn load(start_info_addr: u64) -> Option<Self> {
-        let start_info = ptr::read_unaligned(start_info_addr as *const HvmStartInfo);
+    pub unsafe fn load(start_info_ptr: *const u8) -> Option<Self> {
+        let start_info = ptr::read_unaligned(start_info_ptr as *const HvmStartInfo);
 
         if start_info.validate() {
             Some(start_info)

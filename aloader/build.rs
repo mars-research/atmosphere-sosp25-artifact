@@ -9,7 +9,7 @@ macro_rules! source {
 fn main() {
     eprintln!("Baking garlic bread...");
     source!("build.rs");
-    //add_x86_64_asm("multiboot_header.asm");
+    add_x86_64_asm("multiboot2_header.asm");
     add_x86_64_asm("crt0.asm");
 }
 
