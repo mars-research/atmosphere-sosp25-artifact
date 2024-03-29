@@ -124,6 +124,12 @@ impl RunConfiguration {
         self
     }
 
+    /// Set whether to use GRUB.
+    pub fn use_grub(&mut self, use_grub: bool) -> &mut Self {
+        self.use_grub = use_grub;
+        self
+    }
+
     /// Set the CPU model.
     pub fn cpu_model(&mut self, cpu_model: CpuModel) -> &mut Self {
         self.cpu_model = cpu_model;

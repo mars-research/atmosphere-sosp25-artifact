@@ -34,6 +34,10 @@ pub struct Opts {
     #[clap(long)]
     kvm: bool,
 
+    /// Whether to use GRUB.
+    #[clap(long)]
+    grub: bool,
+
     /// Whether to enable the early loader.
     #[clap(long, hide = true)]
     loader: bool,
@@ -97,6 +101,7 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
     run_config.use_virtualization(local.kvm);
     run_config.auto_shutdown(!local.no_shutdown);
     run_config.dom0(dom0);
+    run_config.use_grub(local.grub);
 
     if let Some(cpu_model) = local.cpu_model {
         run_config.cpu_model(cpu_model);
