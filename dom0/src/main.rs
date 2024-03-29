@@ -1,8 +1,12 @@
 #![no_std]
 #![no_main]
-#![feature(start)]
+#![feature(start, asm_const)]
 
 extern crate alloc;
+extern crate pcid;
+
+mod pci;
+mod slab_alloc;
 
 use core::arch::asm;
 use core::arch::x86_64::_rdtsc;
@@ -15,8 +19,8 @@ use crate::ring_buffer::*;
 use crate::syscall_benchmark::*;
 use alloc::vec::Vec;
 use libtime::sys_ns_loopsleep;
-
-mod slab_alloc;
+pub use log::info as println;
+use pci::scan_pci_devs;
 
 pub const DATA_BUFFER_ADDR: u64 = 0xF000000000;
 
@@ -47,6 +51,12 @@ fn main() -> isize {
     test_sleep();
 
     test_alloc();
+
+    log::info!("Enumerating PCI");
+
+    scan_pci_devs();
+
+    log::info!("Done enumerating PCI");
 
     loop {}
 }

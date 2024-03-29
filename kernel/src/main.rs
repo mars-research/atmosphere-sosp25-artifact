@@ -239,6 +239,8 @@ unsafe fn try_sysret(pc: *const c_void, sp: *mut c_void) -> ! {
         "pushfq",
         "pop r11",
         "mov rsp, {sp}",
+        // HACK: Set IOPL to 3 unconditionally for accessing io ports from dom0
+        "or r11, (3 << 12)",
         "sysretq",
 
         in("rcx") pc,
