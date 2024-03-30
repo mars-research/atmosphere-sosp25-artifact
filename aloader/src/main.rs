@@ -247,6 +247,23 @@ where
         cur = cur + PAGE_SIZE as u64;
     }
 
+    // Nvme bar region
+    let mut cur = 0xfebf_0000;
+    let virt_base = memory::USERSPACE_BASE;
+    while cur < 0xfebf_0000 + 0x4000 {
+        unsafe {
+            address_space.map(
+                page_table_allocator,
+                cur + virt_base,
+                cur,
+                true,
+                false,
+                true,
+            );
+            cur = cur + PAGE_SIZE as u64;
+        }
+    }
+
     debugger::add_binary(name, dom_map.load_bias);
 
     Ok(DomainMapping {

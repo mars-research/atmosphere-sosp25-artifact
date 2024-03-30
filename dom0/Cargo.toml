@@ -14,3 +14,4 @@ log = "0.4.19"
 x86 = "0.52.0"
 pcid = { path = "../pcid" }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+nvme_driver = { path = "../nvme_driver" }

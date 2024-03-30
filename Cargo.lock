@@ -107,6 +107,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bddcadddf5e9015d310179a59bb28c4d4b9920ad0f11e8e14dbadf654890c9a6"
 
 [[package]]
+name = "array-init"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d62b7694a562cdf5a74227903507c56ab2cc8bdd1f781ed5cb4cf9c9f810bfc"
+
+[[package]]
 name = "astd"
 version = "0.1.0"
 dependencies = [
@@ -164,6 +170,12 @@ name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+
+[[package]]
+name = "b2histogram"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2de6f553fcc0ce1d05994ecc6972ceadf807c46cb030527f0b5e576bc4185345"
 
 [[package]]
 name = "backtrace"
@@ -822,6 +834,7 @@ dependencies = [
  "lazy_static",
  "libtime",
  "log",
+ "nvme_driver",
  "pcid",
  "slabmalloc",
  "spin 0.9.8",
@@ -2220,6 +2233,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
+name = "libdma"
+version = "0.1.0"
+dependencies = [
+ "asys",
+]
+
+[[package]]
 name = "libgit2-sys"
 version = "0.16.2+1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2528,6 +2548,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "nvme_driver"
+version = "0.1.0"
+dependencies = [
+ "array-init",
+ "asys",
+ "b2histogram",
+ "heapless",
+ "libdma",
+ "libtime",
+ "log",
+ "pcid",
+ "spin 0.9.8",
+ "x86 0.52.0",
 ]
 
 [[package]]

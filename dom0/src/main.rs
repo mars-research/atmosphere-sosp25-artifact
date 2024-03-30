@@ -3,6 +3,7 @@
 #![feature(start, asm_const)]
 
 extern crate alloc;
+extern crate nvme_driver;
 extern crate pcid;
 
 mod pci;
@@ -20,9 +21,12 @@ use crate::syscall_benchmark::*;
 use alloc::vec::Vec;
 use libtime::sys_ns_loopsleep;
 pub use log::info as println;
+use nvme_driver::device::NvmeDevice;
 use pci::scan_pci_devs;
+use pcid::utils::PciBarAddr;
 
 pub const DATA_BUFFER_ADDR: u64 = 0xF000000000;
+pub const USERSPACE_BASE: u64 = 0x80_0000_0000;
 
 fn test_sleep() {
     log::trace!("Sleeping for 100 ns");
@@ -56,7 +60,15 @@ fn main() -> isize {
 
     scan_pci_devs();
 
-    log::info!("Done enumerating PCI");
+    log::info!("Running Nvme test");
+
+    let mut nvme_dev =
+        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xfebf_0000, 0x4000)) };
+
+    nvme_dev.init();
+
+    nvme_driver::nvme_test::run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, true, false, 0);
+    nvme_driver::nvme_test::run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, false, false, 0);
 
     loop {}
 }
