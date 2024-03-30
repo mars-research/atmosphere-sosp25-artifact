@@ -104,6 +104,15 @@ impl Emulator for Qemu {
             //.args(&["-d", "int"])
             .args(config.cpu_model.to_qemu()?);
 
+        if let Some(img_path) = &config.nvme_img {
+            command.args(&["-drive", &format!("file={},if=none,id=nvm", img_path)]);
+            command.args(&["-device", "nvme,id=nvm,serial=deadbeef"]);
+        }
+
+        if let Some(pci_device) = &config.nvme_dev {
+            command.args(&["-device", &format!("vfio-pci,romfile=,host={}", pci_device)]);
+        }
+
         if config.use_virtualization {
             command.arg("-enable-kvm");
         }

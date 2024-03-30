@@ -46,6 +46,14 @@ pub struct Opts {
     #[clap(long)]
     gdb: bool,
 
+    /// Emulate Nvme with this img file
+    #[clap(long)]
+    nvme_img: Option<String>,
+
+    /// Passthru this host pci device
+    #[clap(long)]
+    nvme_dev: Option<String>,
+
     /// Whether to emit full output from the emulator.
     #[clap(long)]
     full_output: bool,
@@ -103,6 +111,10 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
     run_config.dom0(dom0);
     run_config.use_grub(local.grub);
 
+    if let Some(img_file) = local.nvme_img {
+        run_config.nvme_img(img_file);
+    }
+
     if let Some(cpu_model) = local.cpu_model {
         run_config.cpu_model(cpu_model);
     }
@@ -113,6 +125,10 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
 
     if let Some(cmdline) = local.command_line {
         run_config.command_line(cmdline);
+    }
+
+    if let Some(pci_device) = local.nvme_dev {
+        run_config.nvme_dev(pci_device);
     }
 
     if local.full_output {

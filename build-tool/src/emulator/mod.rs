@@ -79,6 +79,12 @@ pub struct RunConfiguration {
     /// terminal to values that make sense when they are output to a standalone
     /// terminal, but are frustrating when run as a normal CLI program.
     suppress_initial_outputs: bool,
+
+    /// Image file for emulating nvme device
+    nvme_img: Option<String>,
+
+    /// Host pci address to passthru Nvme device
+    nvme_dev: Option<String>,
 }
 
 impl RunConfiguration {
@@ -97,6 +103,8 @@ impl RunConfiguration {
             gdb_server: None,
             freeze_on_startup: false,
             suppress_initial_outputs: true,
+            nvme_img: None,
+            nvme_dev: None,
         }
     }
 
@@ -127,6 +135,18 @@ impl RunConfiguration {
     /// Set whether to use GRUB.
     pub fn use_grub(&mut self, use_grub: bool) -> &mut Self {
         self.use_grub = use_grub;
+        self
+    }
+
+    /// Set whether to use Qemu's Nvme emulation.
+    pub fn nvme_img(&mut self, nvme_img: String) -> &mut Self {
+        self.nvme_img = Some(nvme_img);
+        self
+    }
+
+    /// Set whether to use Qemu's Nvme emulation.
+    pub fn nvme_dev(&mut self, pci_device: String) -> &mut Self {
+        self.nvme_dev = Some(pci_device);
         self
     }
 
