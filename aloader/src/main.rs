@@ -103,6 +103,11 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     let (_, mut kernel_allocator) = memory::reserve(KERNEL_RESERVATION, BootMemoryType::Kernel);
     let (kernel_map, mut kernel_file) = kernel_elf.load(&mut kernel_allocator).unwrap();
+
+    // Allocate kernel stack
+    let stack_size = 16 * 1024 * 1024;
+    let stack_base = unsafe { kernel_allocator.allocate_physical(stack_size as usize).0 };
+
     debugger::add_binary("kernel", kernel_map.load_bias);
 
     // Also load dom0 if it exists
@@ -183,10 +188,14 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
             "mov gs, r15w",
             "mov ss, r15w",
 
+            "push rsp",
+            "mov rsp, rdi",
+
             // call entry
             "call rax",
 
             // restore state
+            "pop rsp",
             "pop r15w; mov ss, r15w",
             "pop r15w; mov gs, r15w",
             "pop r15w; mov fs, r15w",
@@ -194,7 +203,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
             inout("rax") kernel_map.entry_point => ret,
             inout("rdi") &boot_info as *const _ => _,
-            out("rsi") _,
+            inout("rsi") stack_base + stack_size => _,
             out("r15") _,
         );
     }
