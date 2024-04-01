@@ -7,6 +7,7 @@ use core::mem::MaybeUninit;
 use core::slice;
 
 use super::x86_xapic::XAPIC;
+use verified::define::PCID_ENABLE_MASK;
 use x86::apic::{ApicControl, ApicId};
 use x86::msr;
 
@@ -61,10 +62,17 @@ pub unsafe fn boot_ap(cpu_id: u32, stack: u64, code: u64) {
         (&mut *crate::cpu::get_current_cpu_field_ptr!(xapic, MaybeUninit<XAPIC>)).assume_init_mut()
     };
 
+    let boot_info = boot::get_boot_info();
+
+    let mut cr3 = boot_info.pml4 as u64;
+    if boot_info.pcide {
+        cr3 |= PCID_ENABLE_MASK as u64;
+    }
+
     let start_page = StartTrampoline::new(0x7000)
         .unwrap()
         .with_code(code)
-        .with_cr3(boot::get_boot_info().pml4 as u64)
+        .with_cr3(cr3)
         .with_stack(stack)
         .with_arg(cpu_id as u64)
         .start_page();

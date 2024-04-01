@@ -42,6 +42,7 @@ use elf::ElfHandle;
 use memory::{
     AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper, HUGE_PAGE_SIZE, PAGE_SIZE,
 };
+use x86::cpuid::cpuid;
 
 const KERNEL_RESERVATION: usize = 1024 * 1024 * 1024; // 1 GiB
 const DOM0_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
@@ -75,20 +76,32 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
         cur = cur + HUGE_PAGE_SIZE as u64;
     }
 
+    let mut boot_info = BootInfo::empty(); // stays on stack
+    boot_info.pcide = cpu_has_pcid();
+
+    if boot_info.pcide {
+        log::info!("Enabling Tagged TLB");
+        unsafe {
+            asm!(
+                "mov {cr4}, cr4",
+                "or {cr4}, {cr4_pcide}",
+                "mov cr4, {cr4}",
+                cr4 = out(reg) _,
+                cr4_pcide = const (1 << 17),
+            );
+        }
+    } else {
+        log::warn!("CPU does not support Tagged TLB");
+    }
+
     log::info!("Switching to PML4 @ {:x?}", address_space.pml4());
     unsafe {
         asm!(
-            "mov {cr4}, cr4",
-            "or {cr4}, {cr4_pcide}",
-            "mov cr4, {cr4}",
             "mov cr3, {pml4}",
             pml4 = inout(reg) address_space.pml4() => _,
-            cr4 = out(reg) _,
-            cr4_pcide = const (1 << 17),
         );
     }
 
-    let mut boot_info = BootInfo::empty(); // stays on stack
     boot_info.pml4 = address_space.pml4();
 
     let kernel_file = {
@@ -282,6 +295,11 @@ where
         entry_point: dom_map.entry_point,
         load_bias: dom_map.load_bias,
     })
+}
+
+fn cpu_has_pcid() -> bool {
+    let cpuid_1 = cpuid!(0x1);
+    (cpuid_1.ecx & (1 << 17)) != 0
 }
 
 /// The kernel panic handler.

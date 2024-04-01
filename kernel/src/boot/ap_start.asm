@@ -88,9 +88,15 @@ start64:
 	mov gs, ax
 
 	; Enable PCID
+	mov rax, cr3
+	and rax, 1 << 63
+	jz no_pcid
+
 	mov rax, cr4
 	or rax, 1 << 17
 	mov cr4, rax
+
+no_pcid:
 
 	; Load stack
 	lea rbx, ap_start16

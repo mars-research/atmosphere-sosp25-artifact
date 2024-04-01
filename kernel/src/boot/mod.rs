@@ -14,8 +14,12 @@ pub use command_line::get_command_line;
 
 static mut BOOT_INFO: BootInfo = BootInfo::empty();
 
+/// Global Tagged TLB toggle.
+pub static mut PCIDE: u64 = 0;
+
 pub unsafe fn init(boot_info: *const BootInfo) {
     BOOT_INFO = (&*boot_info).clone();
+    PCIDE = if BOOT_INFO.pcide { 1 } else { 0 };
 
     command_line::init(BOOT_INFO.command_line.as_str()).expect("Invalid kernel command-line");
 }

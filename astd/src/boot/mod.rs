@@ -43,6 +43,9 @@ pub struct BootInfo {
 
     /// All available physical pages and their state.
     pub pages: ArrayVec<(u64, PhysicalMemoryType), { 4 * 1024 * 1024 }>,
+
+    /// Whether Tagged TLB is enabled.
+    pub pcide: bool,
 }
 
 /// A loaded domain.
@@ -78,6 +81,7 @@ impl BootInfo {
             dom0: None,
             pml4: ptr::null(),
             pages: ArrayVec::new(),
+            pcide: false,
         }
     }
 }
