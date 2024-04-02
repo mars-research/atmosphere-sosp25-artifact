@@ -6,6 +6,7 @@ extern crate alloc;
 extern crate nvme_driver;
 extern crate pcid;
 
+mod nvme_client;
 mod pci;
 mod slab_alloc;
 
@@ -21,9 +22,8 @@ use crate::syscall_benchmark::*;
 use alloc::vec::Vec;
 use libtime::sys_ns_loopsleep;
 pub use log::info as println;
-use nvme_driver::device::NvmeDevice;
+use nvme_client::test_nvme_driver;
 use pci::scan_pci_devs;
-use pcid::utils::PciBarAddr;
 
 pub const DATA_BUFFER_ADDR: u64 = 0xF000000000;
 pub const USERSPACE_BASE: u64 = 0x80_0000_0000;
@@ -60,15 +60,7 @@ fn main() -> isize {
 
     scan_pci_devs();
 
-    log::info!("Running Nvme test");
-
-    let mut nvme_dev =
-        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xfebf_0000, 0x4000)) };
-
-    nvme_dev.init();
-
-    nvme_driver::nvme_test::run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, true, false, 0);
-    nvme_driver::nvme_test::run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, false, false, 0);
+    test_nvme_driver();
 
     loop {}
 }

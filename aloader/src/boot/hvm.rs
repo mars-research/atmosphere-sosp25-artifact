@@ -7,8 +7,8 @@ use core::ptr;
 
 use num_traits::FromPrimitive;
 
-use crate::memory::{AcpiMemoryType, MemoryRange};
 use super::StartInfo;
+use crate::memory::{AcpiMemoryType, MemoryRange};
 
 pub const HVM_START_INFO_MAGIC: u32 = 0x336ec578;
 
