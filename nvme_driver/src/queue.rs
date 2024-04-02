@@ -1,6 +1,7 @@
 #[macro_use]
 use libdma::Dma;
 //use crate::println;
+use crate::BlockReq;
 use crate::NUM_LBAS;
 use core::arch::asm;
 use libdma::nvme::allocate_dma;
@@ -13,6 +14,7 @@ pub(crate) struct NvmeCommandQueue {
     //rand: Rand,
     pub i: usize,
     pub raw_requests: [Option<u64>; QUEUE_DEPTH],
+    pub breq_requests: [Option<BlockReq>; QUEUE_DEPTH],
     pub req_slot: [bool; QUEUE_DEPTH],
     block: u64,
 }
@@ -23,6 +25,7 @@ impl NvmeCommandQueue {
             data: allocate_dma()?,
             i: 0,
             raw_requests: array_init::array_init(|_| None),
+            breq_requests: array_init::array_init(|_| None),
             req_slot: [false; QUEUE_DEPTH],
             block: 0,
             //rand: Rand::new(),
@@ -39,6 +42,27 @@ impl NvmeCommandQueue {
 
     pub fn is_submittable(&self) -> bool {
         !self.req_slot[self.i]
+    }
+
+    pub fn submit_request_breq(&mut self, entry: NvmeCommand, breq: BlockReq) -> Option<usize> {
+        let cur_idx = self.i;
+        if self.req_slot[cur_idx] == false {
+            self.data[cur_idx] = entry;
+            self.data[cur_idx].cid = cur_idx as u16;
+            self.data[cur_idx].cdw10 %= NUM_LBAS as u32;
+            let cid = cur_idx as u16;
+
+            //println!("Submitting block[{}] {} at slot {}", cid, breq.block, cur_idx);
+
+            self.breq_requests[cur_idx] = Some(breq);
+
+            self.req_slot[cur_idx] = true;
+            self.i = (cur_idx + 1) % self.data.len();
+            Some(self.i)
+        } else {
+            //println!("No free slot");
+            None
+        }
     }
 
     pub fn submit_request_raw(&mut self, entry: NvmeCommand, data: u64) -> Option<usize> {

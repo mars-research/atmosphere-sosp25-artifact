@@ -1,5 +1,6 @@
 use crate::device::NvmeDevice;
 use crate::println;
+use crate::{BlockOp, BlockReq};
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use b2histogram::Base2Histogram;
@@ -148,100 +149,126 @@ pub fn run_blocktest_raw_with_delay(
     //}
 }
 
-/*
-fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
-    let buffer: Vec<u8>;
-    if is_write {
-        buffer = alloc::vec![0xbau8; 4096];
-    } else {
-        buffer = alloc::vec![0u8; 4096];
-    }
+pub fn run_blocktest_blkreq(dev: &mut NvmeDevice) {
+    let req: Vec<u8>;
+    req = alloc::vec![0xdeu8; 4096];
 
-    let _block_size = buffer.len();
-    let breq: BlockReq = BlockReq::new(0, 8, buffer);
+    let mut block_num: u64 = 0;
+    let batch_sz = 32;
+    let runtime = 30;
+
     let mut submit: VecDeque<BlockReq> = VecDeque::with_capacity(batch_sz as usize);
     let mut collect: VecDeque<BlockReq> = VecDeque::new();
 
-    let mut block_num: u64 = 0;
-
-    for _i in 0..batch_sz {
-        let mut breq = breq.clone();
-        breq.block = block_num;
-        block_num = block_num.wrapping_add(1);
-        submit.push_back(breq.clone());
+    for i in 0..32 {
+        let mut breq = BlockReq::new(block_num, 8, req.clone(), BlockOp::Read);
+        block_num = block_num.wrapping_add(8);
+        submit.push_back(breq);
     }
 
-    if let Some(device) = dev.device.borrow_mut().as_mut() {
-        let dev: &mut NvmeDev = device;
+    let mut submit_start = 0;
+    let mut submit_elapsed = 0;
 
-        let mut submit_start = 0;
-        let mut submit_elapsed = 0;
-        let _poll_start = 0;
-        let _poll_elapsed = 0;
-        let mut count = 0;
+    let mut alloc_count = 0;
+    let mut alloc_elapsed = 0;
 
-        let mut submit_hist = Base2Histogram::new();
-        let mut poll_hist = Base2Histogram::new();
-        let mut ret = 0;
+    let mut count: u64 = 0;
+    let mut total_requests = 0;
 
-        let tsc_start = rdtsc();
-        let tsc_end = tsc_start + runtime * 2_400_000_000;
+    let mut submit_hist = Base2Histogram::new();
+    let mut poll_hist = Base2Histogram::new();
+    let mut ret = 0;
 
-        loop {
-            count += 1;
-            submit_start = rdtsc();
-            ret = dev.submit_and_poll(&mut submit, &mut collect, is_write);
-            submit_elapsed += rdtsc() - submit_start;
+    let tsc_start = rdtsc();
+    let tsc_end = tsc_start + runtime * 2_400_000_000;
 
-            submit_hist.record(ret as u64);
+    loop {
+        count += 1;
+        submit_start = rdtsc();
+        log::trace!("Calling submit_and_poll_breq");
+        ret = dev.submit_and_poll_breq(&mut submit, &mut collect);
+        submit_elapsed += rdtsc() - submit_start;
 
-            poll_hist.record(collect.len() as u64);
+        //assert_eq!(ret, collect.len());
+        total_requests += ret;
 
-            submit.append(&mut collect);
+        log::trace!("submitted {} reqs, collect {} reqs ", ret, collect.len(),);
+        submit_hist.record(ret as u64);
 
-            if submit.is_empty() {
-                //println!("allocating new batch");
-                for _i in 0..batch_sz {
-                    let mut breq = breq.clone();
-                    breq.block = block_num;
-                    block_num = block_num.wrapping_add(1);
-                    submit.push_back(breq.clone());
-                }
-            }
+        poll_hist.record(collect.len() as u64);
 
-            for b in submit.iter_mut() {
-                b.block = block_num;
-                block_num = block_num.wrapping_add(1);
-            }
-
-            if rdtsc() > tsc_end {
-                break;
-            }
-            sys_ns_loopsleep(2000);
+        while let Some(mut breq) = collect.pop_front() {
+            breq.block = block_num as u64;
+            block_num = block_num.wrapping_add(8);
+            submit.push_back(breq);
         }
 
-        let (sub, comp) = dev.get_stats();
-        println!(
-            "runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS",
-            runtime,
-            sub as f64 / runtime as f64 / 1_000_f64,
-            comp as f64 / runtime as f64 / 1_000_f64
-        );
-        println!(
-            "run_blocktest loop {} submit_and_poll took {} cycles (avg {} cycles)",
-            count,
-            submit_elapsed,
-            submit_elapsed / count
-        );
-
-        for hist in alloc::vec![poll_hist] {
-            println!("hist:");
-            // Iterate buckets that have observations
-            for bucket in hist.iter().filter(|b| b.count > 0) {
-                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
-                print!("\n");
+        if submit.is_empty() {
+            //&& (alloc_count * batch_sz) < 1024 {
+            //println!("Alloc new batch at {}", count);
+            alloc_count += 1;
+            let alloc_rdstc_start = rdtsc();
+            for i in 0..32 {
+                let breq = BlockReq::new(block_num, 8, req.clone(), BlockOp::Read);
+                block_num = block_num.wrapping_add(8);
+                submit.push_back(breq);
             }
+            alloc_elapsed += rdtsc() - alloc_rdstc_start;
+        }
+
+        if rdtsc() > tsc_end {
+            break;
+        }
+        //sys_ns_loopsleep(2000);
+    }
+
+    let elapsed = rdtsc() - tsc_start;
+
+    let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
+
+    let (sub, comp) = dev.stats.get_stats();
+
+    // println!("Polling .... last_sq {} last_cq {} sq_id {}", last_sq, last_cq, sq_id);
+    println!("Polling ....");
+
+    let done = dev.poll_breq(&mut collect);
+
+    println!("Poll: Reaped {} requests", done);
+    println!("submit {} requests", submit.len());
+    println!("collect {} requests", collect.len());
+    println!("runtime: {:.2} seconds", adj_runtime);
+
+    println!(
+        "submitted {:.2} K IOPS completed {:.2} K IOPS",
+        sub as f64 / adj_runtime as f64 / 1_000 as f64,
+        comp as f64 / adj_runtime as f64 / 1_000 as f64
+    );
+    println!(
+        "submit_and_poll_rref took {} cycles (avg {} cycles)",
+        submit_elapsed,
+        submit_elapsed / count
+    );
+
+    let bytes_sec = (total_requests * 4096) as f64 / adj_runtime;
+
+    println!("Total Blocks: {}", total_requests);
+    println!("Throughput: {} Bytes / sec", bytes_sec);
+    println!("Throughput: {} KB / sec", bytes_sec / 1024 as f64);
+    println!("Throughput: {} MB / sec", bytes_sec / (1024 * 1024) as f64);
+    println!(
+        "Throughput: {} GB / sec",
+        bytes_sec / (1024 * 1024 * 1024) as f64
+    );
+
+    println!("Number of new allocations {}", alloc_count * batch_sz);
+
+    for hist in alloc::vec![submit_hist, poll_hist] {
+        println!("hist:");
+        // Iterate buckets that have observations
+        for bucket in hist.iter().filter(|b| b.count > 0) {
+            println!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+            println!("\n");
         }
     }
+    println!("++++++++++++++++++++++++++++++++++++++++++++++++++++");
 }
-*/

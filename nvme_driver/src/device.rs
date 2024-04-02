@@ -5,6 +5,7 @@ use crate::queue::NvmeCompletionQueue;
 use crate::regs::NvmeArrayRegs;
 use crate::regs::{NvmeRegs32, NvmeRegs64};
 use crate::NUM_LBAS;
+use crate::{BlockOp, BlockReq};
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::format;
@@ -479,23 +480,125 @@ impl NvmeDevice {
         }
     }
 
-    /*
-    enum BlockOp {
-        READ,
-        WRITE,
-    }
+    pub fn submit_and_poll_breq(
+        &mut self,
+        submit: &mut VecDeque<BlockReq>,
+        collect: &mut VecDeque<BlockReq>,
+    ) -> usize {
+        let mut sub_count = 0;
+        let mut reap_count = 0;
+        let mut cur_tail = 0;
+        let mut cur_head = 0;
+        let batch_sz = 32;
+        let reap_all = false;
+        let qid = 1;
 
-    struct BlockReq {
-        block: u64,
-        rw : BlockOp,
-        buf_addr : usize,
-    }
+        while let Some(breq) = submit.pop_front() {
+            let buf_addr = breq.data.as_ptr() as usize;
+            let (ptr0, ptr1) = unsafe { (sys_mresolve(buf_addr).0 as u64, 0) };
+            let queue = &mut self.submission_queues[qid];
+            //println!("breq 0x{:08x} ptr0 0x{:08x}", buf_addr, ptr0);
 
-    struct BlockResp {
-        req: BlockReq,
-        res: i32,
+            let num_blocks = breq.num_blocks;
+            let mut entry;
+
+            if breq.op == BlockOp::Write {
+                entry = nvme_cmd::io_write(
+                    qid as u16,
+                    1,          // nsid
+                    breq.block, // block to read
+                    (num_blocks - 1) as u16,
+                    ptr0,
+                    ptr1,
+                );
+            } else {
+                entry = nvme_cmd::io_read(
+                    qid as u16,
+                    1,          // nsid
+                    breq.block, // block to read
+                    (num_blocks - 1) as u16,
+                    ptr0,
+                    ptr1,
+                );
+            }
+
+            if queue.is_submittable() {
+                if let Some(tail) = queue.submit_request_breq(entry, breq) {
+                    cur_tail = tail;
+                    sub_count += 1;
+
+                    let queue = &mut self.completion_queues[qid];
+                    if let Some((head, entry, cq_idx)) = if reap_all {
+                        Some(queue.complete_spin())
+                    } else {
+                        queue.complete()
+                    } {
+                        log::trace!("1 Got head {} cq_idx {}", head, cq_idx);
+                        let sq = &mut self.submission_queues[qid];
+                        if sq.req_slot[cq_idx] == true {
+                            if let Some(req) = sq.breq_requests[cq_idx].take() {
+                                collect.push_front(req);
+                            }
+                            sq.req_slot[cq_idx] = false;
+                            reap_count += 1;
+                        }
+                        cur_head = head;
+                        //TODO: Handle errors
+                        self.stats.completed += 1;
+                    }
+
+                    self.stats.submitted += 1;
+                }
+            } else {
+                submit.push_front(breq);
+                break;
+            }
+        }
+
+        if sub_count > 0 {
+            self.submission_queue_tail(qid as u16, cur_tail as u16);
+        }
+
+        {
+            for i in 0..batch_sz {
+                let queue = &mut self.completion_queues[qid];
+                if collect.len() == 128 {
+                    break;
+                }
+                if let Some((head, entry, cq_idx)) = if reap_all {
+                    Some(queue.complete_spin())
+                } else {
+                    queue.complete()
+                } {
+                    log::trace!("Got head {} cq_idx {}", head, cq_idx);
+                    let sq = &mut self.submission_queues[qid];
+                    if sq.req_slot[cq_idx] == true {
+                        if let Some(req) = sq.breq_requests[cq_idx].take() {
+                            collect.push_front(req);
+                        }
+                        sq.req_slot[cq_idx] = false;
+                        sq.breq_requests[cq_idx] = None;
+                        reap_count += 1;
+                    } else {
+                        println!(
+                            "Anomaly: req_slot[{}] blkreq_rrefs[{}] can't collect",
+                            cq_idx, cq_idx
+                        );
+                    }
+                    cur_head = head;
+                    //TODO: Handle errors
+                    self.stats.completed += 1;
+                } else {
+                    break;
+                }
+            }
+            if reap_count > 0 {
+                //println!("updating cur_head {}", cur_head);
+                self.completion_queue_head(qid as u16, cur_head as u16);
+            }
+        }
+        sub_count
     }
-    */
 
     pub fn submit_and_poll_raw(
         &mut self,
@@ -624,6 +727,65 @@ impl NvmeDevice {
         }
 
         sub_count
+    }
+
+    pub fn poll_breq(&mut self, collect: &mut VecDeque<BlockReq>) -> usize {
+        let qid = 1;
+        let mut count: usize = 0;
+        let mut reap_count = 0;
+        let mut cur_head = 0;
+        let reap_all = false;
+
+        let cq = &mut self.completion_queues[qid];
+        let sq = &mut self.submission_queues[qid];
+        /*println!("| idx | sq | ");
+        for i in 0..crate::queue::QUEUE_DEPTH {
+            println!("[{}] sq.slot: {} sq.breq_rrefs {}", i, sq.req_slot[i],
+                     sq.blkreq_rrefs[i].is_some());
+        }*/
+
+        loop {
+            let cq = &mut self.completion_queues[qid];
+            let sq = &mut self.submission_queues[qid];
+
+            let cid = cq.get_cq_head() % cq.data.len();
+
+            if sq.req_slot[cid] {
+                //println!("be-> cid {} rref_valid {} cq[].valid {}", cid, sq.blkreq_rrefs[cid].is_some(),
+                //                                               cq.is_valid().is_some());
+                if let Some((head, entry, cq_idx)) = if reap_all {
+                    Some(cq.complete_spin())
+                } else {
+                    cq.complete()
+                } {
+                    //println!("af-> Got head {} cid {} cq_idx {} rref_valid {}", head, cid, cq_idx,
+                    //                                sq.blkreq_rrefs[cq_idx].is_some());
+                    //assert_eq!(cid, cq_idx, "cid {} cq_idx {}", cid, cq_idx);
+
+                    if let Some(mut req) = sq.breq_requests[cq_idx].take() {
+                        collect.push_back(req);
+                    }
+                    sq.req_slot[cq_idx] = false;
+                    sq.breq_requests[cq_idx] = None;
+                    reap_count += 1;
+                    cur_head = head;
+                    //TODO: Handle errors
+                    self.stats.completed += 1;
+                }
+            } else {
+                break;
+            }
+            count += 1;
+
+            if count == cq.data.len() {
+                break;
+            }
+        }
+        if reap_count > 0 {
+            println!("poll_rref: Updating cq_head to {}", cur_head);
+            self.completion_queue_head(qid as u16, cur_head as u16);
+        }
+        reap_count
     }
 
     pub fn poll_raw(&mut self, collect: &mut VecDeque<Vec<u8>>) -> usize {
