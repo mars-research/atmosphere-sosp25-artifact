@@ -428,7 +428,7 @@ impl<const N: usize> MarsStaticLinkedList<N> {
             self.free_list_tail == old(self).free_list_tail,
             self.free_list_len == old(self).free_list_len,
     {
-        self.ar[index as usize].next = v;
+        self.ar[index as usize].prev = v;
     }
 
     //TODO: prove this
