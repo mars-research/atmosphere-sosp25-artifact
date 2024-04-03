@@ -4,6 +4,7 @@
 
 extern crate alloc;
 extern crate nvme_driver;
+extern crate ring_buffer;
 extern crate pcid;
 
 mod nvme_client;
@@ -14,7 +15,6 @@ use core::arch::asm;
 use core::arch::x86_64::_rdtsc;
 use core::panic::PanicInfo;
 mod benchmark_null_driver;
-mod ring_buffer;
 mod syscall_benchmark;
 use crate::benchmark_null_driver::*;
 use crate::ring_buffer::*;
@@ -51,17 +51,17 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    // test_nvme_with_ring_buffer();
+    // test_null_driver();
 
-    // test_sleep();
+    test_sleep();
 
-    // test_alloc();
+    test_alloc();
 
-    // log::info!("Enumerating PCI");
+    log::info!("Enumerating PCI");
 
-    // scan_pci_devs();
+    scan_pci_devs();
 
-    // test_nvme_driver();
+    test_nvme_driver();
 
     loop {}
 }

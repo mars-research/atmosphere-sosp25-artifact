@@ -1,0 +1,14 @@
+[package]
+name = "ring_buffer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nvme_driver = { path = "../nvme_driver" }
+asys = { path = "../asys" }
+spin = "0.9.8"
+log = "0.4.19"
+x86 = "0.52.0"
+pcid = { path = "../pcid" }
