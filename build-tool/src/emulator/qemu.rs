@@ -109,8 +109,10 @@ impl Emulator for Qemu {
             command.args(&["-device", "nvme,id=nvm,serial=deadbeef"]);
         }
 
-        if let Some(pci_device) = &config.nvme_dev {
-            command.args(&["-device", &format!("vfio-pci,romfile=,host={}", pci_device)]);
+        if !config.pci_dev.is_empty() {
+            for dev in &config.pci_dev {
+                command.args(&["-device", &format!("vfio-pci,romfile=,host={}", dev)]);
+            }
         }
 
         if config.use_virtualization {

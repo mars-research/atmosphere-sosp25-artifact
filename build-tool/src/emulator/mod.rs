@@ -83,8 +83,8 @@ pub struct RunConfiguration {
     /// Image file for emulating nvme device
     nvme_img: Option<String>,
 
-    /// Host pci address to passthru Nvme device
-    nvme_dev: Option<String>,
+    /// Host pci address to passthru to the guest kernel
+    pci_dev: Vec<String>,
 }
 
 impl RunConfiguration {
@@ -104,7 +104,7 @@ impl RunConfiguration {
             freeze_on_startup: false,
             suppress_initial_outputs: true,
             nvme_img: None,
-            nvme_dev: None,
+            pci_dev: Vec::new(),
         }
     }
 
@@ -145,8 +145,8 @@ impl RunConfiguration {
     }
 
     /// Set whether to use Qemu's Nvme emulation.
-    pub fn nvme_dev(&mut self, pci_device: String) -> &mut Self {
-        self.nvme_dev = Some(pci_device);
+    pub fn pci_dev(&mut self, pci_dev: Vec<String>) -> &mut Self {
+        self.pci_dev = pci_dev;
         self
     }
 

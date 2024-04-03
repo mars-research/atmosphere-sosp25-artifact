@@ -52,7 +52,7 @@ pub struct Opts {
 
     /// Passthru this host pci device
     #[clap(long)]
-    nvme_dev: Option<String>,
+    pci_dev: Vec<String>,
 
     /// Whether to emit full output from the emulator.
     #[clap(long)]
@@ -127,8 +127,8 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
         run_config.command_line(cmdline);
     }
 
-    if let Some(pci_device) = local.nvme_dev {
-        run_config.nvme_dev(pci_device);
+    if !local.pci_dev.is_empty() {
+        run_config.pci_dev(local.pci_dev);
     }
 
     if local.full_output {
