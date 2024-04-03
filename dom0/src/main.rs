@@ -24,6 +24,7 @@ use libtime::sys_ns_loopsleep;
 pub use log::info as println;
 use nvme_client::test_nvme_driver;
 use pci::scan_pci_devs;
+use crate::nvme_client::*;
 
 pub const DATA_BUFFER_ADDR: u64 = 0xF000000000;
 pub const USERSPACE_BASE: u64 = 0x80_0000_0000;
@@ -50,17 +51,17 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    // test_proc_pingpong();
+    // test_nvme_with_ring_buffer();
 
-    test_sleep();
+    // test_sleep();
 
-    test_alloc();
+    // test_alloc();
 
-    log::info!("Enumerating PCI");
+    // log::info!("Enumerating PCI");
 
-    scan_pci_devs();
+    // scan_pci_devs();
 
-    test_nvme_driver();
+    // test_nvme_driver();
 
     loop {}
 }

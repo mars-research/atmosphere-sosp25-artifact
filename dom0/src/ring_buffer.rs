@@ -1,5 +1,5 @@
 pub const SIZE_OF_QUEUE:usize = 4096;
-pub const SIZE_OF_BUFFER:usize = 8;
+pub const SIZE_OF_BUFFER:usize = 4096;
 
 #[repr(align(4096))]
 #[repr(C)]
@@ -50,9 +50,9 @@ impl DataBufferAllocWrapper{
 #[repr(C)]
 pub struct RingBuffer<T,const N: usize>{
     pub head: usize,
-    head_padding: [usize;8],
+    pub head_padding: [usize;8],
     pub ar: [T;N],
-    tail_padding: [usize;8],
+    pub tail_padding: [usize;8],
     pub tail: usize,
 }
 

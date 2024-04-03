@@ -161,7 +161,7 @@ pub fn run_blocktest_blkreq(dev: &mut NvmeDevice) {
     let mut collect: VecDeque<BlockReq> = VecDeque::new();
 
     for i in 0..32 {
-        let mut breq = BlockReq::new(block_num, 8, req.clone(), BlockOp::Read);
+        let mut breq = BlockReq::new(block_num, 8, req.clone().leak().as_ptr() as usize, BlockOp::Read);
         block_num = block_num.wrapping_add(8);
         submit.push_back(breq);
     }
@@ -209,7 +209,7 @@ pub fn run_blocktest_blkreq(dev: &mut NvmeDevice) {
             alloc_count += 1;
             let alloc_rdstc_start = rdtsc();
             for i in 0..32 {
-                let breq = BlockReq::new(block_num, 8, req.clone(), BlockOp::Read);
+                let breq = BlockReq::new(block_num, 8, req.clone().leak().as_ptr() as usize, BlockOp::Read);
                 block_num = block_num.wrapping_add(8);
                 submit.push_back(breq);
             }

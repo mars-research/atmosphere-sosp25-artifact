@@ -494,7 +494,7 @@ impl NvmeDevice {
         let qid = 1;
 
         while let Some(breq) = submit.pop_front() {
-            let buf_addr = breq.data.as_ptr() as usize;
+            let buf_addr = breq.data as usize;
             let (ptr0, ptr1) = unsafe { (sys_mresolve(buf_addr).0 as u64, 0) };
             let queue = &mut self.submission_queues[qid];
             //println!("breq 0x{:08x} ptr0 0x{:08x}", buf_addr, ptr0);
