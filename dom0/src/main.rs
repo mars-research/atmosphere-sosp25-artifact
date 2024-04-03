@@ -3,10 +3,12 @@
 #![feature(start, asm_const)]
 
 extern crate alloc;
+extern crate ixgbe_driver;
 extern crate nvme_driver;
-extern crate ring_buffer;
 extern crate pcid;
+extern crate ring_buffer;
 
+mod ixgbe_client;
 mod nvme_client;
 mod pci;
 mod slab_alloc;
@@ -17,14 +19,15 @@ use core::panic::PanicInfo;
 mod benchmark_null_driver;
 mod syscall_benchmark;
 use crate::benchmark_null_driver::*;
+use crate::nvme_client::*;
 use crate::ring_buffer::*;
 use crate::syscall_benchmark::*;
 use alloc::vec::Vec;
+use ixgbe_client::test_ixgbe_driver;
 use libtime::sys_ns_loopsleep;
 pub use log::info as println;
 use nvme_client::test_nvme_driver;
 use pci::scan_pci_devs;
-use crate::nvme_client::*;
 
 pub const DATA_BUFFER_ADDR: u64 = 0xF000000000;
 pub const USERSPACE_BASE: u64 = 0x80_0000_0000;
@@ -62,6 +65,8 @@ fn main() -> isize {
     scan_pci_devs();
 
     test_nvme_driver();
+
+    test_ixgbe_driver();
 
     loop {}
 }

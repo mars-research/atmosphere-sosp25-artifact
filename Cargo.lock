@@ -831,6 +831,7 @@ name = "dom0"
 version = "0.1.0"
 dependencies = [
  "asys",
+ "ixgbe_driver",
  "lazy_static",
  "libtime",
  "log",
@@ -1055,6 +1056,11 @@ dependencies = [
  "libz-sys",
  "miniz_oxide",
 ]
+
+[[package]]
+name = "fnv"
+version = "1.0.7"
+source = "git+https://github.com/servo/rust-fnv#4e55052a343a4372c191141f29a17ab829cf1dbc"
 
 [[package]]
 name = "form_urlencoded"
@@ -2144,6 +2150,25 @@ name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1a46d1a171d865aa5f83f92695765caa047a9b4cbae2cbf37dbd613a793fd4c"
+
+[[package]]
+name = "ixgbe_driver"
+version = "0.1.0"
+dependencies = [
+ "array-init",
+ "asys",
+ "b2histogram",
+ "byteorder",
+ "fnv",
+ "heapless",
+ "libdma",
+ "libtime",
+ "log",
+ "pcid",
+ "spin 0.9.8",
+ "twox-hash",
+ "x86 0.52.0",
+]
 
 [[package]]
 name = "jobserver"
@@ -3648,6 +3673,16 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "twox-hash"
+version = "1.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
+dependencies = [
+ "cfg-if",
+ "static_assertions",
 ]
 
 [[package]]
