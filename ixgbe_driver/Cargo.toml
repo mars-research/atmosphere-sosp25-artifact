@@ -1,0 +1,29 @@
+[package]
+name = "ixgbe_driver"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+asys = { path = "../asys" }
+libtime = { path = "../user/libtime" }
+libdma = { path = "../user/libdma" }
+spin = "0.9.8"
+log = "0.4.19"
+x86 = "0.52.0"
+array-init = "2.1.0"
+heapless = "0.7.16"
+pcid = { path = "../pcid" }
+b2histogram = "1.0.1"
+byteorder = { version = "1.2", default-features = false }
+
+[dependencies.fnv]
+git = "https://github.com/servo/rust-fnv"
+default-features = false
+
+[dependencies.twox-hash]
+version = "1.5.0"
+default-features = false
+
+
