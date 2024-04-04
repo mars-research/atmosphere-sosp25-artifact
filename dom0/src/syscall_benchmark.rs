@@ -62,7 +62,7 @@ pub fn test_proc_pingpong(){
                 return;
             }
 
-        let iter = 100000;
+        let iter = 10000000;
         unsafe{
             let start = _rdtsc();
             for i in 0..iter{
@@ -86,7 +86,7 @@ pub fn test_null_syscall(){
                 log::info!("sys_new_endpoint failed {:?}", error_code);
                 return;
             }
-        let iter = 50000;
+        let iter = 50000000;
             let start = _rdtsc();
             for i in 0..iter{
                 let error_code = asys::sys_send_empty_no_wait(0);
@@ -197,7 +197,7 @@ pub fn test_pingpong(){
             log::info!("sys_new_thread failed {:?}", error_code);
             return;
         }
-        let iter = 100000;
+        let iter = 10000000;
         unsafe{
             let start = _rdtsc();
             for i in 0..iter{

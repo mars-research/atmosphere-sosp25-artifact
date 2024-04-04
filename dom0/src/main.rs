@@ -54,19 +54,19 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    // test_null_driver();
+    // test_proc_pingpong();
 
-    test_sleep();
+    // test_sleep();
 
-    test_alloc();
+    // test_alloc();
 
-    log::info!("Enumerating PCI");
+    // log::info!("Enumerating PCI");
 
-    scan_pci_devs();
+    // scan_pci_devs();
 
-    test_nvme_driver();
+    // test_nvme_driver();
 
-    test_ixgbe_driver();
+    // test_ixgbe_driver();
 
     loop {}
 }
@@ -89,7 +89,7 @@ fn thread_1_hello_ap() {
 }
 
 fn dom_1_main() {
-    log::info!("hello from dom_1_main");
+    // log::info!("hello from dom_1_main");
     loop {
         unsafe {
             // log::info!("ping");

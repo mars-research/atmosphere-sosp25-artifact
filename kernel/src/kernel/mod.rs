@@ -621,9 +621,9 @@ pub fn kernel_init(
 ) {
 
     // log::info!("cpu_list addr {:p}",&(KERNEL.lock().as_ref().unwrap().cpu_list.ar));
-    let mut boot_pages = vArrayVec::<(u8, usize), { 1 * 1024 * 1024 }>::new();
+    let mut boot_pages = vArrayVec::<(u8, usize), { 2 * 1024 * 1024 }>::new();
     let mut i = 0;
-    while i != 1 * 1024 * 1024 {
+    while i != 2 * 1024 * 1024 {
         boot_pages.push((
             boot_page_ptrs[i].1.to_verified_page_state(),
             boot_page_ptrs[i].0 as usize,

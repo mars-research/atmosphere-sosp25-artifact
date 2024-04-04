@@ -19,7 +19,7 @@ pub fn test_null_driver_ap()-> ! {
         }   
     }
 
-    let target = 10000000;
+    let target = 100000000;
     let mut counter = 0;
         unsafe{
             let buff_ref:&mut DataBufferAllocWrapper = &mut*(DATA_BUFFER_ADDR as *mut DataBufferAllocWrapper);
