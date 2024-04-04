@@ -28,6 +28,8 @@ impl TrustedBridge for Bridge {
                 tmp = out(reg) _,
                 cr3 = in(reg) cr3,
                 pcide = sym crate::boot::PCIDE,
+
+                options(readonly, nostack),
             );
         }
     }
