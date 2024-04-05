@@ -109,6 +109,9 @@ pub union ixgbe_adv_tx_desc {
 zeroed_allocator!([ixgbe_adv_tx_desc; 512]); // tx_desc
 zeroed_allocator!([ixgbe_adv_rx_desc; 512]); // rx desc
 
+zeroed_allocator!([ixgbe_adv_tx_desc; 256]); // tx_desc
+zeroed_allocator!([ixgbe_adv_rx_desc; 256]); // rx desc
+                                             //
 zeroed_allocator!([ixgbe_adv_tx_desc; 32]); // tx_desc
 zeroed_allocator!([ixgbe_adv_rx_desc; 32]); // rx desc
 

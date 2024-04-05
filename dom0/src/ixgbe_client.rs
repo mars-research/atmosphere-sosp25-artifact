@@ -11,4 +11,6 @@ pub fn test_ixgbe_driver() {
     log::info!("Initializing Ixgbe driver...");
 
     ixgbe_dev.init();
+
+    ixgbe_driver::ixgbe_test::run_tx_udptest(&mut ixgbe_dev, 64, false);
 }

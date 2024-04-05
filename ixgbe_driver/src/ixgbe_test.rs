@@ -35,8 +35,9 @@ pub fn run_tx_udptest(net: &mut IxgbeDevice, pkt_len: usize, mut debug: bool) ->
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
     let mac_data = alloc::vec![
-        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
-        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd, // Src mac
+        0x90, 0xe2, 0xba, 0xb3, 0xbd, 0x99, // Dst mac
+        // 90:E2:BA:B5:15:75
+        0x90, 0xe2, 0xba, 0xb5, 0x15, 0x75, // Src mac
         0x08, 0x00, // Protocol
     ];
     let mut ip_data = alloc::vec![
@@ -87,6 +88,7 @@ pub fn run_tx_udptest(net: &mut IxgbeDevice, pkt_len: usize, mut debug: bool) ->
     let runtime = 30;
 
     let stats_start = net.get_stats();
+    let mut loop_count = 0u32;
 
     let start = rdtsc();
     let end = rdtsc() + runtime * CPU_MHZ;
@@ -98,11 +100,16 @@ pub fn run_tx_udptest(net: &mut IxgbeDevice, pkt_len: usize, mut debug: bool) ->
 
         collect_tx_hist.record(collect.len() as u64);
 
+        log::trace!("{}: Appending {}", loop_count, collect.len());
+
         packets.append(&mut collect);
+
+        log::trace!("{}: round", loop_count);
 
         if packets.len() == 0 {
             alloc_count += 1;
 
+            log::trace!("{}: Allocating new batch", loop_count);
             let alloc_rdstc_start = rdtsc();
             for i in 0..batch_sz {
                 packets.push_front(pkt.clone());
@@ -113,6 +120,7 @@ pub fn run_tx_udptest(net: &mut IxgbeDevice, pkt_len: usize, mut debug: bool) ->
         if rdtsc() > end {
             break;
         }
+        loop_count += 1;
     }
 
     let elapsed = rdtsc() - start;

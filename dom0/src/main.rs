@@ -105,5 +105,6 @@ fn dom_1_main() {
 /// The kernel panic handler.
 #[panic_handler]
 pub fn panic(_info: &PanicInfo) -> ! {
+    log::info!("panic {:#?}", _info);
     loop {}
 }

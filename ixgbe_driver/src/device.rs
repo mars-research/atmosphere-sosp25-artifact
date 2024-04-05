@@ -46,8 +46,8 @@ const IXGBE_TXDCTL_ENABLE: u64 = 0x02000000; /* Ena specific Tx Queue */
 
 const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 
-const NUM_TX_DESCS: usize = 512;
-const NUM_RX_DESCS: usize = 512;
+const NUM_TX_DESCS: usize = 256;
+const NUM_RX_DESCS: usize = 256;
 
 pub struct NetworkStats {
     pub tx_count: u64,
@@ -1030,10 +1030,8 @@ impl IxgbeDevice {
             if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
                 if self.tx_slot[tx_index] {
                     count += 1;
-                    if let Some(pkt) = &mut self.transmit_buffers[tx_index] {
-                        let mut buf = pkt.as_mut_ptr();
-                        let vec = unsafe { Vec::from_raw_parts(buf, pkt.len(), pkt.capacity()) };
-                        reap_queue.push_front(vec);
+                    if let Some(pkt) = self.transmit_buffers[tx_index].take() {
+                        reap_queue.push_front(pkt);
                     }
                     self.tx_slot[tx_index] = false;
                     self.transmit_buffers[tx_index] = None;
@@ -1280,17 +1278,17 @@ impl IxgbeDevice {
                 }
                 unsafe {
                     if self.tx_slot[tx_index] {
-                        if let Some(pkt) = &mut self.transmit_buffers[tx_index] {
-                            let mut buf = pkt.as_mut_ptr();
-                            let vec = Vec::from_raw_parts(buf, pkt_len, pkt.capacity());
-                            if debug {
+                        if let Some(pkt) = self.transmit_buffers[tx_index].take() {
+                            //let mut buf = pkt.as_mut_ptr();
+                            //let vec = Vec::from_raw_parts(buf, pkt_len, pkt.capacity());
+                            /*if debug {
                                 println!(
                                     "buf {:x} vec_raw_parts {:x}",
                                     buf as u64,
                                     vec.as_ptr() as u64
                                 );
-                            }
-                            reap_queue.push_front(vec);
+                            }*/
+                            reap_queue.push_front(pkt);
                         }
 
                         tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
@@ -1309,11 +1307,22 @@ impl IxgbeDevice {
                             .buffer_addr as *const u64 as *mut u64,
                     );
 
+                    use asys::sys_mresolve;
+                    let pkt_paddr = sys_mresolve(packet.as_ptr() as usize).0 as u64;
+
+                    log::trace!(
+                        "pkt vaddr {:>08x} paddr {:>08x}",
+                        packet.as_ptr() as usize,
+                        pkt_paddr
+                    );
+
                     // switch to a new buffer
-                    core::ptr::write_volatile(*buf_addr.get_mut(), packet.as_ptr() as u64);
+                    core::ptr::write_volatile(*buf_addr.get_mut(), pkt_paddr);
 
                     self.transmit_buffers[tx_index] = Some(packet);
                     self.tx_slot[tx_index] = true;
+
+                    //core::mem::forget(packet);
 
                     let mut cmd_type: UnsafeCell<*mut u32> = UnsafeCell::new(
                         &(*self.transmit_ring.as_ptr().add(tx_index))
@@ -1362,11 +1371,8 @@ impl IxgbeDevice {
 
                     if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
                         if self.tx_slot[tx_clean_index] {
-                            if let Some(pkt) = &mut self.transmit_buffers[tx_clean_index] {
-                                let mut buf = pkt.as_mut_ptr();
-                                let vec =
-                                    unsafe { Vec::from_raw_parts(buf, pkt.len(), pkt.capacity()) };
-                                reap_queue.push_front(vec);
+                            if let Some(pkt) = self.transmit_buffers[tx_clean_index].take() {
+                                reap_queue.push_front(pkt);
                             }
                             self.tx_slot[tx_clean_index] = false;
                             self.transmit_buffers[tx_clean_index] = None;
