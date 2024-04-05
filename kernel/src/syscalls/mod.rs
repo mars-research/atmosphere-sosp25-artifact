@@ -174,19 +174,21 @@ unsafe extern "C" fn sys_entry() -> ! {
         // 1. Switch to another clean thread
         // Fast return that clobbers rcx, r11
         "21:",
-        "pop r15",
-        "pop r14",
-        "pop r13",
-        "pop r12",
-        "pop rbp",
-        "pop rbx",
-        "add rsp, 8*8", // skip r11~rdi (8 registers)
-        "pop rax",      // rax
-        "add rsp, 8",   // error_code
-        "pop rcx",      // rip
-        "add rsp, 8",   // skip cs
-        "pop r11",      // rflags
-        "pop rsp",      // rsp
+
+        "mov r15, [rsp + 8*0]",
+        "mov r14, [rsp + 8*1]",
+        "mov r13, [rsp + 8*2]",
+        "mov r12, [rsp + 8*3]",
+        "mov rbp, [rsp + 8*4]",
+        "mov rbx, [rsp + 8*5]",
+        // skip r11~rdi (8 registers)
+        "mov rax, [rsp + 8*14]",
+        // skip error_code
+        "mov rcx, [rsp + 8*16]", // rip
+        // skip cs
+        "mov r11, [rsp + 8*18]", // rflags
+        "mov rsp, [rsp + 8*19]", // rsp
+
         "sti",
         "sysretq",
 
