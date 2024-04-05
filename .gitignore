@@ -18,3 +18,5 @@ result-*
 .vscode/**
 
 .verus-log
+
+build-tool/serial.log
