@@ -784,7 +784,7 @@ pub fn run_fwd_maglevtest(net: &mut IxgbeDevice, pkt_size: u16) -> Result<()> {
     Ok(())
 }
 */
-pub fn run_fwd_udptest(net: &mut IxgbeDevice, pkt_len: u16) -> Result<(), ()> {
+pub fn run_fwd_udptest(net: &mut IxgbeDevice, pkt_len: u16, debug: bool) -> Result<(), ()> {
     run_fwd_udptest_with_delay(net, pkt_len, 0)
 }
 
@@ -802,11 +802,16 @@ pub fn run_fwd_udptest_with_delay(
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
 
-    let mut sender_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
-    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
+    let sender_mac = alloc::vec![
+        0x90, 0xe2, 0xba, 0xb3, 0xbd, 0x99, // Dst mac
+    ];
+    let our_mac = alloc::vec![
+        // 90:E2:BA:B5:15:75
+        0x90, 0xe2, 0xba, 0xb5, 0x15, 0x75, // Src mac
+    ];
 
     for i in 0..batch_sz {
-        rx_packets.push_front(Vec::with_capacity(2048));
+        rx_packets.push_front(Vec::with_capacity(1024));
     }
 
     let mut sum: usize = 0;
@@ -847,17 +852,31 @@ pub fn run_fwd_udptest_with_delay(
         sum += ret;
 
         //println!("rx: submitted {} collect {}", ret, tx_packets.len());
+        /*if tx_packets.len() > 0 {
+            log::info!(
+                "tx_packets {} packet {:#?}",
+                tx_packets.len(),
+                tx_packets[0].as_ptr(),
+            );
+        }*/
 
         let ms_start = rdtsc();
         for pkt in tx_packets.iter_mut() {
-
             /*for i in 0..6 {
                 (pkt).swap(i, 6 + i);
             }*/
-            /*unsafe {
-                ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-                ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
-            }*/
+            unsafe {
+                ptr::copy(
+                    our_mac.as_ptr(),
+                    pkt.as_mut_ptr().offset(6),
+                    our_mac.capacity(),
+                );
+                ptr::copy(
+                    sender_mac.as_ptr(),
+                    pkt.as_mut_ptr().offset(0),
+                    sender_mac.capacity(),
+                );
+            }
         }
         mswap_elapsed += rdtsc() - ms_start;
 

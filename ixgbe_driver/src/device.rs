@@ -1079,7 +1079,7 @@ impl IxgbeDevice {
             if (status & IXGBE_RXDADV_STAT_DD) != 0 {
                 if self.rx_slot[rx_index] {
                     count += 1;
-                    if let Some(pkt) = &mut self.receive_buffers[rx_index] {
+                    if let Some(mut pkt) = self.receive_buffers[rx_index].take() {
                         //println!("{}, buffer {:16x}", rx_index, pkt.as_ptr() as u64);
 
                         let length = unsafe {
@@ -1087,9 +1087,12 @@ impl IxgbeDevice {
                                 as usize
                         };
 
-                        let mut buf = pkt.as_mut_ptr();
-                        let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
-                        reap_queue.push_front(vec);
+                        //let mut buf = pkt.as_mut_ptr();
+                        //let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
+                        unsafe {
+                            pkt.set_len(length);
+                        }
+                        reap_queue.push_front(pkt);
                     }
                     self.rx_slot[rx_index] = false;
                     self.receive_buffers[rx_index] = None;
@@ -1252,11 +1255,11 @@ impl IxgbeDevice {
                 let status =
                     unsafe { core::ptr::read_volatile(&mut (*desc).wb.status as *mut u32) };
 
-                unsafe {
-                    //println!("pkt_addr {:08X} tx_Buffer {:08X}",
-                    //            (*desc).read.pkt_addr as *const u64 as u64,
-                    //            self.transmit_buffer[tx_index].physical());
-                }
+                //unsafe {
+                //println!("pkt_addr {:08X} tx_Buffer {:08X}",
+                //            (*desc).read.pkt_addr as *const u64 as u64,
+                //            self.transmit_buffer[tx_index].physical());
+                //}
 
                 // DD == 0 on a TX desc leaves us with 2 possibilities
                 // 1) The desc is populated (tx_slot[i] = true), the device did not sent it out yet
@@ -1441,11 +1444,11 @@ impl IxgbeDevice {
             let status =
                 unsafe { core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32) };
 
-            unsafe {
-                //println!("pkt_addr {:08X} status {:x}",
-                //            (*desc).read.pkt_addr as *const u64 as u64, status);
-                //self.receive_buffers[rx_index].physical());
-            }
+            //unsafe {
+            //println!("pkt_addr {:08X} status {:x}",
+            //            (*desc).read.pkt_addr as *const u64 as u64, status);
+            //self.receive_buffers[rx_index].physical());
+            //}
 
             if debug {
                 println!("rx_index {} clean_index {}", rx_index, rx_clean_index);
@@ -1479,16 +1482,14 @@ impl IxgbeDevice {
 
             unsafe {
                 if self.rx_slot[rx_index] {
-                    if let Some(pkt) = &mut self.receive_buffers[rx_index] {
+                    if let Some(mut pkt) = self.receive_buffers[rx_index].take() {
                         //let mut buf = pkt.as_mut_ptr();
                         //println!("{:x} len {} cap {}", buf as u64, pkt.len(), pkt.capacity());
                         if length <= pkt.capacity() {
-                            let vec = Vec::from_raw_parts(
-                                pkt.as_mut_ptr(),
-                                length as usize,
-                                pkt.capacity(),
-                            );
-                            reap_queue.push_back(vec);
+                            unsafe {
+                                pkt.set_len(length);
+                            }
+                            reap_queue.push_back(pkt);
                             //received_packets += 1;
                         } else {
                             println!("Not pushed");
@@ -1504,7 +1505,16 @@ impl IxgbeDevice {
                         as *mut u64,
                 );
 
-                core::ptr::write_volatile(*pkt_addr.get_mut(), packet.as_ptr() as u64);
+                use asys::sys_mresolve;
+                let pkt_paddr = sys_mresolve(packet.as_ptr() as usize).0 as u64;
+
+                core::ptr::write_volatile(*pkt_addr.get_mut(), pkt_paddr);
+
+                log::trace!(
+                    "pkt vaddr {:>08x} paddr {:>08x}",
+                    packet.as_ptr() as usize,
+                    pkt_paddr
+                );
 
                 let mut hdr_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
                     &(*self.receive_ring.as_ptr().add(rx_index)).read.hdr_addr as *const u64
@@ -1556,15 +1566,23 @@ impl IxgbeDevice {
                 }
 
                 if self.rx_slot[rx_clean_index] {
-                    if let Some(pkt) = &mut self.receive_buffers[rx_clean_index] {
+                    if let Some(mut pkt) = self.receive_buffers[rx_clean_index].take() {
                         let length = unsafe {
                             core::ptr::read_volatile(&(*desc).wb.upper.length as *const u16)
                                 as usize
                         };
+                        //log::info!("length {}", length);
 
-                        let mut buf = pkt.as_mut_ptr();
-                        let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
-                        reap_queue.push_back(vec);
+                        //let mut buf = pkt.as_mut_ptr();
+                        //let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
+                        if length <= pkt.capacity() {
+                            unsafe {
+                                pkt.set_len(length);
+                            }
+                            reap_queue.push_back(pkt);
+                        } else {
+                            println!("Not pushed");
+                        }
                     }
                     self.rx_slot[rx_clean_index] = false;
                     self.receive_buffers[rx_clean_index] = None;
