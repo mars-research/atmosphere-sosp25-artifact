@@ -12,5 +12,5 @@ pub fn test_ixgbe_driver() {
 
     ixgbe_dev.init();
 
-    ixgbe_driver::ixgbe_test::run_tx_udptest(&mut ixgbe_dev, 64, false);
+    ixgbe_driver::ixgbe_test::run_fwd_udptest(&mut ixgbe_dev, 64, false);
 }
