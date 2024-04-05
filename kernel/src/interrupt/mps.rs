@@ -1,5 +1,7 @@
 use core::ptr;
 
+const FALLBACK_IOAPIC_BASE: usize = 0xfec0_0000;
+
 const EBDA_BASE: usize = 0x80000;
 const EBDA_MAX_SIZE: usize = 128 * 1024;
 const BIOS_BASE: usize = 0xf0000;
@@ -95,7 +97,8 @@ pub unsafe fn probe_ioapic() -> usize {
         log::info!("MPS Floating Pointer: {:#x?}", fp_p);
         &*fp_p
     } else {
-        panic!("MPS Floating Pointer not found");
+        log::warn!("MPS Floating Pointer not found, assuming {:#x}", FALLBACK_IOAPIC_BASE);
+        return FALLBACK_IOAPIC_BASE;
     };
 
     let config = fp.get_config_table();
