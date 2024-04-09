@@ -35,6 +35,26 @@ pub fn test_nvme_driver() {
 /// MSG_TYPE == STOP
 ///     quit polling
 
+struct Rand {
+    seed: u64,
+    pow: u64,
+}
+
+impl Rand {
+    fn new() -> Rand {
+        Rand {
+            seed: 123456789,
+            pow: 2u64.pow(31),
+        }
+    }
+
+    #[inline(always)]
+    fn get_rand_u64(&mut self) -> u64 {
+        self.seed = (1103515245 * self.seed + 12345) % self.pow;
+        self.seed
+    }
+}
+
 
 #[no_mangle]
 pub fn test_nvme_with_ring_buffer_ap()-> ! {
@@ -50,14 +70,14 @@ pub fn test_nvme_with_ring_buffer_ap()-> ! {
         }   
 
         let buff_ref:&mut GenericRingBuffer<BlockReq,BlockReq> = &mut*(DATA_BUFFER_ADDR as *mut GenericRingBuffer<BlockReq,BlockReq>);
-
-        let iter = 50000000;
+        let mut rng = Rand::new();
+        let iter = 10000000;
         let print_interval = 1000000;
         let mut count = 0;
         let mut print_count = 0;
 
         let mut block_num: u64 = 0;
-        let max_block_num = 10 * 1000 * 1000 * 1000 / 512; //10GB
+        let max_block_num = 10 * 1000 * 1000 * 1000 / 512 - 8 ; //10GB
 
         let batch_sz = 32;
 
@@ -68,7 +88,7 @@ pub fn test_nvme_with_ring_buffer_ap()-> ! {
             // log::info!("request @ {:x}", breq.data);
         }
 
-        let start = _rdtsc();
+        let seq_read_start = _rdtsc();
         loop{
             if count >= iter{
                 break;
@@ -120,8 +140,191 @@ pub fn test_nvme_with_ring_buffer_ap()-> ! {
                 // log::info!("request @ {:x}", breq.data);
             }
         }
-        let end = _rdtsc();
-        log::info!("nvme cycles per request {:?}",(end-start) as usize /iter);
+        let seq_read_end = _rdtsc();
+
+
+        let mut count = 0;
+        let mut print_count = 0;
+
+        let mut block_num: u64 = 0;
+
+        let seq_write_start = _rdtsc();
+        loop{
+            if count >= iter{
+                break;
+            }
+            if print_count >= print_interval{
+                log::info!("progress {}%", count as f64 / iter as f64 * 100.0);
+                print_count = 0;
+            }
+
+            let mut push_count = 0;
+            let mut pop_count = 0;
+
+            loop{
+                if pop_count >= batch_sz{
+                    break;
+                }
+                let breq_op = buff_ref.reply_queue.try_pop();
+                if breq_op.is_none(){
+                    break;
+                }
+                pop_count = pop_count + 1;
+                count = count + 1;
+                print_count = print_count + 1;
+                buff_ref.try_push_allocator(breq_op.unwrap().data);
+                
+                // log::info!("reply @ {:x}", breq_op.unwrap().data);
+
+            }
+
+            loop{
+                if push_count >= batch_sz{
+                    break;
+                }
+                if buff_ref.request_queue.is_full(){
+                    break;
+                }
+
+                let data_op = buff_ref.try_pop_allocator();
+
+                if data_op.is_none(){
+                    break;
+                }
+
+                push_count = push_count + 1;
+                let mut breq = BlockReq::new(block_num, 8, data_op.unwrap(), BlockOp::Write);
+                block_num = block_num.wrapping_add(8)%max_block_num;
+                buff_ref.request_queue.try_push(&breq);
+                
+                // log::info!("request @ {:x}", breq.data);
+            }
+        }
+        let seq_write_end = _rdtsc();
+
+        let mut count = 0;
+        let mut print_count = 0;
+
+        let mut block_num: u64 = 0;
+
+        let rand_read_start = _rdtsc();
+        loop{
+            if count >= iter{
+                break;
+            }
+            if print_count >= print_interval{
+                log::info!("progress {}%", count as f64 / iter as f64 * 100.0);
+                print_count = 0;
+            }
+
+            let mut push_count = 0;
+            let mut pop_count = 0;
+
+            loop{
+                if pop_count >= batch_sz{
+                    break;
+                }
+                let breq_op = buff_ref.reply_queue.try_pop();
+                if breq_op.is_none(){
+                    break;
+                }
+                pop_count = pop_count + 1;
+                count = count + 1;
+                print_count = print_count + 1;
+                buff_ref.try_push_allocator(breq_op.unwrap().data);
+                
+                // log::info!("reply @ {:x}", breq_op.unwrap().data);
+
+            }
+
+            loop{
+                if push_count >= batch_sz{
+                    break;
+                }
+                if buff_ref.request_queue.is_full(){
+                    break;
+                }
+
+                let data_op = buff_ref.try_pop_allocator();
+
+                if data_op.is_none(){
+                    break;
+                }
+
+                push_count = push_count + 1;
+                let mut breq = BlockReq::new(block_num, 8, data_op.unwrap(), BlockOp::Read);
+                block_num = rng.get_rand_u64() % max_block_num;
+                buff_ref.request_queue.try_push(&breq);
+                
+                // log::info!("request @ {:x}", breq.data);
+            }
+        }
+        let rand_read_end = _rdtsc();
+
+        let mut count = 0;
+        let mut print_count = 0;
+
+        let mut block_num: u64 = 0;
+
+        let rand_write_start = _rdtsc();
+        loop{
+            if count >= iter{
+                break;
+            }
+            if print_count >= print_interval{
+                log::info!("progress {}%", count as f64 / iter as f64 * 100.0);
+                print_count = 0;
+            }
+
+            let mut push_count = 0;
+            let mut pop_count = 0;
+
+            loop{
+                if pop_count >= batch_sz{
+                    break;
+                }
+                let breq_op = buff_ref.reply_queue.try_pop();
+                if breq_op.is_none(){
+                    break;
+                }
+                pop_count = pop_count + 1;
+                count = count + 1;
+                print_count = print_count + 1;
+                buff_ref.try_push_allocator(breq_op.unwrap().data);
+                
+                // log::info!("reply @ {:x}", breq_op.unwrap().data);
+
+            }
+
+            loop{
+                if push_count >= batch_sz{
+                    break;
+                }
+                if buff_ref.request_queue.is_full(){
+                    break;
+                }
+
+                let data_op = buff_ref.try_pop_allocator();
+
+                if data_op.is_none(){
+                    break;
+                }
+
+                push_count = push_count + 1;
+                let mut breq = BlockReq::new(block_num, 8, data_op.unwrap(), BlockOp::Write);
+                block_num = rng.get_rand_u64() % max_block_num;
+                buff_ref.request_queue.try_push(&breq);
+                
+                // log::info!("request @ {:x}", breq.data);
+            }
+        }
+        let rand_write_end = _rdtsc();
+
+
+        log::info!("nvme cycles per seq_read {:?} throughput {:}",(seq_read_end - seq_read_start) as usize /iter, iter as u64 /((seq_read_end - seq_read_start)/2_600_000_000_u64));
+        log::info!("nvme cycles per seq_write {:?} throughput {:}",(seq_write_end - seq_write_start) as usize /iter, iter as u64 /((seq_write_end - seq_write_start)/2_600_000_000_u64));
+        log::info!("nvme cycles per rand_read {:?} throughput {:}",(rand_read_end - rand_read_start) as usize /iter, iter as u64 /((rand_read_end - rand_read_start)/2_600_000_000_u64));
+        log::info!("nvme cycles per rand_write {:?} throughput {:}",(rand_write_end - rand_write_start) as usize /iter, iter as u64 /((rand_write_end - rand_write_start)/2_600_000_000_u64));
     }
 
     loop {
