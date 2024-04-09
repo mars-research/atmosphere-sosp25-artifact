@@ -223,6 +223,22 @@ impl <const N: usize, T: Copy + Clone> RingBuffer<GenericRingBufferNode<T>, N>{
             return true;
         }
     }
+
+    pub fn is_full(&self) -> bool{
+        if self.ar[self.head].is_free(){
+            return false;
+        }else{
+            return true;
+        }
+    }
+
+    pub fn is_empty(&self) -> bool{
+        if self.ar[self.tail].is_free(){
+            return true;
+        }else{
+            return false;
+        }
+    }
 }
 
 
@@ -235,6 +251,11 @@ impl<I: Copy, J: Copy> GenericRingBuffer<I, J> {
             for j in 0..SIZE_OF_BUFFER{
                 self.data_buffer[i][j] = 0;
             }
+        }
+
+        for i in 0..SIZE_OF_QUEUE{
+            self.free_stack[self.len] = &self.data_buffer[i] as *const u8 as usize;
+            self.len = self.len + 1;
         }
     }
 
@@ -260,4 +281,10 @@ impl<I: Copy, J: Copy> GenericRingBuffer<I, J> {
             None
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IxgbePayLoad{
+    pub addr: usize,
+    pub len: usize,
 }
