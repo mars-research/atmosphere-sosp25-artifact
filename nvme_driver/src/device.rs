@@ -18,6 +18,8 @@ use libdma::Dma;
 use libtime::sys_ns_loopsleep;
 use pcid::utils::PciBarAddr;
 
+use ring_buffer::*;
+
 const ONE_MS_IN_NS: u64 = 1000_000;
 const NVME_CC_ENABLE: u32 = 0x1;
 const NVME_CSTS_RDY: u32 = 0x1;
@@ -836,5 +838,135 @@ impl NvmeDevice {
             self.completion_queue_head(qid as u16, cur_head as u16);
         }
         reap_count
+    }
+
+    pub fn submit_and_poll_breq_with_ringbuffer(
+        &mut self,
+        submit: &mut RingBuffer<GenericRingBufferNode<BlockReq>, SIZE_OF_QUEUE>,
+        collect: &mut RingBuffer<GenericRingBufferNode<BlockReq>, SIZE_OF_QUEUE>,
+    ) -> usize {
+        let mut sub_count = 0;
+        let mut reap_count = 0;
+        let mut cur_tail = 0;
+        let mut cur_head = 0;
+        let batch_sz = 32;
+        let reap_all = false;
+        let qid = 1;
+
+        while let Some(breq) = submit.try_read() {
+            let buf_addr = breq.data as usize;
+            let (ptr0, ptr1) = unsafe { (sys_mresolve(buf_addr).0 as u64, 0) };
+            let queue = &mut self.submission_queues[qid];
+            //println!("breq 0x{:08x} ptr0 0x{:08x}", buf_addr, ptr0);
+
+            let num_blocks = breq.num_blocks;
+            let mut entry;
+
+            if breq.op == BlockOp::Write {
+                entry = nvme_cmd::io_write(
+                    qid as u16,
+                    1,          // nsid
+                    breq.block, // block to read
+                    (num_blocks - 1) as u16,
+                    ptr0,
+                    ptr1,
+                );
+            } else {
+                entry = nvme_cmd::io_read(
+                    qid as u16,
+                    1,          // nsid
+                    breq.block, // block to read
+                    (num_blocks - 1) as u16,
+                    ptr0,
+                    ptr1,
+                );
+            }
+
+            if queue.is_submittable() {
+                if let Some(tail) = queue.submit_request_breq(entry, breq) {
+                    cur_tail = tail;
+                    sub_count += 1;
+
+                    // let queue = &mut self.completion_queues[qid];
+                    // if let Some((head, entry, cq_idx)) = if reap_all {
+                    //     Some(queue.complete_spin())
+                    // } else {
+                    //     queue.complete()
+                    // } {
+                    //     log::trace!("1 Got head {} cq_idx {}", head, cq_idx);
+                    //     let sq = &mut self.submission_queues[qid];
+                    //     if sq.req_slot[cq_idx] == true {
+                    //         if let Some(req) = sq.breq_requests[cq_idx].take() {
+                    //             collect.push_front(req);
+                    //         }
+                    //         sq.req_slot[cq_idx] = false;
+                    //         reap_count += 1;
+                    //     }
+                    //     cur_head = head;
+                    //     //TODO: Handle errors
+                    //     self.stats.completed += 1;
+                    // }
+
+                    self.stats.submitted += 1;
+                    submit.try_free();
+                }
+            } else {
+                // submit.push_front(breq);
+                break;
+            }
+
+            if sub_count >= batch_sz{
+                break;
+            }
+
+        }
+
+        if sub_count > 0 {
+            self.submission_queue_tail(qid as u16, cur_tail as u16);
+        }
+
+        {
+            loop {
+                let queue = &mut self.completion_queues[qid];
+
+                if collect.is_full() || reap_count >= batch_sz {
+                    break;
+                }
+
+                if let Some((head, entry, cq_idx)) = if reap_all {
+                    Some(queue.complete_spin())
+                } else {
+                    queue.complete()
+                } {
+                    log::trace!("Got head {} cq_idx {}", head, cq_idx);
+                    let sq = &mut self.submission_queues[qid];
+                    if sq.req_slot[cq_idx] == true {
+                        if let Some(req) = sq.breq_requests[cq_idx].take() {
+                            while collect.try_push(&req) == false{
+
+                            }
+                        }
+                        sq.req_slot[cq_idx] = false;
+                        sq.breq_requests[cq_idx] = None;
+                        reap_count += 1;
+                    } else {
+                        println!(
+                            "Anomaly: req_slot[{}] blkreq_rrefs[{}] can't collect",
+                            cq_idx, cq_idx
+                        );
+                    }
+                    cur_head = head;
+                    //TODO: Handle errors
+                    self.stats.completed += 1;
+                } else {
+                    break;
+                }
+            }
+            if reap_count > 0 {
+                //println!("updating cur_head {}", cur_head);
+                self.completion_queue_head(qid as u16, cur_head as u16);
+            }
+        }
+        sub_count
     }
 }

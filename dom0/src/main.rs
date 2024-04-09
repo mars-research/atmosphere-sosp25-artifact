@@ -64,7 +64,7 @@ fn main() -> isize {
 
     // scan_pci_devs();
 
-    // test_nvme_driver();
+    // test_nvme_with_ring_buffer();
 
     // test_ixgbe_driver();
 

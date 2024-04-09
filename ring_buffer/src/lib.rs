@@ -2,11 +2,8 @@
 
 use core::option::*;
 use core::option::Option::*;
-use nvme_driver::*;
 use core::mem::MaybeUninit;
 use pcid::utils::PciBarAddr;
-use nvme_driver::device::NvmeDevice;
-use nvme_driver::nvme_test::run_blocktest_blkreq;
 
 pub const SIZE_OF_QUEUE:usize = 4096;
 pub const SIZE_OF_BUFFER:usize = 4096;
