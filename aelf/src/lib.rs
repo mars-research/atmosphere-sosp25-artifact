@@ -100,6 +100,7 @@ pub struct ElfHandle<F: Read + Seek> {
     elf_end: usize,
 }
 
+#[derive(Debug)]
 pub struct ElfMapping {
     pub phys_base: usize,
     pub load_addr: usize,

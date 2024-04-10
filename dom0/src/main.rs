@@ -12,6 +12,8 @@ mod ixgbe_client;
 mod nvme_client;
 mod pci;
 mod slab_alloc;
+mod elf;
+mod dom1;
 
 use core::arch::asm;
 use core::arch::x86_64::_rdtsc;
@@ -54,6 +56,9 @@ fn main() -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
+
+    dom1::test_dom1();
+
     // test_proc_pingpong();
 
     // test_sleep();

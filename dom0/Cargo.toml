@@ -6,14 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+astd = { path = "../astd" }
+aelf = { path = "../aelf" }
 asys = { path = "../asys" }
+
+pcid = { path = "../pcid" }
+nvme_driver = { path = "../nvme_driver" }
+ring_buffer = { path = "../ring_buffer" }
+ixgbe_driver = { path = "../ixgbe_driver" }
+
 libtime = { path = "../user/libtime" }
+
 slabmalloc = "0.11.0"
 spin = "0.9.8"
 log = "0.4.19"
 x86 = "0.52.0"
-pcid = { path = "../pcid" }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
-nvme_driver = { path = "../nvme_driver" }
-ring_buffer = { path = "../ring_buffer" }
-ixgbe_driver = { path = "../ixgbe_driver" }
+
+[build-dependencies]
+nasm-rs = "0.3.0"
