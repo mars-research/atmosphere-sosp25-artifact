@@ -129,13 +129,7 @@ impl Kernel {
             let current_thread_ptr = current_thread_ptr_op.unwrap();
             self.proc_man.push_scheduler(current_thread_ptr, Some(NO_ERROR_CODE), pt_regs);
             let (new_thread_ptr,error_code)  = self.proc_man.pop_scheduler(pt_regs);
-            let old_tlb = self.cpu_list.get(cpu_id).tlb;
-            let old_iotlb = self.cpu_list.get(cpu_id).iotlb;
-            self.cpu_list.set(cpu_id, Cpu{
-                current_t: Some(new_thread_ptr),
-                tlb: old_tlb,
-                iotlb: old_iotlb,
-            });
+            self.cpu_list.set_current_thread(cpu_id,Some(new_thread_ptr));
             let new_pcid = self.proc_man.get_pcid_by_thread_ptr(new_thread_ptr);
             let new_cr3 = self.mmu_man.get_cr3_by_pcid(new_pcid);
             assert(self.wf());
