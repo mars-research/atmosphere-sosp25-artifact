@@ -6,6 +6,7 @@ use crate::println;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
+use asys::sys_mresolve;
 use b2histogram::Base2Histogram;
 use byteorder::{BigEndian, ByteOrder};
 use core::alloc::Layout;
@@ -190,11 +191,14 @@ pub fn run_rx_udptest_with_delay(
     let req_pkt_len = pkt_len;
     let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
-    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
-    let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
+    let mut packets: VecDeque<(Vec<u8>, u64)> = VecDeque::with_capacity(batch_sz);
+    let mut collect: VecDeque<(Vec<u8>, u64)> = VecDeque::new();
 
     for i in 0..batch_sz {
-        packets.push_front(Vec::with_capacity(pkt_len));
+        let packet: Vec<u8> = Vec::with_capacity(pkt_len);
+        let pkt_paddr = unsafe { sys_mresolve(packet.as_ptr() as usize).0 as u64 };
+        log::info!("pkt {:>08x} paddr {:x}", packet.as_ptr() as u64, pkt_paddr);
+        packets.push_front((packet, pkt_paddr));
     }
 
     let mut sum: usize = 0;
@@ -227,7 +231,7 @@ pub fn run_rx_udptest_with_delay(
 
         submit_rx_hist.record(packets.len() as u64);
 
-        let ret = net.submit_and_poll(&mut packets, &mut collect, false, false);
+        let ret = net.submit_and_poll2(&mut packets, &mut collect, false, false);
 
         if debug {
             println!(
@@ -257,7 +261,9 @@ pub fn run_rx_udptest_with_delay(
 
             let alloc_rdstc_start = rdtsc();
             for i in 0..batch_sz {
-                packets.push_front(Vec::with_capacity(pkt_len));
+                let packet: Vec<u8> = Vec::with_capacity(pkt_len);
+                let pkt_paddr = unsafe { sys_mresolve(packet.as_ptr() as usize).0 as u64 };
+                packets.push_front((packet, pkt_paddr));
             }
             alloc_elapsed += rdtsc() - alloc_rdstc_start;
         }
@@ -285,6 +291,7 @@ pub fn run_rx_udptest_with_delay(
             elapsed as f64 / sum as f64
         );
 
+        let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
         let done = net.poll(&mut collect, false);
 
         println!("Reaped {} packets", done);
@@ -841,6 +848,9 @@ pub fn run_fwd_udptest_with_delay(
     let start = rdtsc();
     let end = start + runtime * CPU_MHZ;
 
+    // 1. Rx a bunch of packets
+    // 2. Swap the MAC headers, IP headers
+    // 3. Tx the received packets
     loop {
         sys_ns_loopsleep(delay);
         submit_rx += rx_packets.len();

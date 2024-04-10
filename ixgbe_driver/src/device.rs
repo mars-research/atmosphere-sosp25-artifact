@@ -103,9 +103,11 @@ pub struct IxgbeDevice {
     transmit_buffers: [Option<Vec<u8>>; NUM_TX_DESCS],
     transmit_addrs: [Option<IxgbePayLoad>; NUM_TX_DESCS],
     //transmit_rrefs: [Option<RRef<[u8; 1514]>>; NUM_TX_DESCS],
+    transmit_buffers_tup: [Option<(Vec<u8>, u64)>; NUM_TX_DESCS],
     transmit_ring: Dma<[ixgbe_adv_tx_desc; NUM_TX_DESCS]>,
     receive_buffers: [Option<Vec<u8>>; NUM_RX_DESCS],
     receive_addrs: [Option<IxgbePayLoad>; NUM_RX_DESCS],
+    receive_buffers_tup: [Option<(Vec<u8>, u64)>; NUM_RX_DESCS],
     //receive_rrefs: [Option<RRef<[u8; 1514]>>; NUM_TX_DESCS],
     receive_ring: Dma<[ixgbe_adv_rx_desc; NUM_RX_DESCS]>,
     tx_slot: [bool; NUM_TX_DESCS],
@@ -132,9 +134,12 @@ impl IxgbeDevice {
             transmit_buffers: array_init::array_init(|_| None),
             transmit_addrs: array_init::array_init(|_| None),
             //transmit_rrefs: array_init::array_init(|_| None),
+            transmit_buffers_tup: array_init::array_init(|_| None),
             //receive_rrefs: array_init::array_init(|_| None),
             receive_buffers: array_init::array_init(|_| None),
             receive_addrs: array_init::array_init(|_| None),
+            //receive_rrefs: array_init::array_init(|_| None),
+            receive_buffers_tup: array_init::array_init(|_| None),
             transmit_index: 0,
             transmit_clean_index: 0,
             rx_clean_index: 0,
@@ -869,6 +874,20 @@ impl IxgbeDevice {
         }
     }*/
 
+    pub fn submit_and_poll2(
+        &mut self,
+        packets: &mut VecDeque<(Vec<u8>, u64)>,
+        reap_queue: &mut VecDeque<(Vec<u8>, u64)>,
+        tx: bool,
+        debug: bool,
+    ) -> usize {
+        if tx {
+            self.tx_submit_and_poll2(packets, reap_queue, debug)
+        } else {
+            self.rx_submit_and_poll2(packets, reap_queue, debug)
+        }
+    }
+
     pub fn submit_and_poll(
         &mut self,
         packets: &mut VecDeque<Vec<u8>>,
@@ -1254,18 +1273,12 @@ impl IxgbeDevice {
             }
             while let Some(packet) = packets.pop_front() {
                 //println!("Found packet!");
-                let mut desc = unsafe {
+                let desc = unsafe {
                     &mut *(self.transmit_ring.as_ptr().add(tx_index) as *mut ixgbe_adv_tx_desc)
                 };
 
                 let status =
                     unsafe { core::ptr::read_volatile(&mut (*desc).wb.status as *mut u32) };
-
-                //unsafe {
-                //println!("pkt_addr {:08X} tx_Buffer {:08X}",
-                //            (*desc).read.pkt_addr as *const u64 as u64,
-                //            self.transmit_buffer[tx_index].physical());
-                //}
 
                 // DD == 0 on a TX desc leaves us with 2 possibilities
                 // 1) The desc is populated (tx_slot[i] = true), the device did not sent it out yet
@@ -1288,28 +1301,12 @@ impl IxgbeDevice {
                 unsafe {
                     if self.tx_slot[tx_index] {
                         if let Some(pkt) = self.transmit_buffers[tx_index].take() {
-                            //let mut buf = pkt.as_mut_ptr();
-                            //let vec = Vec::from_raw_parts(buf, pkt_len, pkt.capacity());
-                            /*if debug {
-                                println!(
-                                    "buf {:x} vec_raw_parts {:x}",
-                                    buf as u64,
-                                    vec.as_ptr() as u64
-                                );
-                            }*/
                             reap_queue.push_front(pkt);
                         }
 
                         tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
                     }
 
-                    if debug {
-                        println!(
-                            "programming new buffer! {:x} packet[0] {:x}",
-                            packet.as_ptr() as u64,
-                            packet[0]
-                        );
-                    }
                     let mut buf_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
                         &(*self.transmit_ring.as_ptr().add(tx_index))
                             .read
@@ -1330,8 +1327,6 @@ impl IxgbeDevice {
 
                     self.transmit_buffers[tx_index] = Some(packet);
                     self.tx_slot[tx_index] = true;
-
-                    //core::mem::forget(packet);
 
                     let mut cmd_type: UnsafeCell<*mut u32> = UnsafeCell::new(
                         &(*self.transmit_ring.as_ptr().add(tx_index))
@@ -1430,10 +1425,207 @@ impl IxgbeDevice {
     }
 
     #[inline(always)]
-    fn rx_submit_and_poll(
+    fn tx_submit_and_poll2(
         &mut self,
-        packets: &mut VecDeque<Vec<u8>>,
-        reap_queue: &mut VecDeque<Vec<u8>>,
+        packets: &mut VecDeque<(Vec<u8>, u64)>,
+        reap_queue: &mut VecDeque<(Vec<u8>, u64)>,
+        debug: bool,
+    ) -> usize {
+        let mut sent = 0;
+        let mut tx_index = self.transmit_index;
+        let mut tx_clean_index = self.tx_clean_index;
+        let mut last_tx_index = self.transmit_index;
+        let num_descriptors = self.transmit_ring.len();
+        let BATCH_SIZE = 32;
+
+        if packets.len() > 0 {
+            if debug {
+                println!("tx index {} packets {}", tx_index, packets.len());
+            }
+            while let Some((packet, pkt_paddr)) = packets.pop_front() {
+                //println!("Found packet!");
+                let mut desc = unsafe {
+                    &mut *(self.transmit_ring.as_ptr().add(tx_index) as *mut ixgbe_adv_tx_desc)
+                };
+
+                let status =
+                    unsafe { core::ptr::read_volatile(&mut (*desc).wb.status as *mut u32) };
+
+                //unsafe {
+                //println!("pkt_addr {:08X} tx_Buffer {:08X}",
+                //            (*desc).read.pkt_addr as *const u64 as u64,
+                //            self.transmit_buffer[tx_index].physical());
+                //}
+
+                // DD == 0 on a TX desc leaves us with 2 possibilities
+                // 1) The desc is populated (tx_slot[i] = true), the device did not sent it out yet
+                // 2) The desc is not populated. In that case, tx_slot[i] = false
+                if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.tx_slot[tx_index] {
+                    if debug {
+                        println!("No free slot. Fucked");
+                        if !self.dump {
+                            self.dump_tx_desc();
+                        }
+                    }
+                    packets.push_front((packet, pkt_paddr));
+                    break;
+                }
+
+                let pkt_len = packet.len();
+                if debug {
+                    println!("packet len {}", pkt_len);
+                }
+                unsafe {
+                    if self.tx_slot[tx_index] {
+                        if let Some(pkt) = self.transmit_buffers[tx_index].take() {
+                            //let mut buf = pkt.as_mut_ptr();
+                            //let vec = Vec::from_raw_parts(buf, pkt_len, pkt.capacity());
+                            /*if debug {
+                                println!(
+                                    "buf {:x} vec_raw_parts {:x}",
+                                    buf as u64,
+                                    vec.as_ptr() as u64
+                                );
+                            }*/
+                            reap_queue.push_front((pkt, pkt_paddr));
+                        }
+
+                        tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
+                    }
+
+                    if debug {
+                        println!(
+                            "programming new buffer! {:x} packet[0] {:x}",
+                            packet.as_ptr() as u64,
+                            packet[0]
+                        );
+                    }
+                    let mut buf_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
+                        &(*self.transmit_ring.as_ptr().add(tx_index))
+                            .read
+                            .buffer_addr as *const u64 as *mut u64,
+                    );
+
+                    //use asys::sys_mresolve;
+                    //let pkt_paddr = sys_mresolve(packet.as_ptr() as usize).0 as u64;
+
+                    log::trace!(
+                        "pkt vaddr {:>08x} paddr {:>08x}",
+                        packet.as_ptr() as usize,
+                        pkt_paddr
+                    );
+
+                    // switch to a new buffer
+                    core::ptr::write_volatile(*buf_addr.get_mut(), pkt_paddr);
+
+                    self.transmit_buffers_tup[tx_index] = Some((packet, pkt_paddr));
+                    self.tx_slot[tx_index] = true;
+
+                    //core::mem::forget(packet);
+
+                    let mut cmd_type: UnsafeCell<*mut u32> = UnsafeCell::new(
+                        &(*self.transmit_ring.as_ptr().add(tx_index))
+                            .read
+                            .cmd_type_len as *const u32 as *mut u32,
+                    );
+
+                    core::ptr::write_volatile(
+                        *cmd_type.get_mut(),
+                        IXGBE_ADVTXD_DCMD_EOP
+                            | IXGBE_ADVTXD_DCMD_RS
+                            | IXGBE_ADVTXD_DCMD_IFCS
+                            | IXGBE_ADVTXD_DCMD_DEXT
+                            | IXGBE_ADVTXD_DTYP_DATA
+                            | pkt_len as u32,
+                    );
+
+                    let mut olinfo_status: UnsafeCell<*mut u32> = UnsafeCell::new(
+                        &(*self.transmit_ring.as_ptr().add(tx_index))
+                            .read
+                            .olinfo_status as *const u32 as *mut u32,
+                    );
+
+                    core::ptr::write_volatile(
+                        *olinfo_status.get_mut(),
+                        (pkt_len as u32) << IXGBE_ADVTXD_PAYLEN_SHIFT,
+                    );
+                }
+
+                last_tx_index = tx_index;
+                tx_index = wrap_ring(tx_index, self.transmit_ring.len());
+                sent += 1;
+            }
+            if reap_queue.len() < BATCH_SIZE {
+                let mut reaped = 0;
+                let mut count = 0;
+                let batch = BATCH_SIZE - reap_queue.len();
+
+                loop {
+                    let status = unsafe {
+                        core::ptr::read_volatile(
+                            &(*self.transmit_ring.as_ptr().add(tx_clean_index)).wb.status
+                                as *const u32,
+                        )
+                    };
+
+                    if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
+                        if self.tx_slot[tx_clean_index] {
+                            if let Some((pkt, paddr)) =
+                                self.transmit_buffers_tup[tx_clean_index].take()
+                            {
+                                reap_queue.push_front((pkt, paddr));
+                            }
+                            self.tx_slot[tx_clean_index] = false;
+                            self.transmit_buffers[tx_clean_index] = None;
+                            reaped += 1;
+                        }
+                        tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
+                    }
+
+                    count += 1;
+
+                    if tx_clean_index == self.transmit_index || count == batch {
+                        break;
+                    }
+                }
+                self.tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
+            }
+        }
+
+        if sent > 0 && tx_index == last_tx_index {
+            println!("Queued packets, but failed to update idx");
+            println!(
+                "last_tx_index {} tx_index {} tx_clean_index {}",
+                last_tx_index, tx_index, tx_clean_index
+            );
+        }
+
+        if tx_index != last_tx_index {
+            if debug {
+                println!(
+                    "Update tdt from {} to {}",
+                    self.read_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0),
+                    tx_index
+                );
+            }
+            //self.bar.write_reg_tdt(0, tx_index as u64);
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0, tx_index as u64);
+            self.transmit_index = tx_index;
+            self.tx_clean_index = tx_clean_index;
+        }
+
+        if sent == 0 {
+            //println!("Sent {} packets", sent);
+        }
+
+        sent
+    }
+
+    #[inline(always)]
+    fn rx_submit_and_poll2(
+        &mut self,
+        packets: &mut VecDeque<(Vec<u8>, u64)>,
+        reap_queue: &mut VecDeque<(Vec<u8>, u64)>,
         debug: bool,
     ) -> usize {
         let mut rx_index = self.receive_index;
@@ -1442,7 +1634,7 @@ impl IxgbeDevice {
         let mut rx_clean_index = self.rx_clean_index;
         let BATCH_SIZE = 32;
 
-        while let Some(packet) = packets.pop_front() {
+        while let Some((packet, pkt_paddr)) = packets.pop_front() {
             let mut desc = unsafe {
                 &mut *(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc)
             };
@@ -1450,18 +1642,8 @@ impl IxgbeDevice {
             let status =
                 unsafe { core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32) };
 
-            //unsafe {
-            //println!("pkt_addr {:08X} status {:x}",
-            //            (*desc).read.pkt_addr as *const u64 as u64, status);
-            //self.receive_buffers[rx_index].physical());
-            //}
-
-            if debug {
-                println!("rx_index {} clean_index {}", rx_index, rx_clean_index);
-            }
             if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.rx_slot[rx_index] {
-                //println!("no packets to rx");
-                packets.push_front(packet);
+                packets.push_front((packet, pkt_paddr));
                 break;
             }
 
@@ -1469,38 +1651,25 @@ impl IxgbeDevice {
                 panic!("increase buffer size or decrease MTU")
             }
 
-            // Reset the status DD bit
-            /*unsafe {
-                if (status & IXGBE_RXDADV_STAT_DD) != 0 {
-                    core::ptr::write_volatile(&mut (*desc).wb.upper.status_error as *mut u32,
-                                status & !IXGBE_RXDADV_STAT_DD);
-                }
-            }*/
-
-            //println!("Found packet {}", rx_index);
             let length = unsafe {
                 core::ptr::read_volatile(&(*desc).wb.upper.length as *const u16) as usize
             };
 
-            //if length > 0 {
-            //println!("Got a packet with len {}", length);
-            //}
-
             unsafe {
                 if self.rx_slot[rx_index] {
-                    if let Some(mut pkt) = self.receive_buffers[rx_index].take() {
+                    if let Some((mut pkt, paddr)) = self.receive_buffers_tup[rx_index].take() {
                         //let mut buf = pkt.as_mut_ptr();
                         //println!("{:x} len {} cap {}", buf as u64, pkt.len(), pkt.capacity());
                         if length <= pkt.capacity() {
                             unsafe {
                                 pkt.set_len(length);
                             }
-                            reap_queue.push_back(pkt);
+                            reap_queue.push_back((pkt, paddr));
                             //received_packets += 1;
                         } else {
                             println!("Not pushed");
                         }
-                        self.receive_buffers[rx_index] = None;
+                        self.receive_buffers_tup[rx_index] = None;
                     }
                     self.rx_slot[rx_index] = false;
                     rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
@@ -1511,8 +1680,8 @@ impl IxgbeDevice {
                         as *mut u64,
                 );
 
-                use asys::sys_mresolve;
-                let pkt_paddr = sys_mresolve(packet.as_ptr() as usize).0 as u64;
+                //use asys::sys_mresolve;
+                //let pkt_paddr = sys_mresolve(packet.as_ptr() as usize).0 as u64;
 
                 core::ptr::write_volatile(*pkt_addr.get_mut(), pkt_paddr);
 
@@ -1529,7 +1698,7 @@ impl IxgbeDevice {
 
                 core::ptr::write_volatile(*hdr_addr.get_mut(), 0 as u64);
 
-                self.receive_buffers[rx_index] = Some(packet);
+                self.receive_buffers_tup[rx_index] = Some((packet, pkt_paddr));
                 self.rx_slot[rx_index] = true;
             }
 
@@ -1539,9 +1708,9 @@ impl IxgbeDevice {
             received_packets += 1;
         }
 
-        rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
+        //rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
 
-        if reap_queue.len() < BATCH_SIZE {
+        /*if reap_queue.len() < BATCH_SIZE {
             let rx_index = self.receive_index;
             let mut reaped = 0;
             let batch = BATCH_SIZE - reap_queue.len();
@@ -1612,6 +1781,108 @@ impl IxgbeDevice {
             if last_rx_clean != rx_clean_index {
                 rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
             }
+        }*/
+
+        if rx_index != last_rx_index {
+            if debug {
+                println!(
+                    "Update rdt from {} to {}",
+                    self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0),
+                    last_rx_index
+                );
+                println!("rx_index {} clean_index {}", rx_index, self.rx_clean_index);
+            }
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0, last_rx_index as u64);
+            self.receive_index = rx_index;
+            self.rx_clean_index = rx_clean_index;
+        }
+
+        received_packets
+    }
+
+    #[inline(always)]
+    fn rx_submit_and_poll(
+        &mut self,
+        packets: &mut VecDeque<Vec<u8>>,
+        reap_queue: &mut VecDeque<Vec<u8>>,
+        debug: bool,
+    ) -> usize {
+        let mut rx_index = self.receive_index;
+        let mut last_rx_index = self.receive_index;
+        let mut received_packets = 0;
+        let mut rx_clean_index = self.rx_clean_index;
+        let BATCH_SIZE = 32;
+
+        while let Some(packet) = packets.pop_front() {
+            let mut desc = unsafe {
+                &mut *(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc)
+            };
+
+            let status =
+                unsafe { core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32) };
+
+            if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.rx_slot[rx_index] {
+                packets.push_front(packet);
+                break;
+            }
+
+            if ((status & IXGBE_RXDADV_STAT_DD) != 0) && ((status & IXGBE_RXDADV_STAT_EOP) == 0) {
+                panic!("increase buffer size or decrease MTU")
+            }
+
+            let length = unsafe {
+                core::ptr::read_volatile(&(*desc).wb.upper.length as *const u16) as usize
+            };
+
+            unsafe {
+                if self.rx_slot[rx_index] {
+                    if let Some(mut pkt) = self.receive_buffers[rx_index].take() {
+                        //let mut buf = pkt.as_mut_ptr();
+                        //println!("{:x} len {} cap {}", buf as u64, pkt.len(), pkt.capacity());
+                        if length <= pkt.capacity() {
+                            pkt.set_len(length);
+                            reap_queue.push_back(pkt);
+                            //received_packets += 1;
+                        } else {
+                            println!("Not pushed");
+                        }
+                        self.receive_buffers[rx_index] = None;
+                    }
+                    self.rx_slot[rx_index] = false;
+                    rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
+                }
+
+                let mut pkt_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
+                    &(*self.receive_ring.as_ptr().add(rx_index)).read.pkt_addr as *const u64
+                        as *mut u64,
+                );
+
+                use asys::sys_mresolve;
+                let pkt_paddr = sys_mresolve(packet.as_ptr() as usize).0 as u64;
+
+                core::ptr::write_volatile(*pkt_addr.get_mut(), pkt_paddr);
+
+                log::trace!(
+                    "pkt vaddr {:>08x} paddr {:>08x}",
+                    packet.as_ptr() as usize,
+                    pkt_paddr
+                );
+
+                let mut hdr_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
+                    &(*self.receive_ring.as_ptr().add(rx_index)).read.hdr_addr as *const u64
+                        as *mut u64,
+                );
+
+                core::ptr::write_volatile(*hdr_addr.get_mut(), 0 as u64);
+
+                self.receive_buffers[rx_index] = Some(packet);
+                self.rx_slot[rx_index] = true;
+            }
+
+            last_rx_index = rx_index;
+            rx_index = wrap_ring(rx_index, self.receive_ring.len());
+
+            received_packets += 1;
         }
 
         if rx_index != last_rx_index {
@@ -2036,7 +2307,6 @@ impl IxgbeDevice {
         let BATCH_SIZE = 32;
 
         if packets.is_empty() == false {
-
             while let Some(packet) = packets.try_read() {
                 //println!("Found packet!");
                 let mut desc = unsafe {
@@ -2084,9 +2354,7 @@ impl IxgbeDevice {
                                     vec.as_ptr() as u64
                                 );
                             }*/
-                            while reap_queue.try_push(&pkt) == false{
-                                
-                            }
+                            while reap_queue.try_push(&pkt) == false {}
                         }
 
                         tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
@@ -2101,11 +2369,7 @@ impl IxgbeDevice {
                     use asys::sys_mresolve;
                     let pkt_paddr = sys_mresolve(packet.addr).0 as u64;
 
-                    log::trace!(
-                        "pkt vaddr {:>08x} paddr {:>08x}",
-                        packet.addr,
-                        pkt_paddr
-                    );
+                    log::trace!("pkt vaddr {:>08x} paddr {:>08x}", packet.addr, pkt_paddr);
 
                     // switch to a new buffer
                     core::ptr::write_volatile(*buf_addr.get_mut(), pkt_paddr);
@@ -2150,7 +2414,6 @@ impl IxgbeDevice {
                 if sent == BATCH_SIZE {
                     break;
                 }
-
             }
             if reap_queue.is_full() == false {
                 let mut reaped = 0;
@@ -2167,9 +2430,7 @@ impl IxgbeDevice {
                     if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
                         if self.tx_slot[tx_clean_index] {
                             if let Some(pkt) = self.transmit_addrs[tx_clean_index].take() {
-                                while reap_queue.try_push(&pkt) == false{
-
-                                }
+                                while reap_queue.try_push(&pkt) == false {}
                             }
                             self.tx_slot[tx_clean_index] = false;
                             self.transmit_addrs[tx_clean_index] = None;
@@ -2180,7 +2441,10 @@ impl IxgbeDevice {
 
                     count += 1;
 
-                    if tx_clean_index == self.transmit_index || count == BATCH_SIZE || reap_queue.is_full() {
+                    if tx_clean_index == self.transmit_index
+                        || count == BATCH_SIZE
+                        || reap_queue.is_full()
+                    {
                         break;
                     }
                 }
@@ -2251,7 +2515,10 @@ impl IxgbeDevice {
                 // packets.push_front(packet);
                 break;
             }
-            println!("driver submitting packets at {:x} index {} clean index {}",packet.addr, rx_index, rx_clean_index);
+            println!(
+                "driver submitting packets at {:x} index {} clean index {}",
+                packet.addr, rx_index, rx_clean_index
+            );
             packets.try_free();
 
             if ((status & IXGBE_RXDADV_STAT_DD) != 0) && ((status & IXGBE_RXDADV_STAT_EOP) == 0) {
@@ -2277,7 +2544,6 @@ impl IxgbeDevice {
 
             unsafe {
                 if self.rx_slot[rx_index] {
-                    
                     println!(" self.rx_slot[rx_index] = true");
 
                     if let Some(mut pkt) = self.receive_addrs[rx_index].take() {
@@ -2287,10 +2553,13 @@ impl IxgbeDevice {
                             unsafe {
                                 pkt.len = length;
                             }
-                            while reap_queue.try_push(&pkt) == false{
+                            while reap_queue.try_push(&pkt) == false {
                                 println!(" while reap_queue.try_push(&pkt) == false");
                             }
-                            println!("driver submitted packets at {:x} index {} clean index  {}",pkt.addr, rx_index, rx_clean_index);
+                            println!(
+                                "driver submitted packets at {:x} index {} clean index  {}",
+                                pkt.addr, rx_index, rx_clean_index
+                            );
                             //received_packets += 1;
                         } else {
                             println!("Not pushed");
@@ -2298,7 +2567,7 @@ impl IxgbeDevice {
                         self.receive_addrs[rx_index] = None;
                     }
                     self.rx_slot[rx_index] = false;
-                    
+
                     println!("increamenting clean_index {}", rx_clean_index);
                     rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
                     println!("increamented clean_index {}", rx_clean_index);
@@ -2314,11 +2583,7 @@ impl IxgbeDevice {
 
                 core::ptr::write_volatile(*pkt_addr.get_mut(), pkt_paddr);
 
-                log::trace!(
-                    "pkt vaddr {:>08x} paddr {:>08x}",
-                    packet.addr,
-                    pkt_paddr
-                );
+                log::trace!("pkt vaddr {:>08x} paddr {:>08x}", packet.addr, pkt_paddr);
 
                 let mut hdr_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
                     &(*self.receive_ring.as_ptr().add(rx_index)).read.hdr_addr as *const u64
@@ -2336,7 +2601,7 @@ impl IxgbeDevice {
 
             received_packets += 1;
 
-            if received_packets == BATCH_SIZE{
+            if received_packets == BATCH_SIZE {
                 break;
             }
         }
@@ -2345,7 +2610,7 @@ impl IxgbeDevice {
         // rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
         // println!("increamented clean_index {}", rx_clean_index);
 
-        println!("self.rx_slot {:?}",self.rx_slot);
+        println!("self.rx_slot {:?}", self.rx_slot);
 
         if reap_queue.is_full() == false {
             let rx_index = self.receive_index;
@@ -2354,7 +2619,6 @@ impl IxgbeDevice {
             //println!("reap_queue {} ", reap_queue.len());
 
             loop {
-                
                 // println!("clean_index {} index {}", rx_clean_index, rx_index);
 
                 let mut desc = unsafe {
@@ -2393,11 +2657,14 @@ impl IxgbeDevice {
                             unsafe {
                                 pkt.len = length;
                             }
-                            while reap_queue.try_push(&pkt) == false{
+                            while reap_queue.try_push(&pkt) == false {
                                 println!(" while reap_queue.try_push(&pkt) == false");
                             }
-                            
-                            println!("driver submitted packets at {:x} index {} clean index  {}",pkt.addr, rx_index, rx_clean_index);
+
+                            println!(
+                                "driver submitted packets at {:x} index {} clean index  {}",
+                                pkt.addr, rx_index, rx_clean_index
+                            );
                         } else {
                             println!("Not pushed");
                         }
@@ -2405,11 +2672,11 @@ impl IxgbeDevice {
                     self.rx_slot[rx_clean_index] = false;
                     self.receive_addrs[rx_clean_index] = None;
                     reaped += 1;
-                    
+
                     println!("increamenting clean_index {}", rx_clean_index);
                     rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
                     println!("increamented clean_index {}", rx_clean_index);
-                }else{
+                } else {
                     break;
                 }
 
@@ -2426,7 +2693,6 @@ impl IxgbeDevice {
             //println!("reap_queue_after {}\n", reap_queue.len());
 
             if last_rx_clean != rx_clean_index {
-                
                 println!("increamenting clean_index {}", rx_clean_index);
                 rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
                 println!("increamented clean_index {}", rx_clean_index);
