@@ -23,6 +23,7 @@ pub mod boot;
 pub mod capability;
 pub mod cell;
 pub mod io;
+pub mod memory;
 pub mod string;
 pub mod sync;
 

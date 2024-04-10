@@ -7,9 +7,12 @@ use core::num::NonZeroU64;
 use core::{fmt, ops::DerefMut};
 
 use num_derive::{FromPrimitive, ToPrimitive};
-use x86::current::paging::{PAddr, VAddr};
+use x86::current::paging::PAddr;
 
-use astd::{boot::PhysicalMemoryType, sync::Mutex};
+use astd::boot::PhysicalMemoryType;
+use astd::memory::PageProtection;
+use astd::sync::Mutex;
+use aelf::{VirtualMapper, ContiguousMapping};
 
 pub use map::MemoryMap;
 pub use paging::{AddressSpace, HUGE_PAGE_SIZE, PAGE_SIZE};
@@ -25,33 +28,9 @@ static PHYSICAL_MEMORY_MAP: Mutex<MemoryMap<BootMemoryType>> = Mutex::new(Memory
 /// The memory region reserved for the initial allocator.
 static ALLOCATOR_MEMORY_REGION: Mutex<Option<MemoryRange>> = Mutex::new(None);
 
-pub trait VirtualMapper {
-    /// Allocates and maps virtual memory.
-    ///
-    /// If base is null, then the mapping can be at an arbitary address.
-    unsafe fn map_anonymous(
-        &mut self,
-        base: VAddr,
-        size: usize,
-        protection: PageProtection,
-    ) -> ContiguousMapping;
-}
-
 pub trait PhysicalAllocator {
     /// Allocates physical memory.
     unsafe fn allocate_physical(&mut self, size: usize) -> PAddr;
-}
-
-pub struct ContiguousMapping {
-    pub vaddr: VAddr,
-    pub paddr: PAddr,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct PageProtection {
-    pub read: bool,
-    pub write: bool,
-    pub execute: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

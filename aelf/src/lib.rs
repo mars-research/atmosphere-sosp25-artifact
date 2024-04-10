@@ -3,6 +3,8 @@
 //! Adapted from <https://github.com/nix-community/nix-ld-rs>.
 //! Copyright (c) 2023 Zhaofeng Li and nix-ld-rs contributors
 
+#![cfg_attr(not(test), no_std, no_main)]
+
 mod dynamic;
 
 use core::cmp::max;
@@ -16,10 +18,10 @@ use astd::io::{Error as IoError, Read, ReadExactError, Seek, SeekFrom};
 use cfg_match::cfg_match;
 use displaydoc::Display;
 use plain::Plain;
+use x86::current::paging::{VAddr, PAddr};
 
-use crate::memory::{PageProtection, VirtualMapper};
+use astd::memory::PageProtection;
 use dynamic::Dynamic;
-use x86::current::paging::VAddr;
 
 cfg_match! {
     target_arch = "x86_64" => {
@@ -70,6 +72,23 @@ pub enum Error {
 
     /// I/O error: {0}
     IoError(IoError),
+}
+
+pub trait VirtualMapper {
+    /// Allocates and maps virtual memory.
+    ///
+    /// If base is null, then the mapping can be at an arbitary address.
+    unsafe fn map_anonymous(
+        &mut self,
+        base: VAddr,
+        size: usize,
+        protection: PageProtection,
+    ) -> ContiguousMapping;
+}
+
+pub struct ContiguousMapping {
+    pub vaddr: VAddr,
+    pub paddr: PAddr,
 }
 
 pub struct ElfHandle<F: Read + Seek> {

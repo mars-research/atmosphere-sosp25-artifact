@@ -25,9 +25,9 @@
 pub mod boot;
 pub mod console;
 pub mod debugger;
-pub mod elf;
 pub mod logging;
 pub mod memory;
+
 
 use core::arch::asm;
 use core::slice;
@@ -35,14 +35,15 @@ use core::slice;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 
+use x86::cpuid::cpuid;
+
+use aelf::ElfHandle;
 use astd::boot::{BootInfo, DomainMapping, PhysicalMemoryType};
 use astd::io::{Cursor, Read, Seek, SeekFrom};
 
-use elf::ElfHandle;
 use memory::{
     AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper, HUGE_PAGE_SIZE, PAGE_SIZE,
 };
-use x86::cpuid::cpuid;
 
 const KERNEL_RESERVATION: usize = 1024 * 1024 * 1024; // 1 GiB
 const DOM0_RESERVATION: usize = 256 * 1024 * 1024; // 256 MiB
@@ -252,10 +253,10 @@ fn load_domain<T, A>(
     elf: T,
     address_space: &mut AddressSpace,
     page_table_allocator: &mut A,
-) -> Result<DomainMapping, elf::Error>
+) -> Result<DomainMapping, aelf::Error>
 where
     T: Read + Seek,
-    T::Error: Into<elf::Error>,
+    T::Error: Into<aelf::Error>,
     A: PhysicalAllocator,
 {
     let parsed = ElfHandle::parse(elf, PAGE_SIZE)?;

@@ -1,9 +1,8 @@
 use x86::current::paging::{PAddr, VAddr};
 
 use crate::memory::{
-    AddressSpace, ContiguousMapping, PageProtection, PhysicalAllocator, VirtualMapper,
+    AddressSpace, ContiguousMapping, PageProtection, PhysicalAllocator, VirtualMapper, PAGE_SIZE,
 };
-use crate::PAGE_SIZE;
 
 /// The virtual base address userspace programs are loaded to.
 pub const USERSPACE_BASE: u64 = 0x8000000000;
