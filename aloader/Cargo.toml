@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-astd = { path = "../astd" }
 aelf = { path = "../aelf" }
+astd = { path = "../astd", features = ["kernel"] }
 atest = { path = "../atest" }
 ns16550a = { path = "../ns16550a" }
 kernel-logger = { path = "../kernel-logger" }
