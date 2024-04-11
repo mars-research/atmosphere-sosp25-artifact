@@ -210,7 +210,7 @@ pub fn pci_read(pci: &PciAddress, offset: u8) -> u32 {
           "in eax, dx",
         aport = const { PCI_ADDR_PORT },
         dport = const { PCI_DATA_PORT },
-        inout("eax") address => value, options(nostack, nomem, preserves_flags));
+        inout("eax") address => value, out("edx") _, options(nomem, nostack, preserves_flags));
     }
     value
 }
@@ -226,11 +226,11 @@ pub fn pci_write(pci: &PciAddress, offset: u8, value: u32) {
         asm!("mov dx, {aport}",
           "out dx, eax",
             aport = const { PCI_ADDR_PORT },
-        in("eax") address, options(nostack, nomem, preserves_flags));
+        in("eax") address, out ("edx") _, options(nostack, nomem, preserves_flags));
         asm!("mov dx, {dport}",
           "out dx, eax",
         dport = const { PCI_DATA_PORT },
-              in("eax") value, options(nostack, nomem, preserves_flags));
+              in("eax") value, out("edx") _, options(nostack, nomem, preserves_flags));
     }
 }
 
