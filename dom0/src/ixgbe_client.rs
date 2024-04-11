@@ -32,7 +32,7 @@ pub fn test_ixgbe_with_ring_buffer_ap()-> ! {
     ];
 
     unsafe{
-        let size = core::mem::size_of::<GenericRingBuffer<IxgbePayLoad,IxgbePayLoad>>();
+        let size = core::mem::size_of::<IxgbeRingBuffer>();
         let error_code = asys::sys_receive_pages(0,DATA_BUFFER_ADDR as usize, size / 4096 + 1);
         if error_code != 0 {
             log::info!("sys_receive_pages failed {:?}", error_code);
@@ -40,46 +40,67 @@ pub fn test_ixgbe_with_ring_buffer_ap()-> ! {
             log::info!("data_buffer received by dom1");
         }   
 
-        let buff_ref:&mut GenericRingBuffer<IxgbePayLoad,IxgbePayLoad> = &mut*(DATA_BUFFER_ADDR as *mut GenericRingBuffer<IxgbePayLoad,IxgbePayLoad>);
+        let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
 
-        for i in 0..32 {
+        for i in 0..128 {
             let addr = buff_ref.try_pop_allocator().unwrap();
             buff_ref.request_queue.try_push(&IxgbePayLoad{addr:addr, len:4096});
-            log::info!("receiving package at {:x}", addr);
+            // log::info!("receiving package at {:x}", addr);
         }
 
-        let iter = 30;
+        let iter = 500000000;
         let mut count = 0;
+        let print_iter = iter/20;
+        let mut print_count = 0;
 
         let start = _rdtsc();
 
-        while count <= iter{
+        while count <= iter {
 
-            let pkt_op = buff_ref.reply_queue.try_pop();
+            if print_count >= print_iter{
+                log::info!("progress {}%", count as f64 / iter as f64 * 100.0);
+                print_count = 0;
+            }
+            let pkt_op = buff_ref.request_completion_queue.try_pop();
             if pkt_op.is_none(){
-                continue;
+            }else{
+                // log::info!("received package at {:x}", pkt_op.unwrap().addr);
+
+                count = count + 1;
+                print_count = print_count + 1;
+                let addr = pkt_op.unwrap().addr;
+    
+                unsafe {
+                    ptr::copy(
+                        our_mac.as_ptr(),
+                        (addr + 6) as *mut u8,
+                        our_mac.len(),
+                    );
+                    ptr::copy(
+                        sender_mac.as_ptr(),
+                        addr as *mut u8,
+                        sender_mac.len(),
+                    );
+                }
+    
+                buff_ref.reply_queue.try_push(&pkt_op.unwrap());
+                // log::info!("sending package at {:x}", pkt_op.unwrap().addr);
             }
 
-            log::info!("received package at {:x}", pkt_op.unwrap().addr);
+            let pkt_op = buff_ref.reply_completion_queue.try_pop();
+            if pkt_op.is_none(){
+            }else{
+                // log::info!("sent package at {:x}", pkt_op.unwrap().addr);
+    
+                let addr = pkt_op.unwrap().addr;
+    
+                buff_ref.try_push_allocator(pkt_op.unwrap().addr);
 
-            count = count + 1;
-
-            let addr = pkt_op.unwrap().addr;
-
-            unsafe {
-                ptr::copy(
-                    our_mac.as_ptr(),
-                    (addr + 6) as *mut u8,
-                    our_mac.len(),
-                );
-                ptr::copy(
-                    sender_mac.as_ptr(),
-                    addr as *mut u8,
-                    sender_mac.len(),
-                );
+                if let Some(addr) = buff_ref.try_pop_allocator(){
+                    buff_ref.request_queue.try_push(&IxgbePayLoad{addr:addr, len:4096});
+                    // log::info!("receiving package at {:x}", addr);
+                }
             }
-
-            buff_ref.request_queue.try_push(&pkt_op.unwrap());
 
         }
 
@@ -111,14 +132,14 @@ pub fn test_ixgbe_with_ring_buffer(){
         }
         log::info!("find {:?} pages until {:x?}", range, 0x8000000000usize + range * 4096);
 
-        let size = core::mem::size_of::<GenericRingBuffer<IxgbePayLoad,IxgbePayLoad>>();
+        let size = core::mem::size_of::<IxgbeRingBuffer>();
         let error_code = asys::sys_mmap(DATA_BUFFER_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1);
         if error_code != 0 {
             log::info!("sys_mmap for data_buffer failed {:?}", error_code);
             return;
         }
         
-        let buff_ref:&mut GenericRingBuffer<IxgbePayLoad,IxgbePayLoad> = &mut*(DATA_BUFFER_ADDR as *mut GenericRingBuffer<IxgbePayLoad,IxgbePayLoad>);
+        let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
         buff_ref.init();
         log::info!("data_buffer init done");
 
@@ -167,14 +188,12 @@ pub fn ixgbe_driver_backend(){
     ixgbe_dev.init();
 
     unsafe{
-        let buff_ref:&mut GenericRingBuffer<IxgbePayLoad,IxgbePayLoad> = &mut*(DATA_BUFFER_ADDR as *mut GenericRingBuffer<IxgbePayLoad,IxgbePayLoad>);
-        let mut transit_buffer: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE> = RingBuffer::<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>::new();
-        transit_buffer.init();
+        let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
         log::info!("ixgbe_backend started");
         loop{
-            ixgbe_dev.rx_submit_and_poll_with_ringbuffer(&mut buff_ref.request_queue, &mut transit_buffer, false);
-            log::info!("dashi");
-            // ixgbe_dev.tx_submit_and_poll_with_ringbuffer(&mut transit_buffer, &mut buff_ref.reply_queue, false);
+            ixgbe_dev.rx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.request_queue, &mut buff_ref.request_completion_queue, false);
+            // log::info!("dashi");
+            ixgbe_dev.tx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.reply_queue, &mut buff_ref.reply_completion_queue, false);
         }
     }
 

@@ -55,7 +55,7 @@ impl DataBufferAllocWrapper{
     }
 }
 
-#[repr(align(64))]
+#[repr(align(4096))]
 #[repr(C)]
 pub struct RingBuffer<T,const N: usize>{
     pub head: usize,
@@ -284,4 +284,59 @@ impl<I: Copy, J: Copy> GenericRingBuffer<I, J> {
 pub struct IxgbePayLoad{
     pub addr: usize,
     pub len: usize,
+}
+
+#[repr(align(4096))]
+#[repr(C)]
+pub struct IxgbeRingBuffer {
+    pub data_buffer: [[u8; SIZE_OF_BUFFER]; SIZE_OF_QUEUE],
+    pub request_queue: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+    pub request_completion_queue: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+    pub reply_queue: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+    pub reply_completion_queue: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+    pub free_stack: [usize; SIZE_OF_QUEUE],
+    pub len: usize,
+}
+
+impl IxgbeRingBuffer{
+    pub fn init(&mut self){
+        self.request_queue.init();        
+        self.request_completion_queue.init();
+        self.reply_queue.init();
+        self.reply_completion_queue.init();
+        self.len = 0;
+        for i in 0..SIZE_OF_QUEUE{
+            for j in 0..SIZE_OF_BUFFER{
+                self.data_buffer[i][j] = 0;
+            }
+        }
+
+        for i in 0..SIZE_OF_QUEUE{
+            self.free_stack[self.len] = &self.data_buffer[i] as *const u8 as usize;
+            self.len = self.len + 1;
+        }
+    }
+
+    pub fn allocator_len(&self) -> usize{
+        self.len
+    }
+
+    pub fn try_push_allocator(&mut self, value:usize) -> bool{
+        if self.len < SIZE_OF_QUEUE{
+            self.free_stack[self.len] = value;
+            self.len += 1;
+            true
+        }else{
+            false
+        }
+    }
+
+    pub fn try_pop_allocator(&mut self) -> Option<usize>{
+        if self.len > 0 {
+            self.len -= 1;
+            Some(self.free_stack[self.len])
+        }else{
+            None
+        }
+    }
 }

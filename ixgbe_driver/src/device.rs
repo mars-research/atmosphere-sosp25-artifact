@@ -2715,4 +2715,360 @@ impl IxgbeDevice {
 
         received_packets
     }
+
+    #[inline(always)]
+    pub fn tx_submit_and_poll_with_ringbuffer_2(
+        &mut self,
+        packets: &mut RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+        reap_queue: &mut RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+        debug: bool,
+    ) {
+        let mut tx_index = self.transmit_index;
+        let mut tx_clean_index = self.tx_clean_index;
+        let num_descriptors = self.transmit_ring.len();
+        let BATCH_SIZE = 128;
+
+        while let Some(packet) = packets.try_read() {
+            //println!("Found packet!");
+            let mut desc = unsafe {
+                &mut *(self.transmit_ring.as_ptr().add(tx_index) as *mut ixgbe_adv_tx_desc)
+            };
+
+            let status =
+                unsafe { core::ptr::read_volatile(&mut (*desc).wb.status as *mut u32) };
+
+            //unsafe {
+            //println!("pkt_addr {:08X} tx_Buffer {:08X}",
+            //            (*desc).read.pkt_addr as *const u64 as u64,
+            //            self.transmit_buffer[tx_index].physical());
+            //}
+
+            // DD == 0 on a TX desc leaves us with 2 possibilities
+            // 1) The desc is populated (tx_slot[i] = true), the device did not sent it out yet
+            // 2) The desc is not populated. In that case, tx_slot[i] = false
+            if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.tx_slot[tx_index] {
+                if debug {
+                    println!("No free slot. Fucked");
+                    if !self.dump {
+                        self.dump_tx_desc();
+                    }
+                }
+                // packets.push_front((packet, pkt_paddr));
+                break;
+            }
+            packets.try_free();
+
+            let pkt_len = packet.len;
+            if debug {
+                println!("packet len {}", pkt_len);
+            }
+            unsafe {
+                let mut buf_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
+                    &(*self.transmit_ring.as_ptr().add(tx_index))
+                        .read
+                        .buffer_addr as *const u64 as *mut u64,
+                );
+
+                use asys::sys_mresolve;
+                let pkt_paddr = sys_mresolve(packet.addr).0 as u64;
+
+                // log::trace!(
+                //     "pkt vaddr {:>08x} paddr {:>08x}",
+                //     packet.as_ptr() as usize,
+                //     pkt_paddr
+                // );
+
+                // switch to a new buffer
+                core::ptr::write_volatile(*buf_addr.get_mut(), pkt_paddr);
+
+                self.transmit_addrs[tx_index] = Some(packet);
+                self.tx_slot[tx_index] = true;
+
+                
+                // println!("driver sending tx_index {}", tx_index);
+
+                // println!("driver sending packet@ {:x} self.transmit_index {} self.tx_clean_index {} tx_clean_index {}
+                // self.tx_slot {:?}
+                // ", packet.addr, self.transmit_index, self.tx_clean_index,tx_clean_index,self.tx_slot);
+                //core::mem::forget(packet);
+
+                let mut cmd_type: UnsafeCell<*mut u32> = UnsafeCell::new(
+                    &(*self.transmit_ring.as_ptr().add(tx_index))
+                        .read
+                        .cmd_type_len as *const u32 as *mut u32,
+                );
+
+                core::ptr::write_volatile(
+                    *cmd_type.get_mut(),
+                    IXGBE_ADVTXD_DCMD_EOP
+                        | IXGBE_ADVTXD_DCMD_RS
+                        | IXGBE_ADVTXD_DCMD_IFCS
+                        | IXGBE_ADVTXD_DCMD_DEXT
+                        | IXGBE_ADVTXD_DTYP_DATA
+                        | pkt_len as u32,
+                );
+
+                let mut olinfo_status: UnsafeCell<*mut u32> = UnsafeCell::new(
+                    &(*self.transmit_ring.as_ptr().add(tx_index))
+                        .read
+                        .olinfo_status as *const u32 as *mut u32,
+                );
+
+                core::ptr::write_volatile(
+                    *olinfo_status.get_mut(),
+                    (pkt_len as u32) << IXGBE_ADVTXD_PAYLEN_SHIFT,
+                );
+            }
+
+            tx_index = wrap_ring(tx_index, self.transmit_ring.len());
+        }
+
+        if self.transmit_index != tx_index {
+            if debug {
+                println!(
+                    "Update tdt from {} to {}",
+                    self.read_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0),
+                    tx_index
+                );
+            }
+            //self.bar.write_reg_tdt(0, tx_index as u64);
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0, tx_index as u64);
+            self.transmit_index = tx_index;
+        }
+        
+        let mut reaped = 0;
+        let mut count = 0;
+        let batch = BATCH_SIZE;
+
+        loop {
+
+            if reap_queue.is_full(){
+                break;
+            }
+
+            if tx_clean_index == self.transmit_index || count == batch {
+                break;
+            }
+
+            let status = unsafe {
+                core::ptr::read_volatile(
+                    &(*self.transmit_ring.as_ptr().add(tx_clean_index)).wb.status
+                        as *const u32,
+                )
+            };
+
+            if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
+
+                // log::info!("tx_clean_index {}
+                // self.transmit_index {}
+                // self.tx_clean_index {}
+                // self.transmit_ring.len() {}
+                // self.tx_slot {:?}", tx_clean_index,  self.transmit_index,self.tx_clean_index,self.transmit_ring.len(), self.tx_slot);
+
+                if self.tx_slot[tx_clean_index] {
+                    if let Some(pkt) =
+                        self.transmit_addrs[tx_clean_index].take()
+                    {
+                        while reap_queue.try_push(&pkt) == false {
+
+                        }
+                        // println!("driver sent tx_clean_index {}", tx_clean_index);
+                        // println!("driver sent packet@ {:x} self.transmit_index {} self.tx_clean_index {} tx_clean_index {}
+                        // self.tx_slot {:?}
+                        // ", pkt.addr, self.transmit_index, self.tx_clean_index,tx_clean_index,self.tx_slot);
+                    }
+                    self.tx_slot[tx_clean_index] = false;
+                    self.transmit_addrs[tx_clean_index] = None;
+                }
+                tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
+            }else{
+                break;
+            }
+
+            count += 1;
+
+        }
+        self.tx_clean_index = tx_clean_index;
+    }
+
+    #[inline(always)]
+    pub fn rx_submit_and_poll_with_ringbuffer_2(
+        &mut self,
+        packets: &mut RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+        reap_queue: &mut RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
+        debug: bool,
+    ) {
+        let mut rx_index = self.receive_index;
+        let mut last_rx_index = self.receive_index;
+        let mut rx_clean_index = self.rx_clean_index;
+        let BATCH_SIZE = 128;
+
+        while let Some(packet) = packets.try_read() {
+            let mut desc = unsafe {
+                &mut *(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc)
+            };
+
+            let status =
+                unsafe { core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32) };
+
+            if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.rx_slot[rx_index] {
+                // packets.push_front((packet, pkt_paddr));
+                break;
+            }
+
+            packets.try_free();
+
+            // log::info!("driver receiving @ {:x}", packet.addr);
+
+            if ((status & IXGBE_RXDADV_STAT_DD) != 0) && ((status & IXGBE_RXDADV_STAT_EOP) == 0) {
+                panic!("increase buffer size or decrease MTU")
+            }
+
+            unsafe {
+                // if self.rx_slot[rx_index] {
+                //     if let Some(mut pkt) = self.receive_addrs[rx_index].take() {
+                //         //let mut buf = pkt.as_mut_ptr();
+                //         //println!("{:x} len {} cap {}", buf as u64, pkt.len(), pkt.capacity());
+                //         if length <= pkt.len {
+                //             unsafe {
+                //                 pkt.len = length;
+                //             }
+                //             while reap_queue.try_push(&pkt) == false{
+
+                //             }
+                            
+                //             // log::info!("driver received @ {:x}", pkt.addr);
+                //             //received_packets += 1;
+                //         } else {
+                //             println!("Not pushed");
+                //         }
+                //         self.receive_addrs[rx_index] = None;
+                //     }
+                //     self.rx_slot[rx_index] = false;
+                //     rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
+                // }
+
+                let mut pkt_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
+                    &(*self.receive_ring.as_ptr().add(rx_index)).read.pkt_addr as *const u64
+                        as *mut u64,
+                );
+
+                use asys::sys_mresolve;
+                let pkt_paddr = sys_mresolve(packet.addr).0 as u64;
+
+                core::ptr::write_volatile(*pkt_addr.get_mut(), pkt_paddr);
+
+                // log::trace!(
+                //     "pkt vaddr {:>08x} paddr {:>08x}",
+                //     packet.as_ptr() as usize,
+                //     pkt_paddr
+                // );
+
+                let mut hdr_addr: UnsafeCell<*mut u64> = UnsafeCell::new(
+                    &(*self.receive_ring.as_ptr().add(rx_index)).read.hdr_addr as *const u64
+                        as *mut u64,
+                );
+
+                core::ptr::write_volatile(*hdr_addr.get_mut(), 0 as u64);
+
+                self.receive_addrs[rx_index] = Some(packet);
+                self.rx_slot[rx_index] = true;
+            }
+            last_rx_index = rx_index;
+            rx_index = wrap_ring(rx_index, self.receive_ring.len());
+        }
+
+        if rx_index != self.receive_index {
+                // println!(
+                //     "Update rdt from {} to {}",
+                //     self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0),
+                //     rx_index
+                // );
+                // println!("rx_index {} clean_index {}", rx_index, self.rx_clean_index);
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0, rx_index as u64);
+            self.receive_index = rx_index;
+        }
+
+            let mut reaped = 0;
+            let batch = BATCH_SIZE;
+            let mut count = 0;
+            //println!("reap_queue {} ", reap_queue.len());
+
+            loop {
+
+                // println!("rx_clean_index: {} 
+                // rx_index: {}
+                // self.rx_slot: {:#?}", rx_clean_index, rx_index,self.rx_slot);
+                if reap_queue.is_full(){
+                    break;
+                }
+
+                if rx_clean_index == rx_index || count == batch {
+                    // println!("break; rx_clean_index{} rx_index {}",rx_clean_index, rx_index );
+                    break;
+                }
+
+                let mut desc = unsafe {
+                    &mut *(self.receive_ring.as_ptr().add(rx_clean_index) as *mut ixgbe_adv_rx_desc)
+                };
+
+                let status = unsafe {
+                    core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32)
+                };
+
+                if debug {
+                    println!("checking status[{}] {:x}", rx_clean_index, status);
+                }
+
+                if (status & IXGBE_RXDADV_STAT_DD) == 0 {
+                    break;
+                }
+                // log::info!("driver sent rx_clean_index {}", rx_clean_index);
+                if ((status & IXGBE_RXDADV_STAT_DD) != 0) && ((status & IXGBE_RXDADV_STAT_EOP) == 0)
+                {
+                    panic!("increase buffer size or decrease MTU")
+                }
+
+                if self.rx_slot[rx_clean_index] {
+                    if let Some(mut pkt) =
+                        self.receive_addrs[rx_clean_index].take()
+                    {
+                        let length = unsafe {
+                            core::ptr::read_volatile(&(*desc).wb.upper.length as *const u16)
+                                as usize
+                        };
+                        //log::info!("length {}", length);
+
+                        //let mut buf = pkt.as_mut_ptr();
+                        //let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
+                        if length <= pkt.len {
+                            pkt.len = length;
+                            while reap_queue.try_push(&pkt) == false{
+
+                            }
+                            // log::info!("driver received @ {:x}", pkt.addr);
+                        } else {
+                            println!("Not pushed");
+                        }
+                    }
+                    self.rx_slot[rx_clean_index] = false;
+                    self.receive_addrs[rx_clean_index] = None;
+                    reaped += 1;
+                }else{
+                    // log::info!("driver received rx_clean_index @ {:?} on empty slot", rx_clean_index);
+                }
+                rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
+
+                count += 1;
+            }
+
+            if debug {
+                println!("clean_index {}", rx_clean_index);
+            }
+
+            //println!("reap_queue_after {}\n", reap_queue.len());
+        
+            self.rx_clean_index = rx_clean_index;
+
+    }
 }
