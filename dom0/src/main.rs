@@ -25,7 +25,7 @@ use crate::nvme_client::*;
 use crate::ring_buffer::*;
 use crate::syscall_benchmark::*;
 use alloc::vec::Vec;
-use ixgbe_client::test_ixgbe_driver;
+use ixgbe_client::*;
 use libtime::sys_ns_loopsleep;
 pub use log::info as println;
 use nvme_client::test_nvme_driver;
@@ -57,7 +57,7 @@ fn main() -> isize {
         asys::sys_print("meow".as_ptr(), 4);
     }
 
-    dom1::test_dom1();
+    dom1::spawn_dom1();
 
     // test_proc_pingpong();
 
@@ -69,7 +69,7 @@ fn main() -> isize {
 
     // scan_pci_devs();
 
-    // test_nvme_with_ring_buffer();
+    // test_ixgbe_with_ring_buffer();
 
     // test_ixgbe_driver();
 

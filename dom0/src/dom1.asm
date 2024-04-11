@@ -7,6 +7,8 @@ _start:
 	mov rsi, hello_len
 	mov rax, 0
 	syscall
+loop:
+	jmp loop
 	ret
 
 section .rodata

@@ -25,3 +25,41 @@ pub fn test_dom1() {
     entry();
     log::info!("Returned from dom1");
 }
+
+
+pub fn spawn_dom1() {
+    log::info!("Length of dom1 ELF: {}", DOM1_ELF.len());
+
+    unsafe{
+        let cursor = Cursor::new(DOM1_ELF);
+        let mut mapper = Mapper::new(DOM1_BASE);
+        let elf = ElfHandle::parse(cursor, 4096).unwrap();
+        let (map, _) = elf.load(&mut mapper).unwrap();
+    
+        log::info!("Loaded dom1: {:?}", map);
+    
+        let entry: extern "C" fn() = unsafe { mem::transmute(map.entry_point) };
+    
+        let error_code = asys::sys_new_endpoint(0);
+        if error_code != 0 {
+            log::info!("sys_new_endpoint failed {:?}", error_code);
+            return;
+        }
+
+        let new_stack = map.load_addr + map.load_size;
+        log::info!("allocating dom1 stack from {:x?}", new_stack);
+        let size = 16 * 1024 * 1024;
+        let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, size / 4096);
+        if error_code != 0 {
+            log::info!("sys_mmap for dom1 stack failed {:?}", error_code);
+            return;
+        }
+        let rsp: usize = new_stack + size/2;
+        let error_code = asys::sys_new_proc_with_iommu_pass_mem(0,entry as *const () as usize, rsp, map.load_addr, (map.load_size + size) / 4096);
+            if error_code != 0 {
+                log::info!("sys_new_proc_with_iommu_pass_mem failed {:?}", error_code);
+                return;
+            }
+        return;
+    }
+}
