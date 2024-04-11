@@ -18,6 +18,7 @@ use core::convert::{Into, TryFrom};
 use core::mem::MaybeUninit;
 
 use bit_field::BitField;
+use x86::Ring;
 use x86::bits64::paging::VAddr;
 use x86::io::{inb, outb};
 
@@ -404,6 +405,7 @@ pub unsafe fn init() {
     let idt = &mut GLOBAL_IDT;
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
     idt.breakpoint.set_handler_fn(wrap_interrupt!(breakpoint));
+    idt.breakpoint.attributes.set_privilege_level(Ring::Ring3);
     idt.double_fault.set_handler_fn(double_fault);
     idt.stack_segment_fault.set_handler_fn(stack_segment_fault);
     idt.general_protection_fault

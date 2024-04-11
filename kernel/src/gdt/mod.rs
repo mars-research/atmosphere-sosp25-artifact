@@ -50,6 +50,9 @@ pub unsafe fn init_cpu() {
             cpu.tss.set_ist(i, ist_addr as u64);
         }
 
+        let rsp0_addr = cpu.ist[0].bottom();
+        cpu.tss.set_rsp(Ring::Ring0, rsp0_addr as u64);
+
         &cpu.tss as *const TaskStateSegment
     };
 
