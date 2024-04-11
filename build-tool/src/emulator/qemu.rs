@@ -95,7 +95,6 @@ impl Emulator for Qemu {
                 "stdio,id=char0,mux=on,logfile=serial.log,signal=off",
             ])
             .args(&["-smp", "2"])
-            // .args(&["-serial", "file:serial.log"])
             .args(&["-m", &format!("{}", memory)])
             .args(&[
                 "-device",
