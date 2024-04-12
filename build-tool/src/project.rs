@@ -94,6 +94,16 @@ impl Project {
         }
     }
 
+    /// Returns a user crate
+    pub fn user(self: &Arc<Self>, name: &str) -> Crate {
+        Crate {
+            name: name.to_string(),
+            crate_dir: self.root.join("user").join(name),
+            binary: Some(name.to_string()),
+            max_stack_size: Some(Byte::from_bytes(1024 * 1024 * 16)), // 16 MiB
+        }
+    }
+
     /// Returns the path to the workspace root.
     pub fn root(&self) -> PathBuf {
         self.root.clone()

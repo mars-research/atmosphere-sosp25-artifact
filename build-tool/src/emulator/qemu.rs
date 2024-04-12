@@ -60,6 +60,10 @@ impl Emulator for Qemu {
             initrd.push(dom0)?;
         }
 
+        if let Some(payload) = &config.payload {
+            initrd.push(payload)?;
+        }
+
         let initrd = initrd.finalize();
 
         let iso = if config.use_grub {

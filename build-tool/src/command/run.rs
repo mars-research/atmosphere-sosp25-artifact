@@ -46,6 +46,10 @@ pub struct Opts {
     #[clap(long)]
     gdb: bool,
 
+    /// The userspace program to pass to dom0.
+    #[clap(long, default_value = "hello")]
+    payload: String,
+
     /// Emulate Nvme with this img file
     #[clap(long)]
     nvme_img: Option<String>,
@@ -105,10 +109,17 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
         .await?
         .expect("No binary was reproduced for Dom0");
 
+    let payload = project
+        .user(&local.payload)
+        .build(&opts)
+        .await?
+        .expect("No binary was reproduced for payload");
+
     let mut run_config = RunConfiguration::new(kernel, loader);
     run_config.use_virtualization(local.kvm);
     run_config.auto_shutdown(!local.no_shutdown);
     run_config.dom0(dom0);
+    run_config.payload(payload);
     run_config.use_grub(local.grub);
 
     if let Some(img_file) = local.nvme_img {

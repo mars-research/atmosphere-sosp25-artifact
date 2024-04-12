@@ -39,6 +39,9 @@ pub struct RunConfiguration {
     /// The Dom0 image to use.
     dom0: Option<Binary>,
 
+    /// The Dom0 payload to use.
+    payload: Option<Binary>,
+
     /// Memory for the virtual machine.
     memory: Byte,
 
@@ -93,6 +96,7 @@ impl RunConfiguration {
             kernel,
             loader,
             dom0: None,
+            payload: None,
             memory: Byte::from_unit(8.0f64, ByteUnit::GiB).unwrap(),
             use_virtualization: false,
             use_grub: false,
@@ -111,6 +115,12 @@ impl RunConfiguration {
     /// Set the Dom0 to run.
     pub fn dom0(&mut self, dom0: Binary) -> &mut Self {
         self.dom0 = Some(dom0);
+        self
+    }
+
+    /// Set the payload binary to use.
+    pub fn payload(&mut self, payload: Binary) -> &mut Self {
+        self.payload = Some(payload);
         self
     }
 
