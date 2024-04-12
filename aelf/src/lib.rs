@@ -97,7 +97,7 @@ pub struct ElfHandle<F: Read + Seek> {
     program_headers: ArrayVec<ProgramHeader, MAX_PROGRAM_HEADERS>,
     start_pos: u64,
     page_size: usize,
-    elf_end: usize,
+    elf_len: usize,
 }
 
 #[derive(Debug)]
@@ -178,7 +178,7 @@ where
 
         let mut program_headers = ArrayVec::new();
 
-        let mut elf_end = 0;
+        let mut elf_len = 0;
         for _ in 0..header.e_phnum {
             let mut ph_bytes = [0u8; mem::size_of::<ProgramHeader>()];
             file.read_exact(&mut ph_bytes).map_err(Into::into)?;
@@ -188,17 +188,17 @@ where
                 .clone();
 
             let file_end = ph.p_offset + ph.p_filesz;
-            elf_end = max(elf_end, file_end as usize);
+            elf_len = max(elf_len, file_end as usize);
 
             program_headers.push(ph).unwrap();
         }
 
         if header.e_shoff != 0 {
             let file_end = header.e_shoff + header.e_shentsize as u64 * header.e_shnum as u64;
-            elf_end = max(elf_end, file_end as usize);
+            elf_len = max(elf_len, file_end as usize);
         }
 
-        log::info!("ELF end: {}", elf_end);
+        log::info!("ELF length: {}", elf_len);
 
         Ok(Self {
             file,
@@ -206,7 +206,7 @@ where
             program_headers,
             start_pos,
             page_size,
-            elf_end,
+            elf_len,
         })
     }
 
@@ -376,8 +376,8 @@ where
         ))
     }
 
-    pub fn elf_end(&self) -> usize {
-        self.elf_end
+    pub fn elf_len(&self) -> usize {
+        self.elf_len
     }
 
     fn summarize_loadable(&self) -> Option<LoadableSummary> {

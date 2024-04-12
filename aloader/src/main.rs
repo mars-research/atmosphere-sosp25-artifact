@@ -28,7 +28,6 @@ pub mod debugger;
 pub mod logging;
 pub mod memory;
 
-
 use core::arch::asm;
 use core::slice;
 
@@ -38,8 +37,9 @@ use core::panic::PanicInfo;
 use x86::cpuid::cpuid;
 
 use aelf::ElfHandle;
-use astd::boot::{BootInfo, DomainMapping, PhysicalMemoryType};
+use astd::boot::{BootInfo, DomainMapping, PhysicalMemoryType, Payload};
 use astd::io::{Cursor, Read, Seek, SeekFrom};
+use astd::memory::{USERSPACE_BASE, USERSPACE_PAYLOAD_BASE};
 
 use memory::{
     AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper, HUGE_PAGE_SIZE, PAGE_SIZE,
@@ -105,18 +105,18 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     boot_info.pml4 = address_space.pml4();
 
-    let kernel_file = {
+    let (jumbo_file, jumbo_size) = {
         let range = boot::get_kernel_image_range().expect("No kernel image was passed");
 
         let f = unsafe { slice::from_raw_parts(range.base() as *const _, range.size() as usize) };
-        Cursor::new(f)
+        (Cursor::new(f), f.len())
     };
 
-    let kernel_elf = ElfHandle::parse(kernel_file, 4096).unwrap();
-    let kernel_end = kernel_elf.elf_end();
+    let kernel_elf = ElfHandle::parse(jumbo_file, 4096).unwrap();
+    let kernel_end = kernel_elf.elf_len();
 
     let (_, mut kernel_allocator) = memory::reserve(KERNEL_RESERVATION, BootMemoryType::Kernel);
-    let (kernel_map, mut kernel_file) = kernel_elf.load(&mut kernel_allocator).unwrap();
+    let (kernel_map, mut jumbo_file) = kernel_elf.load(&mut kernel_allocator).unwrap();
 
     // Allocate kernel stack
     let stack_size = 16 * 1024 * 1024;
@@ -124,17 +124,56 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     debugger::add_binary("kernel", kernel_map.load_bias);
 
-    // Also load dom0 if it exists
-    kernel_file
+    // Load dom0
+    jumbo_file
         .seek(SeekFrom::Start(kernel_end as u64))
         .expect("Kernel file incomplete");
 
     log::info!("After parsing ELF:");
     memory::dump_physical_memory_map();
 
-    match load_domain("dom0", kernel_file, &mut address_space, bootstrap_allocator) {
-        Ok(dom0) => {
-            boot_info.dom0 = Some(dom0);
+    match load_domain("dom0", jumbo_file, &mut address_space, bootstrap_allocator) {
+        Ok(mut domain) => {
+            boot_info.dom0 = Some(domain.mapping);
+
+            // Copy payload as-is into dom0
+            let payload_size = jumbo_size as u64 - domain.remaining_file.pos();
+            if payload_size != 0 {
+                log::info!("Loading payload ({})", payload_size);
+                boot_info.payload = Some(Payload {
+                    base: USERSPACE_PAYLOAD_BASE as *mut u8,
+                    size: payload_size as usize,
+                });
+
+                let phys_base = unsafe { domain.allocator.allocate_physical(payload_size as usize).0 };
+                let virt_base = USERSPACE_PAYLOAD_BASE;
+                let mut cur = virt_base;
+                let mut first = false;
+                while cur < virt_base + payload_size {
+                    unsafe {
+                        let paddr = cur - virt_base + phys_base;
+                        let page = slice::from_raw_parts_mut(paddr as *mut u8, PAGE_SIZE);
+
+                        address_space.map(
+                            bootstrap_allocator,
+                            cur,
+                            paddr,
+                            true,
+                            false,
+                            false,
+                        );
+
+                        let bytes = domain.remaining_file.read(page)
+                            .expect("Failed to copy payload page");
+
+                        if !first {
+                            first = true;
+                            log::info!("Read {} bytes: {:?}", bytes, page);
+                        }
+                    }
+                    cur = cur + PAGE_SIZE as u64;
+                }
+            }
         }
         Err(e) => {
             log::warn!("No valid Dom0: {:?}", e);
@@ -248,25 +287,33 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     loop {}
 }
 
-fn load_domain<T, A>(
+struct Domain<F, A> {
+    mapping: DomainMapping,
+    remaining_file: F,
+    allocator: A,
+}
+
+fn load_domain<F, A>(
     name: &'static str,
-    elf: T,
+    mut elf: F,
     address_space: &mut AddressSpace,
     page_table_allocator: &mut A,
-) -> Result<DomainMapping, aelf::Error>
+) -> Result<Domain<F, impl PhysicalAllocator>, aelf::Error>
 where
-    T: Read + Seek,
-    T::Error: Into<aelf::Error>,
+    F: Read + Seek,
+    F::Error: Into<aelf::Error>,
     A: PhysicalAllocator,
 {
+    let dom_start = elf.stream_position().unwrap() as usize;
     let parsed = ElfHandle::parse(elf, PAGE_SIZE)?;
+    let dom_end = dom_start + parsed.elf_len();
     log::info!("Loading {}...", name);
 
     let (reserved_start, mut allocator) = memory::reserve(DOM0_RESERVATION, BootMemoryType::Domain); // FIXME: Use AddressSpace as allocator
 
     let mut userspace_mapper =
         UserspaceMapper::new(address_space, &mut allocator, page_table_allocator);
-    let (dom_map, _) = parsed
+    let (dom_map, mut elf) = parsed
         .load(&mut userspace_mapper)
         .expect("Failed to map Dom0");
 
@@ -274,7 +321,7 @@ where
     // FIXME: Use GNU_STACK
     let stack_size = 16 * 1024 * 1024;
     let phys_base = unsafe { allocator.allocate_physical(stack_size as usize).0 };
-    let virt_base = memory::USERSPACE_BASE + DOM0_RESERVATION as u64 - stack_size;
+    let virt_base = USERSPACE_BASE + DOM0_RESERVATION as u64 - stack_size;
 
     let mut cur = virt_base;
     while cur < virt_base + stack_size {
@@ -293,7 +340,7 @@ where
 
     // Nvme bar region
     let mut cur = 0xfebf_0000;
-    let virt_base = memory::USERSPACE_BASE;
+    let virt_base = USERSPACE_BASE;
     while cur < 0xfebf_0000 + 0x4000 {
         unsafe {
             address_space.map(
@@ -310,7 +357,7 @@ where
 
     // Ixgbe bar region
     let mut cur = 0xfe00_0000;
-    let virt_base = memory::USERSPACE_BASE;
+    let virt_base = USERSPACE_BASE;
     while cur < 0xfebf_0000 + 0x1000 {
         unsafe {
             address_space.map(
@@ -325,14 +372,26 @@ where
         }
     }
 
+    elf
+        .seek(SeekFrom::Start(dom_end as u64))
+        .expect("dom0 incomplete");
+
+    log::debug!("Dom0 end: {}", dom_end);
+
     debugger::add_binary(name, dom_map.load_bias);
 
-    Ok(DomainMapping {
+    let mapping = DomainMapping {
         reserved_start,
         reserved_size: DOM0_RESERVATION,
-        virt_start: memory::USERSPACE_BASE as *mut u8,
+        virt_start: USERSPACE_BASE as *mut u8,
         entry_point: dom_map.entry_point,
         load_bias: dom_map.load_bias,
+    };
+
+    Ok(Domain {
+        mapping,
+        remaining_file: elf,
+        allocator,
     })
 }
 

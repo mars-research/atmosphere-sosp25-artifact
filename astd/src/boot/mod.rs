@@ -41,6 +41,9 @@ pub struct BootInfo {
     /// The initial domain.
     pub dom0: Option<DomainMapping>,
 
+    /// The payload mapped into dom0.
+    pub payload: Option<Payload>,
+
     /// All available physical pages and their state.
     pub pages: ArrayVec<(u64, PhysicalMemoryType), { 4 * 1024 * 1024 }>,
 
@@ -73,12 +76,24 @@ pub struct DomainMapping {
     pub entry_point: *const c_void,
 }
 
+/// A payload.
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct Payload {
+    /// The beginning of the binary in virtual memory.
+    pub base: *mut u8,
+
+    /// The size of the binary.
+    pub size: usize,
+}
+
 impl BootInfo {
     /// Creates an empty BootInfo struct.
     pub const fn empty() -> Self {
         Self {
             command_line: ArrayString::empty(),
             dom0: None,
+            payload: None,
             pml4: ptr::null(),
             pages: ArrayVec::new(),
             pcide: false,

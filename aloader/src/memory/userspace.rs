@@ -4,8 +4,7 @@ use crate::memory::{
     AddressSpace, ContiguousMapping, PageProtection, PhysicalAllocator, VirtualMapper, PAGE_SIZE,
 };
 
-/// The virtual base address userspace programs are loaded to.
-pub const USERSPACE_BASE: u64 = 0x8000000000;
+use astd::memory::USERSPACE_BASE;
 
 pub struct UserspaceMapper<'a, 'b, PGA, PA>
 where

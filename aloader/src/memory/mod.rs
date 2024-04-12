@@ -16,7 +16,7 @@ use aelf::{VirtualMapper, ContiguousMapping};
 
 pub use map::MemoryMap;
 pub use paging::{AddressSpace, HUGE_PAGE_SIZE, PAGE_SIZE};
-pub use userspace::{UserspaceMapper, USERSPACE_BASE};
+pub use userspace::UserspaceMapper;
 
 pub const MAX_PHYSICAL_MEMORY: usize = 16 * 1024 * 1024 * 1024; // 16 GiB
 pub const BOOTSTRAP_SIZE: usize = 512 * 1024 * 1024; // 512 MiB
@@ -41,6 +41,7 @@ pub enum BootMemoryType {
     Kernel,
     Domain,
     DomainImage,
+    Payload,
     PageTable,
     KernelPageTable,
     Pci,
@@ -58,7 +59,9 @@ impl From<BootMemoryType> for PhysicalMemoryType {
             BMT::DomainImage => PMT::Available,
 
             BMT::Kernel => PMT::Kernel,
-            BMT::Domain => PMT::Domain,
+
+            // Payloads are loaded onto dom0's address space
+            BMT::Domain | BMT::Payload => PMT::Domain,
             BMT::PageTable => PMT::PageTable,
 
             BMT::Bios => PMT::Reserved,
