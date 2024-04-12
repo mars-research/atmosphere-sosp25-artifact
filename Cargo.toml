@@ -13,6 +13,7 @@ members = [
   "kernel",
   "kernel/verified",
   "ring_buffer",
+  "user/hello",
 
   #"test-cargo-driver",
   #"atcp",
