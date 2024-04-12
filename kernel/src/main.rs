@@ -145,7 +145,13 @@ fn main(boot_info: *const BootInfo) -> isize {
     let initial_sp = unsafe { dom0.virt_start.add(dom0.reserved_size - 0x1000) };
     log::info!("initial_sp: {:?}", initial_sp);
     unsafe {
-        try_sysret(dom0.entry_point, initial_sp as *mut _);
+        let (rdi, rsi) = if let Some(payload) = &boot_info.payload {
+            (payload.base as u64, payload.size as u64)
+        } else {
+            (0, 0)
+        };
+
+        enter_userspace(dom0.entry_point, initial_sp as *mut _, rdi, rsi);
     }
 
     unsafe {
@@ -233,7 +239,7 @@ fn panic(info: &PanicInfo) -> ! {
     }
 }
 
-unsafe fn try_sysret(pc: *const c_void, sp: *mut c_void) -> ! {
+unsafe fn enter_userspace(pc: *const c_void, sp: *mut c_void, rdi: u64, rsi: u64) -> ! {
     log::info!("Going to sysret into {:x?}", pc);
     asm!(
         "pushfq",
@@ -245,7 +251,8 @@ unsafe fn try_sysret(pc: *const c_void, sp: *mut c_void) -> ! {
 
         in("rcx") pc,
         sp = in(reg) sp,
-        out("rsi") _,
+        in("rdi") rdi,
+        in("rsi") rsi,
         out("r15") _,
     );
 

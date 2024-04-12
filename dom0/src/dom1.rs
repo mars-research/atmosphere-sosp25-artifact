@@ -8,15 +8,15 @@ use crate::elf::Mapper;
 pub const DOM1_BASE: usize = 0xb0_0000_0000;
 pub const DOM1_ELF: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/dom1.elf"));
 
-pub fn test_dom1() {
-    log::info!("Length of dom1 ELF: {}", DOM1_ELF.len());
+pub fn test_dom1(payload: &[u8]) {
+    log::info!("Length of Dom1 ELF: {}", payload.len());
 
-    let cursor = Cursor::new(DOM1_ELF);
+    let cursor = Cursor::new(payload);
     let mut mapper = Mapper::new(DOM1_BASE);
     let elf = ElfHandle::parse(cursor, 4096).unwrap();
     let (map, _) = elf.load(&mut mapper).unwrap();
 
-    log::info!("Loaded dom1: {:?}", map);
+    log::info!("Loaded dom1: {:#x?}", map);
 
     let entry: extern "C" fn() = unsafe { mem::transmute(map.entry_point) };
 
@@ -27,11 +27,11 @@ pub fn test_dom1() {
 }
 
 
-pub fn spawn_dom1() {
-    log::info!("Length of dom1 ELF: {}", DOM1_ELF.len());
+pub fn spawn_dom1(payload: &[u8]) {
+    log::info!("Length of dom1 ELF: {}", payload.len());
 
     unsafe{
-        let cursor = Cursor::new(DOM1_ELF);
+        let cursor = Cursor::new(payload);
         let mut mapper = Mapper::new(DOM1_BASE);
         let elf = ElfHandle::parse(cursor, 4096).unwrap();
         let (map, _) = elf.load(&mut mapper).unwrap();

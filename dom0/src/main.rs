@@ -18,6 +18,7 @@ mod dom1;
 use core::arch::asm;
 use core::arch::x86_64::_rdtsc;
 use core::panic::PanicInfo;
+use core::slice;
 mod benchmark_null_driver;
 mod syscall_benchmark;
 use crate::benchmark_null_driver::*;
@@ -49,15 +50,22 @@ fn test_alloc() {
 
 #[start]
 #[no_mangle]
-fn main() -> isize {
+extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
     asys::logger::init_logging_with_level(log::Level::Info);
     log::trace!("hello {}", "world");
+    log::info!("payload {:?}, size {}", payload_base, payload_size);
 
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
 
-    dom1::spawn_dom1();
+    if !payload_base.is_null() {
+        let payload = unsafe {
+            slice::from_raw_parts(payload_base, payload_size)
+        };
+
+        dom1::spawn_dom1(payload);
+    }
 
     // test_proc_pingpong();
 
