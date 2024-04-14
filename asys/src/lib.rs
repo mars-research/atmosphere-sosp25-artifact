@@ -21,6 +21,7 @@ pub const __NR_RECEIVE_EMPTY: usize = 10;
 pub const __NR_NEW_PROC_W_IO_MEM: usize = 11;
 pub const __NR_SEND_PAGE_NW: usize = 12;
 pub const __NR_RECEIVE_PAGE: usize = 13;
+pub const __NR_SEND_PAGE: usize = 14;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -110,6 +111,10 @@ pub unsafe fn sys_new_proc_with_iommu_pass_mem(endpoint_index:usize, ip: usize, 
 
 pub unsafe fn sys_send_pages_no_wait(endpoint_index:usize, va: usize, range:usize) -> usize{
     return syscall!(__NR_SEND_PAGE_NW,endpoint_index,va,range) as usize;
+}
+
+pub unsafe fn sys_send_pages(endpoint_index:usize, va: usize, range:usize) -> usize{
+    return syscall!(__NR_SEND_PAGE,endpoint_index,va,range) as usize;
 }
 
 pub unsafe fn sys_receive_pages(endpoint_index:usize, va: usize, range:usize) -> usize{

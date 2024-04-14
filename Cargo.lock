@@ -2191,6 +2191,7 @@ dependencies = [
  "libtime",
  "log",
  "pcid",
+ "ring_buffer",
  "spin 0.9.8",
  "twox-hash",
  "x86 0.52.0",
@@ -2620,6 +2621,7 @@ dependencies = [
  "libtime",
  "log",
  "pcid",
+ "ring_buffer",
  "spin 0.9.8",
  "x86 0.52.0",
 ]
@@ -3033,7 +3035,6 @@ version = "0.1.0"
 dependencies = [
  "asys",
  "log",
- "nvme_driver",
  "pcid",
  "spin 0.9.8",
  "x86 0.52.0",

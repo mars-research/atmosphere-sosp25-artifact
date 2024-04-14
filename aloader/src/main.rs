@@ -356,9 +356,10 @@ where
     }
 
     // Ixgbe bar region
-    let mut cur = 0xfe00_0000;
+    let mut cur = 0xFE000000;
     let virt_base = USERSPACE_BASE;
-    while cur < 0xfebf_0000 + 0x1000 {
+    while cur < 0xFE000000 + 0x100000 {
+    // while cur < 0xfebf_0000 + 0x1000 {
         unsafe {
             address_space.map(
                 page_table_allocator,

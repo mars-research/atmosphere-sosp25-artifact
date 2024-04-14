@@ -283,6 +283,7 @@ impl<I: Copy, J: Copy> GenericRingBuffer<I, J> {
 #[derive(Debug, Clone, Copy)]
 pub struct IxgbePayLoad{
     pub addr: usize,
+    pub paddr:usize,
     pub len: usize,
 }
 
@@ -294,7 +295,7 @@ pub struct IxgbeRingBuffer {
     pub request_completion_queue: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
     pub reply_queue: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
     pub reply_completion_queue: RingBuffer<GenericRingBufferNode<IxgbePayLoad>, SIZE_OF_QUEUE>,
-    pub free_stack: [usize; SIZE_OF_QUEUE],
+    pub free_stack: [(usize,usize); SIZE_OF_QUEUE],
     pub len: usize,
 }
 
@@ -311,9 +312,12 @@ impl IxgbeRingBuffer{
             }
         }
 
-        for i in 0..SIZE_OF_QUEUE{
-            self.free_stack[self.len] = &self.data_buffer[i] as *const u8 as usize;
-            self.len = self.len + 1;
+        unsafe{
+            for i in 0..SIZE_OF_QUEUE{
+                use asys::sys_mresolve;
+                self.free_stack[self.len] = (&self.data_buffer[i] as *const u8 as usize, sys_mresolve(&self.data_buffer[i] as *const u8 as usize).0);
+                self.len = self.len + 1;
+            }
         }
     }
 
@@ -321,7 +325,7 @@ impl IxgbeRingBuffer{
         self.len
     }
 
-    pub fn try_push_allocator(&mut self, value:usize) -> bool{
+    pub fn try_push_allocator(&mut self, value:(usize,usize)) -> bool{
         if self.len < SIZE_OF_QUEUE{
             self.free_stack[self.len] = value;
             self.len += 1;
@@ -331,7 +335,7 @@ impl IxgbeRingBuffer{
         }
     }
 
-    pub fn try_pop_allocator(&mut self) -> Option<usize>{
+    pub fn try_pop_allocator(&mut self) -> Option<(usize,usize)>{
         if self.len > 0 {
             self.len -= 1;
             Some(self.free_stack[self.len])

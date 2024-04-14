@@ -59,13 +59,14 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
         asys::sys_print("meow".as_ptr(), 4);
     }
 
-    if !payload_base.is_null() {
-        let payload = unsafe {
-            slice::from_raw_parts(payload_base, payload_size)
-        };
+    // if !payload_base.is_null() {
+    //     let payload = unsafe {
+    //         slice::from_raw_parts(payload_base, payload_size)
+    //     };
 
-        dom1::spawn_dom1(payload);
-    }
+    //     dom1::spawn_dom1(payload);
+    // }
+    // dom1::spawn_dom1();
 
     // test_proc_pingpong();
 
@@ -77,7 +78,7 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 
     // scan_pci_devs();
 
-    // test_ixgbe_with_ring_buffer();
+    // test_ixgbe_with_ring_buffer_tx();
 
     // test_ixgbe_driver();
 

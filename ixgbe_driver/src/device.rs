@@ -2770,7 +2770,8 @@ impl IxgbeDevice {
                 );
 
                 use asys::sys_mresolve;
-                let pkt_paddr = sys_mresolve(packet.addr).0 as u64;
+                // let pkt_paddr = sys_mresolve(packet.addr).0 as u64;
+                let pkt_paddr = packet.paddr as u64;
 
                 // log::trace!(
                 //     "pkt vaddr {:>08x} paddr {:>08x}",
@@ -2954,7 +2955,8 @@ impl IxgbeDevice {
                 );
 
                 use asys::sys_mresolve;
-                let pkt_paddr = sys_mresolve(packet.addr).0 as u64;
+                // let pkt_paddr = sys_mresolve(packet.addr).0 as u64;
+                let pkt_paddr = packet.paddr as u64;
 
                 core::ptr::write_volatile(*pkt_addr.get_mut(), pkt_paddr);
 
