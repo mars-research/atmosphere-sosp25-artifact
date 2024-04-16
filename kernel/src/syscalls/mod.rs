@@ -196,7 +196,7 @@ unsafe extern "C" fn sys_entry() -> ! {
         // 2. Return to the same thread
         "22:",
 
-        // skip r15~rdi (15 registers)
+        // skip r15~rdi (14 registers)
         "mov rax, [rsp + 8*14]", // rax
         // skip error_code
         "mov rcx, [rsp + 8*16]", // rip
