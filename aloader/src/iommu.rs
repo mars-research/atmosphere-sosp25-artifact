@@ -4,7 +4,7 @@
 //!
 //! - PASID: Process Address Space Identifier that identifies the address space targeted by DMA requests.
 
-use core::mem::{self, MaybeUninit};
+use core::mem::MaybeUninit;
 use core::pin::Pin;
 use core::ptr;
 
@@ -212,6 +212,7 @@ impl ContextTable {
         }
     }
 
+    #[allow(dead_code)]
     unsafe fn read(self: Pin<&Self>, device: usize, function: usize) -> ContextTableEntry {
         let index = Self::index(device, function);
         ptr::read_volatile(self.entry(index))
@@ -225,6 +226,7 @@ impl ContextTable {
         ptr::write_volatile(e, value);
     }
 
+    #[allow(dead_code)]
     fn entry(self: Pin<&Self>, index: usize) -> *const ContextTableEntry {
         self.entries[index].as_ptr()
     }
@@ -249,10 +251,12 @@ impl RootTableEntry {
         }
     }
 
+    #[allow(dead_code)]
     fn present(&self) -> bool {
         (self.lower & 0b1) == 1
     }
 
+    #[allow(dead_code)]
     fn address(&self) -> u64 {
         self.lower & PHYSICAL_PAGE_MASK
     }
@@ -280,10 +284,12 @@ impl ContextTableEntry {
         }
     }
 
+    #[allow(dead_code)]
     fn present(&self) -> bool {
         (self.lower & 0b1) == 1
     }
 
+    #[allow(dead_code)]
     fn address(&self) -> u64 {
         self.lower & PHYSICAL_PAGE_MASK
     }

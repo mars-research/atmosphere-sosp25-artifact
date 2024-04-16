@@ -3,7 +3,6 @@
 use core::ptr;
 use core::mem;
 use core::pin::Pin;
-use core::slice;
 
 use acpi::{AcpiTables, AcpiTable, PhysicalMapping};
 use acpi::handler::AcpiHandler;
