@@ -129,7 +129,7 @@ impl Emulator for Qemu {
         }
 
         if config.use_iommu {
-            command.args(&["-device", "intel-iommu,intremap=on"]); // FIXME: AMD
+            command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48"]); // FIXME: AMD
         }
 
         if suppress_initial_outputs {
