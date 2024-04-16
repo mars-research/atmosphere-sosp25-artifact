@@ -3,6 +3,16 @@
 version = 3
 
 [[package]]
+name = "acpi"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e248409195304021f61b39ba2628f62a45a3abf6119669d44b3399d60eabe4c3"
+dependencies = [
+ "bit_field",
+ "log",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -43,6 +53,7 @@ dependencies = [
 name = "aloader"
 version = "0.1.0"
 dependencies = [
+ "acpi",
  "aelf",
  "astd",
  "atest",
