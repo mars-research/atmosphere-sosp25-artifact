@@ -14,8 +14,13 @@ use crate::boot;
 use astd::sync::{Mutex, MutexGuard};
 use ns16550a::PioSerial;
 
+#[allow(dead_code)]
+const COM1: usize = 0x3f8;
+#[allow(dead_code)]
+const COM2: usize = 0x2f8;
+
 /// The serial device.
-static SERIAL: Mutex<PioSerial> = Mutex::new(unsafe { PioSerial::new(0x3f8) });
+static SERIAL: Mutex<PioSerial> = Mutex::new(unsafe { PioSerial::new(COM1) });
 
 pub type WriterType = MutexGuard<'static, PioSerial>;
 
