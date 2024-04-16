@@ -332,10 +332,10 @@ where
 
                 if file_map_size < total_map_size {
                     let mapping = unsafe {
-                        let addr = load_addr.add(file_map_size);
+                        let addr = zero_end;
                         let size = total_map_size - file_map_size;
                         log::trace!(
-                            "mmap [{ph}] [{addr:?}-0x{mend:x}] (vaddr=0x{vaddr:x}, anon)",
+                            "mmap [{ph}] [{addr:#x?}-0x{mend:x}] (vaddr=0x{vaddr:x}, anon)",
                             mend = addr as usize + size,
                             ph = DisplayPFlags(ph),
                         );
@@ -347,6 +347,11 @@ where
                         log::error!("Failed to map anonymous portion for segment 0x{:x}", vaddr);
                         return Err(Error::MapFailed);
                     }
+
+                    let whole_pages = unsafe {
+                        slice::from_raw_parts_mut(mapping as *mut u8, total_map_size - file_map_size)
+                    };
+                    whole_pages.fill(0);
                 }
             }
         }
