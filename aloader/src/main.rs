@@ -152,7 +152,6 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
                 let phys_base = unsafe { domain.allocator.allocate_physical(payload_size as usize).0 };
                 let virt_base = USERSPACE_PAYLOAD_BASE;
                 let mut cur = virt_base;
-                let mut first = false;
                 while cur < virt_base + payload_size {
                     unsafe {
                         let paddr = cur - virt_base + phys_base;
@@ -167,13 +166,8 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
                             false,
                         );
 
-                        let bytes = domain.remaining_file.read(page)
+                        domain.remaining_file.read(page)
                             .expect("Failed to copy payload page");
-
-                        if !first {
-                            first = true;
-                            log::info!("Read {} bytes: {:?}", bytes, page);
-                        }
                     }
                     cur = cur + PAGE_SIZE as u64;
                 }
