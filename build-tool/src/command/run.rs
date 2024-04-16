@@ -38,6 +38,10 @@ pub struct Opts {
     #[clap(long)]
     grub: bool,
 
+    /// Whether to enable IOMMU.
+    #[clap(long)]
+    iommu: bool,
+
     /// Whether to enable the early loader.
     #[clap(long, hide = true)]
     loader: bool,
@@ -121,6 +125,7 @@ pub(super) async fn run(global: GlobalOpts) -> Result<()> {
     run_config.dom0(dom0);
     run_config.payload(payload);
     run_config.use_grub(local.grub);
+    run_config.use_iommu(local.iommu);
 
     if let Some(img_file) = local.nvme_img {
         run_config.nvme_img(img_file);

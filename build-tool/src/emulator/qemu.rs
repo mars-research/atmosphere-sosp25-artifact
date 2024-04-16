@@ -110,6 +110,7 @@ impl Emulator for Qemu {
             .arg("-no-reboot")
             .arg("-no-shutdown")
             //.args(&["-d", "int"])
+            .args(&["-machine", "q35,kernel_irqchip=split"])
             .args(config.cpu_model.to_qemu()?);
 
         if let Some(img_path) = &config.nvme_img {
@@ -125,6 +126,10 @@ impl Emulator for Qemu {
 
         if config.use_virtualization {
             command.arg("-enable-kvm");
+        }
+
+        if config.use_iommu {
+            command.args(&["-device", "intel-iommu,intremap=on"]); // FIXME: AMD
         }
 
         if suppress_initial_outputs {

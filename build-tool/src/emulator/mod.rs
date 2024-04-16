@@ -54,6 +54,9 @@ pub struct RunConfiguration {
     /// Use GRUB.
     use_grub: bool,
 
+    /// Whether to enable IOMMU.
+    use_iommu: bool,
+
     /// The emulated CPU model.
     cpu_model: CpuModel,
 
@@ -100,6 +103,7 @@ impl RunConfiguration {
             memory: Byte::from_unit(8.0f64, ByteUnit::GiB).unwrap(),
             use_virtualization: false,
             use_grub: false,
+            use_iommu: false,
             cpu_model: CpuModel::Haswell,
             script: None,
             command_line: String::new(),
@@ -145,6 +149,12 @@ impl RunConfiguration {
     /// Set whether to use GRUB.
     pub fn use_grub(&mut self, use_grub: bool) -> &mut Self {
         self.use_grub = use_grub;
+        self
+    }
+
+    /// Set whether to enable IOMMU.
+    pub fn use_iommu(&mut self, use_iommu: bool) -> &mut Self {
+        self.use_iommu = use_iommu;
         self
     }
 
