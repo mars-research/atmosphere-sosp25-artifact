@@ -5,6 +5,7 @@
 //! - PASID: Process Address Space Identifier that identifies the address space targeted by DMA requests.
 
 use core::mem::MaybeUninit;
+use core::ops::Range;
 use core::pin::Pin;
 use core::ptr;
 
@@ -18,6 +19,8 @@ const PHYSICAL_PAGE_MASK: u64 = PAGE_MASK & PHYSICAL_MASK;
 
 pub struct RemappingHardware {
     base: u64,
+    cap: u64,
+    ecap: u64,
 }
 
 pub struct NaiveIommuMap {
@@ -51,17 +54,40 @@ struct ContextTableEntry {
 
 impl RemappingHardware {
     const VER_REG: usize = 0;
+    const CAP_REG: usize = 0x08;
+    const ECAP_REG: usize = 0x10;
     const GCMD_REG: usize = 0x18;
-    const RTADDR_REG: usize = 0x20;
     const GSTS_REG: usize = 0x1c;
+    const RTADDR_REG: usize = 0x20;
+    const CCMD_REG: usize = 0x28;
 
-    const CMD_TE: usize = 31;
-    const CMD_SRTP: usize = 30;
+    const IOTLB_REG_OFFSET: usize = 0x8;
+
+    const CAP_ESRTPS: usize = 63;               // ESRTPS: Enhanced Set Root Table Pointer Support
+
+    const GCMD_TE: usize = 31;                  // TE: Translation Enable
+    const GCMD_SRTP: usize = 30;                // SRTP: Set Root Table Pointer
+
+    const CCMD_ICC: usize = 63;                 // ICC: Invalidate Context-Cache
+
+    const IOTLBCMD_IVT: usize = 63;             // IVT: Invalidate IOTLB
+    const IOTLBCMD_IIRG: Range<usize> = 60..62; // IIRG: IOTLB Invalidation Request Granularity
+    const IOTLBCMD_IIRG_GLOBAL: u64 = 0b01;
+
+    const CCMD_CIRG: Range<usize> = 61..63;     // CIRG: Context Invalidation Request Granularity
+    const CCMD_CIRG_GLOBAL: u64 = 0b01;
 
     pub unsafe fn new(base: u64) -> Self {
-        Self {
+        let mut s = Self {
             base,
-        }
+            cap: 0,
+            ecap: 0,
+        };
+
+        s.cap = s.read_u64(Self::CAP_REG);
+        s.ecap = s.read_u64(Self::ECAP_REG);
+
+        s
     }
 
     pub fn version(&self) -> u32 {
@@ -82,7 +108,7 @@ impl RemappingHardware {
         }
     }
 
-    pub unsafe fn send_command(&mut self, offset: usize, value: bool) {
+    unsafe fn send_global_command(&mut self, offset: usize, value: bool) {
         let mut gcmd = self.global_status() & 0x96ffffff;
         gcmd.set_bit(offset, value);
         self.write_u32(Self::GCMD_REG, gcmd);
@@ -96,15 +122,46 @@ impl RemappingHardware {
         }
     }
 
+    unsafe fn invalidate_context_cache(&mut self) {
+        let mut ccmd = 0;
+        ccmd.set_bit(Self::CCMD_ICC, true);
+        ccmd.set_bits(Self::CCMD_CIRG, Self::CCMD_CIRG_GLOBAL);
+        self.write_u64(Self::CCMD_REG, ccmd);
+    }
+
     pub fn enable_translation(&mut self) {
         unsafe {
-            self.send_command(Self::CMD_TE, true);
+            self.send_global_command(Self::GCMD_TE, true);
         }
     }
 
     pub unsafe fn set_root_table_addr(&mut self, address: u64) {
         self.write_u64(Self::RTADDR_REG, address);
-        self.send_command(Self::CMD_SRTP, true);
+        self.send_global_command(Self::GCMD_SRTP, true);
+
+        if !self.cap.get_bit(Self::CAP_ESRTPS) {
+            log::info!("Hardware supports ESRTPS");
+        } else {
+            log::info!("Hardware does not support ESRTPS");
+
+            // > For implementations reporting the Enhanced Set Root Table Pointer Support (ESRTPS)
+            // > field as Clear, on a ‘Set Root Table Pointer’ operation, software
+            // > must perform a global invalidate of the context-cache,
+            self.invalidate_context_cache();
+
+            // > PASID-cache (if applicable),
+            // not applicable to us
+
+            // > and IOTLB, in that order.
+            let iro = 16 * self.ecap.get_bits(8..18);
+            let iotlb_reg = iro as usize + Self::IOTLB_REG_OFFSET;
+
+            let mut iotlb_cmd = 0;
+            iotlb_cmd.set_bit(Self::IOTLBCMD_IVT, true);
+            iotlb_cmd.set_bits(Self::IOTLBCMD_IIRG, Self::IOTLBCMD_IIRG_GLOBAL);
+
+            self.write_u64(iotlb_reg, iotlb_cmd);
+        }
     }
 
     unsafe fn read_u32(&self, offset: usize) -> u32 {
