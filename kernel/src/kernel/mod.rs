@@ -863,12 +863,13 @@ pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
         false
     }else{
         if thread_info_op.is_none(){
-            // log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
+            log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
 
-            Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
+            // Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
 
-            let cr3: u64;
-            unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
+            // let cr3: u64;
+            // unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
+            Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64 as u64);
             // log::info!("cr3 {:x?}", cr3);
 
             if ret_struc.error_code == vdefine::NO_ERROR_CODE{

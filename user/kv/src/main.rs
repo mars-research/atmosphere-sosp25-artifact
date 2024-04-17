@@ -28,8 +28,6 @@ fn main() {
         0x90, 0xe2, 0xba, 0xb5, 0x15, 0x75, // Src mac
     ];
 
-    maglev_init();
-
     unsafe{
         let size = core::mem::size_of::<IxgbeRingBuffer>();
         let error_code = asys::sys_receive_pages(0,DATA_BUFFER_ADDR as usize, size / 4096 + 1);
@@ -68,25 +66,25 @@ fn main() {
                     let addr = pkt_op.unwrap().addr;
         
                     // log::info!("pkt_op.unwrap().len {}", pkt_op.unwrap().len);
-                    let backend = maglev_process_frame(addr as *mut rte_ether_hdr, pkt_op.unwrap().len);
-                    log::info!("packet len {}", pkt_op.unwrap().len);
-                    let s = unsafe { core::slice::from_raw_parts(addr as *const u8, pkt_op.unwrap().len) };
-                    log::info!("{:x?}", s);
+                    // log::info!("packet len {}", pkt_op.unwrap().len);
+                    // let s = unsafe { core::slice::from_raw_parts(addr as *const u8, pkt_op.unwrap().len) };
+                    // log::info!("{:x?}", s);
 
-                    if backend != 233{
-                        unsafe {
-                            ptr::copy(
-                                our_mac.as_ptr(),
-                                (addr + 6) as *mut u8,
-                                our_mac.len(),
-                            );
-                            ptr::copy(
-                                sender_mac.as_ptr(),
-                                addr as *mut u8,
-                                sender_mac.len(),
-                            );
-                        }
+                    decode(addr as *mut u8);
+
+                    unsafe {
+                        ptr::copy(
+                            our_mac.as_ptr(),
+                            (addr + 6) as *mut u8,
+                            our_mac.len(),
+                        );
+                        ptr::copy(
+                            sender_mac.as_ptr(),
+                            addr as *mut u8,
+                            sender_mac.len(),
+                        );
                     }
+                    
         
                     buff_ref.reply_queue.try_push(&pkt_op.unwrap());
                     // log::info!("sending package at {:x}", pkt_op.unwrap().addr);
@@ -113,22 +111,21 @@ fn main() {
                     print_count = print_count + 1;
                     let addr = pkt_op.unwrap().addr;
         
+                    decode(addr as *mut u8);
                             
-                    let backend = maglev_process_frame(addr as *mut rte_ether_hdr, pkt_op.unwrap().len);
-                    if backend != 233{
-                        unsafe {
-                            ptr::copy(
-                                our_mac.as_ptr(),
-                                (addr + 6) as *mut u8,
-                                our_mac.len(),
-                            );
-                            ptr::copy(
-                                sender_mac.as_ptr(),
-                                addr as *mut u8,
-                                sender_mac.len(),
-                            );
-                        }
+                    unsafe {
+                        ptr::copy(
+                            our_mac.as_ptr(),
+                            (addr + 6) as *mut u8,
+                            our_mac.len(),
+                        );
+                        ptr::copy(
+                            sender_mac.as_ptr(),
+                            addr as *mut u8,
+                            sender_mac.len(),
+                        );
                     }
+                    
                     buff_ref.reply_queue.try_push(&pkt_op.unwrap());
                     // log::info!("sending package at {:x}", pkt_op.unwrap().addr);
                 }
@@ -228,6 +225,78 @@ fn main() {
 //     }
 //     loop {}
 // }
+
+pub unsafe fn decode(ptr :*mut u8){
+    let header_len = 42;
+    let head_len = 10;
+    let command_len = 4;
+    let c1 = *((ptr as usize + 42 + 10) as *mut u8);
+    let c2 = *((ptr as usize + 42 + 11) as *mut u8);
+    let c3 = *((ptr as usize + 42 + 12) as *mut u8);
+    let c4 = *((ptr as usize + 42 + 13) as *mut u8);
+    // log::info!("command {}{}{}{}", c1 as char, c2 as char, c3 as char, c4 as char);
+
+    if c1 == b's' && c2 == b'e' && c3 == b't'{
+        let key_start = (ptr as usize + 42 + 14) as *mut u8;
+        let mut cur = 0;
+        let mut key_len = 0;
+    
+        while cur != 1500{
+            let c = *((key_start as usize + cur) as *mut u8);
+            if c == b' '{
+                break;
+            }
+            cur += 1;
+        }
+        key_len = cur;
+        // log::info!("key_len {}", key_len);
+
+        while cur != 1500{
+            let c = *((key_start as usize + cur) as *mut u8);
+            if c == b'\n'{
+                break;
+            }
+            cur += 1;
+        }
+        cur += 1;
+        let value_start = (ptr as usize + 42 + 14 + cur) as *mut u8;
+        // log::info!("value_start {}", cur);
+
+        let mut value_len = 0;
+        while value_len != 1500{
+            let c = *((value_start as usize + value_len) as *mut u8);
+            if c == b'\r'{
+                break;
+            }
+            value_len += 1;
+        }
+        // log::info!("value_len {}", value_len);
+        maglev_hashmap_insert(key_start, value_start);
+
+        let set = b"STORED";
+
+        ptr::copy(
+            set.as_ptr(),
+            ((ptr as usize + 42 + 10) as *mut u8),
+            set.len(),
+        );
+
+
+    }else if c1 == b'g' && c2 == b'e' && c3 == b't'{
+        let key_start = (ptr as usize + 42 + 14) as *mut u8;
+        let pair = maglev_hashmap_get(key_start);
+        let set = b"VALUE";
+
+        ptr::copy(
+            set.as_ptr(),
+            ((ptr as usize + 42 + 10) as *mut u8),
+            set.len(),
+        );
+        // log::info!("command {}{}{}{}", c1 as char, c2 as char, c3 as char, c4 as char);
+
+    }
+
+}
 
 #[panic_handler]
 pub fn panic(_info: &PanicInfo) -> ! {
