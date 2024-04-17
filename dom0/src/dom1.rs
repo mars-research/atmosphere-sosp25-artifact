@@ -36,7 +36,7 @@ pub fn spawn_dom1(payload: &[u8]) {
         let elf = ElfHandle::parse(cursor, 4096).unwrap();
         let (map, _) = elf.load(&mut mapper).unwrap();
     
-        log::info!("Loaded dom1: {:?}", map);
+        log::info!("Loaded dom1: {:#x?}", map);
     
         let entry: extern "C" fn() = unsafe { mem::transmute(map.entry_point) };
     

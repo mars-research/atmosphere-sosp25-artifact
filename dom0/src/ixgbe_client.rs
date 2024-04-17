@@ -626,7 +626,7 @@ pub fn test_ixgbe_with_ring_buffer_single_core(){
                     log::info!("progress {}%", count as f64 / iter as f64 * 100.0);
                     print_count = 0;
                 }
-                for i in 0 .. 32 {
+                for i in 0 .. 1 {
                     let pkt_op = buff_ref.request_completion_queue.try_pop();
                     if pkt_op.is_none(){
                         break;
@@ -1004,7 +1004,7 @@ pub fn test_ixgbe_with_ring_buffer_rx_single_core_two_processes_ap()-> ! {
         for i in 0..32 {
             let (addr,paddr) = buff_ref.try_pop_allocator().unwrap();
             // log::info!("receiving package at {:x}", addr);
-            buff_ref.request_queue.try_push(&IxgbePayLoad{addr:addr, paddr:paddr, len:4096});
+            buff_ref.request_queue.try_push(&IxgbePayLoad{addr:addr, paddr:paddr, len:60});
         }
 
         let iter = 100000000;
@@ -1052,7 +1052,7 @@ pub fn test_ixgbe_with_ring_buffer_rx_single_core_two_processes_ap()-> ! {
                 log::info!("progress {}%", count as f64 / iter as f64 * 100.0);
                 print_count = 0;
             }
-            for i in 0 .. 1 {
+            for i in 0 .. 32 {
                 let pkt_op = buff_ref.request_completion_queue.try_pop();
                 if pkt_op.is_none(){
                     break;
@@ -1164,4 +1164,98 @@ unsafe {
         }
     }
 }
+}
+
+
+pub fn start_ixgbe_driver_backend(){
+    unsafe {
+
+        let size = core::mem::size_of::<IxgbeRingBuffer>();
+        let error_code = asys::sys_mmap(DATA_BUFFER_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1);
+        if error_code != 0 {
+            log::info!("sys_mmap for data_buffer failed {:?}", error_code);
+            return;
+        }
+        
+        let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+        buff_ref.init();
+        log::info!("data_buffer init done");
+        
+        loop{
+            let error_code = asys::sys_send_pages_no_wait(0,DATA_BUFFER_ADDR as usize, size / 4096 + 1);
+            if error_code == 5  {
+            }else{
+                if error_code == 0{
+                    log::info!("data_buffer sent to dom1");
+                    break;
+                }else{
+                    log::info!("sys_send_pages_no_wait failed {:?}", error_code);
+                    break;
+                }
+            }
+        }
+        let mut ixgbe_dev =
+            unsafe { IxgbeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFE000000, 0x4000)) };
+
+        log::info!("Initializing Ixgbe driver...");
+
+        ixgbe_dev.init();
+
+        unsafe{
+            let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+            log::info!("ixgbe_backend started");
+            loop{
+                ixgbe_dev.rx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.request_queue, &mut buff_ref.request_completion_queue, false);
+                // log::info!("dashi");
+                ixgbe_dev.tx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.reply_queue, &mut buff_ref.request_queue, false);
+            }
+        }
+    }
+}
+
+pub fn start_ixgbe_driver_backend_with_ipc(){
+    unsafe {
+
+        let size = core::mem::size_of::<IxgbeRingBuffer>();
+        let error_code = asys::sys_mmap(DATA_BUFFER_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1);
+        if error_code != 0 {
+            log::info!("sys_mmap for data_buffer failed {:?}", error_code);
+            return;
+        }
+        
+        let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+        buff_ref.init();
+        log::info!("data_buffer init done");
+        
+        loop{
+            let error_code = asys::sys_send_pages(0,DATA_BUFFER_ADDR as usize, size / 4096 + 1);
+            if error_code == 5  {
+            }else{
+                if error_code == 0{
+                    log::info!("data_buffer sent to dom1");
+                    break;
+                }else{
+                    log::info!("sys_send_pages_no_wait failed {:?}", error_code);
+                    break;
+                }
+            }
+        }
+        let mut ixgbe_dev =
+            unsafe { IxgbeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFE000000, 0x4000)) };
+
+        log::info!("Initializing Ixgbe driver...");
+
+        ixgbe_dev.init();
+
+        unsafe{
+            let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+            log::info!("ixgbe_backend started");
+            loop{
+                ixgbe_dev.rx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.request_queue, &mut buff_ref.request_completion_queue, false);
+                // log::info!("dashi");
+                ixgbe_dev.tx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.reply_queue, &mut buff_ref.request_queue, false);
+                asys::sys_send_empty(0);
+            }
+        }
+    }
 }

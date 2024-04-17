@@ -78,6 +78,8 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 
     // scan_pci_devs();
 
+    // test_ixgbe_with_ring_buffer_single_core_two_processes();
+
     // test_ixgbe_with_ring_buffer_tx();
 
     // test_ixgbe_driver();
