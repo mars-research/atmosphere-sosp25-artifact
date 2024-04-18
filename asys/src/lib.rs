@@ -22,6 +22,9 @@ pub const __NR_NEW_PROC_W_IO_MEM: usize = 11;
 pub const __NR_SEND_PAGE_NW: usize = 12;
 pub const __NR_RECEIVE_PAGE: usize = 13;
 pub const __NR_SEND_PAGE: usize = 14;
+pub const __NR_RD_IO_CR3: usize = 15;
+pub const __NR_IO_MMAP: usize = 16;
+pub const __NR_MRESOLVE_IO: usize = 17;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -77,6 +80,13 @@ pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
     return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
 }
 
+pub unsafe fn sys_mresolve_io(va:usize) -> (usize,usize) {
+    let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
+    let low_bits = va & 0xFFFu64 as usize;
+    let ret = syscall!(__NR_MRESOLVE_IO,va_masked,0,0) as usize;
+    return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
+}
+
 pub unsafe fn sys_new_endpoint(endpoint_index:usize) -> usize {
     return syscall!(__NR_NEW_END,endpoint_index,0,0) as usize;
 }
@@ -119,4 +129,12 @@ pub unsafe fn sys_send_pages(endpoint_index:usize, va: usize, range:usize) -> us
 
 pub unsafe fn sys_receive_pages(endpoint_index:usize, va: usize, range:usize) -> usize{
     return syscall!(__NR_RECEIVE_PAGE,endpoint_index,va,range) as usize;
+}
+
+pub unsafe fn sys_io_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
+    return syscall!(__NR_IO_MMAP,va,perm_bits,range) as usize;
+}
+
+pub unsafe fn sys_rd_io_cr3() -> usize {
+    return syscall!(__NR_RD_IO_CR3,0,0,0) as usize;
 }
