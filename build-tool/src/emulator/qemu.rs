@@ -120,7 +120,10 @@ impl Emulator for Qemu {
 
         if !config.pci_dev.is_empty() {
             for dev in &config.pci_dev {
-                command.args(&["-device", &format!("vfio-pci,romfile=,host={}", dev)]);
+                //command.args(&["-object", "iommufd,id=iommufd0"]);
+                command.args(&["-device", &format!("vfio-pci,host={}", dev)]);
+                //command.args(&["-device", &format!("vfio-pci,host={},iommufd=iommufd0", dev)]);
+                //command.args(&["-device", &format!("vfio-pci,fd=23,iommufd=iommufd0")]);
             }
         }
 
@@ -129,7 +132,11 @@ impl Emulator for Qemu {
         }
 
         if config.use_iommu {
-            command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48"]); // FIXME: AMD
+            command.args(&["-device", "intel-iommu,intremap=on,caching-mode=on,aw-bits=48"]); // FIXME: AMD
+            command.args(&["--trace", "vfio_*"]);
+            command.args(&["--trace", "vtd_*"]);
+            command.args(&["--trace", "iommufd_*"]);
+            command.args(&["-D", "/tmp/qemu-log.txt"]);
         }
 
         if suppress_initial_outputs {
