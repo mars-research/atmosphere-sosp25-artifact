@@ -8,6 +8,8 @@ use ring_buffer::*;
 use crate::*;
 use core::ptr;
 
+use crate::maglev::*;
+
 pub fn test_ixgbe_driver() {
     let mut ixgbe_dev =
         unsafe { IxgbeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFE000000, 0x4000)) };
@@ -1255,6 +1257,159 @@ pub fn start_ixgbe_driver_backend_with_ipc(){
                 // log::info!("dashi");
                 ixgbe_dev.tx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.reply_queue, &mut buff_ref.request_queue, false);
                 asys::sys_send_empty(0);
+            }
+        }
+    }
+}
+
+
+pub fn start_ixgbe_driver_fwd_test(){
+    let sender_mac = [
+        0x90, 0xe2, 0xba, 0xb3, 0xbd, 0x99, // Dst mac
+    ];
+    let our_mac = [
+        // 90:E2:BA:B5:15:75
+        0x90, 0xe2, 0xba, 0xb5, 0x15, 0x75, // Src mac
+    ];
+    unsafe {
+
+        let size = core::mem::size_of::<IxgbeRingBuffer>();
+        let error_code = asys::sys_mmap(DATA_BUFFER_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1);
+        if error_code != 0 {
+            log::info!("sys_mmap for data_buffer failed {:?}", error_code);
+            return;
+        }
+        
+        let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+        buff_ref.init();
+        log::info!("data_buffer init done");
+
+        for i in 0..240 {
+            let (addr,paddr) = buff_ref.try_pop_allocator().unwrap();
+            buff_ref.request_queue.try_push(&IxgbePayLoad{addr:addr, paddr:paddr, len:4096});
+            // log::info!("receiving package at {:x}", addr);
+        }
+        
+        let mut ixgbe_dev =
+            unsafe { IxgbeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFE000000, 0x4000)) };
+
+        log::info!("Initializing Ixgbe driver...");
+
+        ixgbe_dev.init();
+
+        unsafe{
+            let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+            log::info!("ixgbe_backend started");
+            loop{
+                ixgbe_dev.rx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.request_queue, &mut buff_ref.request_completion_queue, false);
+                // log::info!("dashi");
+                ixgbe_dev.tx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.reply_queue, &mut buff_ref.request_queue, false);
+
+                loop{
+                    let pkt_op = buff_ref.request_completion_queue.try_pop();
+                    if pkt_op.is_none(){
+                        break;
+                    }else{
+                        // log::info!("received package at {:x}", pkt_op.unwrap().addr);
+        
+                        let addr = pkt_op.unwrap().addr;
+            
+                        unsafe {
+                            ptr::copy(
+                                our_mac.as_ptr(),
+                                (addr + 6) as *mut u8,
+                                our_mac.len(),
+                            );
+                            ptr::copy(
+                                sender_mac.as_ptr(),
+                                addr as *mut u8,
+                                sender_mac.len(),
+                            );
+                        }
+            
+                        buff_ref.reply_queue.try_push(&pkt_op.unwrap());
+                        // log::info!("sending package at {:x}", pkt_op.unwrap().addr);
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn start_ixgbe_driver_maglev_test(){
+    let sender_mac = [
+        0x90, 0xe2, 0xba, 0xb3, 0xbd, 0x99, // Dst mac
+    ];
+    let our_mac = [
+        // 90:E2:BA:B5:15:75
+        0x90, 0xe2, 0xba, 0xb5, 0x15, 0x75, // Src mac
+    ];
+
+    maglev_init();
+
+    unsafe {
+
+        let size = core::mem::size_of::<IxgbeRingBuffer>();
+        let error_code = asys::sys_mmap(DATA_BUFFER_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1);
+        if error_code != 0 {
+            log::info!("sys_mmap for data_buffer failed {:?}", error_code);
+            return;
+        }
+        
+        let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+        buff_ref.init();
+        log::info!("data_buffer init done");
+        
+        for i in 0..240 {
+            let (addr,paddr) = buff_ref.try_pop_allocator().unwrap();
+            buff_ref.request_queue.try_push(&IxgbePayLoad{addr:addr, paddr:paddr, len:4096});
+            // log::info!("receiving package at {:x}", addr);
+        }
+
+        let mut ixgbe_dev =
+            unsafe { IxgbeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFE000000, 0x4000)) };
+
+        log::info!("Initializing Ixgbe driver...");
+
+        ixgbe_dev.init();
+
+        unsafe{
+            let buff_ref:&mut IxgbeRingBuffer = &mut*(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+            log::info!("ixgbe_backend started");
+            loop{
+                ixgbe_dev.rx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.request_queue, &mut buff_ref.request_completion_queue, false);
+                // log::info!("dashi");
+                ixgbe_dev.tx_submit_and_poll_with_ringbuffer_2(&mut buff_ref.reply_queue, &mut buff_ref.request_queue, false);
+
+                loop{
+                    let pkt_op = buff_ref.request_completion_queue.try_pop();
+                    if pkt_op.is_none(){
+                        break;
+                    }else{
+                        // log::info!("received package at {:x}", pkt_op.unwrap().addr);
+        
+                        let addr = pkt_op.unwrap().addr;
+
+                        let backend = maglev_process_frame(addr as *mut rte_ether_hdr, pkt_op.unwrap().len);
+                        if backend != 233{
+                            unsafe {
+                                ptr::copy(
+                                    our_mac.as_ptr(),
+                                    (addr + 6) as *mut u8,
+                                    our_mac.len(),
+                                );
+                                ptr::copy(
+                                    sender_mac.as_ptr(),
+                                    addr as *mut u8,
+                                    sender_mac.len(),
+                                );
+                            }
+                        }
+            
+                        buff_ref.reply_queue.try_push(&pkt_op.unwrap());
+                        // log::info!("sending package at {:x}", pkt_op.unwrap().addr);
+                    }
+                }
             }
         }
     }

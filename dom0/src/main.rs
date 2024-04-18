@@ -14,6 +14,7 @@ mod pci;
 mod slab_alloc;
 mod elf;
 mod dom1;
+mod maglev;
 
 use core::arch::asm;
 use core::arch::x86_64::_rdtsc;
@@ -60,22 +61,22 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    unsafe {
-        let io_cr3 = asys::sys_rd_io_cr3();
-        log::info!("Dom0 IOMMU table @ {:x}", io_cr3);
-        let error_code = asys::sys_mmap(IOMMU_TEST_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, 1);
-        if error_code != 0 {
-            log::info!("sys_mmap for IOMMU_TEST_ADDR failed {:?}", error_code);
-            // return;
-        }
-        let error_code = asys::sys_io_mmap(IOMMU_TEST_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, 1);
-        if error_code != 0 {
-            log::info!("sys_io_mmap for IOMMU_TEST_ADDR failed {:?}", error_code);
-            // return;
-        }
-        log::info!("Pagetable reslove {:x}",asys::sys_mresolve(IOMMU_TEST_ADDR as usize).0 as u64);
-        log::info!("IOMMU table reslove {:x}",asys::sys_mresolve_io(IOMMU_TEST_ADDR as usize).0 as u64);
-    }
+    // unsafe {
+    //     let io_cr3 = asys::sys_rd_io_cr3();
+    //     log::info!("Dom0 IOMMU table @ {:x}", io_cr3);
+    //     let error_code = asys::sys_mmap(IOMMU_TEST_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, 1);
+    //     if error_code != 0 {
+    //         log::info!("sys_mmap for IOMMU_TEST_ADDR failed {:?}", error_code);
+    //         // return;
+    //     }
+    //     let error_code = asys::sys_io_mmap(IOMMU_TEST_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, 1);
+    //     if error_code != 0 {
+    //         log::info!("sys_io_mmap for IOMMU_TEST_ADDR failed {:?}", error_code);
+    //         // return;
+    //     }
+    //     log::info!("Pagetable reslove {:x}",asys::sys_mresolve(IOMMU_TEST_ADDR as usize).0 as u64);
+    //     log::info!("IOMMU table reslove {:x}",asys::sys_mresolve_io(IOMMU_TEST_ADDR as usize).0 as u64);
+    // }
     // if !payload_base.is_null() {
     //     let payload = unsafe {
     //         slice::from_raw_parts(payload_base, payload_size)
@@ -93,9 +94,9 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 
     // log::info!("Enumerating PCI");
 
-    // scan_pci_devs();
+    scan_pci_devs();
 
-    // start_ixgbe_driver_backend();
+    start_ixgbe_driver_fwd_test();
 
     // test_ixgbe_with_ring_buffer_tx();
 
