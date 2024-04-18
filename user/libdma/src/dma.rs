@@ -27,7 +27,6 @@ use alloc::boxed::Box;
 use asys::sys_mresolve;
 use core::mem;
 use core::ops::{Deref, DerefMut};
-
 use core::result::Result;
 
 pub struct Dma<T> {
@@ -52,8 +51,9 @@ impl<T> Dma<T> {
     pub fn physical(&self) -> usize {
         let tr: &T = &self.value;
         let vaddr = tr as *const _ as usize;
-        let (paddr, perm) = unsafe { asys::sys_mresolve(vaddr) };
-        paddr
+        //let (paddr, perm) = unsafe { asys::sys_mresolve(vaddr) };
+        //paddr
+        vaddr
     }
 
     pub fn from_box(b: Box<T>) -> Dma<T> {

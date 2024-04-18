@@ -13,7 +13,7 @@ pub struct NvmeCompletion {
     pub status: u16,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(packed)]
 pub struct NvmeCommand {
     /// Opcode
@@ -38,11 +38,18 @@ pub struct NvmeCommand {
     pub cdw12: u32,
     /// Command dword 13
     pub cdw13: u32,
-    /// Command dword 14
+    ///Command dword 14
     pub cdw14: u32,
     /// Command dword 15
     pub cdw15: u32,
 }
+
+
+zeroed_allocator!([NvmeCommand; 64]);
+zeroed_allocator!([NvmeCompletion; 64]);
+
+zeroed_allocator!([NvmeCommand; 128]);
+zeroed_allocator!([NvmeCompletion; 128]);
 
 zeroed_allocator!([NvmeCommand; 256]);
 zeroed_allocator!([NvmeCompletion; 256]);

@@ -16,7 +16,7 @@ use core::arch::x86_64::_rdtsc;
 
 pub fn test_nvme_driver() {
     let mut nvme_dev =
-        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xfebf_0000, 0x4000)) };
+        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFEBD4000, 0x4000)) };
 
     log::info!("Initializing Nvme driver...");
 
@@ -24,10 +24,10 @@ pub fn test_nvme_driver() {
 
     log::info!("Running Nvme Read/write tests!");
 
-    //run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, true, false, 0);
-    //run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, false, false, 0);
+    run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, true, false, 0);
+    run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, false, false, 0);
 
-    run_blocktest_blkreq(&mut nvme_dev);
+    //run_blocktest_blkreq(&mut nvme_dev);
 
 }
 
