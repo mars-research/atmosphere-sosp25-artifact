@@ -37,4 +37,8 @@ impl TrustedBridge for Bridge {
             // );
         }
     }
+
+    fn set_iommu_pt(bus: usize, device: usize, function: usize, pml4: u64) {
+        todo!();
+    }
 }
