@@ -115,7 +115,7 @@ impl Emulator for Qemu {
 
         if let Some(img_path) = &config.nvme_img {
             command.args(&["-drive", &format!("file={},if=none,id=nvm", img_path)]);
-            command.args(&["-device", "nvme,id=nvm,serial=deadbeef"]);
+            command.args(&["-device", "nvme,id=nvm,serial=deadbeef,drive=nvm"]);
         }
 
         if config.use_iommu {
