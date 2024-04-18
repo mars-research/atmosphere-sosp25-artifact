@@ -25,6 +25,7 @@ pub const __NR_SEND_PAGE: usize = 14;
 pub const __NR_RD_IO_CR3: usize = 15;
 pub const __NR_IO_MMAP: usize = 16;
 pub const __NR_MRESOLVE_IO: usize = 17;
+pub const __NR_SET_DEVICE_IOMMU: usize = 18;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -37,6 +38,22 @@ macro_rules! syscall {
             inout("rdx") $c => _,
             out("rcx") _,
             out("r8")  _,
+            out("r9") _,
+            out("r10") _,
+            out("r11") _,
+        );
+        ret
+    }};
+    ($nr:expr, $a:expr, $b:expr, $c:expr, $d:expr) => {{
+        let ret: isize;
+        asm!(
+            "syscall",
+            inout("rax") $nr => ret,
+            inout("rdi") $a => _,
+            inout("rsi") $b => _,
+            inout("rdx") $c => _,
+            out("rcx") _,
+            inout("r8") $d => _,
             out("r9") _,
             out("r10") _,
             out("r11") _,
@@ -137,4 +154,8 @@ pub unsafe fn sys_io_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
 
 pub unsafe fn sys_rd_io_cr3() -> usize {
     return syscall!(__NR_RD_IO_CR3,0,0,0) as usize;
+}
+
+pub unsafe fn sys_set_device_iommu(bus: usize, device: usize, function: usize, pml4: u64) -> isize {
+    syscall!(__NR_SET_DEVICE_IOMMU, bus, device, function, pml4)
 }

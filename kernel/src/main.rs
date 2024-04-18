@@ -40,6 +40,7 @@ mod debugger;
 mod error;
 mod gdt;
 mod interrupt;
+mod iommu;
 mod kernel;
 mod logging;
 mod scripts;
@@ -80,6 +81,8 @@ fn main(boot_info: *const BootInfo) -> isize {
         syscalls::init_cpu();
 
         boot::init(boot_info);
+        iommu::init_iommu();
+
         console::init();
         logging::init();
     }
