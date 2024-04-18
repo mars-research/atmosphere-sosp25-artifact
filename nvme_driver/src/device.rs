@@ -348,6 +348,13 @@ impl NvmeDevice {
         println!("allocating dma!");
         let data: Dma<[u8; 4096]> = allocate_dma().unwrap();
 
+        // HACK
+        println!("reloading iommu");
+        unsafe {
+            let pml4 = asys::sys_rd_io_cr3() as u64;
+            asys::sys_set_device_iommu(0x0, 0x3, 0x0, pml4);
+        }
+
         println!(
             "  - Attempting to identify controller with data {:x}",
             data.physical()
