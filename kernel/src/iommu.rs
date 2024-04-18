@@ -78,8 +78,11 @@ impl RemappingHardware {
     const CCMD_CIRG_GLOBAL: u64 = 0b01;
 
     const IOTLBCMD_IVT: usize = 63;             // IVT: Invalidate IOTLB
+    const IOTLBCMD_DID: Range<usize> = 32..48;  // DID: Domain-ID
     const IOTLBCMD_IIRG: Range<usize> = 60..62; // IIRG: IOTLB Invalidation Request Granularity
     const IOTLBCMD_IIRG_GLOBAL: u64 = 0b01;
+    const IOTLBCMD_IIRG_DOMAIN: u64 = 0b10;
+    const IOTLBCMD_IIRG_PAGE: u64 = 0b11;
 
     pub unsafe fn new(base: u64) -> Self {
         let mut s = Self {
@@ -133,9 +136,38 @@ impl RemappingHardware {
         self.write_u64(Self::CCMD_REG, ccmd);
     }
 
+    unsafe fn invalidate_iotlb(&mut self, bus: usize, device: usize, function: usize, page: u64) {
+        let did = get_did(bus, device, function);
+
+        let iro = 16 * self.ecap.get_bits(8..18);
+        let iva_reg = iro as usize;
+        let iotlb_reg = iro as usize + Self::IOTLB_REG_OFFSET;
+
+        let mut iotlb_cmd: u64 = 0;
+        iotlb_cmd.set_bit(Self::IOTLBCMD_IVT, true);
+        iotlb_cmd.set_bits(Self::IOTLBCMD_DID, did as u64);
+
+        let iirg = if page != 0 {
+            Self::IOTLBCMD_IIRG_PAGE
+        } else {
+            Self::IOTLBCMD_IIRG_DOMAIN
+        };
+
+        iotlb_cmd.set_bits(Self::IOTLBCMD_IIRG, iirg);
+
+        self.write_u64(iva_reg, PHYSICAL_PAGE_MASK & page);
+        self.write_u64(iotlb_reg, iotlb_cmd);
+    }
+
     pub fn enable_translation(&mut self) {
         unsafe {
             self.send_global_command(Self::GCMD_TE, true);
+        }
+    }
+
+    pub fn disable_translation(&mut self) {
+        unsafe {
+            self.send_global_command(Self::GCMD_TE, false);
         }
     }
 
@@ -203,12 +235,14 @@ impl NaiveIommuMap {
     }
 
     pub fn map(mut self: Pin<&mut Self>, bus: usize, device: usize, function: usize, pml4: u64) {
+        let did = get_did(bus, device, function);
         let re = RootTableEntry::new()
             .with_present(true)
             .with_address(&self.context_table as *const ContextTable as u64);
 
         let ce = ContextTableEntry::new()
             .with_present(true)
+            .with_did(did)
             .with_address(pml4);
 
         unsafe {
@@ -360,11 +394,26 @@ impl ContextTableEntry {
         self
     }
 
+    fn with_did(mut self, did: u16) -> Self {
+        let mut upper = self.upper;
+        upper.set_bits(8..24, did as u64);
+        self.upper = upper;
+        self
+    }
+
     fn with_address(mut self, address: u64) -> Self {
         let masked = PHYSICAL_PAGE_MASK & address;
         self.lower = self.lower & !(PHYSICAL_PAGE_MASK) | masked;
         self
     }
+}
+
+fn get_did(bus: usize, device: usize, function: usize) -> u16 {
+    assert!(bus < 256, "Bus out of range");
+    assert!(device < 32, "Device out of range");
+    assert!(function < 8, "Function out of range");
+
+    ((bus as u16) << 8) | ((device as u16) << 3) | (function as u16)
 }
 
 unsafe fn reload_root_table() {
@@ -406,6 +455,17 @@ pub unsafe fn map(bus: usize, device: usize, function: usize, pml4: u64) -> Resu
 
     // TODO: Reload device-specific context
     reload_root_table();
+
+    Ok(())
+}
+
+pub unsafe fn invalidate_iotlb(bus: usize, device: usize, function: usize, page: u64) -> Result<(), &'static str> {
+    let iommu = IOMMU.lock();
+
+    let mut iommu = IOMMU.lock();
+    let iommu = iommu.as_mut().ok_or("No IOMMU hardware")?;
+
+    iommu.invalidate_iotlb(bus, device, function, page);
 
     Ok(())
 }
