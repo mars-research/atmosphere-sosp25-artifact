@@ -118,6 +118,12 @@ impl Emulator for Qemu {
             command.args(&["-device", "nvme,id=nvm,serial=deadbeef"]);
         }
 
+        if config.use_iommu {
+            // The intel-iommu device must come before vfio-pci, otherwise
+            // shadow IOMMU tables won't be configured correctly
+            command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48"]); // FIXME: AMD
+        }
+
         if !config.pci_dev.is_empty() {
             for dev in &config.pci_dev {
                 command.args(&["-device", &format!("vfio-pci,romfile=,host={}", dev)]);
@@ -126,10 +132,6 @@ impl Emulator for Qemu {
 
         if config.use_virtualization {
             command.arg("-enable-kvm");
-        }
-
-        if config.use_iommu {
-            command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48"]); // FIXME: AMD
         }
 
         if suppress_initial_outputs {
