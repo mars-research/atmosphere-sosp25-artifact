@@ -26,7 +26,6 @@ pub mod acpi;
 pub mod boot;
 pub mod console;
 pub mod debugger;
-pub mod iommu;
 pub mod logging;
 pub mod memory;
 
@@ -106,8 +105,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
     }
 
     boot_info.pml4 = address_space.pml4();
-
-    acpi::init_acpi();
+    boot_info.iommu_base = acpi::probe_iommu();
 
     let (jumbo_file, jumbo_size) = {
         let range = boot::get_kernel_image_range().expect("No kernel image was passed");

@@ -68,6 +68,7 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_SEND_PAGE] = kernel::sys_send_pages as u64;
     SYSCALLS[asys::__NR_RD_IO_CR3] = kernel::sys_get_iommu_cr3 as u64;
     SYSCALLS[asys::__NR_IO_MMAP] = kernel::sys_iommu_mmap as u64;
+    SYSCALLS[asys::__NR_SET_DEVICE_IOMMU] = sys_set_device_iommu as u64;
 }
 
 #[cfg(debug_assertions)]
@@ -259,4 +260,12 @@ extern "C" fn sys_log(data: *const u8, len: usize, level: log::Level) -> isize {
     };
     log::log!(level, "{}", s);
     0
+}
+
+extern "C" fn sys_set_device_iommu(bus: usize, device: usize, function: usize, regs: &mut Registers, pml4: u64) {
+    if let Ok(()) = unsafe { crate::iommu::map(bus, device, function, pml4) } {
+        regs.rax = 0;
+    } else {
+        regs.rax = 1;
+    }
 }

@@ -2,14 +2,10 @@
 
 use core::ptr;
 use core::mem;
-use core::pin::Pin;
 
 use acpi::{AcpiTables, AcpiTable, PhysicalMapping};
 use acpi::handler::AcpiHandler;
 use acpi::sdt::{Signature, SdtHeader};
-
-use crate::iommu::{NaiveIommuMap, RemappingHardware};
-use crate::memory::{self, PhysicalAllocator};
 
 #[derive(Clone, Debug)]
 struct NullAcpiHandler {}
@@ -132,7 +128,7 @@ impl RemappingHeader {
     }
 }
 
-pub fn init_acpi() {
+pub fn probe_iommu() -> Option<u64> {
     let handler = NullAcpiHandler::new();
     let acpi = unsafe {
         AcpiTables::search_for_rsdp_bios(handler).expect("failed to find RSDP")
@@ -143,8 +139,8 @@ pub fn init_acpi() {
     let dmar = if let Ok(dmar) = acpi.find_table::<Dmar>() {
         dmar
     } else {
-        log::warn!("No DMAR table available - Skipping IOMMU init");
-        return;
+        log::warn!("IOMMU not available - No DMAR table");
+        return None;
     };
 
     log::info!("DMAR: {:#?}", *dmar);
@@ -153,30 +149,5 @@ pub fn init_acpi() {
         header.as_drhd()
     }).expect("failed to find DRHD entry");
 
-    let mut drhd = unsafe {
-        RemappingHardware::new(drhde.register_base_address)
-    };
-    log::info!("Version: {:#x}", drhd.version());
-    log::info!("Global Status: {:#x}", drhd.global_status());
-    log::info!("Root Table: {:#x}", drhd.root_table_addr());
-
-    let mut naive_table = unsafe {
-        let p = memory::bootstrap_allocator().allocate_physical(mem::size_of::<NaiveIommuMap>());
-        let pp = p.0 as *mut NaiveIommuMap;
-        ptr::write(pp, NaiveIommuMap::new());
-        Pin::new(&mut *pp)
-    };
-
-    let pml4: u64;
-    unsafe {
-        core::arch::asm!("mov {}, cr3", out(reg) pml4);
-    }
-    naive_table.as_mut().map(0x00, 0x03, 0x00, pml4);
-
-    unsafe {
-        drhd.set_root_table_addr(naive_table.root_table_addr() as u64);
-    }
-    drhd.enable_translation();
-    log::info!("Global Status: {:#x}", drhd.global_status());
-    log::info!("Root Table: {:#x}", drhd.root_table_addr());
+    Some(drhde.register_base_address)
 }

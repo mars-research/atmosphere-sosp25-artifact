@@ -36,7 +36,14 @@ impl Pager {
                 0 => {
                     let _mmap_addr = *mmap_base;
                     *mmap_base += page_size;
-                    _mmap_addr as *mut u8
+
+                    let error_code = asys::sys_io_mmap(_mmap_addr, 0x0000_0000_0000_0002u64 as usize, num_pages);
+                    if error_code != 0 {
+                        log::error!("sys_io_mmap failed {:?}", error_code);
+                        0 as *mut u8
+                    } else {
+                        _mmap_addr as *mut u8
+                    }
                 }
                 _ => {
                     trace!("sys_mmap failure");

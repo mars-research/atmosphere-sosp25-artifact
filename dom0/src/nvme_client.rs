@@ -15,6 +15,11 @@ use ring_buffer::*;
 use core::arch::x86_64::_rdtsc;
 
 pub fn test_nvme_driver() {
+    unsafe {
+        let pml4 = asys::sys_rd_io_cr3() as u64;
+        asys::sys_set_device_iommu(0x0, 0x3, 0x0, pml4);
+    }
+
     let mut nvme_dev =
         unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xfebf_0000, 0x4000)) };
 
@@ -359,6 +364,12 @@ pub fn test_nvme_with_ring_buffer(){
             log::info!("sys_mmap for data_buffer failed {:?}", error_code);
             return;
         }
+
+        let error_code = asys::sys_io_mmap(DATA_BUFFER_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1);
+        if error_code != 0 {
+            log::error!("sys_io_mmap for data_buffer failed {:?}", error_code);
+            return;
+        }
         
         let buff_ref:&mut GenericRingBuffer<BlockReq,BlockReq> = &mut*(DATA_BUFFER_ADDR as *mut GenericRingBuffer<BlockReq,BlockReq>);
         buff_ref.init();
@@ -370,6 +381,11 @@ pub fn test_nvme_with_ring_buffer(){
         let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, stack_size / 4096);
         if error_code != 0 {
             log::info!("sys_mmap for dom1 stack failed {:?}", error_code);
+            return;
+        }
+        let error_code = asys::sys_io_mmap(new_stack as usize, 0x0000_0000_0000_0002u64 as usize, stack_size / 4096);
+        if error_code != 0 {
+            log::error!("sys_io_mmap for dom1 stack failed {:?}", error_code);
             return;
         }
         let rsp: usize = new_stack + stack_size/2;

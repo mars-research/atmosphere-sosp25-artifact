@@ -49,6 +49,9 @@ pub struct BootInfo {
 
     /// Whether Tagged TLB is enabled.
     pub pcide: bool,
+
+    /// The base of the IOMMU remapping hardware registers.
+    pub iommu_base: Option<u64>,
 }
 
 /// A loaded domain.
@@ -97,6 +100,7 @@ impl BootInfo {
             pml4: ptr::null(),
             pages: ArrayVec::new(),
             pcide: false,
+            iommu_base: None,
         }
     }
 }
