@@ -15,6 +15,7 @@ members = [
   "ring_buffer",
   "user/hello",
   "user/maglev",
+  "user/kv",
 
   #"test-cargo-driver",
   #"atcp",

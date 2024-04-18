@@ -189,7 +189,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
         let page_type: PhysicalMemoryType = (*label).into();
         log::info!(
-            "region.base() {:x}, region.end_inclusive() {:x}, page_type {:?}, page_lable {:?}",
+            "region.base() {:x}, region.end_inclusive() {:x}, page_type {:?}, label {:?}",
             region.base(),
             region.end_inclusive(),
             page_type,

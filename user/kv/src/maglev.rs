@@ -2,9 +2,9 @@ use core::mem::MaybeUninit;
 use core::mem;
 use core::ptr;
 
-pub const CAPACITY: usize = ((1usize << 18) * 1);
-pub const K_SIZE: usize = 64;
-pub const V_SIZE: usize = 64;
+pub const CAPACITY: usize = (1usize << 20) * 8;
+pub const K_SIZE: usize = 32;
+pub const V_SIZE: usize = 32;
 
 /* maglev KV pair */
 #[derive(Copy,Clone)]
