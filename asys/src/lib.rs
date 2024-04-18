@@ -26,6 +26,7 @@ pub const __NR_RD_IO_CR3: usize = 15;
 pub const __NR_IO_MMAP: usize = 16;
 pub const __NR_MRESOLVE_IO: usize = 17;
 pub const __NR_SET_DEVICE_IOMMU: usize = 18;
+pub const __NR_INVALIDATE_IOTLB: usize = 19;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -158,4 +159,8 @@ pub unsafe fn sys_rd_io_cr3() -> usize {
 
 pub unsafe fn sys_set_device_iommu(bus: usize, device: usize, function: usize, pml4: u64) -> isize {
     syscall!(__NR_SET_DEVICE_IOMMU, bus, device, function, pml4)
+}
+
+pub unsafe fn sys_invalidate_iotlb(bus: usize, device: usize, function: usize, page: u64) -> isize {
+    syscall!(__NR_INVALIDATE_IOTLB, bus, device, function, page)
 }
