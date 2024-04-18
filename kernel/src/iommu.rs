@@ -143,7 +143,8 @@ impl RemappingHardware {
         self.write_u64(Self::RTADDR_REG, address);
         self.send_global_command(Self::GCMD_SRTP, true);
 
-        if !self.cap.get_bit(Self::CAP_ESRTPS) {
+        //if !self.cap.get_bit(Self::CAP_ESRTPS) {
+        if false {
             log::info!("Hardware supports ESRTPS");
         } else {
             log::info!("Hardware does not support ESRTPS");

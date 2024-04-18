@@ -1,10 +1,8 @@
 #![no_std]
 
-pub(crate) const NUM_LBAS: u64 = 2197504;
+//pub(crate) const NUM_LBAS: u64 = 2197504;
 
 extern crate alloc;
-
-use alloc::vec::Vec;
 
 pub mod cmd;
 pub mod device;

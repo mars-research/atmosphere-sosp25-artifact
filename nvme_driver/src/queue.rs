@@ -1,11 +1,11 @@
 #[macro_use]
 use libdma::Dma;
 use crate::BlockReq;
-use crate::NUM_LBAS;
 use alloc::vec::Vec;
 use core::arch::asm;
 use libdma::nvme::allocate_dma;
 use libdma::nvme::{NvmeCommand, NvmeCompletion};
+use crate::device::num_lbas;
 
 struct Rand {
     seed: u64,
@@ -23,7 +23,7 @@ impl Rand {
     #[inline(always)]
     fn get_rand_block(&mut self) -> u64 {
         self.seed = (1103515245 * self.seed + 12345) % self.pow;
-        self.seed % NUM_LBAS
+        self.seed % num_lbas()
     }
 }
 
@@ -70,7 +70,7 @@ impl NvmeCommandQueue {
         if self.req_slot[cur_idx] == false {
             self.data[cur_idx] = entry;
             self.data[cur_idx].cid = cur_idx as u16;
-            self.data[cur_idx].cdw10 %= NUM_LBAS as u32;
+            self.data[cur_idx].cdw10 %= num_lbas() as u32;
             let cid = cur_idx as u16;
 
             //println!("Submitting block[{}] {} at slot {}", cid, breq.block, cur_idx);
@@ -96,7 +96,7 @@ impl NvmeCommandQueue {
             self.raw_requests[cur_idx] = Some(data);
             self.data[cur_idx].cdw10 = self.block as u32;
 
-            self.block = (self.block + 8) % NUM_LBAS;
+            self.block = (self.block + 8) % num_lbas();
 
             /*log::trace!(
                 "Submitting block[{}] {} at slot {}",
@@ -124,7 +124,7 @@ impl NvmeCommandQueue {
             self.raw_requests_vec[cur_idx] = Some(data);
             self.data[cur_idx].cdw10 = self.block as u32;
 
-            self.block = (self.block + 8) % NUM_LBAS;
+            self.block = (self.block + 8) % num_lbas();
 
             /*log::trace!(
                 "Submitting block[{}] {} at slot {}",

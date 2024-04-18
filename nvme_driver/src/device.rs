@@ -4,7 +4,6 @@ use crate::queue::NvmeCommandQueue;
 use crate::queue::NvmeCompletionQueue;
 use crate::regs::NvmeArrayRegs;
 use crate::regs::{NvmeRegs32, NvmeRegs64};
-use crate::NUM_LBAS;
 use crate::{BlockOp, BlockReq};
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
@@ -24,6 +23,12 @@ const ONE_MS_IN_NS: u64 = 1000_000;
 const NVME_CC_ENABLE: u32 = 0x1;
 const NVME_CSTS_RDY: u32 = 0x1;
 
+static mut NUM_LBAS: u64 = 0;
+
+#[inline(always)]
+pub fn num_lbas() -> u64 {
+    unsafe { NUM_LBAS }
+}
 struct NvmeNamespace {
     pub id: u32,
     pub blocks: u64,
@@ -480,6 +485,10 @@ impl NvmeDevice {
                 capacity * 512,
             );
 
+            if capacity > 0 {
+                NUM_LBAS = capacity;
+            }
+
             //TODO: Read block size
             self.namespaces.push(NvmeNamespace {
                 id: nsid,
@@ -635,7 +644,8 @@ impl NvmeDevice {
 
         while let Some(breq) = submit.pop_front() {
             // FIXME: store both (vaddr, paddr) to avoid calling this everytime
-            let (ptr0, ptr1) = unsafe { (sys_mresolve(breq.as_ptr() as usize).0 as u64, 0) };
+            //let (ptr0, ptr1) = unsafe { (sys_mresolve(breq.as_ptr() as usize).0 as u64, 0) };
+            let (ptr0, ptr1) = (breq.as_ptr() as u64, 0);
             //println!("breq 0x{:08x} ptr0 0x{:08x}", breq.as_ptr() as u64, ptr0);
             let queue = &mut self.submission_queues[qid];
 

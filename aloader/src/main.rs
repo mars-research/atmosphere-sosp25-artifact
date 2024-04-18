@@ -353,9 +353,9 @@ where
     }
 
     // Nvme bar region
-    let mut cur = 0xFEBD4000;
+    let mut cur = 0XFEBE4000;
     let virt_base = USERSPACE_BASE;
-    while cur < 0xFEBD4000 + 0x4000 {
+    while cur < 0XFEBE4000 + 0x4000 {
         unsafe {
             address_space.map(
                 page_table_allocator,

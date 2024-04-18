@@ -21,7 +21,7 @@ pub fn test_nvme_driver() {
     }
 
     let mut nvme_dev =
-        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFEBD4000, 0x4000)) };
+        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0XFEBE4000, 0x4000)) };
 
     log::info!("Initializing Nvme driver...");
 
