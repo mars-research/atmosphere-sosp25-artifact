@@ -53,6 +53,7 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_PRINT] = sys_print as u64;
     SYSCALLS[asys::__NR_MMAP] = kernel::sys_mmap as u64;
     SYSCALLS[asys::__NR_MRESOLVE] = kernel::sys_resolve as u64;
+    SYSCALLS[asys::__NR_MRESOLVE_IO] = kernel::sys_resolve_io as u64;
     SYSCALLS[asys::__NR_NEW_END] = kernel::sys_new_endpoint as u64;
     SYSCALLS[asys::__NR_NEW_PROC] = kernel::sys_new_proc as u64;
     SYSCALLS[asys::__NR_NEW_PROC_W_IO] = kernel::sys_new_proc_with_iommu as u64;
@@ -65,6 +66,9 @@ pub unsafe fn init_cpu() {
     SYSCALLS[asys::__NR_SEND_PAGE_NW] = kernel::sys_send_pages_no_wait as u64;
     SYSCALLS[asys::__NR_RECEIVE_PAGE] = kernel::sys_receive_pages as u64;
     SYSCALLS[asys::__NR_SEND_PAGE] = kernel::sys_send_pages as u64;
+    SYSCALLS[asys::__NR_RD_IO_CR3] = kernel::sys_get_iommu_cr3 as u64;
+    SYSCALLS[asys::__NR_IO_MMAP] = kernel::sys_iommu_mmap as u64;
+    SYSCALLS[asys::__NR_SET_DEVICE_IOMMU] = sys_set_device_iommu as u64;
 }
 
 #[cfg(debug_assertions)]
@@ -256,4 +260,12 @@ extern "C" fn sys_log(data: *const u8, len: usize, level: log::Level) -> isize {
     };
     log::log!(level, "{}", s);
     0
+}
+
+extern "C" fn sys_set_device_iommu(bus: usize, device: usize, function: usize, regs: &mut Registers, pml4: u64) {
+    if let Ok(()) = unsafe { crate::iommu::map(bus, device, function, pml4) } {
+        regs.rax = 0;
+    } else {
+        regs.rax = 1;
+    }
 }

@@ -64,6 +64,8 @@ impl From<BootMemoryType> for PhysicalMemoryType {
             BMT::Domain | BMT::Payload => PMT::Domain,
             BMT::PageTable => PMT::PageTable,
 
+            BMT::Other(AcpiMemoryType::Memory) => PMT::Available,
+
             BMT::Bios => PMT::Reserved,
             _ => PMT::Reserved,
         }

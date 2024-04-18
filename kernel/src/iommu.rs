@@ -11,6 +11,11 @@ use core::ptr;
 
 use bit_field::BitField;
 
+use astd::sync::Mutex;
+
+static IOMMU: Mutex<Option<RemappingHardware>> = Mutex::new(None);
+static mut NAIVE_MAP: NaiveIommuMap = NaiveIommuMap::new();
+
 const MAXPHYADDR: u64 = 56;
 const PAGE_SZ: u64 = 4096;
 const PAGE_MASK: u64 = !(PAGE_SZ - 1);
@@ -69,13 +74,12 @@ impl RemappingHardware {
     const GCMD_SRTP: usize = 30;                // SRTP: Set Root Table Pointer
 
     const CCMD_ICC: usize = 63;                 // ICC: Invalidate Context-Cache
+    const CCMD_CIRG: Range<usize> = 61..63;     // CIRG: Context Invalidation Request Granularity
+    const CCMD_CIRG_GLOBAL: u64 = 0b01;
 
     const IOTLBCMD_IVT: usize = 63;             // IVT: Invalidate IOTLB
     const IOTLBCMD_IIRG: Range<usize> = 60..62; // IIRG: IOTLB Invalidation Request Granularity
     const IOTLBCMD_IIRG_GLOBAL: u64 = 0b01;
-
-    const CCMD_CIRG: Range<usize> = 61..63;     // CIRG: Context Invalidation Request Granularity
-    const CCMD_CIRG_GLOBAL: u64 = 0b01;
 
     pub unsafe fn new(base: u64) -> Self {
         let mut s = Self {
@@ -186,7 +190,7 @@ impl RemappingHardware {
 }
 
 impl NaiveIommuMap {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             root_table: RootTable::new(),
             context_table: ContextTable::new(),
@@ -233,7 +237,7 @@ impl NaiveIommuMap {
 }
 
 impl RootTable {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             entries: [MaybeUninit::new(RootTableEntry::new()); 256],
         }
@@ -263,7 +267,7 @@ impl RootTable {
 }
 
 impl ContextTable {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             entries: [MaybeUninit::new(ContextTableEntry::new()); 256],
         }
@@ -361,4 +365,47 @@ impl ContextTableEntry {
         self.lower = self.lower & !(PHYSICAL_PAGE_MASK) | masked;
         self
     }
+}
+
+unsafe fn reload_root_table() {
+    let rt = Pin::new(&mut NAIVE_MAP);
+    let mut iommu = IOMMU.lock();
+    let iommu = iommu.as_mut().expect("No IOMMU hardware");
+    iommu.set_root_table_addr(rt.root_table_addr());
+}
+
+pub unsafe fn init_iommu() {
+    let boot_info = crate::boot::get_boot_info();
+
+    let mut iommu = if let Some(iommu_base) = boot_info.iommu_base {
+        RemappingHardware::new(iommu_base)
+    } else {
+        return;
+    };
+
+    log::info!("Version: {:#x}", iommu.version());
+    log::info!("Global Status: {:#x}", iommu.global_status());
+
+    let rt = Pin::new(&mut NAIVE_MAP);
+    iommu.set_root_table_addr(rt.root_table_addr());
+    log::info!("Root Table: {:#x}", iommu.root_table_addr());
+
+    log::info!("Enabling translation");
+    iommu.enable_translation();
+
+    *IOMMU.lock() = Some(iommu);
+}
+
+pub unsafe fn map(bus: usize, device: usize, function: usize, pml4: u64) -> Result<(), &'static str> {
+    if IOMMU.lock().is_none() {
+        return Err("No IOMMU available");
+    }
+
+    let rt = Pin::new(&mut NAIVE_MAP);
+    rt.map(bus, device, function, pml4);
+
+    // TODO: Reload device-specific context
+    reload_root_table();
+
+    Ok(())
 }

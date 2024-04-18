@@ -692,6 +692,22 @@ pub extern "C" fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vRegisters){
     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
 }
 
+pub extern "C" fn sys_resolve_io(va:usize,_:usize, _:usize, regs: &mut vRegisters){
+    let cpu_id = cpu::get_cpu_id();
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_resolve_io_va(
+        cpu_id,
+        va,
+    );
+    if ret_struc.0.error_code != 0{
+        regs.rax = ret_struc.0.error_code as u64;
+    }
+    else{
+        regs.rax = ret_struc.1 as u64;
+    }
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+}
+
+
 pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters) {
     let cpu_id = cpu::get_cpu_id();
     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_endpoint(
@@ -863,12 +879,13 @@ pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
         false
     }else{
         if thread_info_op.is_none(){
-            // log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
+            log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
 
-            Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
+            // Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
 
-            let cr3: u64;
-            unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
+            // let cr3: u64;
+            // unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
+            Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64 as u64);
             // log::info!("cr3 {:x?}", cr3);
 
             if ret_struc.error_code == vdefine::NO_ERROR_CODE{
@@ -1021,4 +1038,35 @@ pub extern "C" fn sys_send_pages(endpoint_index:usize, va:usize, range:usize, re
             }
         }
     }
+}
+
+pub extern "C" fn sys_get_iommu_cr3(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
+    // log::info!("regs {:x?}", regs);
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    // log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?}",regs,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
+    let thread_info_op = kernel.as_mut().unwrap().until_get_current_thread_info(0);
+    // log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?} thread{:x?}",regs,thread_info_op,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
+    let (ret_struc,cr3) =  kernel.as_mut().unwrap().syscall_get_iommu_cr3(
+        cpu_id,
+    );
+    drop(kernel);
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+    if ret_struc.error_code == verified::define::SUCCESS{
+        regs.rax = cr3 as u64;
+    }else{
+        regs.rax = ret_struc.error_code as u64;
+    }
+}
+
+pub extern "C" fn sys_iommu_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
+    let cpu_id = cpu::get_cpu_id();
+    let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_map_pagetable_pages_to_iommutable(
+        cpu_id,
+        va,
+        perm_bits,
+        range,
+    );
+    regs.rax = ret_struc.error_code as u64;
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
 }

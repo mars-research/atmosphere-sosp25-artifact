@@ -31,6 +31,14 @@ impl TrustedBridge for Bridge {
 
                 options(readonly, nostack),
             );
+            // asm!(
+            //     "mov cr3, {cr3}",
+            //     cr3 = in(reg) cr3,
+            // );
         }
+    }
+
+    fn set_iommu_pt(bus: usize, device: usize, function: usize, pml4: u64) {
+        todo!();
     }
 }

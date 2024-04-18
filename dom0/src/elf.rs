@@ -40,8 +40,8 @@ impl VirtualMapper for Mapper {
                     paddr: PAddr(self.base as u64),
                 }
             }
-            _ => {
-                panic!("sys_mmap failure");
+            error_code => {
+                panic!("sys_mmap failure error_code {} size {}", error_code, size);
             }
         }
     }

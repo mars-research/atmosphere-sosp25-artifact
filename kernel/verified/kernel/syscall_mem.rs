@@ -174,7 +174,7 @@ impl Kernel {
        
     }
 
-    pub fn syscall_map_pagetable_pages_to_iommutable(&mut self, cpu_id:CPUID, va:VAddr, perm_bits:usize, range:usize) -> (ret:(SyscallReturnStruct,Option<ProcPtr>,Option<ThreadPtr>))
+    pub fn syscall_map_pagetable_pages_to_iommutable(&mut self, cpu_id:CPUID, va:VAddr, perm_bits:usize, range:usize) -> (ret:SyscallReturnStruct)
 
         requires
             old(self).wf(),
@@ -182,11 +182,11 @@ impl Kernel {
             self.wf(),
     {
         if cpu_id >= NUM_CPUS{
-            return (SyscallReturnStruct::new(CPU_ID_INVALID,0,0,0),None,None);
+            return SyscallReturnStruct::new(CPU_ID_INVALID,0,0,0);
         }
 
         if self.cpu_list.get(cpu_id).get_is_idle() {
-            return (SyscallReturnStruct::new(NO_RUNNING_THREAD,0,0,0),None,None);
+            return SyscallReturnStruct::new(NO_RUNNING_THREAD,0,0,0);
         }
         assert(self.cpu_list[cpu_id as int].get_is_idle() == false);
         let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
@@ -201,21 +201,21 @@ impl Kernel {
         assert(self.mmu_man.get_free_pcids_as_set().contains(pcid) == false);
 
         if va_perm_bits_valid(perm_bits) == false{
-            return (SyscallReturnStruct::new(VMEM_PERMBITS_INVALID,pcid,cr3,current_thread_ptr),None,None);
+            return SyscallReturnStruct::new(VMEM_PERMBITS_INVALID,pcid,cr3,current_thread_ptr);
         }
 
         if ioid_op.is_none() {
-            return (SyscallReturnStruct::new(PROC_NO_IOMMUTABLE,pcid,cr3,current_thread_ptr),None,None);
+            return SyscallReturnStruct::new(PROC_NO_IOMMUTABLE,pcid,cr3,current_thread_ptr);
         }
 
         let ioid = ioid_op.unwrap();
 
         if range == 0 || range >= (usize::MAX/3) {
-            return (SyscallReturnStruct::new(MMAP_VADDR_INVALID,pcid,cr3,current_thread_ptr),None,None);
+            return SyscallReturnStruct::new(MMAP_VADDR_INVALID,pcid,cr3,current_thread_ptr);
         }
 
         if  self.page_alloc.free_pages.len() < 3 * range {
-            return (SyscallReturnStruct::new(SYSTEM_OUT_OF_MEM,pcid,cr3,current_thread_ptr),None,None);
+            return SyscallReturnStruct::new(SYSTEM_OUT_OF_MEM,pcid,cr3,current_thread_ptr);
         }
 
         let mut i = 0;
@@ -252,22 +252,22 @@ impl Kernel {
                 forall|j:usize| #![auto] 0<=j<i ==> old(self).mmu_man.get_iommutable_mapping_by_ioid(ioid)[spec_va_add_range(va,j)].is_None(),
         {
             if va_valid(va_add_range(va,i)) == false {
-                return (SyscallReturnStruct::new(MMAP_VADDR_INVALID,pcid,cr3,current_thread_ptr),None,None);
+                return SyscallReturnStruct::new(MMAP_VADDR_INVALID,pcid,cr3,current_thread_ptr);
             }
 
             if self.mmu_man.mmu_get_va_entry_by_ioid(ioid,va_add_range(va,i)).is_some()
             {
-                return (SyscallReturnStruct::new(MMAP_VADDR_NOT_FREE,pcid,cr3,current_thread_ptr),None,None);
+                return SyscallReturnStruct::new(MMAP_VADDR_NOT_FREE,pcid,cr3,current_thread_ptr);
             }
 
             let page_entry = self.mmu_man.mmu_get_va_entry_by_pcid(pcid,va_add_range(va,i));
 
             if page_entry.is_none(){
-                return (SyscallReturnStruct::new(MMAP_VADDR_NOT_FREE,pcid,cr3,current_thread_ptr),None,None);
+                return SyscallReturnStruct::new(MMAP_VADDR_NOT_FREE,pcid,cr3,current_thread_ptr);
             }
 
             if self.page_alloc.get_page_rf_counter_by_page_ptr(page_entry.unwrap().addr) >= usize::MAX - range {
-                return (SyscallReturnStruct::new(PAGE_RF_COUNTER_OVERFLOW,pcid,cr3,current_thread_ptr),None,None);
+                return SyscallReturnStruct::new(PAGE_RF_COUNTER_OVERFLOW,pcid,cr3,current_thread_ptr);
             }
             i = i + 1;
         }
@@ -275,7 +275,7 @@ impl Kernel {
         self.kernel_map_pagetable_range_page_to_iommutable(pcid,ioid,va,perm_bits,range);
         assert(self.wf());
 
-        return (SyscallReturnStruct::new(SUCCESS,pcid,cr3,current_thread_ptr),None,None);
+        return SyscallReturnStruct::new(SUCCESS,pcid,cr3,current_thread_ptr);
     }
     pub fn syscall_resolve_va(&self, cpu_id:CPUID, va: usize) -> (ret:(SyscallReturnStruct,PAddr))
         requires
@@ -311,6 +311,76 @@ impl Kernel {
             return (SyscallReturnStruct::new(SUCCESS,pcid, cr3,current_thread_ptr),page_entry.unwrap().addr | page_entry.unwrap().perm);
         }
     }
+
+    pub fn syscall_resolve_io_va(&self, cpu_id:CPUID, va: usize) -> (ret:(SyscallReturnStruct,PAddr))
+    requires
+        self.wf(),
+    {
+        if cpu_id >= NUM_CPUS{
+            return (SyscallReturnStruct::new(CPU_ID_INVALID,0,0,0),0);
+        }
+
+        if self.cpu_list.get(cpu_id).get_is_idle() {
+            return (SyscallReturnStruct::new(NO_RUNNING_THREAD,0,0,0),0);
+        }
+
+
+        assert(self.cpu_list[cpu_id as int].get_is_idle() == false);
+        let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
+        assert(current_thread_ptr_op.is_Some());
+        let current_thread_ptr = current_thread_ptr_op.unwrap();
+        let current_proc_ptr = self.proc_man.get_parent_proc_ptr_by_thread_ptr(current_thread_ptr);
+
+        let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
+        let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
+
+        if va_valid(va) == false{
+            return (SyscallReturnStruct::new(VADDR_INVALID,pcid, cr3,current_thread_ptr),0);
+        }
+
+        let ioid_op = self.proc_man.get_ioid_by_thread_ptr(current_thread_ptr);
+        if ioid_op.is_none(){
+            return (SyscallReturnStruct::new(PROC_NO_IOMMUTABLE,pcid, cr3,current_thread_ptr),0);
+        }
+
+        let page_entry = self.mmu_man.mmu_get_va_entry_by_ioid(ioid_op.unwrap(), va);
+
+        if page_entry.is_none() {
+            return (SyscallReturnStruct::new(VADDR_NOMAPPING,pcid, cr3,current_thread_ptr),0);
+        }else{
+            return (SyscallReturnStruct::new(SUCCESS,pcid, cr3,current_thread_ptr),page_entry.unwrap().addr | page_entry.unwrap().perm);
+        }
+    }
+
+pub fn syscall_get_iommu_cr3(&self, cpu_id:CPUID) -> (ret:(SyscallReturnStruct,usize))
+    requires
+        self.wf(),
+{
+    if cpu_id >= NUM_CPUS{
+        return (SyscallReturnStruct::new(CPU_ID_INVALID,0,0,0),0);
+    }
+
+    if self.cpu_list.get(cpu_id).get_is_idle() {
+        return (SyscallReturnStruct::new(NO_RUNNING_THREAD,0,0,0),0);
+    }
+
+
+    assert(self.cpu_list[cpu_id as int].get_is_idle() == false);
+    let current_thread_ptr_op = self.cpu_list.get(cpu_id).get_current_thread();
+    assert(current_thread_ptr_op.is_Some());
+    let current_thread_ptr = current_thread_ptr_op.unwrap();
+    let current_proc_ptr = self.proc_man.get_parent_proc_ptr_by_thread_ptr(current_thread_ptr);
+
+    let pcid = self.proc_man.get_pcid_by_thread_ptr(current_thread_ptr);
+    let cr3 = self.mmu_man.get_cr3_by_pcid(pcid);
+
+    let ioid_op = self.proc_man.get_ioid_by_thread_ptr(current_thread_ptr);
+    if ioid_op.is_none(){
+        return (SyscallReturnStruct::new(PROC_NO_IOMMUTABLE,pcid, cr3,current_thread_ptr),0);
+    }else{
+        return (SyscallReturnStruct::new(SUCCESS,pcid, cr3,current_thread_ptr),self.mmu_man.get_cr3_by_ioid(ioid_op.unwrap()));
+    }
+}
 
     pub fn until_get_current_thread_info(&self, cpu_id:CPUID) -> (ret:Option<(Pcid,usize,ThreadPtr)>)
         requires
