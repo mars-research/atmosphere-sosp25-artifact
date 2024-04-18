@@ -19,7 +19,7 @@
 #![deny(rustdoc::bare_urls, rustdoc::broken_intra_doc_links)]
 #![cfg_attr(
     not(debug_assertions),
-    deny(dead_code, unused_imports, unused_mut, unused_variables)
+    deny(dead_code)
 )]
 
 pub mod acpi;
@@ -69,14 +69,32 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     let mut address_space = AddressSpace::new(bootstrap_allocator);
 
+    let mut address_space_iommu = AddressSpace::new(bootstrap_allocator);
+
+    let mut cur = 0xFEBD4000;
+    let virt_base = USERSPACE_BASE;
+    while cur < 0xFEBD4000 + 0x4000 {
+        unsafe {
+            address_space_iommu.map(
+                bootstrap_allocator,
+                cur + virt_base,
+                cur,
+                true,
+                false,
+                true,
+            );
+            cur = cur + PAGE_SIZE as u64;
+        }
+    }
+
     log::info!("Mapping all physical memory");
     let mut cur = 0;
     while cur < 0x240000000 {
         // FIXME
         unsafe {
-            address_space.map(bootstrap_allocator, cur, cur, false, true, false);
+            address_space.map(bootstrap_allocator, cur, cur, false, false, false);
         }
-        cur = cur + HUGE_PAGE_SIZE as u64;
+        cur = cur + PAGE_SIZE as u64;
     }
 
     let mut boot_info = BootInfo::empty(); // stays on stack
@@ -107,7 +125,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     boot_info.pml4 = address_space.pml4();
 
-    acpi::init_acpi();
+    acpi::init_acpi(address_space_iommu);
 
     let (jumbo_file, jumbo_size) = {
         let range = boot::get_kernel_image_range().expect("No kernel image was passed");
@@ -337,9 +355,9 @@ where
     }
 
     // Nvme bar region
-    let mut cur = 0xfebf_0000;
+    let mut cur = 0xFEBD4000;
     let virt_base = USERSPACE_BASE;
-    while cur < 0xfebf_0000 + 0x4000 {
+    while cur < 0xFEBD4000 + 0x4000 {
         unsafe {
             address_space.map(
                 page_table_allocator,

@@ -9,7 +9,7 @@ use acpi::handler::AcpiHandler;
 use acpi::sdt::{Signature, SdtHeader};
 
 use crate::iommu::{NaiveIommuMap, RemappingHardware};
-use crate::memory::{self, PhysicalAllocator};
+use crate::memory::{self, PhysicalAllocator, AddressSpace};
 
 #[derive(Clone, Debug)]
 struct NullAcpiHandler {}
@@ -132,7 +132,7 @@ impl RemappingHeader {
     }
 }
 
-pub fn init_acpi() {
+pub fn init_acpi(addr_space: AddressSpace) {
     let handler = NullAcpiHandler::new();
     let acpi = unsafe {
         AcpiTables::search_for_rsdp_bios(handler).expect("failed to find RSDP")
@@ -171,7 +171,9 @@ pub fn init_acpi() {
     unsafe {
         core::arch::asm!("mov {}, cr3", out(reg) pml4);
     }
+    log::info!("Mapping PML4 {:>08x}", pml4);
     naive_table.as_mut().map(0x00, 0x03, 0x00, pml4);
+    //naive_table.as_mut().map(0x00, 0x03, 0x00, addr_space.pml4() as u64);
 
     unsafe {
         drhd.set_root_table_addr(naive_table.root_table_addr() as u64);

@@ -11,7 +11,7 @@ const COM1: usize = 0x3f8;
 const COM2: usize = 0x2f8;
 
 /// The serial device.
-static SERIAL: Mutex<PioSerial> = Mutex::new(unsafe { PioSerial::new(COM2) });
+static SERIAL: Mutex<PioSerial> = Mutex::new(unsafe { PioSerial::new(COM1) });
 
 pub type WriterType = MutexGuard<'static, PioSerial>;
 
@@ -31,7 +31,7 @@ pub unsafe fn init() {
     let mut serial = SERIAL.lock();
     let _invalid_serial = false;
 
-    *serial = PioSerial::new(0x3f8);
+    *serial = PioSerial::new(COM1);
 
     serial.init();
 
