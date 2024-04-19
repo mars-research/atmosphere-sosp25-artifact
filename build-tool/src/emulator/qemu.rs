@@ -124,9 +124,23 @@ impl Emulator for Qemu {
             command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48"]); // FIXME: AMD
         }
 
+        if config.use_iommu {
+            // The intel-iommu device must come before vfio-pci, otherwise
+            // shadow IOMMU tables won't be configured correctly
+            command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48,caching-mode=on"]); // FIXME: AMD
+
+            command.args(&["--trace", "vfio_*"]);
+            command.args(&["--trace", "vtd_*"]);
+            command.args(&["--trace", "iommufd_*"]);
+            command.args(&["-D", "/tmp/qemu-log.txt"]);
+        }
+
         if !config.pci_dev.is_empty() {
             for dev in &config.pci_dev {
-                command.args(&["-device", &format!("vfio-pci,romfile=,host={}", dev)]);
+                //command.args(&["-object", "iommufd,id=iommufd0"]);
+                command.args(&["-device", &format!("vfio-pci,host={}", dev)]);
+                //command.args(&["-device", &format!("vfio-pci,host={},iommufd=iommufd0", dev)]);
+                //command.args(&["-device", &format!("vfio-pci,fd=23,iommufd=iommufd0")]);
             }
         }
 

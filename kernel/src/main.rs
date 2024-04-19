@@ -83,7 +83,9 @@ fn main(boot_info: *const BootInfo) -> isize {
         boot::init(boot_info);
         iommu::init_iommu();
 
-        console::init();
+        // XXX: disable reinitializing console as it hangs on real hw. disabling it on qemu doesn't
+        // cause any harm
+        //console::init();
         logging::init();
     }
 

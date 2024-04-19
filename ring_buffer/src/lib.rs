@@ -8,8 +8,6 @@ use pcid::utils::PciBarAddr;
 pub const SIZE_OF_QUEUE:usize = 4096;
 pub const SIZE_OF_BUFFER:usize = 4096;
 
-pub const USERSPACE_BASE: u64 = 0x80_0000_0000;
-
 #[repr(align(4096))]
 #[repr(C)]
 pub struct DataBufferAllocWrapper{

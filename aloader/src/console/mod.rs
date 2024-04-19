@@ -4,14 +4,10 @@ use core::fmt::Write;
 
 use astd::sync::{Mutex, MutexGuard};
 use ns16550a::PioSerial;
-
-#[allow(dead_code)]
-const COM1: usize = 0x3f8;
-#[allow(dead_code)]
-const COM2: usize = 0x2f8;
+use constants::*;
 
 /// The serial device.
-static SERIAL: Mutex<PioSerial> = Mutex::new(unsafe { PioSerial::new(COM2) });
+static SERIAL: Mutex<PioSerial> = Mutex::new(unsafe { PioSerial::new(SPORT_ADDR) });
 
 pub type WriterType = MutexGuard<'static, PioSerial>;
 
@@ -31,7 +27,7 @@ pub unsafe fn init() {
     let mut serial = SERIAL.lock();
     let _invalid_serial = false;
 
-    *serial = PioSerial::new(0x3f8);
+    *serial = PioSerial::new(SPORT_ADDR);
 
     serial.init();
 

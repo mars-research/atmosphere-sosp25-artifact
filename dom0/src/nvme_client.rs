@@ -1,6 +1,5 @@
 extern crate nvme_driver;
 extern crate ring_buffer;
-use crate::USERSPACE_BASE;
 use core::mem::MaybeUninit;
 use libtime::rdtsc;
 use libtime::sys_ns_loopsleep;
@@ -13,15 +12,16 @@ use core::arch::asm;
 use crate::DATA_BUFFER_ADDR;
 use ring_buffer::*;
 use core::arch::x86_64::_rdtsc;
+use constants::*;
 
 pub fn test_nvme_driver() {
     unsafe {
         let pml4 = asys::sys_rd_io_cr3() as u64;
-        asys::sys_set_device_iommu(0x0, 0x3, 0x0, pml4);
+        asys::sys_set_device_iommu(NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2, pml4);
     }
 
     let mut nvme_dev =
-        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xfebf_0000, 0x4000)) };
+        unsafe { NvmeDevice::new(PciBarAddr::new(USERSPACE_BASE + NVME_BAR_BASE, NVME_BAR_SIZE)) };
 
     log::info!("Initializing Nvme driver...");
 
@@ -29,10 +29,10 @@ pub fn test_nvme_driver() {
 
     log::info!("Running Nvme Read/write tests!");
 
-    //run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, true, false, 0);
-    //run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, false, false, 0);
+    run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, true, false, 0);
+    run_blocktest_raw_with_delay(&mut nvme_dev, 30, 32, false, false, 0);
 
-    run_blocktest_blkreq(&mut nvme_dev);
+    //run_blocktest_blkreq(&mut nvme_dev);
 
 }
 

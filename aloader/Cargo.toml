@@ -9,6 +9,7 @@ astd = { path = "../astd", features = ["kernel"] }
 atest = { path = "../atest" }
 ns16550a = { path = "../ns16550a" }
 kernel-logger = { path = "../kernel-logger" }
+constants = { path = "../constants" }
 
 bit_field = "0.10.2"
 cfg-match = "0.2.1"

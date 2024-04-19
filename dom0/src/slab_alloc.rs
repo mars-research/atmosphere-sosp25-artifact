@@ -5,6 +5,8 @@ use core::ptr::NonNull;
 use log::trace;
 use slabmalloc::*;
 use spin::Mutex;
+use constants::*;
+
 /// SLAB_ALLOC is set as the system's default allocator, it's implementation follows below.
 ///
 /// It's a ZoneAllocator wrapped inside a Mutex.
@@ -42,6 +44,16 @@ impl Pager {
                         log::error!("sys_io_mmap failed {:?}", error_code);
                         0 as *mut u8
                     } else {
+                        log::info!("Invalidate_iotlb for {:>02x}:{:>02x}.{:01x}", NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2);
+                        if page_size == Self::LARGE_PAGE_SIZE {
+                            let mut base_addr = _mmap_addr as usize;
+                            let num_4k_pages = Self::LARGE_PAGE_SIZE / Self::BASE_PAGE_SIZE;
+                            for i in 0..num_4k_pages {
+                                asys::sys_invalidate_iotlb(NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2, (base_addr + i * Self::BASE_PAGE_SIZE) as u64);
+                            }
+                        } else {
+                            asys::sys_invalidate_iotlb(NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2, _mmap_addr as u64);
+                        }
                         _mmap_addr as *mut u8
                     }
                 }

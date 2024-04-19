@@ -27,11 +27,14 @@ pub fn run_blocktest_raw_with_delay(
 ) {
     let req: Vec<u8>;
     if is_write {
-        req = alloc::vec![0xdeu8; 4096];
+        req = alloc::vec![0xabu8; 4096];
     } else {
         req = alloc::vec![0u8; 4096];
     }
 
+    dev.stats.reset_stats();
+    let (s, c) = dev.stats.get_stats();
+    println!("sub {}, comp {}", s, c);
     let mut submit: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz as usize);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
@@ -97,7 +100,9 @@ pub fn run_blocktest_raw_with_delay(
             alloc_count += 1;
             //println!("allocating new batch at count {}", count);
             for _i in 0..batch_sz {
-                submit.push_back(req.clone());
+                let req1 = req.clone();
+                //println!("req 0x{:08x}", req1.as_ptr() as u64);
+                submit.push_back(req1);
             }
         }
 
@@ -114,6 +119,7 @@ pub fn run_blocktest_raw_with_delay(
     let (sub, comp) = dev.stats.get_stats();
 
     println!("Polling ....");
+
 
     let done = dev.poll_raw(&mut collect);
 
@@ -161,7 +167,12 @@ pub fn run_blocktest_blkreq(dev: &mut NvmeDevice) {
     let mut collect: VecDeque<BlockReq> = VecDeque::new();
 
     for i in 0..32 {
-        let mut breq = BlockReq::new(block_num, 8, req.clone().leak().as_ptr() as usize, BlockOp::Read);
+        let mut breq = BlockReq::new(
+            block_num,
+            8,
+            req.clone().leak().as_ptr() as usize,
+            BlockOp::Read,
+        );
         block_num = block_num.wrapping_add(8);
         submit.push_back(breq);
     }
@@ -209,7 +220,12 @@ pub fn run_blocktest_blkreq(dev: &mut NvmeDevice) {
             alloc_count += 1;
             let alloc_rdstc_start = rdtsc();
             for i in 0..32 {
-                let breq = BlockReq::new(block_num, 8, req.clone().leak().as_ptr() as usize, BlockOp::Read);
+                let breq = BlockReq::new(
+                    block_num,
+                    8,
+                    req.clone().leak().as_ptr() as usize,
+                    BlockOp::Read,
+                );
                 block_num = block_num.wrapping_add(8);
                 submit.push_back(breq);
             }

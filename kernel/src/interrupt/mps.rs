@@ -91,6 +91,10 @@ impl ConfigurationTable {
 }
 
 pub unsafe fn probe_ioapic() -> usize {
+    FALLBACK_IOAPIC_BASE
+}
+
+/*pub unsafe fn probe_ioapic() -> usize {
     let fp_p = find_fp(EBDA_BASE, EBDA_MAX_SIZE).or_else(|| find_fp(BIOS_BASE, BIOS_MAX_SIZE));
 
     let fp = if let Some(fp_p) = fp_p {
@@ -104,7 +108,7 @@ pub unsafe fn probe_ioapic() -> usize {
     let config = fp.get_config_table();
     let ioapic = config.get_ioapic_entry().expect("No IOAPIC entry found");
     return ioapic.base as usize;
-}
+}*/
 
 unsafe fn find_fp(base: usize, size: usize) -> Option<*const FloatingPointer> {
     let mut cur = base;

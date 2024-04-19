@@ -4,7 +4,6 @@ use crate::queue::NvmeCommandQueue;
 use crate::queue::NvmeCompletionQueue;
 use crate::regs::NvmeArrayRegs;
 use crate::regs::{NvmeRegs32, NvmeRegs64};
-use crate::NUM_LBAS;
 use crate::{BlockOp, BlockReq};
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
@@ -17,6 +16,7 @@ use libdma::nvme::{allocate_dma, NvmeCommand, NvmeCompletion};
 use libdma::Dma;
 use libtime::sys_ns_loopsleep;
 use pcid::utils::PciBarAddr;
+use constants::*;
 
 use ring_buffer::*;
 
@@ -24,6 +24,12 @@ const ONE_MS_IN_NS: u64 = 1000_000;
 const NVME_CC_ENABLE: u32 = 0x1;
 const NVME_CSTS_RDY: u32 = 0x1;
 
+static mut NUM_LBAS: u64 = 0;
+
+#[inline(always)]
+pub fn num_lbas() -> u64 {
+    unsafe { NUM_LBAS }
+}
 struct NvmeNamespace {
     pub id: u32,
     pub blocks: u64,
@@ -240,12 +246,12 @@ impl NvmeDevice {
         for io_qid in 1..self.completion_queues.len() {
             let (ptr, len) = {
                 let queue = &self.completion_queues[io_qid];
-                (queue.data.physical(), queue.data.len())
+                (queue.data.physical(), queue.queue_len)
             };
 
             println!(
-                "  - Attempting to create I/O completion queue {} with virt 0x{:08x} phys 0x{:08x}",
-                io_qid, &*self.completion_queues[io_qid].data as *const _ as u64, ptr
+                "  - Attempting to create I/O completion queue {} with virt 0x{:08x} phys 0x{:08x} | len {}",
+                io_qid, &*self.completion_queues[io_qid].data as *const _ as u64, ptr, len * core::mem::size_of::<NvmeCompletion>(),
             );
             {
                 let qid = 0;
@@ -273,8 +279,8 @@ impl NvmeDevice {
             };
 
             println!(
-                "  - Attempting to create I/O submission queue {} with virt 0x{:08x} phys 0x{:08x}",
-                io_qid, &*self.submission_queues[io_qid].data as *const _ as u64, ptr
+                "  - Attempting to create I/O submission queue {} with virt 0x{:08x} phys 0x{:08x} | len {} | entry_size {} | Q Depth {}",
+                io_qid, &*self.submission_queues[io_qid].data as *const _ as u64, ptr, len, core::mem::size_of::<NvmeCommand>(), crate::queue::QUEUE_DEPTH
             );
             {
                 let qid = 0;
@@ -324,7 +330,7 @@ impl NvmeDevice {
 
         self.write_reg32(
             NvmeRegs32::AQA,
-            ((acq.data.len() as u32 - 1) << 16) | (asq.data.len() as u32 - 1),
+            ((acq.queue_len as u32 - 1) << 16) | (asq.data.len() as u32 - 1),
         );
         println!(
             "asq.data.virt {:08x} phys {:08x} size {}",
@@ -336,7 +342,7 @@ impl NvmeDevice {
             "acq.data.virt {:08x} phys {:08x} size {}",
             &*acq.data as *const _ as *const u64 as u64,
             acq.data.physical() as u64,
-            acq.data.len(),
+            acq.queue_len,
         );
 
         self.write_reg64(NvmeRegs64::ASQ, asq.data.physical() as u64);
@@ -347,6 +353,13 @@ impl NvmeDevice {
     pub fn identify_controller(&mut self) {
         println!("allocating dma!");
         let data: Dma<[u8; 4096]> = allocate_dma().unwrap();
+
+        // HACK
+        println!("reloading iommu");
+        unsafe {
+            let pml4 = asys::sys_rd_io_cr3() as u64;
+            asys::sys_set_device_iommu(NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2, pml4);
+        }
 
         println!(
             "  - Attempting to identify controller with data {:x}",
@@ -473,6 +486,10 @@ impl NvmeDevice {
                 capacity * 512,
             );
 
+            if capacity > 0 {
+                NUM_LBAS = capacity;
+            }
+
             //TODO: Read block size
             self.namespaces.push(NvmeNamespace {
                 id: nsid,
@@ -481,6 +498,15 @@ impl NvmeDevice {
             });
         }
     }
+
+    pub fn dump_queues(&mut self, qid: usize) {
+        println!("| idx | sq | ");
+        for i in 0..crate::queue::QUEUE_DEPTH {
+            println!("[{}] sq.slot: {} sq.breq_rrefs {}", i, self.submission_queues[qid].req_slot[i],
+                                        self.submission_queues[qid].raw_requests_vec[i].is_some());
+        }
+    }
+
 
     pub fn submit_and_poll_breq(
         &mut self,
@@ -491,7 +517,7 @@ impl NvmeDevice {
         let mut reap_count = 0;
         let mut cur_tail = 0;
         let mut cur_head = 0;
-        let batch_sz = 32;
+        let batch_sz = 8;
         let reap_all = false;
         let qid = 1;
 
@@ -619,7 +645,8 @@ impl NvmeDevice {
 
         while let Some(breq) = submit.pop_front() {
             // FIXME: store both (vaddr, paddr) to avoid calling this everytime
-            let (ptr0, ptr1) = unsafe { (sys_mresolve(breq.as_ptr() as usize).0 as u64, 0) };
+            //let (ptr0, ptr1) = unsafe { (sys_mresolve(breq.as_ptr() as usize).0 as u64, 0) };
+            let (ptr0, ptr1) = (breq.as_ptr() as u64, 0);
             //println!("breq 0x{:08x} ptr0 0x{:08x}", breq.as_ptr() as u64, ptr0);
             let queue = &mut self.submission_queues[qid];
 
@@ -649,11 +676,10 @@ impl NvmeDevice {
             if queue.is_submittable() {
                 if let Some(tail) = if is_random {
                     //queue.submit_request_rand_raw(entry, breq.as_ptr() as u64)
-                    queue.submit_request_raw(entry, breq.as_ptr() as u64)
+                    queue.submit_request_raw_vec(entry, breq)
                 } else {
-                    queue.submit_request_raw(entry, breq.as_ptr() as u64)
+                    queue.submit_request_raw_vec(entry, breq)
                 } {
-                    core::mem::forget(breq);
                     cur_tail = tail;
                     sub_count += 1;
 
@@ -663,14 +689,28 @@ impl NvmeDevice {
                     } else {
                         queue.complete()
                     } {
+                        assert_eq!(entry.status >> 1, 0);
+                        /*if entry.status >> 1 > 0 {
+                            log::info!(
+                                "head {} entry {:#?} cq_idx {}  command {:#?}",
+                                head,
+                                entry,
+                                cq_idx,
+                                self.submission_queues[qid].data[cq_idx]
+                            );
+                            sys_ns_loopsleep(100);
+                            self.dump_queues(qid);
+                            assert_eq!(entry.status >> 1, 0);
+                        }*/
+
                         //println!("Got head {} cq_idx {}", head, cq_idx);
                         let sq = &mut self.submission_queues[qid];
                         if sq.req_slot[cq_idx] == true {
-                            if let Some(req) = &mut sq.raw_requests[cq_idx] {
-                                let vec =
-                                    unsafe { Vec::from_raw_parts(*req as *mut u8, 4096, 4096) };
+                            if let Some(req) = sq.raw_requests_vec[cq_idx].take() {
+                                //let vec =
+                                //    unsafe { Vec::from_raw_parts(*req as *mut u8, 4096, 4096) };
 
-                                collect.push_front(vec);
+                                collect.push_front(req);
                             }
                             sq.req_slot[cq_idx] = false;
                             reap_count += 1;
@@ -692,6 +732,8 @@ impl NvmeDevice {
 
         if sub_count > 0 {
             self.submission_queue_tail(qid as u16, cur_tail as u16);
+            x86::fence::sfence();
+            core::hint::black_box(cur_tail);
         }
 
         {
@@ -705,15 +747,43 @@ impl NvmeDevice {
                 } else {
                     queue.complete()
                 } {
+                    if entry.status >> 1 > 0 {
+                        log::info!(
+                            "head {} entry {:#?} cq_idx {}  command {:#?}",
+                            head,
+                            entry,
+                            cq_idx,
+                            self.submission_queues[qid].data[cq_idx]
+                        );
+                        //sys_ns_loopsleep(100);
+                        assert_eq!(entry.status >> 1, 0);
+                    } /*else {
+                          log::info!(
+                              "==> head {} entry {:#?} cq_idx {} vaddr {:>08x} paddr {:>08x} command {:#?}",
+                              head,
+                              entry,
+                              cq_idx,
+                              self.submission_queues[qid].raw_requests[cq_idx].expect("not found"),
+                              unsafe {
+                                  sys_mresolve(
+                                      self.submission_queues[qid].raw_requests[cq_idx]
+                                          .expect("not found") as usize,
+                                  )
+                                  .0
+                              },
+                              self.submission_queues[qid].data[cq_idx]
+                          );
+                      }*/
                     //println!("Got head {} cq_idx {}", head, cq_idx);
                     let sq = &mut self.submission_queues[qid];
                     if sq.req_slot[cq_idx] == true {
-                        if let Some(req) = &mut sq.raw_requests[cq_idx] {
-                            let vec = unsafe { Vec::from_raw_parts(*req as *mut u8, 4096, 4096) };
+                        if let Some(req) = sq.raw_requests_vec[cq_idx].take() {
+                            //let vec = unsafe { Vec::from_raw_parts(*req as *mut u8, 4096, 4096) };
 
-                            collect.push_front(vec);
+                            collect.push_front(req);
                         }
                         sq.req_slot[cq_idx] = false;
+                        sq.raw_requests_vec[cq_idx] = None;
                         reap_count += 1;
                     }
                     cur_head = head;
@@ -724,7 +794,9 @@ impl NvmeDevice {
                 }
             }
             if reap_count > 0 {
+                //x86::fence::sfence();
                 self.completion_queue_head(qid as u16, cur_head as u16);
+                x86::fence::sfence();
             }
         }
 
@@ -804,7 +876,7 @@ impl NvmeDevice {
             let cq = &mut self.completion_queues[qid];
             let sq = &mut self.submission_queues[qid];
 
-            let cid = cq.get_cq_head() % cq.data.len();
+            let cid = cq.get_cq_head() % cq.queue_len;
 
             if sq.req_slot[cid] {
                 if let Some((head, entry, cq_idx)) = if reap_all {
@@ -812,13 +884,13 @@ impl NvmeDevice {
                 } else {
                     cq.complete()
                 } {
-                    if let Some(req) = &mut sq.raw_requests[cq_idx] {
-                        let vec = unsafe { Vec::from_raw_parts(*req as *mut u8, 4096, 4096) };
+                    if let Some(req) = sq.raw_requests_vec[cq_idx].take() {
+                        //let vec = unsafe { Vec::from_raw_parts(*req as *mut u8, 4096, 4096) };
 
-                        collect.push_front(vec);
+                        collect.push_front(req);
                     }
                     sq.req_slot[cq_idx] = false;
-                    sq.raw_requests[cq_idx] = None;
+                    sq.raw_requests_vec[cq_idx] = None;
                     reap_count += 1;
                     cur_head = head;
                     //TODO: Handle errors
@@ -829,7 +901,7 @@ impl NvmeDevice {
             }
             count += 1;
 
-            if count == cq.data.len() {
+            if count == cq.queue_len {
                 break;
             }
         }
@@ -915,10 +987,9 @@ impl NvmeDevice {
                 break;
             }
 
-            if sub_count >= batch_sz{
+            if sub_count >= batch_sz {
                 break;
             }
-
         }
 
         if sub_count > 0 {
@@ -942,9 +1013,7 @@ impl NvmeDevice {
                     let sq = &mut self.submission_queues[qid];
                     if sq.req_slot[cq_idx] == true {
                         if let Some(req) = sq.breq_requests[cq_idx].take() {
-                            while collect.try_push(&req) == false{
-
-                            }
+                            while collect.try_push(&req) == false {}
                         }
                         sq.req_slot[cq_idx] = false;
                         sq.breq_requests[cq_idx] = None;

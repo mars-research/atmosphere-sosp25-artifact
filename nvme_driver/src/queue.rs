@@ -1,19 +1,39 @@
 #[macro_use]
 use libdma::Dma;
-//use crate::println;
 use crate::BlockReq;
-use crate::NUM_LBAS;
+use alloc::vec::Vec;
 use core::arch::asm;
 use libdma::nvme::allocate_dma;
 use libdma::nvme::{NvmeCommand, NvmeCompletion};
-use libdma::DmaAllocator;
+use crate::device::num_lbas;
 
-#[repr(align(4096))]
+struct Rand {
+    seed: u64,
+    pow: u64,
+}
+
+impl Rand {
+    fn new() -> Rand {
+        Rand {
+            seed: 123456789,
+            pow: 2u64.pow(31),
+        }
+    }
+
+    #[inline(always)]
+    fn get_rand_block(&mut self) -> u64 {
+        self.seed = (1103515245 * self.seed + 12345) % self.pow;
+        self.seed % num_lbas()
+    }
+}
+
+//#[repr(align(4096))]
 pub(crate) struct NvmeCommandQueue {
     pub data: Dma<[NvmeCommand; QUEUE_DEPTH]>,
-    //rand: Rand,
+    rand: Rand,
     pub i: usize,
     pub raw_requests: [Option<u64>; QUEUE_DEPTH],
+    pub raw_requests_vec: [Option<Vec<u8>>; QUEUE_DEPTH],
     pub breq_requests: [Option<BlockReq>; QUEUE_DEPTH],
     pub req_slot: [bool; QUEUE_DEPTH],
     block: u64,
@@ -25,10 +45,11 @@ impl NvmeCommandQueue {
             data: allocate_dma()?,
             i: 0,
             raw_requests: array_init::array_init(|_| None),
+            raw_requests_vec: array_init::array_init(|_| None),
             breq_requests: array_init::array_init(|_| None),
             req_slot: [false; QUEUE_DEPTH],
             block: 0,
-            //rand: Rand::new(),
+            rand: Rand::new(),
         };
         Ok(module)
     }
@@ -49,7 +70,7 @@ impl NvmeCommandQueue {
         if self.req_slot[cur_idx] == false {
             self.data[cur_idx] = entry;
             self.data[cur_idx].cid = cur_idx as u16;
-            self.data[cur_idx].cdw10 %= NUM_LBAS as u32;
+            self.data[cur_idx].cdw10 %= num_lbas() as u32;
             let cid = cur_idx as u16;
 
             //println!("Submitting block[{}] {} at slot {}", cid, breq.block, cur_idx);
@@ -75,14 +96,42 @@ impl NvmeCommandQueue {
             self.raw_requests[cur_idx] = Some(data);
             self.data[cur_idx].cdw10 = self.block as u32;
 
-            self.block = (self.block + 8) % NUM_LBAS;
+            self.block = (self.block + 8) % num_lbas();
 
-            log::trace!(
+            /*log::trace!(
                 "Submitting block[{}] {} at slot {}",
                 cid,
                 self.block,
                 cur_idx
-            );
+            );*/
+
+            self.req_slot[cur_idx] = true;
+            self.i = (cur_idx + 1) % self.data.len();
+            Some(self.i)
+        } else {
+            //println!("No free slot");
+            None
+        }
+    }
+
+    pub fn submit_request_raw_vec(&mut self, entry: NvmeCommand, data: Vec<u8>) -> Option<usize> {
+        let cur_idx = self.i;
+        if self.req_slot[cur_idx] == false {
+            self.data[cur_idx] = entry;
+            self.data[cur_idx].cid = cur_idx as u16;
+            let cid = cur_idx as u16;
+
+            self.raw_requests_vec[cur_idx] = Some(data);
+            self.data[cur_idx].cdw10 = self.block as u32;
+
+            self.block = (self.block + 8) % num_lbas();
+
+            /*log::trace!(
+                "Submitting block[{}] {} at slot {}",
+                cid,
+                self.block,
+                cur_idx
+            );*/
 
             self.req_slot[cur_idx] = true;
             self.i = (cur_idx + 1) % self.data.len();
@@ -94,12 +143,13 @@ impl NvmeCommandQueue {
     }
 }
 
-pub const QUEUE_DEPTH: usize = 256;
+pub const QUEUE_DEPTH: usize = 1024;
 
 pub(crate) struct NvmeCompletionQueue {
-    pub data: Dma<[NvmeCompletion; QUEUE_DEPTH]>,
+    pub data: Dma<[NvmeCompletion; QUEUE_DEPTH * 1]>,
     pub i: usize,
     pub phase: bool,
+    pub queue_len : usize,
 }
 
 impl NvmeCompletionQueue {
@@ -108,6 +158,7 @@ impl NvmeCompletionQueue {
             data: allocate_dma()?,
             i: 0,
             phase: true,
+            queue_len: QUEUE_DEPTH,
         })
     }
 
@@ -120,7 +171,7 @@ impl NvmeCompletionQueue {
         let mut cq_entry: usize = 0;
         if ((entry.status & 1) == 1) == self.phase {
             cq_entry = self.i;
-            self.i = (self.i + 1) % self.data.len();
+            self.i = (self.i + 1) % self.queue_len;
             if self.i == 0 {
                 self.phase = !self.phase;
             }
@@ -144,7 +195,7 @@ impl NvmeCompletionQueue {
     }
 
     pub fn advance(&mut self) {
-        self.i = (self.i + 1) % self.data.len();
+        self.i = (self.i + 1) % self.queue_len;
         if self.i == 0 {
             //println!("switching phase from {} to {}", self.phase, !self.phase);
             self.phase = !self.phase;
