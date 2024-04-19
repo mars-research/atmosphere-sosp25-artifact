@@ -32,6 +32,9 @@ use verified::trap::Registers;
 /// The IRQ offset.
 pub const IRQ_OFFSET: usize = 32;
 
+pub const IRQ_TIMER: usize = 0;
+pub const IRQ_IOMMU_FAULT: usize = 1;
+
 pub const IST_EXCEPTION: usize = 1;
 pub const IST_IRQ: usize = 2;
 
@@ -268,6 +271,17 @@ unsafe extern "C" fn timer(regs: &mut Registers) {
     end_of_interrupt();
 }
 
+/// IOMMU fault handler.
+unsafe extern "C" fn iommu_fault(regs: &mut Registers) {
+    log::error!("CPU {}: IOMMU fault: {:#x?}",
+        crate::cpu::get_cpu_id(),
+        regs,
+    );
+    crate::iommu::dump_iommu_fault().unwrap();
+    crate::debugger::breakpoint(2);
+    spin_forever();
+}
+
 /// An interrupt.
 #[derive(Copy, Clone, Debug)]
 pub enum Interrupt {
@@ -412,7 +426,10 @@ pub unsafe fn init() {
         .set_handler_fn(wrap_interrupt_with_error_code!(general_protection_fault));
     idt.page_fault.set_handler_fn(wrap_interrupt_with_error_code!(page_fault));
 
-    idt.interrupts[0].set_handler_fn(wrap_interrupt!(timer));
+    idt.interrupts[IRQ_TIMER].set_handler_fn(wrap_interrupt!(timer));
+
+    idt.interrupts[IRQ_IOMMU_FAULT].set_handler_fn(wrap_interrupt!(iommu_fault));
+    idt.interrupts[IRQ_IOMMU_FAULT].attributes.set_privilege_level(Ring::Ring3);
 
     let ioapic_base = mps::probe_ioapic();
     ioapic::init(ioapic_base);
