@@ -42,7 +42,7 @@ pub fn run_blocktest_raw_with_delay(
 
     for _i in 0..batch_sz {
         let req1 = req.clone();
-        println!("req 0x{:08x}", req1.as_ptr() as u64);
+        //println!("req 0x{:08x}", req1.as_ptr() as u64);
         submit.push_back(req1);
     }
 
@@ -96,15 +96,15 @@ pub fn run_blocktest_raw_with_delay(
         //println!("Append # {} finished blocks {}", count, collect.len());
         submit.append(&mut collect);
 
-        /*if submit.is_empty() {
+        if submit.is_empty() {
             alloc_count += 1;
-            println!("allocating new batch at count {}", count);
+            //println!("allocating new batch at count {}", count);
             for _i in 0..batch_sz {
                 let req1 = req.clone();
-                println!("req 0x{:08x}", req1.as_ptr() as u64);
+                //println!("req 0x{:08x}", req1.as_ptr() as u64);
                 submit.push_back(req1);
             }
-        }*/
+        }
 
         if rdtsc() > tsc_end {
             break;

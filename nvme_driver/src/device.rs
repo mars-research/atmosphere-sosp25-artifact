@@ -683,7 +683,7 @@ impl NvmeDevice {
                     cur_tail = tail;
                     sub_count += 1;
 
-                    /*let queue = &mut self.completion_queues[qid];
+                    let queue = &mut self.completion_queues[qid];
                     if let Some((head, entry, cq_idx)) = if reap_all {
                         Some(queue.complete_spin())
                     } else {
@@ -720,7 +720,7 @@ impl NvmeDevice {
                         cur_head = head;
                         //TODO: Handle errors
                         self.stats.completed += 1;
-                    }*/
+                    }
 
                     self.stats.submitted += 1;
                 }
