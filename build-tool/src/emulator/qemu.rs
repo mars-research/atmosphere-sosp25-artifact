@@ -121,12 +121,6 @@ impl Emulator for Qemu {
         if config.use_iommu {
             // The intel-iommu device must come before vfio-pci, otherwise
             // shadow IOMMU tables won't be configured correctly
-            command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48"]); // FIXME: AMD
-        }
-
-        if config.use_iommu {
-            // The intel-iommu device must come before vfio-pci, otherwise
-            // shadow IOMMU tables won't be configured correctly
             command.args(&["-device", "intel-iommu,intremap=on,aw-bits=48,caching-mode=on"]); // FIXME: AMD
 
             command.args(&["--trace", "vfio_*"]);
