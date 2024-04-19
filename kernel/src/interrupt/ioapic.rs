@@ -17,6 +17,7 @@ pub unsafe fn init_cpu() {
 
     let ioapic = IOAPIC.assume_init_mut();
     ioapic.enable(0, crate::cpu::get_cpu_id() as u8);
+    ioapic.enable(1, crate::cpu::get_cpu_id() as u8);
 
     let xapic = cpu.xapic.assume_init_mut();
 

@@ -10,6 +10,7 @@ use core::pin::Pin;
 use core::ptr;
 
 use bit_field::BitField;
+use bitfield_struct::bitfield;
 
 use astd::sync::Mutex;
 
@@ -57,6 +58,48 @@ struct ContextTableEntry {
     upper: u64,
 }
 
+#[bitfield(u128)]
+struct FaultRecording {
+    #[bits(12, default = 0)]
+    _reserved: u16,
+
+    #[bits(52)]
+    fault_info: u64,
+
+    #[bits(16)]
+    source_id: u16,
+
+    #[bits(12, default = 0)]
+    _reserved2: u16,
+
+    #[bits(1)]
+    t2: bool,
+
+    #[bits(1)]
+    privileged_requested: bool,
+
+    #[bits(1)]
+    exec_requested: bool,
+
+    #[bits(1)]
+    pasid_present: bool,
+
+    #[bits(8)]
+    fault_reason: u8,
+
+    #[bits(20)]
+    pasid: u32,
+
+    #[bits(2)]
+    address_type: u8,
+
+    #[bits(1)]
+    t1: bool,
+
+    #[bits(1)]
+    fault: bool,
+}
+
 impl RemappingHardware {
     const VER_REG: usize = 0;
     const CAP_REG: usize = 0x08;
@@ -65,10 +108,16 @@ impl RemappingHardware {
     const GSTS_REG: usize = 0x1c;
     const RTADDR_REG: usize = 0x20;
     const CCMD_REG: usize = 0x28;
+    const FSTS_REG: usize = 0x34;
+    const FECTL_REG: usize = 0x38;
+    const FEDATA_REG: usize = 0x3c;
+    const FEADDR_REG: usize = 0x40;
 
     const IOTLB_REG_OFFSET: usize = 0x8;
 
     const CAP_ESRTPS: usize = 63;               // ESRTPS: Enhanced Set Root Table Pointer Support
+    const CAP_NFR: Range<usize> = 40..48;       // NFR: Number of Fault-recording Registers
+    const CAP_FRO: Range<usize> = 24..34;       // FRO: Fault-recording Register offset
 
     const GCMD_TE: usize = 31;                  // TE: Translation Enable
     const GCMD_SRTP: usize = 30;                // SRTP: Set Root Table Pointer
@@ -83,6 +132,18 @@ impl RemappingHardware {
     const IOTLBCMD_IIRG_GLOBAL: u64 = 0b01;
     const IOTLBCMD_IIRG_DOMAIN: u64 = 0b10;
     const IOTLBCMD_IIRG_PAGE: u64 = 0b11;
+
+    const FSTS_FRI: Range<usize> = 8..16;       // FRI: Fault Record Index
+    const FSTS_PPF: usize = 1;                  // PPF: Primary Pending Fault
+
+    const FECTL_IM: usize = 31;                 // IM: Interrupt Mask
+
+    const FEADDR_DEST_MODE: usize = 2;
+    const FEADDR_REDIR_HINT: usize = 3;
+    const FEADDR_APIC_ID: Range<usize> = 12..20;
+    const FEADDR_FEE: Range<usize> = 20..32;
+
+    const FEDATA_IMD: Range<usize> = 0..16;     // IMD: Interrupt Message data
 
     pub unsafe fn new(base: u64) -> Self {
         let mut s = Self {
@@ -113,6 +174,50 @@ impl RemappingHardware {
         unsafe {
             self.read_u32(Self::GSTS_REG)
         }
+    }
+
+    pub fn get_fault_register_num(&self) -> usize {
+        self.cap.get_bits(Self::CAP_NFR) as usize
+    }
+
+    pub fn get_fault_register(&self, index: usize) -> Option<FaultRecording> {
+        if index > self.get_fault_register_num() {
+            return None;
+        }
+
+        let fro = 16 * self.cap.get_bits(Self::CAP_FRO) as usize;
+        let r: FaultRecording = unsafe { self.read_u128(fro).into() };
+
+        Some(r)
+    }
+
+    pub fn get_fault_index(&self) -> Option<usize> {
+        let fsts = unsafe { self.read_u32(Self::FSTS_REG) };
+        let fri = fsts.get_bits(Self::FSTS_FRI);
+        let ppf = fsts.get_bit(Self::FSTS_PPF);
+
+        if !ppf {
+            None
+        } else {
+            Some(fri as usize)
+        }
+    }
+
+    pub unsafe fn set_fault_interrupt(&mut self, apic_id: u8, irq: u8) {
+        let mut fedata = 0;
+        fedata.set_bits(Self::FEDATA_IMD, crate::interrupt::IRQ_OFFSET as u16 + irq as u16);
+        self.write_u32(Self::FEDATA_REG, fedata as u32);
+
+        let mut feaddr: u32 = 0;
+        feaddr.set_bits(Self::FEADDR_FEE, 0xfee);
+        feaddr.set_bits(Self::FEADDR_APIC_ID, apic_id as u32);
+        feaddr.set_bit(Self::FEADDR_REDIR_HINT, false); // the interrupt is directed to the processor listed in the Destination ID field.
+        feaddr.set_bit(Self::FEADDR_DEST_MODE, false); // ignored because RH = 0
+        self.write_u32(Self::FEADDR_REG, feaddr);
+
+        let mut fectl = self.read_u32(Self::FECTL_REG);
+        fectl.set_bit(Self::FECTL_IM, false);
+        self.write_u32(Self::FECTL_REG, fectl);
     }
 
     unsafe fn send_global_command(&mut self, offset: usize, value: bool) {
@@ -219,6 +324,11 @@ impl RemappingHardware {
     unsafe fn write_u64(&self, offset: usize, value: u64) {
         let p = (self.base as usize + offset) as *mut u64;
         ptr::write_volatile(p, value);
+    }
+
+    unsafe fn read_u128(&self, offset: usize) -> u128 {
+        let p = (self.base as usize + offset) as *const u128;
+        ptr::read_volatile(p)
     }
 }
 
@@ -440,6 +550,8 @@ pub unsafe fn init_iommu() {
     iommu.set_root_table_addr(rt.root_table_addr());
     log::info!("Root Table: {:#x}", iommu.root_table_addr());
 
+    iommu.set_fault_interrupt(0, 1);
+
     log::info!("Enabling translation");
     iommu.enable_translation();
 
@@ -467,6 +579,23 @@ pub unsafe fn invalidate_iotlb(bus: usize, device: usize, function: usize, page:
     let iommu = iommu.as_mut().ok_or("No IOMMU hardware")?;
 
     iommu.invalidate_iotlb(bus, device, function, page);
+
+    Ok(())
+}
+
+pub fn dump_iommu_fault() -> Result<(), &'static str> {
+    let mut iommu = IOMMU.lock();
+    let iommu = iommu.as_mut().ok_or("No IOMMU hardware")?;
+
+    let index = if let Some(index) = iommu.get_fault_index() {
+        index
+    } else {
+        return Err("No fault is pending");
+    };
+
+    let recording = iommu.get_fault_register(index);
+
+    log::error!("{:#x?}", recording);
 
     Ok(())
 }
