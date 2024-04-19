@@ -4,6 +4,7 @@
 //!
 //! - PASID: Process Address Space Identifier that identifies the address space targeted by DMA requests.
 
+use core::fmt::{Debug, Formatter};
 use core::mem::MaybeUninit;
 use core::ops::Range;
 use core::pin::Pin;
@@ -44,11 +45,19 @@ struct ContextTable {
     entries: [MaybeUninit<ContextTableEntry>; 256],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 #[repr(C, packed)]
 struct RootTableEntry {
     lower: u64,
     upper: u64,
+}
+
+impl Debug for RootTableEntry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        let lower = self.lower;
+        let upper = self.upper;
+        write!(f, "RTE => lower: 0x{:016x} upper: 0x{:016x}", lower, upper)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
