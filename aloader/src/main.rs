@@ -41,6 +41,7 @@ use aelf::ElfHandle;
 use astd::boot::{BootInfo, DomainMapping, PhysicalMemoryType, Payload};
 use astd::io::{Cursor, Read, Seek, SeekFrom};
 use astd::memory::{USERSPACE_BASE, USERSPACE_PAYLOAD_BASE};
+use constants::*;
 
 use memory::{
     AddressSpace, BootMemoryType, PhysicalAllocator, UserspaceMapper, HUGE_PAGE_SIZE, PAGE_SIZE,
@@ -353,9 +354,9 @@ where
     }
 
     // Nvme bar region
-    let mut cur = 0XFEBE4000;
+    let mut cur = NVME_BAR_BASE;
     let virt_base = USERSPACE_BASE;
-    while cur < 0XFEBE4000 + 0x4000 {
+    while cur < NVME_BAR_BASE + NVME_BAR_SIZE as u64 {
         unsafe {
             address_space.map(
                 page_table_allocator,

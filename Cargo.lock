@@ -59,6 +59,7 @@ dependencies = [
  "atest",
  "bit_field",
  "cfg-match",
+ "constants",
  "displaydoc",
  "goblin",
  "kernel-logger",
@@ -659,6 +660,10 @@ name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
+
+[[package]]
+name = "constants"
+version = "0.1.0"
 
 [[package]]
 name = "core-foundation"
