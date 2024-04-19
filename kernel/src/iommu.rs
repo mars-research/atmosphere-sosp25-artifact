@@ -281,28 +281,31 @@ impl RemappingHardware {
         self.send_global_command(Self::GCMD_SRTP, true);
 
         if !self.cap.get_bit(Self::CAP_ESRTPS) {
-            log::info!("Hardware supports ESRTPS");
+            log::debug!("Hardware claims to support ESRTPS");
         } else {
-            log::info!("Hardware does not support ESRTPS");
-
-            // > For implementations reporting the Enhanced Set Root Table Pointer Support (ESRTPS)
-            // > field as Clear, on a ‘Set Root Table Pointer’ operation, software
-            // > must perform a global invalidate of the context-cache,
-            self.invalidate_context_cache();
-
-            // > PASID-cache (if applicable),
-            // not applicable to us
-
-            // > and IOTLB, in that order.
-            let iro = 16 * self.ecap.get_bits(8..18);
-            let iotlb_reg = iro as usize + Self::IOTLB_REG_OFFSET;
-
-            let mut iotlb_cmd = 0;
-            iotlb_cmd.set_bit(Self::IOTLBCMD_IVT, true);
-            iotlb_cmd.set_bits(Self::IOTLBCMD_IIRG, Self::IOTLBCMD_IIRG_GLOBAL);
-
-            self.write_u64(iotlb_reg, iotlb_cmd);
+            log::debug!("Hardware does not support ESRTPS");
         }
+
+        // The intel-iommu device in QEMU claims to support ESRTPS, but
+        // manual global invalidation still appears to be required.
+
+        // > For implementations reporting the Enhanced Set Root Table Pointer Support (ESRTPS)
+        // > field as Clear, on a ‘Set Root Table Pointer’ operation, software
+        // > must perform a global invalidate of the context-cache,
+        self.invalidate_context_cache();
+
+        // > PASID-cache (if applicable),
+        // not applicable to us
+
+        // > and IOTLB, in that order.
+        let iro = 16 * self.ecap.get_bits(8..18);
+        let iotlb_reg = iro as usize + Self::IOTLB_REG_OFFSET;
+
+        let mut iotlb_cmd = 0;
+        iotlb_cmd.set_bit(Self::IOTLBCMD_IVT, true);
+        iotlb_cmd.set_bits(Self::IOTLBCMD_IIRG, Self::IOTLBCMD_IIRG_GLOBAL);
+
+        self.write_u64(iotlb_reg, iotlb_cmd);
     }
 
     unsafe fn read_u32(&self, offset: usize) -> u32 {
