@@ -16,6 +16,7 @@ ring_buffer = { path = "../ring_buffer" }
 ixgbe_driver = { path = "../ixgbe_driver" }
 
 libtime = { path = "../user/libtime" }
+constants = { path = "../constants" }
 
 slabmalloc = "0.11.0"
 spin = "0.9.8"

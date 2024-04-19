@@ -31,11 +31,7 @@ use libtime::sys_ns_loopsleep;
 pub use log::info as println;
 use nvme_client::test_nvme_driver;
 use pci::scan_pci_devs;
-
-pub const DATA_BUFFER_ADDR: u64 = 0xF000000000;
-pub const USERSPACE_BASE: u64 = 0x80_0000_0000;
-
-pub const IOMMU_TEST_ADDR: u64 = 0xF000000000; 
+use constants::*;
 
 fn test_sleep() {
     log::trace!("Sleeping for 100 ns");
