@@ -1,6 +1,6 @@
 #![no_std]
 
-const NVME_BAR_REAL_HW: u64 = 0x94c0_0000;
+const NVME_BAR_PCI_HW: u64 = 0x94c0_0000;
 const NVME_BAR_PCI_PT: u64 = 0xfebe_4000;
 
 pub const NVME_BAR_BASE: u64 = NVME_BAR_PCI_PT;

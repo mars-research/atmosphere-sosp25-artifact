@@ -16,6 +16,7 @@ use libdma::nvme::{allocate_dma, NvmeCommand, NvmeCompletion};
 use libdma::Dma;
 use libtime::sys_ns_loopsleep;
 use pcid::utils::PciBarAddr;
+use constants::*;
 
 use ring_buffer::*;
 
@@ -357,7 +358,7 @@ impl NvmeDevice {
         println!("reloading iommu");
         unsafe {
             let pml4 = asys::sys_rd_io_cr3() as u64;
-            asys::sys_set_device_iommu(0x0, 0x3, 0x0, pml4);
+            asys::sys_set_device_iommu(NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2, pml4);
         }
 
         println!(
