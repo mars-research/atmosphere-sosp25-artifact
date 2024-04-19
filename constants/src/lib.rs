@@ -22,4 +22,4 @@ const COM1: usize = 0x3f8;
 // d430 baremetal needs COM2
 const COM2: usize = 0x2f8;
 
-pub const SPORT_ADDR: usize = COM2;
+pub const SPORT_ADDR: usize = COM1;
