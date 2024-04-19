@@ -572,8 +572,6 @@ pub unsafe fn map(bus: usize, device: usize, function: usize, pml4: u64) -> Resu
 }
 
 pub unsafe fn invalidate_iotlb(bus: usize, device: usize, function: usize, page: u64) -> Result<(), &'static str> {
-    let iommu = IOMMU.lock();
-
     let mut iommu = IOMMU.lock();
     let iommu = iommu.as_mut().ok_or("No IOMMU hardware")?;
 
