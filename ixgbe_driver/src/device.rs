@@ -3053,14 +3053,10 @@ impl IxgbeDevice {
 
                         //let mut buf = pkt.as_mut_ptr();
                         //let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
-                        if length <= pkt.len {
-                            pkt.len = length;
-                            while reap_queue.try_push(&pkt) == false{
+                        //if length <= pkt.len {
+                        pkt.len = length;
+                        while reap_queue.try_push(&pkt) == false{
 
-                            }
-                            // log::info!("driver received @ {:x}", pkt.addr);
-                        } else {
-                            println!("Not pushed");
                         }
                     }
                     self.rx_slot[rx_clean_index] = false;
