@@ -1,0 +1,15 @@
+[package]
+name = "redhttpd"
+version = "0.1.0"
+authors = ["Zhaofeng Li <hello@zhaofeng.li>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+astd = { path = "../astd" }
+
+[dependencies.smoltcp]
+version = "0.11.0"
+default-features = false
+features = ["alloc", "log", "medium-ethernet", "proto-ipv4", "proto-dns", "socket-tcp", "socket-icmp"]

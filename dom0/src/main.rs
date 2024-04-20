@@ -15,6 +15,7 @@ mod slab_alloc;
 mod elf;
 mod dom1;
 mod maglev;
+mod smoltcp_device;
 
 use core::arch::asm;
 use core::arch::x86_64::_rdtsc;

@@ -14,6 +14,7 @@ pcid = { path = "../pcid" }
 nvme_driver = { path = "../nvme_driver" }
 ring_buffer = { path = "../ring_buffer" }
 ixgbe_driver = { path = "../ixgbe_driver" }
+redhttpd = { path = "../redhttpd" }
 
 libtime = { path = "../user/libtime" }
 constants = { path = "../constants" }
@@ -23,6 +24,11 @@ spin = "0.9.8"
 log = "0.4.19"
 x86 = "0.52.0"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+
+[dependencies.smoltcp]
+version = "0.11.0"
+default-features = false
+features = ["log", "medium-ethernet", "proto-ipv4", "proto-dns", "socket-tcp", "socket-icmp"]
 
 [build-dependencies]
 nasm-rs = "0.3.0"

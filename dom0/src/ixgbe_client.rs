@@ -1414,3 +1414,64 @@ pub fn start_ixgbe_driver_maglev_test(){
         }
     }
 }
+
+pub fn start_ixgbe_driver_smoltcp_test() {
+    use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
+    use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+    use smoltcp::time::Instant;
+
+    use crate::smoltcp_device::SmolIxgbe;
+
+    let size = core::mem::size_of::<IxgbeRingBuffer>();
+    let error_code = unsafe {
+        asys::sys_mmap(DATA_BUFFER_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, size / 4096 + 1)
+    };
+
+    if error_code != 0 {
+        log::info!("sys_mmap for data_buffer failed {:?}", error_code);
+        return;
+    }
+    
+    let buff_ref: &mut IxgbeRingBuffer = unsafe {
+        &mut *(DATA_BUFFER_ADDR as *mut IxgbeRingBuffer)
+    };
+    buff_ref.init();
+    log::info!("data_buffer init done");
+
+    for i in 0..240 {
+        let (addr, paddr) = buff_ref.try_pop_allocator().unwrap();
+        buff_ref.request_queue.try_push(&IxgbePayLoad{addr: addr, paddr: paddr, len: 4096 });
+        log::info!("receiving packet at {:x}", addr);
+    }
+
+    let mut ixgbe_dev =
+        unsafe { IxgbeDevice::new(PciBarAddr::new(USERSPACE_BASE + 0xFE000000, 0x4000)) };
+    ixgbe_dev.init();
+
+    let mut device = crate::smoltcp_device::SmolIxgbe::new(ixgbe_dev, DATA_BUFFER_ADDR as *mut IxgbeRingBuffer);
+
+    let config = Config::new(EthernetAddress([0x90, 0xe2, 0xba, 0xac, 0x16, 0x59]).into());
+    let mut iface = Interface::new(config, &mut device, Instant::from_secs(0));
+    iface.update_ip_addrs(|ip_addrs| {
+        ip_addrs
+            .push(IpCidr::new(IpAddress::v4(10, 0, 0, 2), 24))
+            .unwrap();
+    });
+
+    let mut sockets = [SocketStorage::EMPTY; 1024];
+    let mut sockets = SocketSet::new(sockets.as_mut_slice());
+
+
+    let mut timestamp = 0;
+
+    loop {
+        device.do_rx();
+
+        iface.poll(Instant::from_millis(timestamp), &mut device, &mut sockets);
+        httpd.handle(&mut sockets);
+
+        device.do_tx();
+
+        timestamp += 1;
+    }
+}

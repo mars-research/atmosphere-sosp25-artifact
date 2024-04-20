@@ -12,6 +12,7 @@ members = [
   "ns16550a",
   "kernel",
   "kernel/verified",
+  "redhttpd",
   "ring_buffer",
   "user/hello",
   "user/maglev",
