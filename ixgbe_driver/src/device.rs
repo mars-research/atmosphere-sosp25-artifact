@@ -2730,6 +2730,11 @@ impl IxgbeDevice {
 
         while let Some(packet) = packets.try_read() {
             //println!("Found packet!");
+            if tx_clean_index == wrap_ring(tx_index, self.transmit_ring.len()) {
+                //println!("skip tx");
+                break;
+            }
+
             let mut desc = unsafe {
                 &mut *(self.transmit_ring.as_ptr().add(tx_index) as *mut ixgbe_adv_tx_desc)
             };
@@ -2905,6 +2910,11 @@ impl IxgbeDevice {
         let BATCH_SIZE = 128;
 
         while let Some(packet) = packets.try_read() {
+            if rx_clean_index == wrap_ring(rx_index, self.receive_ring.len()) {
+                //println!("skip rx");
+                break;
+            }
+
             let mut desc = unsafe {
                 &mut *(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc)
             };
