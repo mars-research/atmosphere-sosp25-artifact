@@ -1,0 +1,2450 @@
+{
+    "verification-results": {
+      "encountered-vir-error": false,
+      "success": true,
+      "verified": 317,
+      "errors": 0,
+      "is-verifying-entire-crate": true
+    },
+    "times-ms": {
+      "verus-build": {
+        "profile": "release",
+        "version": "Unknown"
+      },
+      "num-threads": 67,
+      "total": 112961,
+      "estimated-cpu-time": 1174806,
+      "rust": {
+        "total": 2823,
+        "init-and-types": 1130,
+        "lifetime": 572,
+        "compile": 1119
+      },
+      "verification": {
+        "total": 109880,
+        "vir": {
+          "total": 2760,
+          "hir": 404,
+          "rust-to-vir": 2159
+        }
+      },
+      "total-verify": 1168789,
+      "total-verify-module-times": [
+        {
+          "module": "kernel::syscall_ipc::syscall_receive_message",
+          "time": 105531
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_call_with_message",
+          "time": 80272
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_receive_endpoint",
+          "time": 71296
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_send_pages",
+          "time": 67553
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_send_endpoint",
+          "time": 66442
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_send_message",
+          "time": 64565
+        },
+        {
+          "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod2",
+          "time": 64388
+        },
+        {
+          "module": "proc::thread",
+          "time": 57550
+        },
+        {
+          "module": "proc::endpoint",
+          "time": 53955
+        },
+        {
+          "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod4",
+          "time": 47805
+        },
+        {
+          "module": "kernel::syscall_proc::syscall_new_proc_with_iommu_pass_mem",
+          "time": 44031
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_receive_pages",
+          "time": 42200
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_receive_empty",
+          "time": 40173
+        },
+        {
+          "module": "page_alloc::page_alloc_impl",
+          "time": 34125
+        },
+        {
+          "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod1",
+          "time": 30306
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_send_empty",
+          "time": 29623
+        },
+        {
+          "module": "mars_staticlinkedlist",
+          "time": 24711
+        },
+        {
+          "module": "kernel::syscall_proc::syscall_new_proc_with_iommu",
+          "time": 21375
+        },
+        {
+          "module": "kernel::syscall_proc::syscall_new_proc",
+          "time": 19195
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_reply_and_receive",
+          "time": 16388
+        },
+        {
+          "module": "kernel::syscall_mem",
+          "time": 16234
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_send_pages_no_wait",
+          "time": 15907
+        },
+        {
+          "module": "kernel::kernel_ipc_impl::kernel_ipc_impl2",
+          "time": 15785
+        },
+        {
+          "module": "pagetable::pagetable_impl",
+          "time": 15528
+        },
+        {
+          "module": "proc::sched",
+          "time": 13901
+        },
+        {
+          "module": "kernel::kernel_tcb_sched",
+          "time": 13702
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_reply_message",
+          "time": 11461
+        },
+        {
+          "module": "kernel::syscall_thread",
+          "time": 10961
+        },
+        {
+          "module": "kernel::syscall_endpoint",
+          "time": 9995
+        },
+        {
+          "module": "kernel::kernel_init",
+          "time": 9591
+        },
+        {
+          "module": "mmu::mmu_impl",
+          "time": 9091
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_send_empty_no_wait",
+          "time": 8825
+        },
+        {
+          "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod3",
+          "time": 8477
+        },
+        {
+          "module": "proc::proc_impl",
+          "time": 6106
+        },
+        {
+          "module": "proc::proc_spec",
+          "time": 5081
+        },
+        {
+          "module": "kernel::syscall_ipc::syscall_reply_empty",
+          "time": 4196
+        },
+        {
+          "module": "kernel::syscall_pci",
+          "time": 2232
+        },
+        {
+          "module": "mmu::mmu_init",
+          "time": 1842
+        },
+        {
+          "module": "kernel::kernel_spec",
+          "time": 1400
+        },
+        {
+          "module": "mmu::mmu_spec",
+          "time": 923
+        },
+        {
+          "module": "pagetable::pagetable_array",
+          "time": 783
+        },
+        {
+          "module": "pagetable::pagetable_spec",
+          "time": 754
+        },
+        {
+          "module": "page_arena",
+          "time": 488
+        },
+        {
+          "module": "iommutable::iommutable_impl",
+          "time": 404
+        },
+        {
+          "module": "proc::endpoint_util",
+          "time": 337
+        },
+        {
+          "module": "linked_list",
+          "time": 314
+        },
+        {
+          "module": "proc::thread_util",
+          "time": 298
+        },
+        {
+          "module": "pagetable::pagetable_util",
+          "time": 267
+        },
+        {
+          "module": "page_arena::spec_tests",
+          "time": 263
+        },
+        {
+          "module": "page_alloc::page_array",
+          "time": 216
+        },
+        {
+          "module": "iommutable::iommutable_array",
+          "time": 216
+        },
+        {
+          "module": "iommutable::iommutable_spec",
+          "time": 215
+        },
+        {
+          "module": "mmu::pci_bitmap",
+          "time": 210
+        },
+        {
+          "module": "pagetable::pagemap",
+          "time": 176
+        },
+        {
+          "module": "array_vec",
+          "time": 162
+        },
+        {
+          "module": "page_alloc::page_alloc_spec",
+          "time": 161
+        },
+        {
+          "module": "trap",
+          "time": 148
+        },
+        {
+          "module": "cpu",
+          "time": 137
+        },
+        {
+          "module": "proc::proc_util",
+          "time": 129
+        },
+        {
+          "module": "define",
+          "time": 73
+        },
+        {
+          "module": "array_vec::spec_tests",
+          "time": 73
+        },
+        {
+          "module": "mars_array",
+          "time": 71
+        },
+        {
+          "module": "mem",
+          "time": 45
+        },
+        {
+          "module": "array::spec_tests",
+          "time": 44
+        },
+        {
+          "module": "mmu::root_table",
+          "time": 38
+        },
+        {
+          "module": "array",
+          "time": 23
+        },
+        {
+          "module": "page_alloc::lemma",
+          "time": 22
+        }
+      ],
+      "air": {
+        "total": 22026,
+        "module-times": [
+          {
+            "module": "kernel::syscall_ipc::syscall_send_message",
+            "time": 1091
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_endpoint",
+            "time": 1060
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_pages",
+            "time": 992
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_and_receive",
+            "time": 915
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_message",
+            "time": 876
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_pages",
+            "time": 871
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_endpoint",
+            "time": 853
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_call_with_message",
+            "time": 849
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc_with_iommu_pass_mem",
+            "time": 816
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc",
+            "time": 795
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_pages_no_wait",
+            "time": 778
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc_with_iommu",
+            "time": 774
+          },
+          {
+            "module": "kernel::syscall_thread",
+            "time": 745
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_empty",
+            "time": 715
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_empty",
+            "time": 682
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_message",
+            "time": 646
+          },
+          {
+            "module": "kernel::syscall_mem",
+            "time": 615
+          },
+          {
+            "module": "kernel::syscall_pci",
+            "time": 596
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_empty_no_wait",
+            "time": 535
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_empty",
+            "time": 464
+          },
+          {
+            "module": "kernel::kernel_tcb_sched",
+            "time": 459
+          },
+          {
+            "module": "kernel::kernel_ipc_impl::kernel_ipc_impl2",
+            "time": 439
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod1",
+            "time": 436
+          },
+          {
+            "module": "kernel::syscall_endpoint",
+            "time": 383
+          },
+          {
+            "module": "mmu::mmu_impl",
+            "time": 369
+          },
+          {
+            "module": "mars_staticlinkedlist",
+            "time": 339
+          },
+          {
+            "module": "kernel::kernel_init",
+            "time": 308
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod2",
+            "time": 300
+          },
+          {
+            "module": "pagetable::pagetable_array",
+            "time": 285
+          },
+          {
+            "module": "mmu::mmu_init",
+            "time": 278
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod3",
+            "time": 247
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod4",
+            "time": 243
+          },
+          {
+            "module": "proc::sched",
+            "time": 215
+          },
+          {
+            "module": "kernel::kernel_spec",
+            "time": 194
+          },
+          {
+            "module": "proc::thread",
+            "time": 187
+          },
+          {
+            "module": "proc::endpoint",
+            "time": 170
+          },
+          {
+            "module": "proc::proc_spec",
+            "time": 153
+          },
+          {
+            "module": "mmu::mmu_spec",
+            "time": 149
+          },
+          {
+            "module": "proc::thread_util",
+            "time": 148
+          },
+          {
+            "module": "proc::endpoint_util",
+            "time": 137
+          },
+          {
+            "module": "proc::proc_impl",
+            "time": 95
+          },
+          {
+            "module": "page_alloc::page_alloc_impl",
+            "time": 94
+          },
+          {
+            "module": "page_arena",
+            "time": 88
+          },
+          {
+            "module": "pagetable::pagetable_impl",
+            "time": 79
+          },
+          {
+            "module": "linked_list",
+            "time": 72
+          },
+          {
+            "module": "page_alloc::page_array",
+            "time": 66
+          },
+          {
+            "module": "iommutable::iommutable_array",
+            "time": 62
+          },
+          {
+            "module": "iommutable::iommutable_impl",
+            "time": 56
+          },
+          {
+            "module": "iommutable::iommutable_spec",
+            "time": 50
+          },
+          {
+            "module": "pagetable::pagetable_spec",
+            "time": 47
+          },
+          {
+            "module": "cpu",
+            "time": 40
+          },
+          {
+            "module": "mmu::pci_bitmap",
+            "time": 34
+          },
+          {
+            "module": "proc::proc_util",
+            "time": 25
+          },
+          {
+            "module": "array_vec",
+            "time": 24
+          },
+          {
+            "module": "page_alloc::page_alloc_spec",
+            "time": 16
+          },
+          {
+            "module": "pagetable::pagetable_util",
+            "time": 14
+          },
+          {
+            "module": "page_arena::spec_tests",
+            "time": 12
+          },
+          {
+            "module": "array::spec_tests",
+            "time": 12
+          },
+          {
+            "module": "pagetable::pagemap",
+            "time": 8
+          },
+          {
+            "module": "array_vec::spec_tests",
+            "time": 8
+          },
+          {
+            "module": "mmu::root_table",
+            "time": 4
+          },
+          {
+            "module": "mars_array",
+            "time": 4
+          },
+          {
+            "module": "trap",
+            "time": 3
+          },
+          {
+            "module": "define",
+            "time": 3
+          },
+          {
+            "module": "array",
+            "time": 2
+          },
+          {
+            "module": "page_alloc::lemma",
+            "time": 1
+          },
+          {
+            "module": "mem",
+            "time": 0
+          }
+        ]
+      },
+      "smt": {
+        "total": 1100359,
+        "smt-init": 14155,
+        "smt-init-module-times": [
+          {
+            "module": "proc::thread",
+            "time": 1055
+          },
+          {
+            "module": "proc::endpoint",
+            "time": 845
+          },
+          {
+            "module": "proc::proc_spec",
+            "time": 755
+          },
+          {
+            "module": "kernel::syscall_mem",
+            "time": 624
+          },
+          {
+            "module": "kernel::kernel_ipc_impl::kernel_ipc_impl2",
+            "time": 547
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_pages",
+            "time": 394
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod1",
+            "time": 390
+          },
+          {
+            "module": "kernel::syscall_thread",
+            "time": 383
+          },
+          {
+            "module": "mars_staticlinkedlist",
+            "time": 376
+          },
+          {
+            "module": "page_alloc::page_alloc_impl",
+            "time": 375
+          },
+          {
+            "module": "kernel::kernel_tcb_sched",
+            "time": 361
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod2",
+            "time": 353
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_pages",
+            "time": 335
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod4",
+            "time": 332
+          },
+          {
+            "module": "mmu::mmu_impl",
+            "time": 326
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_endpoint",
+            "time": 318
+          },
+          {
+            "module": "proc::proc_impl",
+            "time": 318
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod3",
+            "time": 306
+          },
+          {
+            "module": "pagetable::pagetable_impl",
+            "time": 300
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_message",
+            "time": 299
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_endpoint",
+            "time": 292
+          },
+          {
+            "module": "kernel::kernel_init",
+            "time": 289
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc_with_iommu_pass_mem",
+            "time": 281
+          },
+          {
+            "module": "proc::sched",
+            "time": 274
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_message",
+            "time": 272
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_empty",
+            "time": 272
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_and_receive",
+            "time": 265
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc_with_iommu",
+            "time": 251
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_call_with_message",
+            "time": 240
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc",
+            "time": 235
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_pages_no_wait",
+            "time": 226
+          },
+          {
+            "module": "kernel::syscall_pci",
+            "time": 212
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_message",
+            "time": 206
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_empty",
+            "time": 205
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_empty_no_wait",
+            "time": 180
+          },
+          {
+            "module": "mmu::mmu_init",
+            "time": 168
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_empty",
+            "time": 160
+          },
+          {
+            "module": "kernel::syscall_endpoint",
+            "time": 137
+          },
+          {
+            "module": "page_arena",
+            "time": 133
+          },
+          {
+            "module": "kernel::kernel_spec",
+            "time": 130
+          },
+          {
+            "module": "pagetable::pagetable_spec",
+            "time": 108
+          },
+          {
+            "module": "mmu::mmu_spec",
+            "time": 93
+          },
+          {
+            "module": "trap",
+            "time": 66
+          },
+          {
+            "module": "iommutable::iommutable_impl",
+            "time": 52
+          },
+          {
+            "module": "page_alloc::page_alloc_spec",
+            "time": 48
+          },
+          {
+            "module": "pagetable::pagetable_util",
+            "time": 47
+          },
+          {
+            "module": "page_arena::spec_tests",
+            "time": 40
+          },
+          {
+            "module": "define",
+            "time": 40
+          },
+          {
+            "module": "linked_list",
+            "time": 35
+          },
+          {
+            "module": "pagetable::pagemap",
+            "time": 35
+          },
+          {
+            "module": "array_vec",
+            "time": 34
+          },
+          {
+            "module": "cpu",
+            "time": 34
+          },
+          {
+            "module": "iommutable::iommutable_spec",
+            "time": 32
+          },
+          {
+            "module": "mars_array",
+            "time": 28
+          },
+          {
+            "module": "array_vec::spec_tests",
+            "time": 24
+          },
+          {
+            "module": "array::spec_tests",
+            "time": 19
+          },
+          {
+            "module": "proc::proc_util",
+            "time": 0
+          },
+          {
+            "module": "array",
+            "time": 0
+          },
+          {
+            "module": "mmu::root_table",
+            "time": 0
+          },
+          {
+            "module": "page_alloc::page_array",
+            "time": 0
+          },
+          {
+            "module": "proc::thread_util",
+            "time": 0
+          },
+          {
+            "module": "mmu::pci_bitmap",
+            "time": 0
+          },
+          {
+            "module": "iommutable::iommutable_array",
+            "time": 0
+          },
+          {
+            "module": "page_alloc::lemma",
+            "time": 0
+          },
+          {
+            "module": "proc::endpoint_util",
+            "time": 0
+          },
+          {
+            "module": "mem",
+            "time": 0
+          },
+          {
+            "module": "pagetable::pagetable_array",
+            "time": 0
+          }
+        ],
+        "smt-run": 1086204,
+        "smt-run-module-times": [
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_message",
+            "time": 102749,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_receive_message_wait",
+                "time": 102749
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_call_with_message",
+            "time": 77804,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_call_with_message_wait",
+                "time": 77804
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_endpoint",
+            "time": 68747,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_receive_endpoint_wait",
+                "time": 68747
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_pages",
+            "time": 64376,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_send_pages_wait",
+                "time": 64376
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_endpoint",
+            "time": 63278,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_send_endpoint_wait",
+                "time": 63278
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod2",
+            "time": 62837,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_map_pagetable_page_to_pagetable",
+                "time": 48797
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_map_pagetable_range_page_to_pagetable",
+                "time": 14039
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_message",
+            "time": 61364,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_send_message_wait",
+                "time": 61364
+              }
+            ]
+          },
+          {
+            "module": "proc::thread",
+            "time": 55513,
+            "function-breakdown": [
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::remove_process_threads",
+                "time": 20682
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::new_thread",
+                "time": 3001
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::weak_up_caller_and_schedule",
+                "time": 5147
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::set_thread_caller",
+                "time": 3669
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::weak_up_caller_change_queue_state_and_receive",
+                "time": 4425
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::weak_up_caller_and_receive",
+                "time": 4626
+              },
+              {
+                "function": "lib::proc::thread::IPCPayLoad::new_to_none",
+                "time": 18
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::new_thread_with_endpoint_ptr",
+                "time": 3875
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::free_thread_from_endpoint",
+                "time": 3591
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::wake_up_to_caller",
+                "time": 6473
+              }
+            ]
+          },
+          {
+            "module": "proc::endpoint",
+            "time": 52257,
+            "function-breakdown": [
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::check_receiver_endpoint_descriptors",
+                "time": 207
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::pop_endpoint_to_scheduler",
+                "time": 5803
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::pass_endpoint",
+                "time": 9197
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::proc_man_set_endpoint_queue_state_by_endpoint_ptr",
+                "time": 1392
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::push_endpoint",
+                "time": 4989
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::remove_thread_endpoint_descriptors",
+                "time": 7306
+              },
+              {
+                "function": "lib::proc::endpoint::Endpoint::len",
+                "time": 17
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::pop_endpoint_to_running",
+                "time": 7920
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::push_endpoint_and_set_state",
+                "time": 5629
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::new_endpoint",
+                "time": 9790
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod4",
+            "time": 46465,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_create_and_map_range_new_pages",
+                "time": 40234
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_map_new_page_by_pcid",
+                "time": 6230
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc_with_iommu_pass_mem",
+            "time": 41444,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_new_proc_with_iommu_pass_mem",
+                "time": 41444
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_pages",
+            "time": 39357,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_receive_pages_wait",
+                "time": 39357
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_receive_empty",
+            "time": 38103,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_receive_empty_wait",
+                "time": 38103
+              }
+            ]
+          },
+          {
+            "module": "page_alloc::page_alloc_impl",
+            "time": 33425,
+            "function-breakdown": [
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::get_num_free_pages",
+                "time": 9
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::free_pagetable_mem",
+                "time": 261
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::alloc_pagetable_mem",
+                "time": 1964
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::free_kernel_mem",
+                "time": 279
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::map_user_page",
+                "time": 6401
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::map_user_io_page",
+                "time": 5505
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::get_page_rf_counter_by_page_ptr",
+                "time": 10
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::init",
+                "time": 9040
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::unmap_user_page",
+                "time": 8454
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::alloc_page_and_map",
+                "time": 399
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::alloc_kernel_mem",
+                "time": 1097
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod1",
+            "time": 28525,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_create_va_entry_by_pcid",
+                "time": 1189
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_map_iommutable_page",
+                "time": 4289
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_create_va_entry_by_ioid",
+                "time": 8669
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_map_pagetable_page",
+                "time": 3061
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_unmap_pagetable_page",
+                "time": 11315
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_empty",
+            "time": 27638,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_send_empty_wait",
+                "time": 27638
+              }
+            ]
+          },
+          {
+            "module": "mars_staticlinkedlist",
+            "time": 23561,
+            "function-breakdown": [
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::get_head",
+                "time": 8
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::remove_value_by_index_helper2",
+                "time": 508
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::remove",
+                "time": 8712
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::free_node",
+                "time": 532
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::alloc_node_index",
+                "time": 357
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::remove_value_by_index",
+                "time": 25
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::pop",
+                "time": 342
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::put_node_index",
+                "time": 716
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::pop_value",
+                "time": 663
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::remove_value_by_index_helper3",
+                "time": 10567
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::push",
+                "time": 122
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::NULL_POINTER",
+                "time": 0
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::init",
+                "time": 271
+              },
+              {
+                "function": "lib::mars_staticlinkedlist::MarsStaticLinkedList::remove_value_by_index_helper1",
+                "time": 733
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc_with_iommu",
+            "time": 18872,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_new_proc_with_iommu",
+                "time": 18872
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_proc::syscall_new_proc",
+            "time": 16629,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_new_proc",
+                "time": 16629
+              }
+            ]
+          },
+          {
+            "module": "pagetable::pagetable_impl",
+            "time": 14823,
+            "function-breakdown": [
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::create_va_entry_l2",
+                "time": 2318
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::create_va_entry_l1",
+                "time": 4961
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::create_va_entry_l3",
+                "time": 1259
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::unmap",
+                "time": 3256
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::create_va_entry",
+                "time": 364
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::map",
+                "time": 2433
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::init_to_wf",
+                "time": 122
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::get_va_entry",
+                "time": 106
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_ipc_impl::kernel_ipc_impl2",
+            "time": 13988,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_page_sharing_helper",
+                "time": 5453
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_page_sharing_helper_2",
+                "time": 5169
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_ipc_copy_pages",
+                "time": 1452
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_ipc_copy_messages",
+                "time": 1913
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_and_receive",
+            "time": 13937,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_reply_and_receive",
+                "time": 13937
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_pages_no_wait",
+            "time": 13716,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_send_pages_no_wait",
+                "time": 13716
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_mem",
+            "time": 13433,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::until_get_current_thread_info",
+                "time": 113
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_resolve_va",
+                "time": 161
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_map_pagetable_pages_to_iommutable",
+                "time": 4518
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_malloc",
+                "time": 8640
+              }
+            ]
+          },
+          {
+            "module": "proc::sched",
+            "time": 12679,
+            "function-breakdown": [
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::push_scheduler",
+                "time": 6988
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::pop_scheduler",
+                "time": 5690
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_tcb_sched",
+            "time": 11980,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_idle_pop_sched",
+                "time": 4260
+              },
+              {
+                "function": "lib::kernel::kernel_tcb_sched::hello_world",
+                "time": 0
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_timer_int",
+                "time": 7720
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_message",
+            "time": 9358,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_reply_message",
+                "time": 9358
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_endpoint",
+            "time": 8670,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_new_endpoint",
+                "time": 8670
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_thread",
+            "time": 8170,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_new_thread",
+                "time": 8170
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_init",
+            "time": 8104,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_init",
+                "time": 1760
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_init_helper",
+                "time": 6343
+              }
+            ]
+          },
+          {
+            "module": "mmu::mmu_impl",
+            "time": 7264,
+            "function-breakdown": [
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::new_iommutable",
+                "time": 618
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::mmu_get_pci_dev_by_ioid",
+                "time": 74
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::create_iommutable_va_entry",
+                "time": 942
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::mmu_send_pci_dev_by_ioid",
+                "time": 414
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::mmu_get_va_entry_by_pcid",
+                "time": 97
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::map_pagetable_page",
+                "time": 1077
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::map_iommutable_page",
+                "time": 1392
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::mmu_get_va_entry_by_ioid",
+                "time": 46
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::mmu_register_pci_dev",
+                "time": 281
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::new_pagetable",
+                "time": 471
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::create_pagetable_va_entry",
+                "time": 999
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::unmap_pagetable_page",
+                "time": 847
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_mem_impl::kernel_mem_impl_mod3",
+            "time": 6922,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_map_pagetable_page_to_iommutable",
+                "time": 2645
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_map_pagetable_range_page_to_iommutable",
+                "time": 4276
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_send_empty_no_wait",
+            "time": 6804,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_send_empty_no_wait",
+                "time": 6804
+              }
+            ]
+          },
+          {
+            "module": "proc::proc_impl",
+            "time": 5061,
+            "function-breakdown": [
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::free_proc",
+                "time": 2485
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::new_proc",
+                "time": 2576
+              }
+            ]
+          },
+          {
+            "module": "proc::proc_spec",
+            "time": 3698,
+            "function-breakdown": [
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_proc_ptrs_len",
+                "time": 2
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::proc_man_init",
+                "time": 703
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_pt_regs_by_thread_ptr",
+                "time": 71
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_thread_message_payload",
+                "time": 122
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_head_of_endpoint_by_endpoint_ptr",
+                "time": 73
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_thread_endpoint_descriptor",
+                "time": 103
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_thread_if_is_calling",
+                "time": 87
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_endpoint_rf_counter",
+                "time": 84
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_endpoint_len",
+                "time": 75
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_endpoint_queue_state",
+                "time": 72
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_error_code_by_thread_ptr",
+                "time": 85
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_pcid_by_thread_ptr",
+                "time": 84
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_proc_num_of_threads_by_proc_ptr",
+                "time": 71
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_head_of_owned_thread_by_proc_ptr",
+                "time": 128
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_proc_owned_thread_head",
+                "time": 114
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_endpoint_len_by_endpoint_ptr",
+                "time": 61
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::set_kernel_pt_regs_by_thread_ptr_fast",
+                "time": 91
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_parent_proc_ptr_by_thread_ptr",
+                "time": 82
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::wf_ipc_derive_1",
+                "time": 22
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_ipc_payload_by_thread_ptr",
+                "time": 76
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_thread_page_payload",
+                "time": 148
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_endpoint_state_by_endpoint_ptr",
+                "time": 69
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::set_kernel_pt_regs_by_thread_ptr",
+                "time": 72
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_endpoint_queue_head",
+                "time": 82
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_endpoint_rf_counter_by_endpoint_ptr",
+                "time": 72
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_thread_caller",
+                "time": 120
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_proc_owned_thread_len",
+                "time": 131
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::check_thread_capable_for_new_endpoint",
+                "time": 455
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_thread_endpoint_ptr_by_endpoint_idx",
+                "time": 125
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_thread_endpoint_payload",
+                "time": 88
+              },
+              {
+                "function": "lib::proc::proc_spec::ProcessManager::get_ioid_by_thread_ptr",
+                "time": 118
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_ipc::syscall_reply_empty",
+            "time": 2560,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_reply_empty",
+                "time": 2560
+              }
+            ]
+          },
+          {
+            "module": "mmu::mmu_init",
+            "time": 577,
+            "function-breakdown": [
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::adopt_dom0",
+                "time": 391
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::mmu_man_init",
+                "time": 185
+              }
+            ]
+          },
+          {
+            "module": "kernel::kernel_spec",
+            "time": 417,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_pagetable_none_infer_none_in_page_alloc",
+                "time": 6
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::iommutable_mem_wf_derive",
+                "time": 231
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::kernel_iommutable_none_infer_none_in_page_alloc",
+                "time": 5
+              },
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::pagetable_mem_wf_derive",
+                "time": 173
+              }
+            ]
+          },
+          {
+            "module": "kernel::syscall_pci",
+            "time": 270,
+            "function-breakdown": [
+              {
+                "function": "lib::kernel::kernel_spec::Kernel::syscall_register_pci_dev",
+                "time": 270
+              }
+            ]
+          },
+          {
+            "module": "pagetable::pagetable_spec",
+            "time": 254,
+            "function-breakdown": [
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::l4_empty_derive",
+                "time": 15
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::new",
+                "time": 0
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::wf_to_wf_mapping",
+                "time": 203
+              },
+              {
+                "function": "lib::pagetable::pagetable_spec::PageTable::init",
+                "time": 35
+              }
+            ]
+          },
+          {
+            "module": "iommutable::iommutable_impl",
+            "time": 147,
+            "function-breakdown": [
+              {
+                "function": "lib::iommutable::iommutable_spec::IOMMUTable::unmap",
+                "time": 7
+              },
+              {
+                "function": "lib::iommutable::iommutable_spec::IOMMUTable::create_va_entry",
+                "time": 120
+              },
+              {
+                "function": "lib::iommutable::iommutable_spec::IOMMUTable::init_to_wf",
+                "time": 5
+              },
+              {
+                "function": "lib::iommutable::iommutable_spec::IOMMUTable::map",
+                "time": 8
+              },
+              {
+                "function": "lib::iommutable::iommutable_spec::IOMMUTable::get_va_entry",
+                "time": 4
+              }
+            ]
+          },
+          {
+            "module": "mmu::mmu_spec",
+            "time": 126,
+            "function-breakdown": [
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::get_cr3_by_pcid",
+                "time": 26
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::get_pci_binding",
+                "time": 30
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::get_reserved_pcid_and_cr3",
+                "time": 31
+              },
+              {
+                "function": "lib::mmu::mmu_spec::MMUManager::get_cr3_by_ioid",
+                "time": 38
+              }
+            ]
+          },
+          {
+            "module": "pagetable::pagemap",
+            "time": 79,
+            "function-breakdown": [
+              {
+                "function": "lib::pagetable::pagemap::PageMap::get",
+                "time": 1
+              },
+              {
+                "function": "lib::pagetable::pagemap::PageMap::set",
+                "time": 68
+              },
+              {
+                "function": "lib::pagetable::pagemap::PageMap::index",
+                "time": 9
+              }
+            ]
+          },
+          {
+            "module": "array_vec",
+            "time": 77,
+            "function-breakdown": [
+              {
+                "function": "lib::array_vec::ArrayVec::len",
+                "time": 0
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::pop_unique",
+                "time": 35
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::push_unique",
+                "time": 22
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::index",
+                "time": 1
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::set",
+                "time": 4
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::pop",
+                "time": 7
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::push",
+                "time": 4
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::new",
+                "time": 0
+              },
+              {
+                "function": "lib::array_vec::ArrayVec::capacity",
+                "time": 0
+              }
+            ]
+          },
+          {
+            "module": "page_arena",
+            "time": 20,
+            "function-breakdown": [
+              {
+                "function": "lib::page_arena::PageArena::get_metadata_ptr",
+                "time": 0
+              },
+              {
+                "function": "lib::page_arena::PageArena::capacity",
+                "time": 1
+              },
+              {
+                "function": "lib::page_arena::PageArena::get_element_ptr",
+                "time": 1
+              },
+              {
+                "function": "lib::page_arena::PageElementPtr::clone",
+                "time": 0
+              },
+              {
+                "function": "lib::page_arena::PageArena::capacity_opt",
+                "time": 2
+              },
+              {
+                "function": "lib::page_arena::PageMetadataPtr::clone",
+                "time": 0
+              },
+              {
+                "function": "lib::page_arena::PageArena::metadata_offset",
+                "time": 7
+              },
+              {
+                "function": "lib::page_arena::PageArena::from_page_with_metadata",
+                "time": 2
+              },
+              {
+                "function": "lib::page_arena::PageArena::from_page",
+                "time": 3
+              }
+            ]
+          },
+          {
+            "module": "page_alloc::page_alloc_spec",
+            "time": 19,
+            "function-breakdown": [
+              {
+                "function": "lib::page_alloc::page_alloc_spec::PageAllocator::page_array_wf_derive",
+                "time": 14
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::page_ptr2page_index",
+                "time": 2
+              },
+              {
+                "function": "lib::page_alloc::page_alloc_spec::page_index2page_ptr",
+                "time": 2
+              }
+            ]
+          },
+          {
+            "module": "page_arena::spec_tests",
+            "time": 19,
+            "function-breakdown": [
+              {
+                "function": "lib::page_arena::spec_tests::test_boot_page",
+                "time": 15
+              },
+              {
+                "function": "lib::page_arena::spec_tests::test_metadata",
+                "time": 3
+              },
+              {
+                "function": "lib::page_arena::spec_tests::test_element_ptr",
+                "time": 0
+              }
+            ]
+          },
+          {
+            "module": "define",
+            "time": 18,
+            "function-breakdown": [
+              {
+                "function": "lib::define::RECEIVER_ENDPOINT_EXIST",
+                "time": 0
+              },
+              {
+                "function": "lib::define::BLOCKED",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MESSAGE_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::R",
+                "time": 0
+              },
+              {
+                "function": "lib::define::IOID_MAX",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PAGE_SZ",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SHARED_ENDPOINT_REF_COUNT_OVERFLOW",
+                "time": 0
+              },
+              {
+                "function": "lib::define::READ_WRITE_EXECUTE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NUM_CPUS",
+                "time": 0
+              },
+              {
+                "function": "lib::define::READ_WRITE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MAX_NUM_THREADS_PER_PROC",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NO_FREE_PCID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::CALLING",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PCID_MAX",
+                "time": 0
+              },
+              {
+                "function": "lib::define::VA_MASK",
+                "time": 0
+              },
+              {
+                "function": "lib::define::ENDPOINT_SENDER_QUEUE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::READ_EXECUTE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SUCCESS",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SCHEDULER_NO_SPACE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MAPPED",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NO_FREE_IOID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::CPU_NO_IDLE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PAGE_PAYLOAD_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PCI_DEV_PAYLOAD_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PAGETABLE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SEND",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SHARED_ENDPOINT_NOT_EXIST",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MMAP_VADDR_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PROCESS_LIST_NO_SPEC",
+                "time": 0
+              },
+              {
+                "function": "lib::define::CALL_FAILED",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NO_CALLER",
+                "time": 0
+              },
+              {
+                "function": "lib::define::VADDR_NOMAPPING",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PCI_DEV_NO_OWNERSHIP",
+                "time": 0
+              },
+              {
+                "function": "lib::define::ENDPOINT_FULL",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SCHEDULED",
+                "time": 0
+              },
+              {
+                "function": "lib::define::RECEIVER_ENDPOINT_USED",
+                "time": 0
+              },
+              {
+                "function": "lib::define::IPC_TYPE_NOT_MATCH",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PCI_DEV_TAKEN",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MAX_USIZE",
+                "time": 1
+              },
+              {
+                "function": "lib::define::MAX_NUM_ENDPOINT_DESCRIPTORS",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SENDER_ENDPOINT_NOT_EXIST",
+                "time": 0
+              },
+              {
+                "function": "lib::define::READ",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NO_NEXT_THREAD",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NO_RECEIVER",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MMAP_VADDR_NOT_FREE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MAX_NUM_THREADS",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PROC_THREAD_LIST_FULL",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NO_ERROR_CODE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SCHEDULER_EMPTY",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PAGE_ENTRY_PRESENT_MASK",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PAGE_RF_COUNTER_OVERFLOW",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SENDER_ENDPOINT_OUT_OF_BOUND",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NUM_PAGES",
+                "time": 0
+              },
+              {
+                "function": "lib::define::IPC_PAGEPAYLOAD_LEN",
+                "time": 0
+              },
+              {
+                "function": "lib::define::ENDPOINT_PAYLOAD_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::RUNNING",
+                "time": 0
+              },
+              {
+                "function": "lib::define::ENDPOINT_SLOT_TAKEN",
+                "time": 0
+              },
+              {
+                "function": "lib::define::UNAVAILABLE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::TRANSIT",
+                "time": 0
+              },
+              {
+                "function": "lib::define::ENDPOINT_INDEX_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PROC_NO_IOMMUTABLE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::IPC_MESSAGE_LEN",
+                "time": 0
+              },
+              {
+                "function": "lib::define::VA_PERM_MASK",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PCI_DEV_NUM_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::RECEIVE",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SHARED_ENDPOINT_SLOT_TAKEN",
+                "time": 0
+              },
+              {
+                "function": "lib::define::KERNEL_MEM_END_L4INDEX",
+                "time": 0
+              },
+              {
+                "function": "lib::define::RW",
+                "time": 0
+              },
+              {
+                "function": "lib::define::VADDR_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::RWX",
+                "time": 0
+              },
+              {
+                "function": "lib::define::PCID_ENABLE_MASK",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NO_RUNNING_THREAD",
+                "time": 0
+              },
+              {
+                "function": "lib::define::MAX_NUM_PROCS",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SYSTEM_OUT_OF_MEM",
+                "time": 0
+              },
+              {
+                "function": "lib::define::NEW_THREAD",
+                "time": 0
+              },
+              {
+                "function": "lib::define::SyscallReturnStruct::new",
+                "time": 1
+              },
+              {
+                "function": "lib::define::CPU_ID_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::RX",
+                "time": 0
+              },
+              {
+                "function": "lib::define::VMEM_PERMBITS_INVALID",
+                "time": 0
+              },
+              {
+                "function": "lib::define::FREE",
+                "time": 3
+              },
+              {
+                "function": "lib::define::MAX_NUM_THREADS_PER_ENDPOINT",
+                "time": 0
+              },
+              {
+                "function": "lib::define::ALLOCATED",
+                "time": 0
+              },
+              {
+                "function": "lib::define::IO",
+                "time": 0
+              }
+            ]
+          },
+          {
+            "module": "linked_list",
+            "time": 14,
+            "function-breakdown": [
+              {
+                "function": "lib::linked_list::LinkedList::push_back",
+                "time": 9
+              },
+              {
+                "function": "lib::linked_list::LinkedList::lemma_insert_wf_perms",
+                "time": 1
+              },
+              {
+                "function": "lib::linked_list::LinkedList::lemma_remove_wf_perms",
+                "time": 0
+              },
+              {
+                "function": "lib::linked_list::LinkedList::new",
+                "time": 1
+              }
+            ]
+          },
+          {
+            "module": "mars_array",
+            "time": 13,
+            "function-breakdown": [
+              {
+                "function": "lib::mars_array::MarsArray::init2zero",
+                "time": 6
+              },
+              {
+                "function": "lib::mars_array::test",
+                "time": 1
+              },
+              {
+                "function": "lib::mars_array::MarsArray::init2zero",
+                "time": 5
+              }
+            ]
+          },
+          {
+            "module": "cpu",
+            "time": 13,
+            "function-breakdown": [
+              {
+                "function": "lib::cpu::Cpu::get_is_idle",
+                "time": 0
+              },
+              {
+                "function": "lib::cpu::Cpu::get_current_thread",
+                "time": 0
+              },
+              {
+                "function": "lib::mars_array::MarsArray::set_current_thread",
+                "time": 3
+              },
+              {
+                "function": "lib::mars_array::MarsArray::init_to_none",
+                "time": 8
+              }
+            ]
+          },
+          {
+            "module": "array_vec::spec_tests",
+            "time": 12,
+            "function-breakdown": [
+              {
+                "function": "lib::array_vec::spec_tests::test",
+                "time": 4
+              },
+              {
+                "function": "lib::array_vec::spec_tests::test2",
+                "time": 7
+              }
+            ]
+          },
+          {
+            "module": "trap",
+            "time": 8,
+            "function-breakdown": [
+              {
+                "function": "lib::trap::RegistersOption::is_none",
+                "time": 0
+              },
+              {
+                "function": "lib::trap::RegistersOption::is_some",
+                "time": 0
+              },
+              {
+                "function": "lib::trap::RegistersOption::zeroed_none",
+                "time": 0
+              },
+              {
+                "function": "lib::trap::RegistersOption::set_dst",
+                "time": 1
+              },
+              {
+                "function": "lib::trap::Registers::new_empty",
+                "time": 0
+              },
+              {
+                "function": "lib::trap::Registers::new",
+                "time": 0
+              },
+              {
+                "function": "lib::trap::RegistersOption::unwrap",
+                "time": 1
+              },
+              {
+                "function": "lib::trap::RegistersOption::set_self",
+                "time": 1
+              },
+              {
+                "function": "lib::trap::RegistersOption::set_to_none",
+                "time": 0
+              }
+            ]
+          },
+          {
+            "module": "pagetable::pagetable_util",
+            "time": 6,
+            "function-breakdown": [
+              {
+                "function": "lib::pagetable::pagetable_util::va_perm_bits_valid",
+                "time": 1
+              },
+              {
+                "function": "lib::pagetable::pagetable_util::va2index",
+                "time": 4
+              }
+            ]
+          },
+          {
+            "module": "iommutable::iommutable_spec",
+            "time": 3,
+            "function-breakdown": [
+              {
+                "function": "lib::iommutable::iommutable_spec::IOMMUTable::init",
+                "time": 3
+              }
+            ]
+          },
+          {
+            "module": "array::spec_tests",
+            "time": 1,
+            "function-breakdown": [
+              {
+                "function": "lib::array::spec_tests::test_x",
+                "time": 1
+              }
+            ]
+          },
+          {
+            "module": "proc::proc_util",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "array",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "mmu::root_table",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "page_alloc::page_array",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "proc::thread_util",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "mmu::pci_bitmap",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "iommutable::iommutable_array",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "page_alloc::lemma",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "proc::endpoint_util",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "mem",
+            "time": 0,
+            "function-breakdown": []
+          },
+          {
+            "module": "pagetable::pagetable_array",
+            "time": 0,
+            "function-breakdown": []
+          }
+        ]
+      }
+    },
+    "verus": {
+      "profile": "release",
+      "version": "Unknown",
+      "platform": {
+        "os": "linux",
+        "arch": "x86_64"
+      },
+      "toolchain": "host",
+      "commit": "Unknown"
+    }
+  }
