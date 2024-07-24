@@ -50,8 +50,8 @@ sudo update-grub && sudo reboot
 
 ## TODO
 
-Remove transit state for threads @Xiangdong.
-
 Move per CPU cache to MMU Manager @Xiangdong.
 
-Optimize PtRegs Copying for syscall @Xiangdong.
+Add PtRegs spec @Xiangdong.
+
+Finish proving pagetable of smallest step. @Xiangdong.
