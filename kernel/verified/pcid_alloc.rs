@@ -3,14 +3,12 @@ verus!{
 // use vstd::ptr::PointsTo;
 
 use crate::pagetable::*;
-use crate::mars_array::MarsArray;
+use crate::array::Array;
 use crate::array_vec::ArrayVec;
-use crate::page_alloc::*;
 use crate::define::*;
 
 
 pub struct PcidAllocator{
-
     pub free_page_tables: ArrayVec<Pcid,PCID_MAX>,
     pub page_tables: MarsArray<PageTable,PCID_MAX>,
 

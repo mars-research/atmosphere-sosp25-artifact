@@ -1,191 +1,141 @@
 use vstd::prelude::*;
 verus! {
 // use vstd::ptr::PointsTo;
-use crate::define::*;
-use crate::mars_array::*;
-use crate::page_alloc::*;
-// use vstd::ptr::PointsTo;
+// use crate::define::*;
+use crate::array::*;
+use crate::util::page_ptr_util_u::*;
+// use crate::lemma::lemma_u::*;
+use crate::pagetable::entry::*;
 
-use crate::pagetable::*;
-
-
-// #[verifier(external_body)]
-// fn index_helper(value:usize) -> (ret:bool)
-//     ensures
-//         ret == ((value & (PAGE_ENTRY_PRESENT_MASK as usize)) != 0 )
-// {
-//     return (value & (PAGE_ENTRY_PRESENT_MASK as usize)) != 0
-// }
-#[derive(Clone,Debug)]
-pub struct PageEntry{
-    pub addr: PAddr,
-    pub perm: usize,
-}
-impl Copy for PageEntry { }
 
 pub struct PageMap{
-    pub ar: MarsArray<PAddr,512>,
-    pub spec_seq: Ghost<Seq<Option<PageEntry>>>,
-    pub level: Ghost<usize>, // not used for now.
+    pub ar: Array<usize,512>,
+    pub spec_seq: Ghost<Seq<PageEntry>>,
+    // pub level: Ghost<usize>, // not used for now.
 }
+
 impl PageMap{
-    pub open spec fn wf(&self) -> bool{
-        self.ar.wf()
-        &&
-        self.spec_seq@.len() == 512
-        &&
-        (
-            forall|i:int|#![auto] 0<=i<512 ==> ((self.ar@[i] & (PAGE_ENTRY_PRESENT_MASK as usize) == 0) <==> self.spec_seq@[i].is_None())
-        )
-        &&
-        (
-            forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-            (
-                self.spec_seq@[i].get_Some_0().addr == (self.ar@[i] & (VA_MASK as usize))
-            )
-        )
-        &&
-        (
-            forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-            (
-                page_ptr_valid(self.spec_seq@[i].get_Some_0().addr)
-            )
-        )
-        &&
-        (
-            forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-            (
-                self.spec_seq@[i].get_Some_0().perm == (self.ar@[i] & (VA_PERM_MASK as usize))
-            )
-        )
-        &&
-        (
-            forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-            (
-                spec_va_perm_bits_valid(self.spec_seq@[i].get_Some_0().perm)
-            )
-        )
+
+    pub fn init(&mut self)
+        requires
+            old(self).ar.wf(),
+            old(self).spec_seq@.len() == 512,
+        ensures
+            self.wf(),
+            forall|i:int|
+                #![trigger self@[i].is_empty()]
+                0<=i<512 ==> self@[i].is_empty(),
+    {
+        for i in 0..512
+            invariant
+                0<=i<=512,
+                self.ar.wf(),
+                self.spec_seq@.len() == 512,
+                forall|j:int|
+                    #![trigger usize2page_entry(self.ar@[j])]
+                    0<=j<i ==> (usize2page_entry(self.ar@[j]) =~= self.spec_seq@[j]),
+                forall|j:int|
+                    #![trigger self.ar@[j]]
+                    0<=j<i ==> (usize2page_entry(self.ar@[j]).is_empty() <==> self.ar@[j] == 0),
+                forall|j:int|
+                    #![trigger self.ar@[j]]
+                    0<=j<i ==> usize2page_entry(self.ar@[j]).is_empty(),
+                forall|j:int|
+                    #![trigger self@[j].is_empty()]
+                    0<=j<i ==> self@[j].is_empty(),    
+        {
+            let ghost_view = Ghost(self@);
+            self.ar.set(i, 0usize);
+            assert(self@ == ghost_view);
+            proof{
+                zero_leads_is_empty_page_entry();
+                assert(usize2page_entry(0usize).is_empty());
+                self.spec_seq@ = self.spec_seq@.update(i as int,usize2page_entry(0usize));
+            }
+        }
     }
 
-    pub open spec fn view(&self) -> Seq<Option<PageEntry>>
+    pub open spec fn wf(&self) -> bool{
+        &&&
+        self.ar.wf()
+        &&&
+        self.spec_seq@.len() == 512
+        &&&
+        forall|i:int|
+            #![trigger usize2page_entry(self.ar@[i])]
+            0<=i<512 ==> (usize2page_entry(self.ar@[i]) =~= self.spec_seq@[i])
+        // &&&
+        // forall|i:int|
+        //     #![trigger usize2page_entry(self.ar@[i]).is_empty()]
+        //     0<=i<512 ==> (usize2page_entry(self.ar@[i]).is_empty() <==> self.ar@[i] == 0)
+        
+    }
+
+    pub open spec fn view(&self) -> Seq<PageEntry>
     {
         self.spec_seq@
     }
 
-    pub open spec fn spec_index(&self, index:usize) -> Option<PageEntry>
+    pub open spec fn spec_index(&self, index:usize) -> PageEntry
         recommends
             0<=index<512,
     {
         self.spec_seq@[index as int]
     }
 
-    pub fn set(&mut self, index:usize, value:Option<PageEntry>)
+
+    pub open spec fn is_empty(&self) -> bool
+        recommends
+            self.wf()
+    {
+        forall |x: u16| #![auto] 0 <= x < 512 ==> self.spec_seq@[x as int].perm.present == false
+    }
+
+    pub fn set(&mut self, index:usize, value:PageEntry)
         requires
             old(self).wf(),
             0<=index<512,
-            value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
-            value.is_Some() ==> spec_va_perm_bits_valid(value.unwrap().perm),
+            value.perm.present ==> MEM_valid(value.addr),
+            value.perm.present == false ==> value.is_empty(),
         ensures
             self.wf(),
-            self@ =~= self@.update(index as int,value),
-        {
+            self@ =~= old(self)@.update(index as int,value),
+    {
+        if value.perm.present == false {
+            self.ar.set(index,0usize);
             proof{
-                pagemap_permission_bits_lemma();
+                zero_leads_is_empty_page_entry();
+                self.spec_seq@ = self.spec_seq@.update(index as int, usize2page_entry(0usize));
             }
-            if value.is_none(){
-                self.ar.set(index,0);
-                proof{
-                    self.spec_seq@ = self.spec_seq@.update(index as int,None);
-                }
-                return;
-            }else{
-                let entry = value.unwrap();
-                self.ar.set(index, (entry.addr | entry.perm) | (PAGE_ENTRY_PRESENT_MASK as usize));
-                proof{
-                    self.spec_seq@ = self.spec_seq@.update(index as int,value);
-                }
-
-                assert(self.ar.wf());
-                assert(self.spec_seq@.len() == 512);
-                assert(
-                    forall|i:int|#![auto] 0<=i<512 ==> ((self.ar@[i] & (PAGE_ENTRY_PRESENT_MASK as usize) == 0) <==> self.spec_seq@[i].is_None())
-                );
-                assert(
-                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-                    (
-                        self.spec_seq@[i].get_Some_0().addr == (self.ar@[i] & (VA_MASK as usize))
-                    )
-                );
-                assert(
-                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-                    (
-                        page_ptr_valid(self.spec_seq@[i].get_Some_0().addr)
-                    )
-                );
-                assert(
-                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-                    (
-                        self.spec_seq@[i].get_Some_0().perm == (self.ar@[i] & (VA_PERM_MASK as usize))
-                    )
-                );
-                assert(
-                    forall|i:int|#![auto] 0<=i<512 && self.spec_seq@[i].is_Some() ==>
-                    (
-                        spec_va_perm_bits_valid(self.spec_seq@[i].get_Some_0().perm)
-                    )
-                );
-                return;
-            }
+            return;
         }
-    #[verifier(external_body)]
-    pub fn set_kernel_pml4_entry(&mut self, index:usize, value:Option<PageEntry>)
-        requires
-            old(self).wf(),
-            0<=index<512,
-            value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
-            value.is_Some() ==> spec_va_perm_bits_valid(value.unwrap().perm),
-        ensures
-            self.wf(),
-            self@ =~= self@.update(index as int,value),
-        {
+        else{
+            let u = page_entry2usize(&value);
+            self.ar.set(index,u);
+
+            assert(usize2present(u) == value.perm.present);
+            assert(usize2present(u) == true);
+            assert(u != 0) by (bit_vector) requires (u & 0x1u64 as usize) != 0 == true;
+
             proof{
-                pagemap_permission_bits_lemma();
+                self.spec_seq@ = self.spec_seq@.update(index as int,value);
             }
-            if value.is_none(){
-                self.ar.set(index,0);
-                proof{
-                    self.spec_seq@ = self.spec_seq@.update(index as int,None);
-                }
-                return;
-            }else{
-                let entry = value.unwrap();
-                self.ar.set(index, (entry.addr | entry.perm) | (0x1 as usize));
-                proof{
-                    self.spec_seq@ = self.spec_seq@.update(index as int,value);
-                }
 
-                return;
-            }
+            return;
         }
+    }
 
-    pub fn index(&self, index:usize) -> (ret:Option<PageEntry>)
+    pub fn index(&self, index:usize) -> (ret:PageEntry)
         requires
             self.wf(),
             0<=index<512,
         ensures
             ret =~= self[index],
     {
-       let value = *self.ar.get(index);
-       if (value & (PAGE_ENTRY_PRESENT_MASK as usize)) != 0 {
-            // assert(value & (VA_MASK as usize) == self.spec_seq@[i].get_Some_0().addr );
-            return Some(PageEntry{addr : value & (VA_MASK as usize),perm: value & (VA_PERM_MASK as usize)});
-       }
-       else{
-            return None;
-       }
+        return usize2page_entry(*self.ar.get(index));
     }
 
-    pub fn get(&self, index:usize) -> (ret:Option<PageEntry>)
+    pub fn get(&self, index:usize) -> (ret:PageEntry)
         requires
             self.wf(),
             0<=index<512,

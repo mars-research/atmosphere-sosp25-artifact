@@ -160,21 +160,17 @@
     },
     "rust-overlay_3": {
       "inputs": {
-        "flake-utils": [
-          "verus",
-          "flake-utils"
-        ],
         "nixpkgs": [
           "verus",
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1705976279,
-        "narHash": "sha256-Zx97bJ3+O8IP70uJPD//rRsr8bcxICISMTZUT/L9eFk=",
+        "lastModified": 1727836133,
+        "narHash": "sha256-JE0zciM5IGWvK8J/pE2VldNBf7oyMH5WrU8tZArefbg=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "f889dc31ef97835834bdc3662394ebdb3c96b974",
+        "rev": "02321540b0c8000b36889b1b974d1fec585b25a4",
         "type": "github"
       },
       "original": {
@@ -218,11 +214,11 @@
         "rust-overlay": "rust-overlay_3"
       },
       "locked": {
-        "lastModified": 1708276393,
-        "narHash": "sha256-RD7+xMkpQg28Lr3tiDGF2vqwFxGG9AJ4W+Z4yHen1cU=",
+        "lastModified": 1728052137,
+        "narHash": "sha256-SEExTw8fdjBhtS6KXwAldxRqIeaQf8G1IZ2hcviHuqk=",
         "owner": "mars-research",
         "repo": "verus",
-        "rev": "5fbd5cbb5022400758c3336085eb012cf935923b",
+        "rev": "e1c3d9aedca56956b6e1a55fa15ce8b9ce983c9d",
         "type": "github"
       },
       "original": {

@@ -2,22 +2,29 @@ use vstd::prelude::*;
 use core::mem::MaybeUninit;
 verus! {
 
-pub struct RegistersOption{
+pub struct TrapFrameOption{
     pub reg: Registers,
     pub exists: bool,
 }
-impl RegistersOption {
+impl TrapFrameOption {
     pub open spec fn is_Some(&self) -> bool{
         self.exists
     }
     pub open spec fn is_None(&self) -> bool{
         self.exists == false
     }
+
+    pub open spec fn spec_unwrap(&self) -> &Registers
+        recommends self.is_Some()
+    {
+        &self.reg
+    }
     pub open spec fn get_Some_0(&self) -> &Registers
         recommends self.is_Some()
     {
         &self.reg
     }
+    
     pub fn is_some(&self) -> (ret:bool)
         ensures 
             ret == self.is_Some()
@@ -30,6 +37,8 @@ impl RegistersOption {
     {
         self.exists == false
     }
+
+    #[verifier(when_used_as_spec(spec_unwrap))]
     pub fn unwrap(&self) -> (ret: &Registers)
         ensures
             self.get_Some_0() =~= ret,

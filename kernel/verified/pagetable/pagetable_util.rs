@@ -1,349 +1,166 @@
 use vstd::prelude::*;
+
 verus! {
-// use vstd::ptr::PointsTo;
 use crate::define::*;
-use vstd::ptr::PointsTo;
-use vstd::ptr::PPtr;
-use core::mem::MaybeUninit;
+// use crate::array::*;
+use vstd::simple_pptr::*;
+// use crate::util::page_ptr_util_u::*;
 
-use crate::pagetable::*;
-use crate::page_alloc::*;
-use core::convert::TryInto;
-pub fn va_perm_bits_valid(perm:usize) -> (ret:bool)
-    ensures
-        ret == spec_va_perm_bits_valid(perm),
-{
-    perm == READ
-    ||
-    perm == READ_WRITE
-    ||
-    perm == READ_EXECUTE
-    ||
-    perm == READ_WRITE_EXECUTE
+use crate::pagetable::entry::*;
+use crate::pagetable::pagemap::*;
+use crate::pagetable::pagetable_spec::*;
+
+pub open spec fn paddrs_equal(u:PAddr, v:PAddr) -> bool{
+    u == v
 }
 
+impl PageTable{
 
-pub open spec fn spec_va_perm_bits_valid(perm:usize) -> bool{
-    perm == READ
-    ||
-    perm == READ_WRITE
-    ||
-    perm == READ_EXECUTE
-    ||
-    perm == READ_WRITE_EXECUTE
-}
-
-// #[verifier(external_body)]
-// pub fn LookUpTable_set(pptr:&PPtr<LookUpTable>, Tracked(perm): Tracked<&mut PointsTo<LookUpTable>>, i: usize, value:usize)
-//     requires
-//         pptr.id() == old(perm)@.pptr,
-//         old(perm)@.value.is_Some(),
-//         old(perm)@.value.get_Some_0().table.wf(),
-//         0<=i<512,
-//     ensures
-//         pptr.id() == perm@.pptr,
-//         perm@.value.is_Some(),
-//         perm@.value.get_Some_0().table.wf(),
-//         forall|j:usize| 0<=j<512 && j != i ==>
-//             perm@.value.get_Some_0().table@[j as int] == old(perm)@.value.get_Some_0().table@[j as int],
-//         perm@.value.get_Some_0().table@[i as int] == value,
-// {
-//     unsafe {
-//         let uptr = pptr.to_usize() as *mut MaybeUninit<LookUpTable>;
-//         (*uptr).assume_init_mut().table.set(i,value);
-//     }
-// }
-
-
-// #[verifier(external_body)]
-// pub fn page_to_lookuptable(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tracked<PointsTo<LookUpTable>>))
-//     requires page.0 == page.1@@.pptr,
-//             page.1@@.value.is_Some(),
-//     ensures ret.0 == ret.1@@.pptr,
-//             ret.0 == page.0,
-//             ret.1@@.value.is_Some(),
-//             ret.1@@.value.get_Some_0().table.wf(),
-//             forall|i:usize| 0<=i<512 ==> ret.1@@.value.get_Some_0().table@[i as int] == 0,
-
-// {
-//     (page.0, Tracked::assume_new())
-// }
-
-#[verifier(external_body)]
-pub fn pagemap_set(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>)
-    requires
-        pptr.id() == old(perm)@.pptr,
-        old(perm)@.value.is_Some(),
-        old(perm)@.value.get_Some_0().wf(),
-        0<=i<512,
-        value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
-        value.is_Some() ==> spec_va_perm_bits_valid(value.unwrap().perm),
-    ensures
-        pptr.id() == perm@.pptr,
-        perm@.value.is_Some(),
-        perm@.value.get_Some_0().wf(),
-        forall|j:usize| 0<=j<512 && j != i ==>
-            perm@.value.get_Some_0()[j] =~= old(perm)@.value.get_Some_0()[j],
-        perm@.value.get_Some_0()[i] =~= value,
-        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().addr =~= value.get_Some_0().addr,
-        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().perm =~= value.get_Some_0().perm,
-{
-    unsafe {
-        let uptr = pptr.to_usize() as *mut MaybeUninit<PageMap>;
-        (*uptr).assume_init_mut().set(i,value);
+    pub open spec fn spec_4k_entry_useable(&self, l4i:L4Index, l3i:L3Index, l2i:L2Index, l1i:L2Index) -> bool
+        recommends    
+            self.wf(),
+            self.kernel_l4_end <= l4i < 512,
+            0 <= l3i < 512,
+            0 <= l2i < 512,
+            0 <= l1i < 512,
+    {
+        &&&
+        self.spec_resolve_mapping_1g_l3(l4i, l3i).is_None() 
+        &&&
+        self.spec_resolve_mapping_2m_l2(l4i, l3i, l2i).is_None()         
+        &&&
+        self.spec_resolve_mapping_4k_l1(l4i, l3i, l2i, l1i).is_None() 
     }
-}
 
-#[verifier(external_body)]
-pub fn pagemap_set_kernel_pml4_entry(pptr:&PPtr<PageMap>, Tracked(perm): Tracked<&mut PointsTo<PageMap>>, i: usize, value:Option<PageEntry>)
-    requires
-        pptr.id() == old(perm)@.pptr,
-        old(perm)@.value.is_Some(),
-        old(perm)@.value.get_Some_0().wf(),
-        0<=i<512,
-        value.is_Some() ==> page_ptr_valid(value.unwrap().addr),
-        value.is_Some() ==> spec_va_perm_bits_valid(value.unwrap().perm),
-    ensures
-        pptr.id() == perm@.pptr,
-        perm@.value.is_Some(),
-        perm@.value.get_Some_0().wf(),
-        forall|j:usize| 0<=j<512 && j != i ==>
-            perm@.value.get_Some_0()[j] =~= old(perm)@.value.get_Some_0()[j],
-        perm@.value.get_Some_0()[i] =~= value,
-        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().addr =~= value.get_Some_0().addr,
-        value.is_Some() ==> perm@.value.get_Some_0()[i].get_Some_0().perm =~= value.get_Some_0().perm,
-{
-    unsafe {
-        let uptr = pptr.to_usize() as *mut MaybeUninit<PageMap>;
-        (*uptr).assume_init_mut().set_kernel_pml4_entry(i,value);
-    }
-}
+    pub fn resolve_mapping_l4(&self, l4i:L4Index) -> (ret: Option<PageEntry>)
+        requires    
+            self.wf(),
+            self.kernel_l4_end <= l4i < 512,
+        ensures
+            ret =~= self.spec_resolve_mapping_l4(l4i),
+    {
+        let tracked l4_perm = self.l4_table.borrow().tracked_borrow(self.cr3);
+        let l4_tbl : &PageMap = PPtr::<PageMap>::from_usize(self.cr3).borrow(Tracked(l4_perm));
+        let l4_entry = l4_tbl.get(l4i);
 
-#[verifier(external_body)]
-pub fn page_to_pagemap(page: (PagePtr,Tracked<PagePerm>)) -> (ret :(PagePtr, Tracked<PointsTo<PageMap>>))
-    requires page.0 == page.1@@.pptr,
-            page.1@@.value.is_Some(),
-    ensures ret.0 == ret.1@@.pptr,
-            ret.0 == page.0,
-            ret.1@@.value.is_Some(),
-            ret.1@@.value.get_Some_0().wf(),
-            forall|i:usize| 0<=i<512 ==> ret.1@@.value.get_Some_0()[i].is_None(),
-
-{
-    unsafe{
-        let uptr = page.0 as *mut MaybeUninit<[usize;512]>;
-        for i in 0..512{
-        (*uptr).assume_init_mut()[i] = 0;
+        if !l4_entry.perm.present{
+            None
+        }else{
+            Some(l4_entry)
         }
     }
-    (page.0, Tracked::assume_new())
-}
 
-#[verifier(external_body)]
-pub fn va_valid(va:usize) -> (ret:bool)
-    ensures
-        ret == spec_va_valid(va),
-{
-    (va & (!VA_MASK) as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX.try_into().unwrap()
-}
-
-pub open spec fn spec_va_valid(va: usize) -> bool
-{
-    (va & (!VA_MASK) as usize == 0) && (va as u64 >> 39u64 & 0x1ffu64) >= KERNEL_MEM_END_L4INDEX
-}
-
-pub open spec fn spec_va_add_range(va: usize, i: usize) -> usize
-{
-    (va + (i*4096)) as usize
-}
-#[verifier(external_body)]
-pub fn va_add_range(va: usize, i: usize) -> (ret:usize)
-    ensures
-        ret == spec_va_add_range(va,i),
-        i != 0 ==> ret != va,
-{
-    (va + (i*4096)) as usize
-}
-
-pub open spec fn spec_v2l1index(va: usize) -> L1Index
-{
-    (va >> 12 & 0x1ff) as usize
-}
-
-pub open spec fn spec_v2l2index(va: usize) -> L2Index
-{
-    (va >> 21 & 0x1ff) as usize
-}
-
-pub open spec fn spec_v2l3index(va: usize) -> L3Index
-{
-    (va >> 30 & 0x1ff) as usize
-}
-
-pub open spec fn spec_v2l4index(va: usize) -> L4Index
-{
-    (va >> 39 & 0x1ff) as usize
-}
-
-pub open spec fn spec_va2index(va: usize) -> (L4Index,L3Index,L2Index,L1Index)
-{
-    (spec_v2l4index(va),spec_v2l3index(va),spec_v2l2index(va),spec_v2l1index(va))
-}
-
-pub open spec fn spec_index2va(i:(L4Index,L3Index,L2Index,L1Index)) -> usize
-    recommends
-    i.0 <= 0x1ff,
-    i.1 <= 0x1ff,
-    i.2 <= 0x1ff,
-    i.3 <= 0x1ff,
-{
-    (i.0 as usize)<<39 & (i.1 as usize)<<30 & (i.2 as usize)<<21 & (i.3 as usize)<<12
-}
-
-#[verifier(external_body)]
-pub fn v2l1index(va: usize) -> (ret: L1Index)
-    requires spec_va_valid(va),
-    ensures  ret == spec_v2l1index(va),
-             ret <= 0x1ff,
-{
-    (va as u64 >> 12u64 & 0x1ffu64) as usize
-}
-
-#[verifier(external_body)]
-pub fn v2l2index(va: usize) -> (ret: L2Index)
-    requires spec_va_valid(va),
-    ensures  ret == spec_v2l2index(va),
-            ret <= 0x1ff,
-{
-    (va as u64 >> 21u64 & 0x1ffu64) as usize
-}
-
-#[verifier(external_body)]
-pub fn v2l3index(va: usize) -> (ret: L3Index)
-    requires spec_va_valid(va),
-    ensures  ret == spec_v2l3index(va),
-            ret <= 0x1ff,
-{
-    (va as u64 >> 30u64 & 0x1ffu64) as usize
-}
-
-#[verifier(external_body)]
-pub fn v2l4index(va: usize) -> (ret: L4Index)
-    requires spec_va_valid(va),
-    ensures  ret == spec_v2l4index(va),
-            KERNEL_MEM_END_L4INDEX <= ret <= 0x1ff,
-{
-    (va as u64 >> 39u64 & 0x1ffu64) as usize
-}
-
-
-pub fn va2index(va: usize) -> (ret : (L4Index,L3Index,L2Index,L1Index))
-    requires
-        spec_va_valid(va),
-    ensures
-        ret.0 == spec_v2l4index(va) && KERNEL_MEM_END_L4INDEX <= ret.0 <= 0x1ff,
-        ret.1 == spec_v2l3index(va) && ret.1 <= 0x1ff,
-        ret.2 == spec_v2l2index(va) && ret.2 <= 0x1ff,
-        ret.3 == spec_v2l1index(va) && ret.3 <= 0x1ff,
-{
-    (v2l4index(va),v2l3index(va),v2l2index(va),v2l1index(va))
-}
-
-
-#[verifier(external_body)]
-pub proof fn pagetable_virtual_mem_lemma()
-    ensures
-        (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize|  #![auto] (
-            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff
-            ) ==>
-                spec_va_valid(spec_index2va((l4i,l3i,l2i,l1i)))
-                &&
-                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).0 == l4i
-                &&
-                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).1 == l3i
-                &&
-                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).2 == l2i
-                &&
-                spec_va2index(spec_index2va((l4i,l3i,l2i,l1i))).3 == l1i
-        ),
-        (forall|va_1:usize| #![auto] spec_va_valid(va_1) ==> (
-            KERNEL_MEM_END_L4INDEX <= spec_va2index(va_1).0 <= 0x1ff
-            &&
-            spec_va2index(va_1).1 <= 0x1ff
-            &&
-            spec_va2index(va_1).2 <= 0x1ff
-            &&
-            spec_va2index(va_1).3 <= 0x1ff
-            &&
-            spec_index2va(spec_va2index(va_1)) == va_1
-        )),
-        (forall|va_1:usize, va_2:usize| #![auto] spec_va_valid(va_1) && spec_va_valid(va_2) && va_1 == va_2 ==> (
-            spec_va2index(va_1).0 == spec_va2index(va_2).0
-            &&
-            spec_va2index(va_1).1 == spec_va2index(va_2).1
-            &&
-            spec_va2index(va_1).2 == spec_va2index(va_2).2
-            &&
-            spec_va2index(va_1).3 == spec_va2index(va_2).3
-        )),
-        (forall|va_1:usize, va_2:usize| #![auto] spec_va_valid(va_1) && spec_va_valid(va_2) && va_1 != va_2 ==> (
-            spec_va2index(va_1).0 != spec_va2index(va_2).0
-            ||
-            spec_va2index(va_1).1 != spec_va2index(va_2).1
-            ||
-            spec_va2index(va_1).2 != spec_va2index(va_2).2
-            ||
-            spec_va2index(va_1).3 != spec_va2index(va_2).3
-        )),
-        (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
-            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
-            l4i == l4j && l3i == l3j && l2i == l2j && l1i == l1j
-        ) ==>
-            spec_index2va((l4i,l3i,l2i,l1i)) == spec_index2va((l4j,l3j,l2j,l1j))
-        ),
-        (forall|l4i: usize, l3i: usize, l2i: usize, l1i: usize,l4j: usize, l3j: usize, l2j: usize, l1j: usize|  #![auto] (
-            KERNEL_MEM_END_L4INDEX <= l4i <= 0x1ff && l3i <= 0x1ff && l2i <= 0x1ff && l1i <= 0x1ff && l4j <= 0x1ff && l3j <= 0x1ff && l2j <= 0x1ff && l1j <= 0x1ff &&
-            l4i != l4j || l3i != l3j || l2i != l2j || l1i != l1j
-        ) ==>
-            spec_index2va((l4i,l3i,l2i,l1i)) != spec_index2va((l4j,l3j,l2j,l1j))
-        )
-
-{
-
-}
-
-#[verifier(external_body)]
-pub proof fn pagemap_permission_bits_lemma()
-    ensures
-        (0usize & (PAGE_ENTRY_PRESENT_MASK as usize) == 0),
-        (forall|i:usize| #![auto] (i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (PAGE_ENTRY_PRESENT_MASK as usize) == 1),
-        (forall|i:usize| #![auto] page_ptr_valid(i) ==>
-            ((i | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_MASK as usize)) == i),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
-            (
-                ((((i | j) | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_MASK as usize)) == i)
-            )
-        ),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
-            (
-                ((((i | j) | (PAGE_ENTRY_PRESENT_MASK as usize)) & (VA_PERM_MASK as usize)) == j)
-            )
-        ),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
-            (
-                (((i | j)  & (VA_MASK as usize)) == i)
-            )
-        ),
-        (forall|i:usize, j:usize| #![auto] page_ptr_valid(i) && spec_va_perm_bits_valid(j) ==>
-            (
-                (((i | j)  & (VA_PERM_MASK as usize)) == j)
-            )
-        ),
-        spec_va_perm_bits_valid(0usize) == true,
+    pub fn resolve_mapping_4k_l3(&self, l4i:L4Index, l3i:L3Index) -> (ret: (Option<PageEntry>, PageTableErrorCode))
+        requires    
+            self.wf(),
+            self.kernel_l4_end <= l4i < 512,
+            0 <= l3i < 512,
+        ensures
+            ret.0 =~= self.spec_resolve_mapping_l3(l4i, l3i),
+            ret.0.is_Some() <==> ret.1 == PageTableErrorCode::NoError,
+            ret.1 == PageTableErrorCode::L4EntryNotExist <==> self.spec_resolve_mapping_l4(l4i).is_None(),
+            ret.1 == PageTableErrorCode::L3EntryNotExist <==> self.spec_resolve_mapping_1g_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l4(l4i).is_Some(),
+            ret.1 == PageTableErrorCode::EntryTakenBy1g <==> self.spec_resolve_mapping_1g_l3(l4i, l3i).is_Some(),
+            ret.1 != PageTableErrorCode::EntryTakenBy2m,
+            ret.1 != PageTableErrorCode::L2EntryNotExist,
+            ret.1 != PageTableErrorCode::L1EntryNotExist,
     {
-
+        match self.resolve_mapping_l4(l4i){
+            None => {
+                (None, PageTableErrorCode::L4EntryNotExist)
+            },
+            Some(l4_entry) => {
+                let tracked l3_perm = self.l3_tables.borrow().tracked_borrow(l4_entry.addr);
+                let l3_tbl : &PageMap = PPtr::<PageMap>::from_usize(l4_entry.addr).borrow(Tracked(l3_perm));
+                let l3_entry = l3_tbl.get(l3i);
+                if !l3_entry.perm.present {
+                    (None, PageTableErrorCode::L3EntryNotExist)
+                }else if l3_entry.perm.ps{
+                    (None, PageTableErrorCode::EntryTakenBy1g) 
+                }
+                else {
+                    (Some(l3_entry), PageTableErrorCode::NoError)
+                }
+            }
+        }
     }
 
+    pub fn resolve_mapping_4k_l2(&self, l4i:L4Index, l3i:L3Index, l2i:L2Index) -> (ret: (Option<PageEntry>, PageTableErrorCode))
+        requires    
+            self.wf(),
+            self.kernel_l4_end <= l4i < 512,
+            0 <= l3i < 512,
+            0 <= l2i < 512,
+        ensures
+            ret.0 =~= self.spec_resolve_mapping_l2(l4i, l3i, l2i),
+            ret.0.is_Some() <==> ret.1 == PageTableErrorCode::NoError,
+            ret.1 == PageTableErrorCode::L4EntryNotExist <==> self.spec_resolve_mapping_l4(l4i).is_None(),
+            ret.1 == PageTableErrorCode::L3EntryNotExist <==> self.spec_resolve_mapping_1g_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l4(l4i).is_Some(),
+            ret.1 == PageTableErrorCode::L2EntryNotExist <==> self.spec_resolve_mapping_2m_l2(l4i, l3i, l2i).is_None() && self.spec_resolve_mapping_l2(l4i, l3i, l2i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_Some(),
+            ret.1 == PageTableErrorCode::EntryTakenBy1g <==> self.spec_resolve_mapping_1g_l3(l4i, l3i).is_Some(),
+            ret.1 == PageTableErrorCode::EntryTakenBy2m <==> self.spec_resolve_mapping_2m_l2(l4i, l3i, l2i).is_Some(),
+            ret.1 != PageTableErrorCode::L1EntryNotExist,
+    {
+        match self.resolve_mapping_4k_l3(l4i,l3i){
+            (None, error_code) => {
+                (None, error_code)
+            },
+            (Some(l3_entry), _) => {
+                let tracked l2_perm = self.l2_tables.borrow().tracked_borrow(l3_entry.addr);
+                let l2_tbl : &PageMap = PPtr::<PageMap>::from_usize(l3_entry.addr).borrow(Tracked(l2_perm));
+                let l2_entry = l2_tbl.get(l2i);
+                if !l2_entry.perm.present {
+                    (None, PageTableErrorCode::L2EntryNotExist)
+                }else if l2_entry.perm.ps{
+                    (None, PageTableErrorCode::EntryTakenBy2m) 
+                }
+                else {
+                    (Some(l2_entry), PageTableErrorCode::NoError)
+                }
+            }
+        }
+    }
+    
+    pub fn resolve_mapping_4k_l1(&self, l4i:L4Index, l3i:L3Index, l2i:L2Index, l1i:L2Index) -> (ret: (Option<PageEntry>, PageTableErrorCode, Option<MapEntry>))
+        requires    
+            self.wf(),
+            self.kernel_l4_end <= l4i < 512,
+            0 <= l3i < 512,
+            0 <= l2i < 512,
+            0 <= l1i < 512,
+        ensures
+            ret.0 =~= self.spec_resolve_mapping_4k_l1(l4i, l3i, l2i, l1i),
+            ret.0.is_Some() <==> ret.1 == PageTableErrorCode::NoError,
+            ret.0.is_Some() == ret.2.is_Some(),
+            ret.0.is_Some() && ret.2.is_Some() ==> ret.2.get_Some_0() =~= page_entry_to_map_entry(&ret.0.get_Some_0()),
+            ret.1 == PageTableErrorCode::L4EntryNotExist <==> self.spec_resolve_mapping_l4(l4i).is_None(),
+            ret.1 == PageTableErrorCode::L3EntryNotExist ==> self.spec_resolve_mapping_1g_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_None() && self.spec_resolve_mapping_l4(l4i).is_Some(),
+            ret.1 == PageTableErrorCode::L2EntryNotExist ==> self.spec_resolve_mapping_2m_l2(l4i, l3i, l2i).is_None() && self.spec_resolve_mapping_l2(l4i, l3i, l2i).is_None() && self.spec_resolve_mapping_l3(l4i, l3i).is_Some(),
+            ret.1 == PageTableErrorCode::L1EntryNotExist ==> self.spec_resolve_mapping_4k_l1(l4i, l3i, l2i, l1i).is_None() && self.spec_resolve_mapping_l2(l4i, l3i, l2i).is_Some(),
+            ret.1 == PageTableErrorCode::EntryTakenBy1g <==> self.spec_resolve_mapping_1g_l3(l4i, l3i).is_Some(),
+            ret.1 == PageTableErrorCode::EntryTakenBy2m <==> self.spec_resolve_mapping_2m_l2(l4i, l3i, l2i).is_Some(),
+            ret.1 != PageTableErrorCode::EntryTakenBy1g && ret.1 != PageTableErrorCode::EntryTakenBy2m && ret.1 != PageTableErrorCode::NoError ==> self.spec_4k_entry_useable(l4i, l3i, l2i, l1i),
+    {
+        match self.resolve_mapping_4k_l2(l4i,l3i,l2i){
+            (None, error_code) => {
+                (None, error_code, None)
+            },
+            (Some(l2_entry), _) => {
+                let tracked l1_perm = self.l1_tables.borrow().tracked_borrow(l2_entry.addr);
+                let l1_tbl : &PageMap = PPtr::<PageMap>::from_usize(l2_entry.addr).borrow(Tracked(l1_perm));
+                let l1_entry = l1_tbl.get(l1i);
+                if !l1_entry.perm.present {
+                    (None, PageTableErrorCode::L1EntryNotExist, None)
+                }
+                else {
+                    assert(l1_entry.perm.ps == false);
+                    let map_entry = page_entry_to_map_entry(&l1_entry);
+                    (Some(l1_entry), PageTableErrorCode::NoError, Some(map_entry))
+                }
+            }
+        }
+    }
 
+}
 
 }
