@@ -15,6 +15,8 @@ pub mod send_receive_pre_spec;
 pub mod syscall_new_endpoint;
 pub mod schedule_idle_cpu;
 pub mod util_syscalls;
+pub mod syscall_send_empty;
+pub mod syscall_receive_empty;
 // pub mod syscall_receive_pages;
 
 pub use spec::*;
