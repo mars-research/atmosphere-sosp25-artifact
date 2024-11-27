@@ -986,7 +986,10 @@ impl ProcessManager{
                 #![auto]
                 0 <= cpu_i < NUM_CPUS
                 ==>
-                self.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container),
+                self.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container)
+                &&
+                (self.cpu_list@[cpu_i as int].current_thread.is_Some() ==> self.thread_dom().contains(self.cpu_list@[cpu_i as int].current_thread.unwrap())),
+            
     {}
 
     pub proof fn pcid_unique(&self, proc_ptr:ProcPtr)

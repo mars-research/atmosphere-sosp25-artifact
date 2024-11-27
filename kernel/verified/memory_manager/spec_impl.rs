@@ -306,7 +306,6 @@ impl MemoryManager{
             self.wf(),
             0<=pcid<PCID_MAX,
             self.get_free_pcids_as_set().contains(pcid) == false,
-            self.get_pagetable_by_pcid(pcid).is_Some(),
     {
         return self.page_tables.get(pcid).as_ref().unwrap().cr3;
     }
