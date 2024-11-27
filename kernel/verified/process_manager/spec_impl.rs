@@ -976,6 +976,19 @@ impl ProcessManager{
                 &&
                 self.get_thread(self.get_endpoint(e_ptr).queue@[i]).state == ThreadState::BLOCKED,
     {}
+
+    pub proof fn cpu_inv(&self)
+        requires 
+            self.wf(),
+        ensures
+            self.cpu_list.wf(),
+            forall|cpu_i:CpuId|
+                #![auto]
+                0 <= cpu_i < NUM_CPUS
+                ==>
+                self.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container),
+    {}
+
     pub proof fn pcid_unique(&self, proc_ptr:ProcPtr)
         requires
             self.wf(),
@@ -2359,13 +2372,51 @@ impl ProcessManager{
         assert(self.threads_container_wf());
     }
 
-    pub fn pop_scheduler_for_idle_cpu(&mut self, cpu_id: CpuId)
+    pub fn pop_scheduler_for_idle_cpu(&mut self, cpu_id: CpuId) -> (ret:ThreadPtr)
         requires
             old(self).wf(),
             0 <= cpu_id < NUM_CPUS,
             old(self).cpu_list@[cpu_id as int].active == true,
             old(self).cpu_list@[cpu_id as int].current_thread.is_None(),
             old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).scheduler.len() != 0,
+        ensures
+            self.wf(),
+            self.page_closure() =~= old(self).page_closure(),
+            self.proc_dom() =~= old(self).proc_dom(),
+            self.endpoint_dom() == old(self).endpoint_dom(),
+            self.container_dom() == old(self).container_dom(),
+            self.thread_dom() == old(self).thread_dom(),
+            self.thread_dom().contains(ret),
+            forall|p_ptr:ProcPtr|
+                #![trigger self.get_proc(p_ptr)]
+                self.proc_dom().contains(p_ptr)
+                ==> 
+                self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
+            forall|container_ptr:ContainerPtr|
+                #![trigger self.get_container(container_ptr)]
+                self.container_dom().contains(container_ptr) && container_ptr != old(self).cpu_list@[cpu_id as int].owning_container
+                ==> 
+                self.get_container(container_ptr) =~= old(self).get_container(container_ptr),
+            forall|t_ptr:ThreadPtr| 
+                #![trigger old(self).get_thread(t_ptr)]
+                old(self).thread_dom().contains(t_ptr) && t_ptr != ret
+                ==>
+                old(self).get_thread(t_ptr) =~= self.get_thread(t_ptr),
+            forall|e_ptr:EndpointPtr| 
+                #![trigger self.get_endpoint(e_ptr)]
+                old(self).endpoint_dom().contains(e_ptr)
+                ==> 
+                old(self).get_endpoint(e_ptr) =~= self.get_endpoint(e_ptr),
+            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).mem_quota == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).mem_quota,
+            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_cpus == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_cpus,
+            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_threads == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_threads,
+            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).scheduler@.skip(1) == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).scheduler@,
+            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_endpoints == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_endpoints,
+            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).children == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).children,
+
+            old(self).get_thread(ret).ipc_payload =~= self.get_thread(ret).ipc_payload,
+            self.get_thread(ret).state =~= ThreadState::RUNNING,
+            old(self).get_thread(ret).endpoint_descriptors =~= self.get_thread(ret).endpoint_descriptors,
     {
         let container_ptr = self.cpu_list.get(cpu_id).owning_container;
         assert(self.container_perms@.dom().contains(container_ptr)) by {
@@ -2439,6 +2490,8 @@ impl ProcessManager{
         assert(self.pcid_ioid_wf());
         assert(self.threads_cpu_wf());
         assert(self.threads_container_wf());
+
+        return ret_thread_ptr;
     }
 
 

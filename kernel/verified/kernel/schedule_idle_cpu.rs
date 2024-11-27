@@ -1,0 +1,46 @@
+use vstd::prelude::*;
+verus! {
+// use crate::allocator::page_allocator_spec_impl::*;
+// use crate::memory_manager::spec_impl::*;
+// use crate::process_manager::spec_impl::*;
+// use crate::util::page_ptr_util_u::*;
+use crate::define::*;
+use crate::trap::*;
+use crate::kernel::Kernel;
+
+impl Kernel{
+
+    pub fn schedule_idle_cpu(&mut self, cpu_id:CpuId) -> (ret: SyscallReturnStruct)
+        requires
+            old(self).wf(),
+            0 <= cpu_id < NUM_CPUS,
+        ensures
+            self.wf(),
+    {
+        proof{
+            self.proc_man.thread_inv();
+            self.proc_man.endpoint_inv();
+            self.proc_man.container_inv();
+            self.proc_man.cpu_inv();
+        }
+
+        let container_ptr = self.proc_man.cpu_list.get(cpu_id).owning_container;
+
+        if self.proc_man.cpu_list.get(cpu_id).active == false {
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }    
+
+        if self.proc_man.cpu_list.get(cpu_id).current_thread.is_some(){
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }    
+
+        if self.proc_man.get_container(container_ptr).scheduler.len() == 0{
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }
+
+        let ret_thread_ptr = self.proc_man.pop_scheduler_for_idle_cpu(cpu_id);
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+    }
+}
+
+}
