@@ -154,7 +154,7 @@ pub open spec fn syscall_new_proc_with_endpoint_spec(old:Kernel, new:Kernel, thr
 
 impl Kernel{
 
-pub fn syscall_new_proc_with_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers, va_range:VaRange4K) ->  (ret: SyscallReturnStruct)
+pub fn syscall_new_proc_with_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:&Registers, va_range:VaRange4K) ->  (ret: SyscallReturnStruct)
     requires
         old(self).wf(),
         old(self).thread_dom().contains(thread_ptr),
@@ -162,8 +162,8 @@ pub fn syscall_new_proc_with_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint
         va_range.len * 3 + 3 < usize::MAX,
         0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS
     ensures
-        syscall_new_proc_with_endpoint_requirement(*old(self), thread_ptr, endpoint_index, pt_regs, va_range) == false <==> ret.is_error(),
-        syscall_new_proc_with_endpoint_spec(*old(self), *self, thread_ptr, endpoint_index, pt_regs, va_range, ret),
+        syscall_new_proc_with_endpoint_requirement(*old(self), thread_ptr, endpoint_index, *pt_regs, va_range) == false <==> ret.is_error(),
+        syscall_new_proc_with_endpoint_spec(*old(self), *self, thread_ptr, endpoint_index, *pt_regs, va_range, ret),
 {
     let proc_ptr = self.proc_man.get_thread(thread_ptr).owning_proc;
     let pcid = self.proc_man.get_proc(proc_ptr).pcid;

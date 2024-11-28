@@ -80,7 +80,7 @@ pub fn syscall_send_empty_no_block(&mut self, sender_thread_ptr: ThreadPtr,block
     return SyscallReturnStruct::NoSwitchNew(RetValueType::Else);
 }
 
-pub fn syscall_send_empty_block(&mut self, sender_thread_ptr: ThreadPtr,blocking_endpoint_index:EndpointIdx, pt_regs:&mut Registers) ->  (ret: SyscallReturnStruct)
+pub fn syscall_send_empty_block(&mut self, sender_thread_ptr: ThreadPtr,blocking_endpoint_index:EndpointIdx, pt_regs:& Registers) ->  (ret: SyscallReturnStruct)
     requires
         old(self).wf(),
         old(self).thread_dom().contains(sender_thread_ptr),

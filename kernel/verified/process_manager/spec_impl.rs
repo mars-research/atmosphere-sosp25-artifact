@@ -1299,7 +1299,7 @@ impl ProcessManager{
     }        
 
 
-    pub fn new_thread_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, proc_ptr:ProcPtr, pt_regs:Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:ThreadPtr)
+    pub fn new_thread_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, proc_ptr:ProcPtr, pt_regs:&Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:ThreadPtr)
         requires
             old(self).wf(),
             old(self).proc_dom().contains(proc_ptr),
@@ -1370,7 +1370,7 @@ impl ProcessManager{
             self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
         }
 
-        let (new_thread_ptr, new_thread_perm) = page_to_thread_with_endpoint(page_ptr, page_perm, &pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref, endpoint_ptr);
+        let (new_thread_ptr, new_thread_perm) = page_to_thread_with_endpoint(page_ptr, page_perm, pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref, endpoint_ptr);
         proof {
             self.thread_perms.borrow_mut().tracked_insert(new_thread_ptr, new_thread_perm.get());
         }
@@ -1494,7 +1494,7 @@ impl ProcessManager{
     } 
 
 
-    pub fn new_proc_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, pt_regs:Registers, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, page_ptr_2: PagePtr, page_perm_2: Tracked<PagePerm4k>, new_pcid:Pcid)
+    pub fn new_proc_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, pt_regs:&Registers, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, page_ptr_2: PagePtr, page_perm_2: Tracked<PagePerm4k>, new_pcid:Pcid)
         requires
             old(self).wf(),
             old(self).thread_dom().contains(thread_ptr),
@@ -1575,7 +1575,7 @@ impl ProcessManager{
             self.process_perms.borrow_mut().tracked_insert(new_proc_ptr, proc_perm.get());
         }
 
-        let (new_thread_ptr, thread_perm) = page_to_thread_with_endpoint(page_ptr_2, page_perm_2, &pt_regs, container_ptr, new_proc_ptr, proc_thread_list_node_ref, scheduler_node_ref, endpoint_ptr);
+        let (new_thread_ptr, thread_perm) = page_to_thread_with_endpoint(page_ptr_2, page_perm_2, pt_regs, container_ptr, new_proc_ptr, proc_thread_list_node_ref, scheduler_node_ref, endpoint_ptr);
         proof {
             self.thread_perms.borrow_mut().tracked_insert(new_thread_ptr, thread_perm.get());
         }
@@ -2564,7 +2564,7 @@ impl ProcessManager{
         assert(self.threads_container_wf());
     }
 
-    pub fn pop_scheduler_for_idle_cpu(&mut self, cpu_id: CpuId) -> (ret:ThreadPtr)
+    pub fn pop_scheduler_for_idle_cpu(&mut self, cpu_id: CpuId, pt_regs:&mut Registers) -> (ret:ThreadPtr)
         requires
             old(self).wf(),
             0 <= cpu_id < NUM_CPUS,
@@ -2630,7 +2630,12 @@ impl ProcessManager{
         }
         assert(old(self).get_container(container_ptr).scheduler@.contains(ret_thread_ptr));
 
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(ret_thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(ret_thread_ptr).borrow(Tracked(thread_perm));
+        pt_regs.set_self_fast(thread.trap_frame.unwrap());
+
         let mut thread_perm = Tracked(self.thread_perms.borrow_mut().tracked_remove(ret_thread_ptr));
+
         thread_set_current_cpu(ret_thread_ptr, &mut thread_perm, Some(cpu_id));
         thread_set_state(ret_thread_ptr, &mut thread_perm, ThreadState::RUNNING);
         proof {

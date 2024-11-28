@@ -109,7 +109,7 @@ pub open spec fn syscall_new_thread_with_endpoint_spec(old:Kernel, new:Kernel, t
 
 impl Kernel{
 
-    pub fn syscall_new_thread_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers) -> (ret: SyscallReturnStruct)
+    pub fn syscall_new_thread_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index: EndpointIdx, pt_regs:&Registers) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
             old(self).thread_dom().contains(thread_ptr),

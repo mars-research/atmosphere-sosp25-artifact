@@ -10,7 +10,7 @@ use crate::kernel::Kernel;
 
 impl Kernel{
 
-    pub fn schedule_idle_cpu(&mut self, cpu_id:CpuId) -> (ret: SyscallReturnStruct)
+    pub fn schedule_idle_cpu(&mut self, cpu_id:CpuId, pt_regs: &mut Registers) -> (ret: SyscallReturnStruct)
         requires
             old(self).wf(),
             0 <= cpu_id < NUM_CPUS,
@@ -38,7 +38,7 @@ impl Kernel{
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
 
-        let ret_thread_ptr = self.proc_man.pop_scheduler_for_idle_cpu(cpu_id);
+        let ret_thread_ptr = self.proc_man.pop_scheduler_for_idle_cpu(cpu_id, pt_regs);
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
 }

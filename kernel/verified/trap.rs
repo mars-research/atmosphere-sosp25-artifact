@@ -225,6 +225,22 @@ impl Registers {
         ret
     }
 
+    #[verifier(external_body)]
+    pub fn set_self_fast(&mut self, src: &Registers)
+        ensures
+            self == src
+    {
+        self.rbx = src.rbx;
+        self.rbp = src.rbp;
+        self.r12 = src.r12;
+        self.r13 = src.r13;
+        self.r14 = src.r14;
+        self.r15 = src.r15;
+        self.rsp = src.rsp;
+        self.rip = src.rip;
+        self.flags = src.flags;
+    }
+
 }
 
 }
