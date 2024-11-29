@@ -133,12 +133,40 @@ pub proof fn seq_remove_lemma<A>()
 }
 
 #[verifier(external_body)]
+pub proof fn seq_push_unique_lemma<A>()
+    ensures
+        forall|s: Seq<A>, v:A|
+            #![auto]
+            s.no_duplicates() && s.contains(v) == false
+            ==>  
+            s.push(v).no_duplicates()
+            &&
+            s.push(v).index_of(v) == s.push(v).len() - 1,
+        forall|s: Seq<A>, v:A, y:A|
+            #![auto]
+            s.no_duplicates() && s.contains(v) && s.contains(y) == false
+            ==>
+            s.push(y).index_of(v) == s.index_of(v)
+{
+}
+
+#[verifier(external_body)]
 pub proof fn seq_remove_lemma_2<A>()
     ensures
         forall|s: Seq<A>, v: A, x: A|
             s.contains(v) && x != v && s.no_duplicates() ==> s.remove_value(x).contains(v),        
         forall|s: Seq<A>, v: A, x: A|
             s.contains(v) && x == v && s.no_duplicates() ==> s.remove_value(x).contains(v) == false,     
+{
+
+}
+
+#[verifier(external_body)]
+pub proof fn seq_index_lemma<A>()
+    ensures       
+        forall|s: Seq<A>, i:int|
+            #![trigger s[i]]
+            s.no_duplicates() ==> s.index_of(s[i]) == i,   
 {
 
 }
