@@ -48,7 +48,7 @@
     devShell = mkShell {
       nativeBuildInputs = [
         pinnedRust
-        pinnedVerus.verus
+        pinnedVerus.verus-no-std
         pinnedVerus.line-count
 
         pkgs.mars-research.mars-tools

@@ -1,3 +1,5 @@
+#![no_std]
+
 use vstd::prelude::verus;
 
 pub mod define;
