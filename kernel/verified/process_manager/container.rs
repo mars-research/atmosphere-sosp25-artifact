@@ -29,5 +29,7 @@ verus! {
         pub owned_threads: Ghost<Set<ThreadPtr>>,
         pub uppertree_seq: Ghost<Seq<ContainerPtr>>,
         pub subtree_set: Ghost<Set<ContainerPtr>>,
+
+        pub can_have_children: bool,
     }
 }
