@@ -187,8 +187,7 @@ pub const MAX_CONTAINER_SCHEDULER_LEN:usize = 10;
 pub enum SwitchDecision{
     NoSwitch,
     NoThread,
-    SwitchThread,
-    SwitchProc,
+    Switch,
 }
 
 #[derive(Clone, Copy)]
@@ -261,6 +260,37 @@ impl SyscallReturnStruct{
             pcid:None,
             cr3:None,
             switch_decision: SwitchDecision::NoSwitch,
+        };
+    }
+
+    pub fn NoNextThreadNew(error_code:RetValueType )->(ret:Self)
+        ensures
+            ret.error_code == error_code,
+            ret.pcid.is_None(),
+            ret.cr3.is_None(),
+            ret.switch_decision == SwitchDecision::NoThread,
+    {
+        return Self{
+            error_code:error_code,
+            pcid:None,
+            cr3:None,
+            switch_decision: SwitchDecision::NoThread,
+        };
+    }
+
+    
+    pub fn SwitchNew(error_code:RetValueType, cr3:usize, pcid:Pcid)->(ret:Self)
+        ensures
+            ret.error_code == error_code,
+            ret.pcid =~= Some(pcid),
+            ret.cr3 =~= Some(cr3),
+            ret.switch_decision == SwitchDecision::Switch,
+    {
+        return Self{
+            error_code:error_code,
+            pcid:Some(pcid),
+            cr3:Some(cr3),
+            switch_decision: SwitchDecision::Switch,
         };
     }
 }

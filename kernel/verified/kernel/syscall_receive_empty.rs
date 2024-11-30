@@ -86,7 +86,7 @@ pub fn syscall_receive_empty_block(&mut self, receiver_thread_ptr: ThreadPtr, bl
     if self.proc_man.get_endpoint(blocking_endpoint_ptr).queue_state.is_receive() && self.proc_man.get_endpoint(blocking_endpoint_ptr).queue.len() < MAX_NUM_THREADS_PER_ENDPOINT{
         self.proc_man.block_running_thread_and_set_trap_frame(receiver_thread_ptr, blocking_endpoint_index, IPCPayLoad::Empty, pt_regs);
         assert(self.wf());
-        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
     }
 
     if self.proc_man.get_endpoint(blocking_endpoint_ptr).queue_state.is_receive() && self.proc_man.get_endpoint(blocking_endpoint_ptr).queue.len() >= MAX_NUM_THREADS_PER_ENDPOINT{
@@ -97,7 +97,7 @@ pub fn syscall_receive_empty_block(&mut self, receiver_thread_ptr: ThreadPtr, bl
     if self.proc_man.get_endpoint(blocking_endpoint_ptr).queue_state.is_send() && self.proc_man.get_endpoint(blocking_endpoint_ptr).queue.len() == 0{
         self.proc_man.block_running_thread_and_change_queue_state_and_set_trap_frame(receiver_thread_ptr, blocking_endpoint_index, IPCPayLoad::Empty, EndpointState::RECEIVE, pt_regs);
         assert(self.wf());
-        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
     }
 
     // Make sure we can access sender from shared endpoint
