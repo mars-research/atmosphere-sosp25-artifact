@@ -1743,10 +1743,12 @@ impl ProcessManager{
     {
         let container_ptr = self.get_thread(thread_ptr).owning_container;
         let old_mem_quota =  self.get_container(container_ptr).mem_quota;
-        let old_owned_threads = self.get_container(container_ptr).owned_threads;
         let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
 
-        let (proc_list_node_ref, scheduler_node_ref) = self.container_tree.new_container(container_ptr, page_ptr_2, page_ptr_3, new_quota, page_ptr_1, page_perm_1);
+        self.container_tree.new_container(container_ptr, new_quota, page_ptr_1, page_perm_1);
+        let proc_list_node_ref = self.container_tree.container_tree_push_proc(page_ptr_1, page_ptr_2);
+        let scheduler_node_ref = self.container_tree.container_tree_scheduler_push_thread(page_ptr_1, page_ptr_3);
+        self.container_tree.container_tree_set_owned_threads(page_ptr_1, Ghost(Set::<ThreadPtr>::empty().insert(page_ptr_3)));
 
         let (new_proc_ptr, mut proc_perm, proc_thread_list_node_ref) = page_to_proc_with_first_thread(page_ptr_2, page_perm_2, page_ptr_1, proc_list_node_ref, new_pcid, None, page_ptr_3);
         proof {

@@ -684,8 +684,7 @@ verus! {
                     self.container_perms@[c_ptr].value().subtree_set =~= old(self).container_perms@[c_ptr].value().subtree_set,
         {}
 
-        pub fn new_container(&mut self, container_ptr:ContainerPtr, first_proc_ptr:ProcPtr, first_thread_ptr:ThreadPtr, init_quota:usize, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>)
-            -> (ret:(SLLIndex,SLLIndex))
+        pub fn new_container(&mut self, container_ptr:ContainerPtr, init_quota:usize, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>)
             requires
                 old(self).wf(),
                 old(self).container_perms@.dom().contains(container_ptr),
@@ -766,7 +765,7 @@ verus! {
                 self.container_perms@[container_ptr].value().uppertree_seq =~= old(self).container_perms@[container_ptr].value().uppertree_seq,
                 self.container_perms@[container_ptr].value().subtree_set@ =~= old(self).container_perms@[container_ptr].value().subtree_set@.insert(page_ptr_1),
                 
-                self.container_perms@[page_ptr_1].value().owned_procs@ =~= Seq::<ProcPtr>::empty().push(first_proc_ptr),
+                self.container_perms@[page_ptr_1].value().owned_procs@ =~= Seq::<ProcPtr>::empty(),
                 self.container_perms@[page_ptr_1].value().parent =~= Some(container_ptr),
                 self.container_perms@[page_ptr_1].value().children@ =~= Seq::<ContainerPtr>::empty(),
                 self.container_perms@[page_ptr_1].value().owned_endpoints.wf(),
@@ -776,41 +775,15 @@ verus! {
                 self.container_perms@[page_ptr_1].value().owned_cpus.wf(),
                 self.container_perms@[page_ptr_1].value().owned_cpus@ =~= Set::<CpuId>::empty(),
                 self.container_perms@[page_ptr_1].value().scheduler.wf(),
-                self.container_perms@[page_ptr_1].value().scheduler@ =~= Seq::<ThreadPtr>::empty().push(first_thread_ptr),
+                self.container_perms@[page_ptr_1].value().scheduler@ =~= Seq::<ThreadPtr>::empty(),
                 self.container_perms@[page_ptr_1].value().owned_threads@.finite(),
-                self.container_perms@[page_ptr_1].value().owned_threads@ =~= Set::<ThreadPtr>::empty().insert(first_thread_ptr),
+                self.container_perms@[page_ptr_1].value().owned_threads@ =~= Set::<ThreadPtr>::empty(),
                 self.container_perms@[page_ptr_1].value().depth as int =~= old(self).container_perms@[container_ptr].value().depth + 1,
                 self.container_perms@[page_ptr_1].value().uppertree_seq@ =~= old(self).container_perms@[container_ptr].value().uppertree_seq@.push(container_ptr),
                 self.container_perms@[page_ptr_1].value().subtree_set@ =~= Set::<ContainerPtr>::empty(),
 
                 self.container_perms@[page_ptr_1].value().owned_procs.wf(),        
-                self.container_perms@[page_ptr_1].value().owned_procs@ =~= Seq::<ProcPtr>::empty().push(first_proc_ptr),
-                self.container_perms@[page_ptr_1].value().owned_procs.len() == 1,
-                forall|index:SLLIndex|
-                   #![trigger  self.container_perms@[page_ptr_1].value().owned_procs.node_ref_valid(index)] 
-                   index != ret.0
-                   ==>
-                    self.container_perms@[page_ptr_1].value().owned_procs.node_ref_valid(index) == false,
-                self.container_perms@[page_ptr_1].value().owned_procs.node_ref_valid(ret.0),
-                self.container_perms@[page_ptr_1].value().owned_procs.node_ref_resolve(ret.0) == first_proc_ptr,
-               
-                self.container_perms@[page_ptr_1].value().owned_endpoints.wf(),        
-                self.container_perms@[page_ptr_1].value().owned_endpoints@ =~= Seq::<EndpointPtr>::empty(),
-                self.container_perms@[page_ptr_1].value().owned_endpoints.len() == 0,
-                forall|index:SLLIndex|
-                   #![trigger  self.container_perms@[page_ptr_1].value().owned_endpoints.node_ref_valid(index)] 
-                    self.container_perms@[page_ptr_1].value().owned_endpoints.node_ref_valid(index) == false,
-               
                 self.container_perms@[page_ptr_1].value().scheduler.wf(),        
-                self.container_perms@[page_ptr_1].value().scheduler@ =~= Seq::<ThreadPtr>::empty().push(first_thread_ptr),
-                self.container_perms@[page_ptr_1].value().scheduler.len() == 1,
-                forall|index:SLLIndex|
-                   #![trigger  self.container_perms@[page_ptr_1].value().scheduler.node_ref_valid(index)] 
-                   index != ret.1
-                   ==>
-                    self.container_perms@[page_ptr_1].value().scheduler.node_ref_valid(index) == false,
-                self.container_perms@[page_ptr_1].value().scheduler.node_ref_valid(ret.1),
-                self.container_perms@[page_ptr_1].value().scheduler.node_ref_resolve(ret.1) == first_thread_ptr,
         {
             let tracked container_perm = self.container_perms.borrow().tracked_borrow(container_ptr);
             let container : &Container = PPtr::<Container>::from_usize(container_ptr).borrow(Tracked(container_perm));
@@ -826,8 +799,8 @@ verus! {
             }
 
             let new_upper_tree_ghost = Ghost(uppertree_seq@.push(container_ptr));
-            let (proc_list_node_ref, scheduler_node_ref, new_container_ptr, container_perm) = 
-                page_to_container_tree_version(page_ptr_1, page_perm_1, first_proc_ptr, container_ptr, child_list_node_ref, init_quota, ArraySet::<NUM_CPUS>::new(), first_thread_ptr,
+            let (new_container_ptr, container_perm) = 
+                page_to_container_tree_version_1(page_ptr_1, page_perm_1, container_ptr, child_list_node_ref, init_quota, ArraySet::<NUM_CPUS>::new(),
                     depth + 1, Ghost(Set::<ContainerPtr>::empty()), new_upper_tree_ghost
                     // depth + 1, Ghost(Set::<ContainerPtr>::empty()), uppertree_seq
                     );
@@ -1000,7 +973,6 @@ verus! {
                     seq_push_lemma::<ContainerPtr>();
                 };
             }
-            (proc_list_node_ref, scheduler_node_ref)
         }
 
         pub fn container_tree_scheduler_pop_head(&mut self, container_ptr:ContainerPtr) -> (ret:(ThreadPtr,SLLIndex))

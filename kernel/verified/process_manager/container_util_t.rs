@@ -469,4 +469,60 @@ pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<Page
     }
 }
 
+
+#[verifier(external_body)]
+pub fn page_to_container_tree_version_1(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, parent_container:ContainerPtr, parent_rev_ptr:SLLIndex, 
+        init_quota:usize, new_cpus: ArraySet<NUM_CPUS>,depth:usize, subtree_set: Ghost<Set<ContainerPtr>>, uppertree_seq: Ghost<Seq<ContainerPtr>>) 
+            -> (ret:(ContainerPtr,Tracked<PointsTo<Container>>))
+    requires    
+        page_perm@.is_init(),
+        page_perm@.addr() == page_ptr,
+    ensures
+        ret.1@.is_init(),
+        ret.0 == page_ptr,
+        ret.1@.addr() == page_ptr, 
+        ret.1@.value().owned_procs.wf(),        
+        ret.1@.value().owned_procs@ =~= Seq::<ProcPtr>::empty(),
+        // forall|index:SLLIndex|
+        //     #![trigger ret.1@.value().owned_procs.node_ref_valid(index)] 
+        //     ret.1@.value().owned_procs.node_ref_valid(index) == false,
+        ret.1@.value().parent =~= Some(parent_container),
+        ret.1@.value().parent_rev_ptr =~= Some(parent_rev_ptr),
+        ret.1@.value().children.wf(),        
+        ret.1@.value().children@ =~= Seq::<ContainerPtr>::empty(),
+        ret.1@.value().children.len() == 0,
+        // forall|index:SLLIndex|
+        //     #![trigger ret.1@.value().children.node_ref_valid(index)] 
+        //     ret.1@.value().children.node_ref_valid(index) == false,
+        ret.1@.value().owned_endpoints.wf(),        
+        ret.1@.value().owned_endpoints@ =~= Seq::<EndpointPtr>::empty(),
+        ret.1@.value().owned_endpoints.len() == 0,
+        ret.1@.value().mem_quota =~= init_quota,
+        ret.1@.value().mem_used =~= 0,
+        ret.1@.value().owned_cpus =~= new_cpus,
+
+        ret.1@.value().scheduler.wf(),        
+        ret.1@.value().scheduler@ =~= Seq::<ThreadPtr>::empty(),
+        ret.1@.value().owned_threads@ =~= Set::<ThreadPtr>::empty(),
+
+        ret.1@.value().depth =~= depth,
+        ret.1@.value().subtree_set =~= subtree_set,
+        ret.1@.value().uppertree_seq =~= uppertree_seq,
+{
+    unsafe{
+        let uptr = page_ptr as *mut MaybeUninit<Container>;
+        (*uptr).assume_init_mut().owned_procs.init();
+        (*uptr).assume_init_mut().parent = Some(parent_container);
+        (*uptr).assume_init_mut().parent_rev_ptr = Some(parent_rev_ptr);
+        (*uptr).assume_init_mut().children.init();
+        (*uptr).assume_init_mut().owned_endpoints.init();
+        (*uptr).assume_init_mut().mem_quota = init_quota;
+        (*uptr).assume_init_mut().mem_used = 0;
+        (*uptr).assume_init_mut().owned_cpus = new_cpus;
+        (*uptr).assume_init_mut().scheduler.init();
+        (*uptr).assume_init_mut().depth = depth;
+        (page_ptr, Tracked::assume_new())
+    }
+}
+
 }
