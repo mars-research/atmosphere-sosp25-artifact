@@ -67,36 +67,6 @@ verus! {
                 self.container_perms@[c_ptr].value().children.unique()
             &&&
             forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().owned_cpus.wf()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().owned_cpus.wf()
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().scheduler.wf() ]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().scheduler.wf() 
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().scheduler.unique()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().scheduler.unique() 
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().owned_procs.wf()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().owned_procs.wf()
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().owned_procs.unique()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().owned_procs.unique()
-            &&&
-            forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().uppertree_seq@.no_duplicates()]
                 self.container_perms@.dom().contains(c_ptr)
                 ==> 
@@ -779,11 +749,15 @@ verus! {
                 self.container_perms@[page_ptr_1].value().owned_procs@ =~= Seq::<ProcPtr>::empty().push(first_proc_ptr),
                 self.container_perms@[page_ptr_1].value().parent =~= Some(container_ptr),
                 self.container_perms@[page_ptr_1].value().children@ =~= Seq::<ContainerPtr>::empty(),
+                self.container_perms@[page_ptr_1].value().owned_endpoints.wf(),
                 self.container_perms@[page_ptr_1].value().owned_endpoints@ =~= Seq::<EndpointPtr>::empty(),
                 self.container_perms@[page_ptr_1].value().mem_quota =~= init_quota,
                 self.container_perms@[page_ptr_1].value().mem_used =~= 0,
+                self.container_perms@[page_ptr_1].value().owned_cpus.wf(),
                 self.container_perms@[page_ptr_1].value().owned_cpus@ =~= Set::<CpuId>::empty(),
+                self.container_perms@[page_ptr_1].value().scheduler.wf(),
                 self.container_perms@[page_ptr_1].value().scheduler@ =~= Seq::<ThreadPtr>::empty().push(first_thread_ptr),
+                self.container_perms@[page_ptr_1].value().owned_threads@.finite(),
                 self.container_perms@[page_ptr_1].value().owned_threads@ =~= Set::<ThreadPtr>::empty().insert(first_thread_ptr),
                 self.container_perms@[page_ptr_1].value().depth as int =~= old(self).container_perms@[container_ptr].value().depth + 1,
                 self.container_perms@[page_ptr_1].value().uppertree_seq@ =~= old(self).container_perms@[container_ptr].value().uppertree_seq@.push(container_ptr),
@@ -916,31 +890,6 @@ verus! {
                             ==> 
                             self.container_perms@[c_ptr].value().children.unique());
                         assert(forall|c_ptr:ContainerPtr| 
-                            #![trigger self.container_perms@[c_ptr].value().owned_cpus.wf()]
-                            self.container_perms@.dom().contains(c_ptr)
-                            ==> 
-                            self.container_perms@[c_ptr].value().owned_cpus.wf());
-                        assert(forall|c_ptr:ContainerPtr| 
-                            #![trigger self.container_perms@[c_ptr].value().scheduler.wf() ]
-                            self.container_perms@.dom().contains(c_ptr)
-                            ==> 
-                            self.container_perms@[c_ptr].value().scheduler.wf() );
-                        assert(forall|c_ptr:ContainerPtr| 
-                            #![trigger self.container_perms@[c_ptr].value().scheduler.unique()]
-                            self.container_perms@.dom().contains(c_ptr)
-                            ==> 
-                            self.container_perms@[c_ptr].value().scheduler.unique() );
-                        assert(forall|c_ptr:ContainerPtr| 
-                            #![trigger self.container_perms@[c_ptr].value().owned_procs.wf()]
-                            self.container_perms@.dom().contains(c_ptr)
-                            ==> 
-                            self.container_perms@[c_ptr].value().owned_procs.wf());
-                        assert(forall|c_ptr:ContainerPtr| 
-                            #![trigger self.container_perms@[c_ptr].value().owned_procs.unique()]
-                            self.container_perms@.dom().contains(c_ptr)
-                            ==> 
-                            self.container_perms@[c_ptr].value().owned_procs.unique());
-                        assert(forall|c_ptr:ContainerPtr| 
                             #![trigger self.container_perms@[c_ptr].value().uppertree_seq@.no_duplicates()]
                             self.container_perms@.dom().contains(c_ptr)
                             ==> 
@@ -1009,6 +958,8 @@ verus! {
             requires
                 old(self).wf(),
                 old(self).container_dom().contains(container_ptr),
+                old(self).get_container(container_ptr).scheduler.wf(),
+                old(self).get_container(container_ptr).scheduler.unique(),
                 old(self).get_container(container_ptr).scheduler.len() != 0,
             ensures
                 self.wf(),
@@ -1030,7 +981,34 @@ verus! {
                 self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
                 self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
                 self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
-
+                
+                self.get_container(container_ptr).scheduler.wf(),
+                self.get_container(container_ptr).scheduler.unique(),
+                self.get_container(container_ptr).scheduler.len() == old(self).get_container(container_ptr).scheduler.len() - 1,
+                self.get_container(container_ptr).scheduler@ == old(self).get_container(container_ptr).scheduler@.skip(1),
+                ret.0 == old(self).get_container(container_ptr).scheduler@[0],
+                old(self).get_container(container_ptr).scheduler.value_list@[0] == ret.1,
+                old(self).get_container(container_ptr).scheduler.node_ref_valid(ret.1),
+                old(self).get_container(container_ptr).scheduler.node_ref_resolve(ret.1) == ret.0,
+                forall|index:SLLIndex|
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    old(self).get_container(container_ptr).scheduler.node_ref_valid(index) && index != ret.1 ==> self.get_container(container_ptr).scheduler.node_ref_valid(index),
+                forall|index:SLLIndex| 
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).scheduler.node_ref_resolve(index)]
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_resolve(index)]
+                    old(self).get_container(container_ptr).scheduler.node_ref_valid(index) && index != ret.1 ==> self.get_container(container_ptr).scheduler.node_ref_resolve(index) == old(self).get_container(container_ptr).scheduler.node_ref_resolve(index),
+                forall|index:SLLIndex|
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_resolve(index)]
+                    #![trigger self.get_container(container_ptr).scheduler.node_ref_resolve(index)]
+                    old(self).get_container(container_ptr).scheduler.node_ref_valid(index) && old(self).get_container(container_ptr).scheduler.node_ref_resolve(index) != ret.0 
+                    ==> 
+                    self.get_container(container_ptr).scheduler.node_ref_valid(index)
+                    &&
+                    self.get_container(container_ptr).scheduler.node_ref_resolve(index) == old(self).get_container(container_ptr).scheduler.node_ref_resolve(index),
         {
             let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
             let (ret_thread_ptr, sll) = scheduler_pop_head(container_ptr,&mut container_perm);
@@ -1099,6 +1077,543 @@ verus! {
             }
 
             (ret_thread_ptr, sll) 
+        }
+
+        pub fn container_tree_scheduler_set_qouta(&mut self, container_ptr:ContainerPtr, new_quota:usize)
+            requires
+                old(self).wf(),
+                old(self).container_dom().contains(container_ptr),
+            ensures
+                self.wf(),
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr),
+                self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+                self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
+                self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
+                self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
+                self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
+                // self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
+                self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+                self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
+                self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+                self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
+                self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+                self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+                self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
+                self.get_container(container_ptr).mem_quota =~= new_quota,
+        {
+            let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            container_set_mem_quota(container_ptr,&mut container_perm, new_quota);
+            proof {
+                self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+            }
+
+            assert(self.container_dom() == old(self).container_dom());
+            assert(
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr) 
+            );
+
+            assert(forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_perms@.dom().contains(c_ptr)]
+                self.container_perms@.dom().contains(c_ptr) && c_ptr != container_ptr
+                ==> 
+                self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                &&                
+                self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                &&
+                self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                &&
+                self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                &&
+                self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                &&
+                self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                &&
+                self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                &&
+                self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                &&
+                self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                &&
+                self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                &&
+                self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq
+            );
+
+            assert(self.rest_specs()) by {
+                assert(self.container_perms_wf()) by {
+                };
+                assert(self.container_root_wf()) by {
+                };
+                assert(self.container_childern_depth_wf()) by {
+                };
+                assert(self.container_subtree_set_exclusive())by {
+                };
+            }
+            assert(self.tree_wf()) by {
+                assert(self.container_subtree_set_wf()) by {
+                };
+                assert(self.container_uppertree_seq_wf()) by {
+                };
+            }
+
+            assert(self.linked_list_wf()) by {
+                assert(self.container_childern_list_wf()) by {
+                };
+                assert(self.containers_linkedlist_wf()) by {
+                };
+            }
+        }
+
+        pub fn container_tree_scheduler_push_thread(&mut self, container_ptr:ContainerPtr, thread_ptr:ThreadPtr) -> (ret:SLLIndex)
+            requires
+                old(self).wf(),
+                old(self).container_dom().contains(container_ptr),
+                old(self).get_container(container_ptr).scheduler.wf(),
+                old(self).get_container(container_ptr).scheduler.unique(),
+                old(self).get_container(container_ptr).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
+                old(self).get_container(container_ptr).scheduler@.contains(thread_ptr) == false,
+            ensures
+                self.wf(),
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr),
+                self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+                self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
+                self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
+                self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
+                self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
+                self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
+                self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+                self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
+                // self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+                self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
+                self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+                self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+                self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
+
+                self.get_container(container_ptr).scheduler.wf(),
+                self.get_container(container_ptr).scheduler@ == old(self).get_container(container_ptr).scheduler@.push(thread_ptr),
+                self.get_container(container_ptr).scheduler.len() == old(self).get_container(container_ptr).scheduler.len() + 1,
+                forall|index:SLLIndex|
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    old(self).get_container(container_ptr).scheduler.node_ref_valid(index) ==> self.get_container(container_ptr).scheduler.node_ref_valid(index),
+                forall|index:SLLIndex| 
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    old(self).get_container(container_ptr).scheduler.node_ref_valid(index) ==> index != ret,
+                forall|index:SLLIndex| 
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).scheduler.node_ref_resolve(index)]
+                    #![trigger old(self).get_container(container_ptr).scheduler.node_ref_resolve(index)]
+                    old(self).get_container(container_ptr).scheduler.node_ref_valid(index) ==> self.get_container(container_ptr).scheduler.node_ref_resolve(index) == old(self).get_container(container_ptr).scheduler.node_ref_resolve(index),
+                self.get_container(container_ptr).scheduler.node_ref_valid(ret),
+                self.get_container(container_ptr).scheduler.node_ref_resolve(ret) == thread_ptr,
+                self.get_container(container_ptr).scheduler.unique(),
+        {
+            let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            let sll = scheduler_push_thread(container_ptr,&mut container_perm, &thread_ptr);
+            proof {
+                self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+            }
+
+            assert(self.container_dom() == old(self).container_dom());
+            assert(
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr) 
+            );
+
+            assert(forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_perms@.dom().contains(c_ptr)]
+                self.container_perms@.dom().contains(c_ptr) && c_ptr != container_ptr
+                ==> 
+                self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                &&                
+                self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                &&
+                self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                &&
+                self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                &&
+                self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                &&
+                self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                &&
+                self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                &&
+                self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                &&
+                self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                &&
+                self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                &&
+                self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq
+            );
+
+            assert(self.rest_specs()) by {
+                assert(self.container_perms_wf()) by {
+                };
+                assert(self.container_root_wf()) by {
+                };
+                assert(self.container_childern_depth_wf()) by {
+                };
+                assert(self.container_subtree_set_exclusive())by {
+                };
+            }
+            assert(self.tree_wf()) by {
+                assert(self.container_subtree_set_wf()) by {
+                };
+                assert(self.container_uppertree_seq_wf()) by {
+                };
+            }
+
+            assert(self.linked_list_wf()) by {
+                assert(self.container_childern_list_wf()) by {
+                };
+                assert(self.containers_linkedlist_wf()) by {
+                };
+            }
+
+            sll
+        }
+
+        pub fn container_tree_scheduler_set_owned_thread(&mut self, container_ptr:ContainerPtr, new_owned_threads:Ghost<Set<ThreadPtr>>)
+            requires
+                old(self).wf(),
+                old(self).container_dom().contains(container_ptr),
+            ensures
+                self.wf(),
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr),
+                self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+                self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
+                self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
+                self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
+                self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
+                self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
+                self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+                self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
+                self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+                // self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
+                self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+                self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+                self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
+                self.get_container(container_ptr).owned_threads =~= new_owned_threads,
+        {
+            let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            container_set_owned_threads(container_ptr,&mut container_perm, new_owned_threads);
+            proof {
+                self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+            }
+
+            assert(self.container_dom() == old(self).container_dom());
+            assert(
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr) 
+            );
+
+            assert(forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_perms@.dom().contains(c_ptr)]
+                self.container_perms@.dom().contains(c_ptr) && c_ptr != container_ptr
+                ==> 
+                self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                &&                
+                self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                &&
+                self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                &&
+                self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                &&
+                self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                &&
+                self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                &&
+                self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                &&
+                self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                &&
+                self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                &&
+                self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                &&
+                self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq
+            );
+
+            assert(self.rest_specs()) by {
+                assert(self.container_perms_wf()) by {
+                };
+                assert(self.container_root_wf()) by {
+                };
+                assert(self.container_childern_depth_wf()) by {
+                };
+                assert(self.container_subtree_set_exclusive())by {
+                };
+            }
+            assert(self.tree_wf()) by {
+                assert(self.container_subtree_set_wf()) by {
+                };
+                assert(self.container_uppertree_seq_wf()) by {
+                };
+            }
+
+            assert(self.linked_list_wf()) by {
+                assert(self.container_childern_list_wf()) by {
+                };
+                assert(self.containers_linkedlist_wf()) by {
+                };
+            }
+        }
+
+        pub fn container_tree_push_proc(&mut self, container_ptr:ContainerPtr, proc_ptr:ProcPtr) -> (ret:SLLIndex)
+            requires
+                old(self).wf(),
+                old(self).container_dom().contains(container_ptr),
+                old(self).get_container(container_ptr).owned_procs.wf(),
+                old(self).get_container(container_ptr).owned_procs.unique(),
+                old(self).get_container(container_ptr).owned_procs.len() < CONTAINER_PROC_LIST_LEN,
+                old(self).get_container(container_ptr).owned_procs@.contains(proc_ptr) == false,
+            ensures
+                self.wf(),
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr),
+                // self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+                self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
+                self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
+                self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
+                self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
+                self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
+                self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+                self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
+                self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+                self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
+                self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+                self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+                self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
+
+                self.get_container(container_ptr).owned_procs.wf(),
+                self.get_container(container_ptr).owned_procs@ == old(self).get_container(container_ptr).owned_procs@.push(proc_ptr),
+                self.get_container(container_ptr).owned_procs.len() == old(self).get_container(container_ptr).owned_procs.len() + 1,
+                forall|index:SLLIndex|
+                    #![trigger old(self).get_container(container_ptr).owned_procs.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).owned_procs.node_ref_valid(index)]
+                    old(self).get_container(container_ptr).owned_procs.node_ref_valid(index) ==> self.get_container(container_ptr).owned_procs.node_ref_valid(index),
+                forall|index:SLLIndex| 
+                    #![trigger old(self).get_container(container_ptr).owned_procs.node_ref_valid(index)]
+                    old(self).get_container(container_ptr).owned_procs.node_ref_valid(index) ==> index != ret,
+                forall|index:SLLIndex| 
+                    #![trigger old(self).get_container(container_ptr).owned_procs.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).owned_procs.node_ref_resolve(index)]
+                    #![trigger old(self).get_container(container_ptr).owned_procs.node_ref_resolve(index)]
+                    old(self).get_container(container_ptr).owned_procs.node_ref_valid(index) ==> self.get_container(container_ptr).owned_procs.node_ref_resolve(index) == old(self).get_container(container_ptr).owned_procs.node_ref_resolve(index),
+                self.get_container(container_ptr).owned_procs.node_ref_valid(ret),
+                self.get_container(container_ptr).owned_procs.node_ref_resolve(ret) == proc_ptr,
+                self.get_container(container_ptr).owned_procs.unique(),
+        {
+            let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            let sll = container_push_proc(container_ptr,&mut container_perm, proc_ptr);
+            proof {
+                self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+            }
+
+            assert(self.container_dom() == old(self).container_dom());
+            assert(
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr) 
+            );
+
+            assert(forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_perms@.dom().contains(c_ptr)]
+                self.container_perms@.dom().contains(c_ptr) && c_ptr != container_ptr
+                ==> 
+                self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                &&                
+                self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                &&
+                self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                &&
+                self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                &&
+                self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                &&
+                self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                &&
+                self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                &&
+                self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                &&
+                self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                &&
+                self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                &&
+                self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq
+            );
+
+            assert(self.rest_specs()) by {
+                assert(self.container_perms_wf()) by {
+                };
+                assert(self.container_root_wf()) by {
+                };
+                assert(self.container_childern_depth_wf()) by {
+                };
+                assert(self.container_subtree_set_exclusive())by {
+                };
+            }
+            assert(self.tree_wf()) by {
+                assert(self.container_subtree_set_wf()) by {
+                };
+                assert(self.container_uppertree_seq_wf()) by {
+                };
+            }
+
+            assert(self.linked_list_wf()) by {
+                assert(self.container_childern_list_wf()) by {
+                };
+                assert(self.containers_linkedlist_wf()) by {
+                };
+            }
+
+            sll
+        }
+
+        pub fn container_tree_push_endpoint(&mut self, container_ptr:ContainerPtr, endpoint_ptr:EndpointPtr) -> (ret:SLLIndex)
+            requires
+                old(self).wf(),
+                old(self).container_dom().contains(container_ptr),
+                old(self).get_container(container_ptr).owned_endpoints.wf(),
+                old(self).get_container(container_ptr).owned_endpoints.unique(),
+                old(self).get_container(container_ptr).owned_endpoints.len() < CONTAINER_ENDPOINT_LIST_LEN,
+                old(self).get_container(container_ptr).owned_endpoints@.contains(endpoint_ptr) == false,
+            ensures
+                self.wf(),
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr),
+                self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+                self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
+                self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
+                self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
+                // self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
+                self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
+                self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+                self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
+                self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+                self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
+                self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+                self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+                self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
+
+                self.get_container(container_ptr).owned_endpoints.wf(),
+                self.get_container(container_ptr).owned_endpoints@ == old(self).get_container(container_ptr).owned_endpoints@.push(endpoint_ptr),
+                self.get_container(container_ptr).owned_endpoints.len() == old(self).get_container(container_ptr).owned_endpoints.len() + 1,
+                forall|index:SLLIndex|
+                    #![trigger old(self).get_container(container_ptr).owned_endpoints.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).owned_endpoints.node_ref_valid(index)]
+                    old(self).get_container(container_ptr).owned_endpoints.node_ref_valid(index) ==> self.get_container(container_ptr).owned_endpoints.node_ref_valid(index),
+                forall|index:SLLIndex| 
+                    #![trigger old(self).get_container(container_ptr).owned_endpoints.node_ref_valid(index)]
+                    old(self).get_container(container_ptr).owned_endpoints.node_ref_valid(index) ==> index != ret,
+                forall|index:SLLIndex| 
+                    #![trigger old(self).get_container(container_ptr).owned_endpoints.node_ref_valid(index)]
+                    #![trigger self.get_container(container_ptr).owned_endpoints.node_ref_resolve(index)]
+                    #![trigger old(self).get_container(container_ptr).owned_endpoints.node_ref_resolve(index)]
+                    old(self).get_container(container_ptr).owned_endpoints.node_ref_valid(index) ==> self.get_container(container_ptr).owned_endpoints.node_ref_resolve(index) == old(self).get_container(container_ptr).owned_endpoints.node_ref_resolve(index),
+                self.get_container(container_ptr).owned_endpoints.node_ref_valid(ret),
+                self.get_container(container_ptr).owned_endpoints.node_ref_resolve(ret) == endpoint_ptr,
+                self.get_container(container_ptr).owned_endpoints.unique(),
+        {
+            let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            let sll = container_push_endpoint(container_ptr,&mut container_perm, endpoint_ptr);
+            proof {
+                self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+            }
+
+            assert(self.container_dom() == old(self).container_dom());
+            assert(
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr) 
+            );
+
+            assert(forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_perms@.dom().contains(c_ptr)]
+                self.container_perms@.dom().contains(c_ptr) && c_ptr != container_ptr
+                ==> 
+                self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                &&                
+                self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                &&
+                self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                &&
+                self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                &&
+                self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                &&
+                self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                &&
+                self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                &&
+                self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                &&
+                self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                &&
+                self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                &&
+                self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq
+            );
+
+            assert(self.rest_specs()) by {
+                assert(self.container_perms_wf()) by {
+                };
+                assert(self.container_root_wf()) by {
+                };
+                assert(self.container_childern_depth_wf()) by {
+                };
+                assert(self.container_subtree_set_exclusive())by {
+                };
+            }
+            assert(self.tree_wf()) by {
+                assert(self.container_subtree_set_wf()) by {
+                };
+                assert(self.container_uppertree_seq_wf()) by {
+                };
+            }
+
+            assert(self.linked_list_wf()) by {
+                assert(self.container_childern_list_wf()) by {
+                };
+                assert(self.containers_linkedlist_wf()) by {
+                };
+            }
+
+            sll
         }
     }
 }
