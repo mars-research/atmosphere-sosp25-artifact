@@ -17,6 +17,29 @@ verus! {
 
     //specs
     impl ContainerTree{
+        pub open spec fn container_dom(&self) -> Set<ContainerPtr>
+        {
+            self.container_perms@.dom()
+        }
+
+        pub open spec fn spec_get_container(&self, c_ptr:ContainerPtr) -> &Container
+        {
+            &self.container_perms@[c_ptr].value()
+        }
+
+        #[verifier(when_used_as_spec(spec_get_container))]
+        pub fn get_container(&self, container_ptr:ContainerPtr) -> (ret:&Container)
+            requires
+                self.wf(),
+                self.container_dom().contains(container_ptr),
+            ensures
+                self.get_container(container_ptr) == ret,
+        {
+            let tracked container_perm = self.container_perms.borrow().tracked_borrow(container_ptr);
+            let container : &Container = PPtr::<Container>::from_usize(container_ptr).borrow(Tracked(container_perm));
+            container
+        }
+
         pub closed spec fn container_perms_wf(&self) -> bool{
             &&&
             forall|c_ptr:ContainerPtr| 
@@ -513,75 +536,75 @@ verus! {
                     #![trigger self.container_perms@[c_ptr]] 
                     self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) == false 
                     ==> 
-                    self.container_perms@[c_ptr] =~= old(self).container_perms@[c_ptr],
+                    self.container_perms@[c_ptr] === old(self).container_perms@[c_ptr],
                 forall|c_ptr:ContainerPtr| 
                     #![trigger self.container_perms@[c_ptr].is_init()] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].is_init(),
                 forall|c_ptr:ContainerPtr| 
                     #![trigger self.container_perms@[c_ptr].addr()] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>           
                     self.container_perms@[c_ptr].addr() == old(self).container_perms@[c_ptr].addr(),
                 forall|c_ptr:ContainerPtr| 
                     #![trigger self.container_perms@[c_ptr].value().owned_procs] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs,
                 forall|c_ptr:ContainerPtr| 
                     #![trigger self.container_perms@[c_ptr].value().parent] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent,
                 forall|c_ptr:ContainerPtr| 
                     #![trigger self.container_perms@[c_ptr].value().parent_rev_ptr] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@.dom().contains(c_ptr), self.container_perms@[c_ptr].value().children] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().owned_endpoints] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().mem_quota] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().mem_quota =~= old(self).container_perms@[c_ptr].value().mem_quota,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().mem_used] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().owned_cpus] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@.dom().contains(c_ptr), self.container_perms@[c_ptr].value().scheduler] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().owned_threads] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().depth] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth,
                 forall|c_ptr:ContainerPtr| 
                 #![trigger self.container_perms@[c_ptr].value().uppertree_seq] 
-                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    self.container_perms@.dom().contains(c_ptr)
                     ==>
                     self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq,
                 forall|c_ptr:ContainerPtr| 
@@ -589,34 +612,201 @@ verus! {
                     self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
                     ==>
                     self.container_perms@[c_ptr].value().subtree_set@ =~= old(self).container_perms@[c_ptr].value().subtree_set@.insert(subchild_ptr),
+                forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_perms@[c_ptr].value().subtree_set] 
+                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) == false
+                    ==>
+                    self.container_perms@[c_ptr].value().subtree_set =~= old(self).container_perms@[c_ptr].value().subtree_set,
         {}
 
-        pub fn new_container(&mut self, container_ptr:ContainerPtr, new_quota:usize, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, first_proc_ptr:ProcPtr, first_thread_ptr:ThreadPtr)
+        #[verifier(external_body)]
+        pub fn upper_tree_add_container1(&mut self, seq:Ghost<Seq<ContainerPtr>>, subchild_ptr:ContainerPtr)
+            requires
+                forall|c_ptr:ContainerPtr|
+                #![trigger seq@.contains(c_ptr)] 
+                seq@.contains(c_ptr) ==> old(self).container_perms@.dom().contains(c_ptr)
+            ensures
+                self.root_container == old(self).root_container,
+                old(self).container_perms@.dom() == self.container_perms@.dom(),
+                forall|c_ptr:ContainerPtr| 
+                    #![trigger self.container_perms@.dom().contains(c_ptr)] 
+                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) == false 
+                    ==> 
+                    self.container_perms@[c_ptr] =~= old(self).container_perms@[c_ptr],
+               
+                forall|c_ptr:ContainerPtr| 
+                    #![trigger self.container_perms@.dom().contains(c_ptr)]
+                    #![trigger self.container_perms@[c_ptr].is_init()]
+                    #![trigger self.container_perms@[c_ptr].addr()]
+                    #![trigger self.container_perms@[c_ptr].value().owned_procs]
+                    #![trigger self.container_perms@[c_ptr].value().owned_procs]
+                    #![trigger self.container_perms@[c_ptr].value().parent]
+                    #![trigger self.container_perms@[c_ptr].value().parent_rev_ptr]
+                    #![trigger self.container_perms@[c_ptr].value().children]
+                    #![trigger self.container_perms@[c_ptr].value().owned_endpoints]
+                    #![trigger self.container_perms@[c_ptr].value().mem_quota]
+                    #![trigger self.container_perms@[c_ptr].value().mem_used]
+                    #![trigger self.container_perms@[c_ptr].value().owned_cpus]
+                    #![trigger self.container_perms@[c_ptr].value().scheduler]
+                    #![trigger self.container_perms@[c_ptr].value().owned_threads]
+                    #![trigger self.container_perms@[c_ptr].value().depth]
+                    #![trigger self.container_perms@[c_ptr].value().uppertree_seq]
+                    self.container_perms@.dom().contains(c_ptr)
+                    ==> 
+                    self.container_perms@[c_ptr].is_init() == old(self).container_perms@[c_ptr].is_init()
+                    &&
+                    self.container_perms@[c_ptr].addr() == old(self).container_perms@[c_ptr].addr()
+                    &&
+                    self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                    &&                
+                    self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                    &&
+                    self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                    &&
+                    self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                    &&
+                    self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                    &&
+                    self.container_perms@[c_ptr].value().mem_quota =~= old(self).container_perms@[c_ptr].value().mem_quota
+                    &&
+                    self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                    &&
+                    self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                    &&
+                    self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                    &&
+                    self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                    &&
+                    self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                    &&
+                    self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq,
+
+                forall|c_ptr:ContainerPtr| 
+                    #![trigger self.container_perms@.dom().contains(c_ptr)] 
+                    #![trigger self.container_perms@[c_ptr].value().subtree_set] 
+                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) 
+                    ==>
+                    self.container_perms@[c_ptr].value().subtree_set@ =~= old(self).container_perms@[c_ptr].value().subtree_set@.insert(subchild_ptr),
+                forall|c_ptr:ContainerPtr| 
+                    #![trigger self.container_perms@.dom().contains(c_ptr)] 
+                    #![trigger self.container_perms@[c_ptr].value().subtree_set] 
+                    self.container_perms@.dom().contains(c_ptr) && seq@.contains(c_ptr) == false
+                    ==>
+                    self.container_perms@[c_ptr].value().subtree_set =~= old(self).container_perms@[c_ptr].value().subtree_set,
+        {}
+
+        pub fn new_container(&mut self, container_ptr:ContainerPtr, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, first_proc_ptr:ProcPtr, first_thread_ptr:ThreadPtr, init_quota:usize)
             requires
                 old(self).wf(),
                 old(self).container_perms@.dom().contains(container_ptr),
                 old(self).container_perms@.dom().contains(page_ptr_1) == false,
                 old(self).container_perms@[container_ptr].value().children.len() < CONTAINER_CHILD_LIST_LEN,
                 old(self).container_perms@[container_ptr].value().depth < usize::MAX,
+                old(self).container_perms@[container_ptr].value().mem_quota >= init_quota,
                 page_perm_1@.is_init(),
                 page_perm_1@.addr() == page_ptr_1,
             ensures
-                self.wf(),   
+                self.wf(),  
+                self.container_dom() =~= old(self).container_dom().insert(page_ptr_1),
+                self.get_container(page_ptr_1).uppertree_seq@ =~= old(self).get_container(container_ptr).uppertree_seq@.push(container_ptr),
+                forall|c_ptr:ContainerPtr| 
+                    #![trigger self.container_perms@.dom().contains(c_ptr)]
+                    #![trigger self.container_perms@[c_ptr].is_init()]
+                    #![trigger self.container_perms@[c_ptr].addr()]
+                    #![trigger self.container_perms@[c_ptr].value().owned_procs]
+                    #![trigger self.container_perms@[c_ptr].value().parent]
+                    #![trigger self.container_perms@[c_ptr].value().parent_rev_ptr]
+                    #![trigger self.container_perms@[c_ptr].value().children]
+                    #![trigger self.container_perms@[c_ptr].value().owned_endpoints]
+                    #![trigger self.container_perms@[c_ptr].value().mem_quota]
+                    #![trigger self.container_perms@[c_ptr].value().mem_used]
+                    #![trigger self.container_perms@[c_ptr].value().owned_cpus]
+                    #![trigger self.container_perms@[c_ptr].value().scheduler]
+                    #![trigger self.container_perms@[c_ptr].value().owned_threads]
+                    #![trigger self.container_perms@[c_ptr].value().depth]
+                    #![trigger self.container_perms@[c_ptr].value().uppertree_seq]
+                    old(self).container_perms@.dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==> 
+                    self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                    &&                
+                    self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                    &&                
+                    self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                    &&
+                    self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                    &&
+                    self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                    &&
+                    self.container_perms@[c_ptr].value().mem_quota =~= old(self).container_perms@[c_ptr].value().mem_quota
+                    &&
+                    self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                    &&
+                    self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                    &&
+                    self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                    &&
+                    self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                    &&
+                    self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                    &&
+                    self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq,
+                forall|c_ptr:ContainerPtr| 
+                    #![trigger self.container_perms@.dom().contains(c_ptr)] 
+                    #![trigger self.container_perms@[c_ptr].value().subtree_set] 
+                    self.container_perms@.dom().contains(c_ptr) && self.get_container(page_ptr_1).uppertree_seq@.contains(c_ptr)
+                    ==>
+                    self.container_perms@[c_ptr].value().subtree_set@ =~= old(self).container_perms@[c_ptr].value().subtree_set@.insert(page_ptr_1),
+                forall|c_ptr:ContainerPtr| 
+                    #![trigger self.container_perms@.dom().contains(c_ptr)] 
+                    #![trigger self.container_perms@[c_ptr].value().subtree_set] 
+                    old(self).container_perms@.dom().contains(c_ptr) && self.get_container(page_ptr_1).uppertree_seq@.contains(c_ptr) == false
+                    ==>
+                    self.container_perms@[c_ptr].value().subtree_set =~= old(self).container_perms@[c_ptr].value().subtree_set,
+
+                self.container_perms@[container_ptr].value().owned_procs =~= old(self).container_perms@[container_ptr].value().owned_procs,
+                self.container_perms@[container_ptr].value().parent =~= old(self).container_perms@[container_ptr].value().parent,
+                self.container_perms@[container_ptr].value().children@ =~= old(self).container_perms@[container_ptr].value().children@.push(page_ptr_1),
+                self.container_perms@[container_ptr].value().owned_endpoints =~= old(self).container_perms@[container_ptr].value().owned_endpoints,
+                self.container_perms@[container_ptr].value().mem_quota as int =~= old(self).container_perms@[container_ptr].value().mem_quota - init_quota,
+                self.container_perms@[container_ptr].value().mem_used =~= old(self).container_perms@[container_ptr].value().mem_used,
+                self.container_perms@[container_ptr].value().owned_cpus =~= old(self).container_perms@[container_ptr].value().owned_cpus,
+                self.container_perms@[container_ptr].value().scheduler =~= old(self).container_perms@[container_ptr].value().scheduler,
+                self.container_perms@[container_ptr].value().owned_threads =~= old(self).container_perms@[container_ptr].value().owned_threads,
+                self.container_perms@[container_ptr].value().depth =~= old(self).container_perms@[container_ptr].value().depth,
+                self.container_perms@[container_ptr].value().uppertree_seq =~= old(self).container_perms@[container_ptr].value().uppertree_seq,
+                self.container_perms@[container_ptr].value().subtree_set@ =~= old(self).container_perms@[container_ptr].value().subtree_set@.insert(page_ptr_1),
+                
+                self.container_perms@[page_ptr_1].value().owned_procs@ =~= Seq::<ProcPtr>::empty().push(first_proc_ptr),
+                self.container_perms@[page_ptr_1].value().parent =~= Some(container_ptr),
+                self.container_perms@[page_ptr_1].value().children@ =~= Seq::<ContainerPtr>::empty(),
+                self.container_perms@[page_ptr_1].value().owned_endpoints@ =~= Seq::<EndpointPtr>::empty(),
+                self.container_perms@[page_ptr_1].value().mem_quota =~= init_quota,
+                self.container_perms@[page_ptr_1].value().mem_used =~= 0,
+                self.container_perms@[page_ptr_1].value().owned_cpus@ =~= Set::<CpuId>::empty(),
+                self.container_perms@[page_ptr_1].value().scheduler@ =~= Seq::<ThreadPtr>::empty().push(first_thread_ptr),
+                self.container_perms@[page_ptr_1].value().owned_threads@ =~= Set::<ThreadPtr>::empty().insert(first_thread_ptr),
+                self.container_perms@[page_ptr_1].value().depth as int =~= old(self).container_perms@[container_ptr].value().depth + 1,
+                self.container_perms@[page_ptr_1].value().uppertree_seq@ =~= old(self).container_perms@[container_ptr].value().uppertree_seq@.push(container_ptr),
+                self.container_perms@[page_ptr_1].value().subtree_set@ =~= Set::<ContainerPtr>::empty(),
+
         {
             let tracked container_perm = self.container_perms.borrow().tracked_borrow(container_ptr);
             let container : &Container = PPtr::<Container>::from_usize(container_ptr).borrow(Tracked(container_perm));
+            let quota = container.mem_quota;
             let depth = container.depth;
             let uppertree_seq = container.uppertree_seq;
 
             let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            container_set_mem_quota(container_ptr,&mut container_perm, quota - init_quota);
             let child_list_node_ref = container_push_child(container_ptr,&mut container_perm, page_ptr_1);
             proof {
                 self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
             }
 
+            let new_upper_tree_ghost = Ghost(uppertree_seq@.push(container_ptr));
             let (proc_list_node_ref, scheduler_node_ref, new_container_ptr, container_perm) = 
-                page_to_container_tree_version(page_ptr_1, page_perm_1, first_proc_ptr, container_ptr, child_list_node_ref, new_quota, ArraySet::<NUM_CPUS>::new(), first_thread_ptr,
-                    depth + 1, Ghost(Set::<ContainerPtr>::empty()), Ghost(uppertree_seq@.push(container_ptr))
+                page_to_container_tree_version(page_ptr_1, page_perm_1, first_proc_ptr, container_ptr, child_list_node_ref, init_quota, ArraySet::<NUM_CPUS>::new(), first_thread_ptr,
+                    depth + 1, Ghost(Set::<ContainerPtr>::empty()), new_upper_tree_ghost
                     // depth + 1, Ghost(Set::<ContainerPtr>::empty()), uppertree_seq
                     );
             proof {
@@ -632,7 +822,7 @@ verus! {
             ) by {
                 seq_push_lemma::<ContainerPtr>();
             };
-            assert(uppertree_seq@.push(container_ptr) =~= self.container_perms@[container_ptr].value().uppertree_seq@.push(container_ptr));
+            assert(new_upper_tree_ghost@ =~= self.container_perms@[container_ptr].value().uppertree_seq@.push(container_ptr));
             assert(
                 forall|u_ptr:ContainerPtr|
                 #![trigger uppertree_seq@.push(container_ptr).contains(u_ptr)]
@@ -644,7 +834,7 @@ verus! {
             };
 
 
-            self.upper_tree_add_container(Ghost(uppertree_seq@.push(container_ptr)), new_container_ptr);
+            self.upper_tree_add_container1(new_upper_tree_ghost, new_container_ptr);
             // self.upper_tree_add_container(uppertree_seq, new_container_ptr);
             
                 assert(uppertree_seq@.contains(container_ptr) == false);
@@ -669,6 +859,107 @@ verus! {
                         self.container_perms@.dom().contains(c_ptr) && c_ptr != new_container_ptr
                         ==> 
                         self.container_perms@[c_ptr].value().uppertree_seq@ =~= old(self).container_perms@[c_ptr].value().uppertree_seq@);
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@.dom().contains(c_ptr)]
+                            self.container_perms@.dom().contains(c_ptr) && c_ptr != new_container_ptr
+                            ==> 
+                            self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                            &&                
+                            self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                            &&
+                            self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                            &&
+                            self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                            &&
+                            self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                            &&
+                            self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                            &&
+                            self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                            &&
+                            self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                            &&
+                            self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                            &&
+                            self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq
+                        );
+                        assert(self.container_perms@[new_container_ptr].is_init());
+                        assert(self.container_perms@[new_container_ptr].addr() == new_container_ptr);
+                        assert(self.container_perms@[new_container_ptr].value().children.wf());
+                        assert(self.container_perms@[new_container_ptr].value().children.unique());
+                        assert(self.container_perms@[new_container_ptr].value().owned_cpus.wf());
+                        assert(self.container_perms@[new_container_ptr].value().scheduler.wf());
+                        assert(self.container_perms@[new_container_ptr].value().scheduler.unique());
+                        assert(self.container_perms@[new_container_ptr].value().owned_procs.wf());
+                        assert(self.container_perms@[new_container_ptr].value().owned_procs.unique());
+                        assert(self.container_perms@[new_container_ptr].value().uppertree_seq@.no_duplicates());
+                        assert(self.container_perms@[new_container_ptr].value().subtree_set@.finite());
+                        assert(self.container_perms@[new_container_ptr].value().uppertree_seq@.len() == self.container_perms@[new_container_ptr].value().depth);
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].is_init()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].is_init());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].addr()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==>        
+                            self.container_perms@[c_ptr].addr() == c_ptr);
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().children.wf()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().children.wf());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().children.unique()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().children.unique());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().owned_cpus.wf()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().owned_cpus.wf());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().scheduler.wf() ]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().scheduler.wf() );
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().scheduler.unique()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().scheduler.unique() );
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().owned_procs.wf()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().owned_procs.wf());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().owned_procs.unique()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().owned_procs.unique());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().uppertree_seq@.no_duplicates()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==> 
+                            self.container_perms@[c_ptr].value().uppertree_seq@.no_duplicates());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@.dom().contains(c_ptr), self.container_perms@[c_ptr].value().children@.contains(c_ptr)]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==>
+                            self.container_perms@[c_ptr].value().children@.contains(c_ptr) == false);
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().subtree_set@.finite()]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==>
+                            self.container_perms@[c_ptr].value().subtree_set@.finite());
+                        assert(forall|c_ptr:ContainerPtr| 
+                            #![trigger self.container_perms@[c_ptr].value().uppertree_seq@.len(), self.container_perms@[c_ptr].value().depth]
+                            self.container_perms@.dom().contains(c_ptr)
+                            ==>
+                            self.container_perms@[c_ptr].value().uppertree_seq@.len() == self.container_perms@[c_ptr].value().depth);
                 };
                 assert(self.container_root_wf()) by {
                 };
@@ -712,6 +1003,102 @@ verus! {
                     seq_push_lemma::<ContainerPtr>();
                 };
             }
+        }
+
+        pub fn container_tree_scheduler_pop_head(&mut self, container_ptr:ContainerPtr) -> (ret:(ThreadPtr,SLLIndex))
+            requires
+                old(self).wf(),
+                old(self).container_dom().contains(container_ptr),
+                old(self).get_container(container_ptr).scheduler.len() != 0,
+            ensures
+                self.wf(),
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr),
+                self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+                self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
+                self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
+                self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
+                self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
+                self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
+                self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+                self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
+                // self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+                self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
+                self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+                self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+                self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
+
+        {
+            let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            let (ret_thread_ptr, sll) = scheduler_pop_head(container_ptr,&mut container_perm);
+            proof {
+                self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+            }
+
+            assert(self.container_dom() == old(self).container_dom());
+            assert(
+                forall|c_ptr:ContainerPtr|
+                    #![trigger self.get_container(c_ptr)]
+                    self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                    ==>
+                    self.get_container(c_ptr) == old(self).get_container(c_ptr) 
+            );
+
+            assert(forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_perms@.dom().contains(c_ptr)]
+                self.container_perms@.dom().contains(c_ptr) && c_ptr != container_ptr
+                ==> 
+                self.container_perms@[c_ptr].value().owned_procs =~= old(self).container_perms@[c_ptr].value().owned_procs
+                &&                
+                self.container_perms@[c_ptr].value().parent =~= old(self).container_perms@[c_ptr].value().parent
+                &&
+                self.container_perms@[c_ptr].value().parent_rev_ptr =~= old(self).container_perms@[c_ptr].value().parent_rev_ptr
+                &&
+                self.container_perms@[c_ptr].value().children =~= old(self).container_perms@[c_ptr].value().children
+                &&
+                self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                &&
+                self.container_perms@[c_ptr].value().mem_used =~= old(self).container_perms@[c_ptr].value().mem_used
+                &&
+                self.container_perms@[c_ptr].value().owned_cpus =~= old(self).container_perms@[c_ptr].value().owned_cpus
+                &&
+                self.container_perms@[c_ptr].value().scheduler =~= old(self).container_perms@[c_ptr].value().scheduler
+                &&
+                self.container_perms@[c_ptr].value().owned_threads =~= old(self).container_perms@[c_ptr].value().owned_threads
+                &&
+                self.container_perms@[c_ptr].value().depth =~= old(self).container_perms@[c_ptr].value().depth
+                &&
+                self.container_perms@[c_ptr].value().uppertree_seq =~= old(self).container_perms@[c_ptr].value().uppertree_seq
+            );
+
+            assert(self.rest_specs()) by {
+                assert(self.container_perms_wf()) by {
+                };
+                assert(self.container_root_wf()) by {
+                };
+                assert(self.container_childern_depth_wf()) by {
+                };
+                assert(self.container_subtree_set_exclusive())by {
+                };
+            }
+            assert(self.tree_wf()) by {
+                assert(self.container_subtree_set_wf()) by {
+                };
+                assert(self.container_uppertree_seq_wf()) by {
+                };
+            }
+
+            assert(self.linked_list_wf()) by {
+                assert(self.container_childern_list_wf()) by {
+                };
+                assert(self.containers_linkedlist_wf()) by {
+                };
+            }
+
+            (ret_thread_ptr, sll) 
         }
     }
 }

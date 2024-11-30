@@ -85,6 +85,7 @@ pub fn scheduler_pop_head(container_ptr:ContainerPtr, container_perm: &mut Track
 
 
         container_perm@.value().scheduler.wf(),
+        container_perm@.value().scheduler.unique(),
         container_perm@.value().scheduler.len() == old(container_perm)@.value().scheduler.len() - 1,
         container_perm@.value().scheduler@ == old(container_perm)@.value().scheduler@.skip(1),
         ret.0 == old(container_perm)@.value().scheduler@[0],
