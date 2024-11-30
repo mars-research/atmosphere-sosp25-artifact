@@ -19,11 +19,11 @@ verus! {
     use crate::array_set::ArraySet;
     use core::mem::MaybeUninit;
     use crate::trap::Registers;
+    use crate::process_manager::container_tree_spec_impl::ContainerTree;
 
 pub struct ProcessManager{
-    pub root_container: ContainerPtr,
+    pub container_tree:ContainerTree,
 
-    pub container_perms: Tracked<Map<ContainerPtr, PointsTo<Container>>>,
     pub process_perms: Tracked<Map<ProcPtr, PointsTo<Process>>>,
     pub thread_perms: Tracked<Map<ThreadPtr, PointsTo<Thread>>>,
     pub endpoint_perms: Tracked<Map<EndpointPtr, PointsTo<Endpoint>>>,
@@ -42,7 +42,7 @@ impl ProcessManager{
     
     pub closed spec fn page_closure(&self) -> Set<PagePtr>
     {
-        self.container_perms@.dom() + self.process_perms@.dom() + self.thread_perms@.dom() + self.endpoint_perms@.dom()
+        self.container_tree.container_dom() + self.process_perms@.dom() + self.thread_perms@.dom() + self.endpoint_perms@.dom()
     }
 
     pub closed spec fn proc_dom(&self) -> Set<ProcPtr>
@@ -52,7 +52,7 @@ impl ProcessManager{
 
     pub closed spec fn container_dom(&self) -> Set<ContainerPtr>
     {
-        self.container_perms@.dom()
+        self.container_tree.container_dom()
     }
 
     pub closed spec fn thread_dom(&self) -> Set<ThreadPtr>
@@ -131,6 +131,9 @@ impl ProcessManager{
             self.get_container(ret.owning_container).owned_procs.wf(),
             self.get_container(ret.owning_container).children.wf(),
     {
+        proof{
+            self.container_tree.container_tree_inv();
+        }
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
         let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
         thread
@@ -180,7 +183,7 @@ impl ProcessManager{
             self.wf(),
             self.container_dom().contains(container_ptr),
     {
-        &self.container_perms@[container_ptr].value()
+        self.container_tree.get_container(container_ptr)
     }
 
     #[verifier(when_used_as_spec(spec_get_container))]
@@ -191,9 +194,7 @@ impl ProcessManager{
         ensures
             self.get_container(container_ptr) == ret,
     {
-        let tracked container_perm = self.container_perms.borrow().tracked_borrow(container_ptr);
-        let container : &Container = PPtr::<Container>::from_usize(container_ptr).borrow(Tracked(container_perm));
-        container
+        self.container_tree.get_container(container_ptr)
     }
 
     pub closed spec fn spec_get_container_by_proc_ptr(&self, proc_ptr:ProcPtr) -> &Container
@@ -201,7 +202,7 @@ impl ProcessManager{
             self.wf(),
             self.proc_dom().contains(proc_ptr),
     {
-        &self.container_perms@[self.get_proc(proc_ptr).owning_container].value()
+        self.container_tree.get_container(self.get_proc(proc_ptr).owning_container)
     }
 
     #[verifier(when_used_as_spec(spec_get_container_by_proc_ptr))]
@@ -216,8 +217,7 @@ impl ProcessManager{
             ret.scheduler.wf(),
     {
         let container_ptr = self.get_proc(proc_ptr).owning_container;
-        let tracked container_perm = self.container_perms.borrow().tracked_borrow(container_ptr);
-        let container : &Container = PPtr::<Container>::from_usize(container_ptr).borrow(Tracked(container_perm));
+        let container = self.container_tree.get_container(container_ptr);
         container
     }
 
@@ -226,7 +226,7 @@ impl ProcessManager{
             self.wf(),
             self.thread_perms@.dom().contains(thread_ptr),
     {
-        &self.container_perms@[self.get_proc_by_thread_ptr(thread_ptr).owning_container].value()
+        self.container_tree.get_container(self.get_proc_by_thread_ptr(thread_ptr).owning_container)
     }
 
     #[verifier(when_used_as_spec(spec_get_container_by_thread_ptr))]
@@ -238,8 +238,7 @@ impl ProcessManager{
             self.get_container_by_thread_ptr(thread_ptr) == ret,
     {
         let container_ptr = self.get_proc_by_thread_ptr(thread_ptr).owning_container;
-        let tracked container_perm = self.container_perms.borrow().tracked_borrow(container_ptr);
-        let container : &Container = PPtr::<Container>::from_usize(container_ptr).borrow(Tracked(container_perm));
+        let container = self.container_tree.get_container(container_ptr);
         container
     }
 
@@ -441,13 +440,13 @@ impl ProcessManager{
             #![trigger self.cpu_list@[cpu_i as int]]
             0 <= cpu_i < NUM_CPUS 
             ==> 
-            self.container_perms@.dom().contains(self.cpu_list@[cpu_i as int].owning_container)
+            self.container_tree.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container)
         &&&
         forall|cpu_i:CpuId|
             #![trigger self.cpu_list@[cpu_i as int]]
             0 <= cpu_i < NUM_CPUS 
             ==> 
-            self.container_perms@[self.cpu_list@[cpu_i as int].owning_container].value().owned_cpus@.contains(cpu_i)
+            self.container_tree.get_container(self.cpu_list@[cpu_i as int].owning_container).owned_cpus@.contains(cpu_i)
         &&&
         forall|cpu_i:CpuId|
             #![trigger self.cpu_list@[cpu_i as int]]
@@ -495,11 +494,11 @@ impl ProcessManager{
 
     pub closed spec fn memory_disjoint(&self) -> bool{
         &&&
-        self.container_perms@.dom().disjoint(self.process_perms@.dom())
+        self.container_tree.container_dom().disjoint(self.process_perms@.dom())
         &&&
-        self.container_perms@.dom().disjoint(self.thread_perms@.dom())
+        self.container_tree.container_dom().disjoint(self.thread_perms@.dom())
         &&&
-        self.container_perms@.dom().disjoint(self.endpoint_perms@.dom())
+        self.container_tree.container_dom().disjoint(self.endpoint_perms@.dom())
         &&&
         self.process_perms@.dom().disjoint(self.thread_perms@.dom())
         &&&
@@ -511,95 +510,35 @@ impl ProcessManager{
     pub closed spec fn container_perms_wf(&self) -> bool{
         &&&
         forall|c_ptr:ContainerPtr| 
-        #![trigger self.container_perms@.dom().contains(c_ptr)]
-            self.container_perms@.dom().contains(c_ptr)
+        #![trigger self.container_tree.container_dom().contains(c_ptr)]
+            self.container_tree.container_dom().contains(c_ptr)
             ==> 
-            self.container_perms@[c_ptr].is_init()
-            &&            
-            self.container_perms@[c_ptr].addr() == c_ptr
+            self.container_tree.get_container(c_ptr).owned_cpus.wf()
             &&
-            self.container_perms@[c_ptr].value().children.wf()
+            self.container_tree.get_container(c_ptr).scheduler.wf() 
             &&
-            self.container_perms@[c_ptr].value().children.unique()
+            self.container_tree.get_container(c_ptr).scheduler.unique() 
             &&
-            self.container_perms@[c_ptr].value().owned_cpus.wf()
+            self.container_tree.get_container(c_ptr).owned_procs.wf()
             &&
-            self.container_perms@[c_ptr].value().scheduler.wf() 
+            self.container_tree.get_container(c_ptr).owned_procs.unique()
             &&
-            self.container_perms@[c_ptr].value().scheduler.unique() 
+            self.container_tree.get_container(c_ptr).owned_endpoints.wf()
             &&
-            self.container_perms@[c_ptr].value().owned_procs.wf()
-            &&
-            self.container_perms@[c_ptr].value().owned_procs.unique()
-            &&
-            self.container_perms@[c_ptr].value().owned_endpoints.wf()
-            &&
-            self.container_perms@[c_ptr].value().owned_endpoints.unique()
-    }
-
-    pub closed spec fn container_root_wf(&self) -> bool{
-        &&&
-        self.container_perms@.dom().contains(self.root_container)
-        &&&
-        forall|c_ptr:ContainerPtr| 
-        #![trigger self.container_perms@.dom().contains(c_ptr)]
-            self.container_perms@.dom().contains(c_ptr) && c_ptr != self.root_container 
-            ==> 
-            self.container_perms@[c_ptr].value().parent.is_Some()   
-        &&&
-        forall|c_ptr:ContainerPtr| 
-        #![trigger self.container_perms@.dom().contains(c_ptr)]
-            self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().parent.is_Some()   
-            ==> 
-            c_ptr != self.root_container 
-    }
-
-    pub closed spec fn container_tree_wf(&self) -> bool{
-        &&&
-        forall|c_ptr:ContainerPtr| 
-            #![trigger self.container_perms@.dom().contains(c_ptr)]
-            self.container_perms@.dom().contains(c_ptr) 
-            ==> 
-            self.container_perms@[c_ptr].value().children@.to_set().subset_of(self.container_perms@.dom())
-            &&
-            self.container_perms@.dom().contains(c_ptr) ==> self.container_perms@[c_ptr].value().children@.contains(c_ptr) == false
-        &&&
-        forall|c_ptr:ContainerPtr, child_c_ptr:ContainerPtr| 
-            #![trigger self.container_perms@[c_ptr].value().children@.contains(child_c_ptr)]
-            self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().children@.contains(child_c_ptr)
-            ==> self.container_perms@.dom().contains(child_c_ptr)
-                &&
-                self.container_perms@[child_c_ptr].value().parent.unwrap() == c_ptr
-        &&&
-        forall|c_ptr:ContainerPtr| 
-            #![trigger self.container_perms@.dom().contains(c_ptr)]
-            self.container_perms@.dom().contains(c_ptr) && c_ptr != self.root_container 
-            ==>
-            self.container_perms@.dom().contains(self.container_perms@[c_ptr].value().parent.unwrap())
-    }
-
-    pub closed spec fn containers_linkedlist_wf(&self) -> bool{  
-        &&&
-        forall|c_ptr:ContainerPtr| 
-        #![trigger self.container_perms@[c_ptr].value().parent]
-            self.container_perms@.dom().contains(c_ptr) && c_ptr != self.root_container 
-            ==> self.container_perms@[c_ptr].value().parent_rev_ptr.is_Some()
-                && self.container_perms@[self.container_perms@[c_ptr].value().parent.unwrap()].value().children@.to_set().contains(c_ptr)
-                && self.container_perms@[self.container_perms@[c_ptr].value().parent.unwrap()].value().children.node_ref_valid(self.container_perms@[c_ptr].value().parent_rev_ptr.unwrap())
-                && self.container_perms@[self.container_perms@[c_ptr].value().parent.unwrap()].value().children.node_ref_resolve(self.container_perms@[c_ptr].value().parent_rev_ptr.unwrap()) == c_ptr
+            self.container_tree.get_container(c_ptr).owned_endpoints.unique()
     }
 
     pub closed spec fn processes_container_wf(&self) -> bool{
         // &&&
         // forall|c_ptr:ContainerPtr| 
-        //     #![trigger self.container_perms@[c_ptr].value().owned_procs]
-        //     self.container_perms@.dom().contains(c_ptr)
+        //     #![trigger self.container_tree.get_container(c_ptr).owned_procs]
+        //     self.container_tree.container_dom().contains(c_ptr)
         //     ==>
-        //     self.container_perms@[c_ptr].value().owned_procs@.to_set().subset_of(self.process_perms@.dom())
+        //     self.container_tree.get_container(c_ptr).owned_procs@.to_set().subset_of(self.process_perms@.dom())
         &&&
         forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-            #![trigger self.container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr)]
-            self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr)
+            #![trigger self.container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
+            self.container_tree.container_dom().contains(c_ptr) && self.container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr)
             ==> self.process_perms@.dom().contains(child_p_ptr)
                 &&
                 self.process_perms@[child_p_ptr].value().owning_container == c_ptr
@@ -608,13 +547,13 @@ impl ProcessManager{
             #![trigger self.process_perms@[p_ptr].value().owning_container]
             self.process_perms@.dom().contains(p_ptr)
             ==>
-            self.container_perms@.dom().contains(self.process_perms@[p_ptr].value().owning_container)
+            self.container_tree.container_dom().contains(self.process_perms@[p_ptr].value().owning_container)
             &&
-            self.container_perms@[self.process_perms@[p_ptr].value().owning_container].value().owned_procs@.to_set().contains(p_ptr)
+            self.container_tree.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs@.to_set().contains(p_ptr)
             &&
-            self.container_perms@[self.process_perms@[p_ptr].value().owning_container].value().owned_procs.node_ref_valid(self.process_perms@[p_ptr].value().rev_ptr)
+            self.container_tree.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs.node_ref_valid(self.process_perms@[p_ptr].value().rev_ptr)
             &&
-            self.container_perms@[self.process_perms@[p_ptr].value().owning_container].value().owned_procs.node_ref_resolve(self.process_perms@[p_ptr].value().rev_ptr) == p_ptr
+            self.container_tree.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs.node_ref_resolve(self.process_perms@[p_ptr].value().rev_ptr) == p_ptr
         }
     
     pub closed spec fn processes_wf(&self) -> bool{
@@ -651,7 +590,7 @@ impl ProcessManager{
             #![trigger self.thread_perms@[t_ptr].value().owning_proc]
             self.thread_perms@.dom().contains(t_ptr)
             ==>
-            self.container_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_container)
+            self.container_tree.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)
             &&
             self.process_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_proc)
             &&
@@ -681,27 +620,27 @@ impl ProcessManager{
     pub closed spec fn threads_container_wf(&self) -> bool{
         &&&
         forall|c_ptr:ContainerPtr| 
-        // #![trigger self.container_perms@.dom().contains(c_ptr)]
-        #![trigger self.container_perms@[c_ptr].value().owned_threads]
-            self.container_perms@.dom().contains(c_ptr)
+        // #![trigger self.container_tree.container_dom().contains(c_ptr)]
+        #![trigger self.container_tree.get_container(c_ptr).owned_threads]
+            self.container_tree.container_dom().contains(c_ptr)
             ==>
-            self.container_perms@[c_ptr].value().owned_threads@.subset_of(self.thread_perms@.dom())
+            self.container_tree.get_container(c_ptr).owned_threads@.subset_of(self.thread_perms@.dom())
         &&&
         forall|c_ptr:ContainerPtr, t_ptr:ThreadPtr| 
-            #![trigger self.container_perms@[c_ptr].value().owned_threads@.contains(t_ptr)]
-            self.container_perms@.dom().contains(c_ptr) 
+            #![trigger self.container_tree.get_container(c_ptr).owned_threads@.contains(t_ptr)]
+            self.container_tree.container_dom().contains(c_ptr) 
             &&
-            self.container_perms@[c_ptr].value().owned_threads@.contains(t_ptr)
+            self.container_tree.get_container(c_ptr).owned_threads@.contains(t_ptr)
             ==>
             self.thread_perms@[t_ptr].value().owning_container == c_ptr 
         &&&
         forall|t_ptr:ThreadPtr| 
-            #![trigger self.container_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_container)]
+            #![trigger self.container_tree.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)]
             self.thread_perms@.dom().contains(t_ptr) 
             ==>
-            self.container_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_container) 
+            self.container_tree.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container) 
             &&
-            self.container_perms@[self.thread_perms@[t_ptr].value().owning_container].value().owned_threads@.contains(t_ptr)
+            self.container_tree.get_container(self.thread_perms@[t_ptr].value().owning_container).owned_threads@.contains(t_ptr)
     }
 
     pub closed spec fn endpoint_perms_wf(&self) -> bool {
@@ -794,8 +733,8 @@ impl ProcessManager{
     pub closed spec fn endpoints_container_wf(&self) -> bool{
         &&&
         forall|c_ptr:ContainerPtr, child_e_ptr:EndpointPtr| 
-            #![trigger self.container_perms@[c_ptr].value().owned_endpoints@.contains(child_e_ptr)]
-            self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().owned_endpoints@.contains(child_e_ptr)
+            #![trigger self.container_tree.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)]
+            self.container_tree.container_dom().contains(c_ptr) && self.container_tree.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)
             ==> self.endpoint_perms@.dom().contains(child_e_ptr)
                 &&
                 self.endpoint_perms@[child_e_ptr].value().owning_container == c_ptr
@@ -804,13 +743,13 @@ impl ProcessManager{
             #![trigger self.endpoint_perms@[e_ptr].value().owning_container]
             self.endpoint_perms@.dom().contains(e_ptr)
             ==>
-            self.container_perms@.dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
+            self.container_tree.container_dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
             &&
-            self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints@.to_set().contains(e_ptr)
+            self.container_tree.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints@.to_set().contains(e_ptr)
             &&
-            self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
+            self.container_tree.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
             &&
-            self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr
+            self.container_tree.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr
         }
 
     pub closed spec fn schedulers_wf(&self) -> bool{
@@ -822,19 +761,19 @@ impl ProcessManager{
             &&
             self.thread_perms@[t_ptr].value().state == ThreadState::SCHEDULED
             ==>
-            self.container_perms@[self.thread_perms@[t_ptr].value().owning_container].value().scheduler@.contains(t_ptr)
+            self.container_tree.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler@.contains(t_ptr)
             &&
             self.thread_perms@[t_ptr].value().scheduler_rev_ptr.is_Some() 
             &&
-            self.container_perms@[self.thread_perms@[t_ptr].value().owning_container].value().scheduler.node_ref_valid(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap())
+            self.container_tree.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler.node_ref_valid(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap())
             && 
-            self.container_perms@[self.thread_perms@[t_ptr].value().owning_container].value().scheduler.node_ref_resolve(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap()) == t_ptr
+            self.container_tree.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler.node_ref_resolve(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap()) == t_ptr
         &&&
         forall|c_ptr:ContainerPtr, t_ptr:ThreadPtr|
-            #![trigger self.container_perms@[c_ptr].value().scheduler@.contains(t_ptr)]
-            #![trigger self.container_perms@.dom().contains(c_ptr), self.thread_perms@[t_ptr].value().owning_container]
-            #![trigger self.container_perms@.dom().contains(c_ptr), self.thread_perms@[t_ptr].value().state]
-            self.container_perms@.dom().contains(c_ptr) &&  self.container_perms@[c_ptr].value().scheduler@.contains(t_ptr)
+            #![trigger self.container_tree.get_container(c_ptr).scheduler@.contains(t_ptr)]
+            #![trigger self.container_tree.container_dom().contains(c_ptr), self.thread_perms@[t_ptr].value().owning_container]
+            #![trigger self.container_tree.container_dom().contains(c_ptr), self.thread_perms@[t_ptr].value().state]
+            self.container_tree.container_dom().contains(c_ptr) &&  self.container_tree.get_container(c_ptr).scheduler@.contains(t_ptr)
             ==>
             self.thread_perms@.dom().contains(t_ptr)
             &&
@@ -862,6 +801,8 @@ impl ProcessManager{
 
     pub closed spec fn wf(&self) -> bool{
         &&&
+        self.container_tree.wf()
+        &&&
         self.cpus_wf()
         &&&
         self.container_cpu_wf()
@@ -869,12 +810,6 @@ impl ProcessManager{
         self.memory_disjoint()
         &&&
         self.container_perms_wf()
-        &&&
-        self.container_root_wf()
-        &&&
-        self.container_tree_wf()
-        &&&
-        self.containers_linkedlist_wf()
         &&&
         self.processes_container_wf()
         &&&
@@ -1015,29 +950,29 @@ impl ProcessManager{
     {
     }
 
-    pub proof fn wf_imply_container_proc_disjoint(&self)
-        requires
-            self.wf(),
-        ensures
-            forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
-                self.container_perms@.dom().contains(c_ptr_i) && self.container_perms@.dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
-                ==>
-                self.container_perms@[c_ptr_i].value().children@.to_set().disjoint(self.container_perms@[c_ptr_j].value().children@.to_set()),
-            forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
-                self.container_perms@.dom().contains(c_ptr_i) && self.container_perms@.dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
-                ==>
-                self.container_perms@[c_ptr_i].value().owned_procs@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_procs@.to_set()),
-            forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
-                self.container_perms@.dom().contains(c_ptr_i) && self.container_perms@.dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
-                ==>
-                self.container_perms@[c_ptr_i].value().owned_endpoints@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_endpoints@.to_set()),
-            forall|p_ptr_i:ProcPtr, p_ptr_j: ProcPtr|
-                self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
-                ==>
-                self.process_perms@[p_ptr_i].value().owned_threads@.to_set().disjoint(self.process_perms@[p_ptr_j].value().owned_threads@.to_set()),
-    {
-        // assert(false);
-    }
+    // pub proof fn wf_imply_container_proc_disjoint(&self)
+    //     requires
+    //         self.wf(),
+    //     ensures
+    //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
+    //             self.container_tree.container_dom().contains(c_ptr_i) && self.container_tree.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
+    //             ==>
+    //             self.container_perms@[c_ptr_i].value().children@.to_set().disjoint(self.container_perms@[c_ptr_j].value().children@.to_set()),
+    //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
+    //             self.container_tree.container_dom().contains(c_ptr_i) && self.container_tree.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
+    //             ==>
+    //             self.container_perms@[c_ptr_i].value().owned_procs@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_procs@.to_set()),
+    //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
+    //             self.container_tree.container_dom().contains(c_ptr_i) && self.container_tree.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
+    //             ==>
+    //             self.container_perms@[c_ptr_i].value().owned_endpoints@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_endpoints@.to_set()),
+    //         forall|p_ptr_i:ProcPtr, p_ptr_j: ProcPtr|
+    //             self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
+    //             ==>
+    //             self.process_perms@[p_ptr_i].value().owned_threads@.to_set().disjoint(self.process_perms@[p_ptr_j].value().owned_threads@.to_set()),
+    // {
+    //     // assert(false);
+    // }
 }
 
 //exec
@@ -1046,9 +981,8 @@ impl ProcessManager{
     pub fn new() -> (ret:Self)
     {
         ProcessManager{
-            root_container: 0,
-        
-            container_perms: Tracked(Map::tracked_empty()),
+            container_tree: ContainerTree::new(),
+
             process_perms: Tracked(Map::tracked_empty()),
             thread_perms: Tracked(Map::tracked_empty()),
             endpoint_perms: Tracked(Map::tracked_empty()),
@@ -1061,7 +995,7 @@ impl ProcessManager{
     pub fn init(&mut self, dom_0_container_ptr:ContainerPtr, dom_0_proc_ptr:ProcPtr, dom_0_thread_ptr:ThreadPtr, init_quota:usize, page_perm_0: Tracked<PagePerm4k>, page_perm_1: Tracked<PagePerm4k>, page_perm_2: Tracked<PagePerm4k>)
     {
         unsafe{
-            self.root_container = dom_0_container_ptr;
+            self.container_tree.root_container = dom_0_container_ptr;
             let root_container_ptr = dom_0_container_ptr as *mut MaybeUninit<Container>;
             (*root_container_ptr).assume_init_mut().owned_procs.init();
 
@@ -1075,6 +1009,7 @@ impl ProcessManager{
             (*root_container_ptr).assume_init_mut().owned_cpus.init();
             (*root_container_ptr).assume_init_mut().scheduler.init();
             let sll2 = (*root_container_ptr).assume_init_mut().scheduler.push(&dom_0_thread_ptr);
+            (*root_container_ptr).assume_init_mut().depth = 0;
 
             let root_proc_ptr = dom_0_proc_ptr as *mut MaybeUninit<Process>;
             (*root_proc_ptr).assume_init_mut().owning_container = dom_0_container_ptr;
@@ -1161,13 +1096,30 @@ impl ProcessManager{
             self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
             self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
             self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+            self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+            self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+            self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
             self.get_container(container_ptr).mem_quota =~= new_quota,
     {
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        container_set_mem_quota(container_ptr,&mut container_perm, new_quota);
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        self.container_tree.container_tree_set_quota(container_ptr, new_quota);
+        assert(self.container_tree.wf());
+        assert(self.cpus_wf());
+        assert(self.container_cpu_wf());
+        assert(self.memory_disjoint());
+        assert(self.container_perms_wf());
+        assert(self.processes_container_wf());
+        assert(self.processes_wf());
+        assert(self.threads_process_wf());
+        assert(self.threads_perms_wf());
+        assert(self.endpoint_perms_wf());
+        assert(self.threads_endpoint_descriptors_wf());
+        assert(self.endpoints_queue_wf());
+        assert(self.endpoints_container_wf());
+        assert(self.schedulers_wf());
+        assert(self.pcid_ioid_wf());
+        assert(self.threads_cpu_wf());
+        assert(self.threads_container_wf());
+        
     }
 
     pub fn new_thread(&mut self, proc_ptr:ProcPtr, pt_regs:Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:ThreadPtr)
@@ -1211,13 +1163,9 @@ impl ProcessManager{
             self.process_perms.borrow_mut().tracked_insert(proc_ptr, proc_perm.get());
         }
 
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        let scheduler_node_ref = scheduler_push_thread(container_ptr,&mut container_perm, &page_ptr);
-        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 1);
-        container_set_owned_threads(container_ptr,&mut container_perm, Ghost(old_owned_threads@.insert(page_ptr)));
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        let scheduler_node_ref = self.container_tree.container_tree_scheduler_push_thread(container_ptr, page_ptr);
+        self.container_tree.container_tree_set_quota(container_ptr, old_mem_quota - 1);
+        self.container_tree.container_tree_set_owned_threads(container_ptr, Ghost(old_owned_threads@.insert(page_ptr)));
 
         let (thread_ptr, thread_perm) = page_to_thread(page_ptr, page_perm, &pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref);
         
@@ -1228,9 +1176,6 @@ impl ProcessManager{
         assert(self.container_cpu_wf());
         assert(self.memory_disjoint());
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf());
-        assert(self.containers_linkedlist_wf());
         assert(self.processes_container_wf());
         assert(self.processes_wf());
 
@@ -1252,10 +1197,10 @@ impl ProcessManager{
         assert(self.endpoints_container_wf()) by {
             assert(
                 forall|c_ptr:ContainerPtr| 
-                    #![trigger self.container_perms@[c_ptr]]
-                    self.container_perms@.dom().contains(c_ptr)
+                    #![trigger self.container_tree.get_container(c_ptr)]
+                    self.container_tree.container_dom().contains(c_ptr)
                     ==> 
-                    self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+                    self.container_tree.get_container(c_ptr).owned_endpoints =~= old(self).container_tree.get_container(c_ptr).owned_endpoints
             );
             assert(
                 forall|child_e_ptr:EndpointPtr| 
@@ -1266,8 +1211,8 @@ impl ProcessManager{
             );
             assert(
                 forall|c_ptr:ContainerPtr, child_e_ptr:EndpointPtr| 
-                    #![trigger self.container_perms@[c_ptr].value().owned_endpoints@.contains(child_e_ptr)]
-                    self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().owned_endpoints@.contains(child_e_ptr)
+                    #![trigger self.container_tree.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)]
+                    self.container_tree.container_dom().contains(c_ptr) && self.container_tree.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)
                     ==> self.endpoint_perms@.dom().contains(child_e_ptr)
                         &&
                         self.endpoint_perms@[child_e_ptr].value().owning_container == c_ptr);
@@ -1276,20 +1221,20 @@ impl ProcessManager{
                     #![trigger self.endpoint_perms@[e_ptr].value().owning_container]
                     self.endpoint_perms@.dom().contains(e_ptr)
                     ==>
-                    self.container_perms@.dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
+                    self.container_tree.container_dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
                     &&
-                    self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints@.to_set().contains(e_ptr)
+                    self.container_tree.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints@.to_set().contains(e_ptr)
                     &&
-                    self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
+                    self.container_tree.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
                     &&
-                    self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr);
+                    self.container_tree.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr);
         };
         assert(self.schedulers_wf()) by {
-            assert(self.container_perms@[container_ptr].value().scheduler@ =~= old(self).container_perms@[container_ptr].value().scheduler@.push(page_ptr));
+            assert(self.container_tree.get_container(container_ptr).scheduler@ =~= old(self).container_tree.get_container(container_ptr).scheduler@.push(page_ptr));
             assert(
                 forall|child_t_ptr:ThreadPtr| 
                 #![auto]
-                old(self).container_perms@[container_ptr].value().scheduler@.contains(child_t_ptr)
+                old(self).container_tree.get_container(container_ptr).scheduler@.contains(child_t_ptr)
                 ==> self.thread_perms@.dom().contains(child_t_ptr)
                     &&
                     self.thread_perms@[child_t_ptr].value().owning_container == container_ptr
@@ -1362,13 +1307,9 @@ impl ProcessManager{
             self.process_perms.borrow_mut().tracked_insert(proc_ptr, proc_perm.get());
         }
 
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        let scheduler_node_ref = scheduler_push_thread(container_ptr,&mut container_perm, &page_ptr);
-        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 1);
-        container_set_owned_threads(container_ptr,&mut container_perm, Ghost(old_owned_threads@.insert(page_ptr)));
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        let scheduler_node_ref = self.container_tree.container_tree_scheduler_push_thread(container_ptr, page_ptr);
+        self.container_tree.container_tree_set_quota(container_ptr, old_mem_quota - 1);
+        self.container_tree.container_tree_set_owned_threads(container_ptr, Ghost(old_owned_threads@.insert(page_ptr)));
 
         let (new_thread_ptr, new_thread_perm) = page_to_thread_with_endpoint(page_ptr, page_perm, pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref, endpoint_ptr);
         proof {
@@ -1384,9 +1325,6 @@ impl ProcessManager{
         assert(self.container_cpu_wf());
         assert(self.memory_disjoint());
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf());
-        assert(self.containers_linkedlist_wf());
         assert(self.processes_container_wf());
         assert(self.processes_wf());
 
@@ -1422,7 +1360,7 @@ impl ProcessManager{
                 #![trigger self.thread_perms@[t_ptr].value().owning_proc]
                 self.thread_perms@.dom().contains(t_ptr)
                 ==>
-                self.container_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_container)
+                self.container_tree.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)
                 &&
                 self.process_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_proc)
                 &&
@@ -1447,9 +1385,9 @@ impl ProcessManager{
             // assert(
             //     forall|c_ptr:ContainerPtr| 
             //         #![trigger self.container_perms@[c_ptr]]
-            //         self.container_perms@.dom().contains(c_ptr)
+            //         self.container_tree.container_dom().contains(c_ptr)
             //         ==> 
-            //         self.container_perms@[c_ptr].value().owned_endpoints =~= old(self).container_perms@[c_ptr].value().owned_endpoints
+            //         self.container_tree.get_container(c_ptr).owned_endpoints =~= old(self).container_tree.get_container(c_ptr).owned_endpoints
             // );
             // assert(
             //     forall|child_e_ptr:EndpointPtr| 
@@ -1460,8 +1398,8 @@ impl ProcessManager{
             // );
             // assert(
             //     forall|c_ptr:ContainerPtr, child_e_ptr:EndpointPtr| 
-            //         #![trigger self.container_perms@[c_ptr].value().owned_endpoints@.contains(child_e_ptr)]
-            //         self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().owned_endpoints@.contains(child_e_ptr)
+            //         #![trigger self.container_tree.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)]
+            //         self.container_tree.container_dom().contains(c_ptr) && self.container_tree.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)
             //         ==> self.endpoint_perms@.dom().contains(child_e_ptr)
             //             &&
             //             self.endpoint_perms@[child_e_ptr].value().owning_container == c_ptr);
@@ -1470,7 +1408,7 @@ impl ProcessManager{
             //         #![trigger self.endpoint_perms@[e_ptr].value().owning_container]
             //         self.endpoint_perms@.dom().contains(e_ptr)
             //         ==>
-            //         self.container_perms@.dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
+            //         self.container_tree.container_dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
             //         &&
             //         self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints@.to_set().contains(e_ptr)
             //         &&
@@ -1480,11 +1418,11 @@ impl ProcessManager{
         };
         assert(self.schedulers_wf()) by {
             seq_push_lemma::<ThreadPtr>();
-            assert(self.container_perms@[container_ptr].value().scheduler@ =~= old(self).container_perms@[container_ptr].value().scheduler@.push(page_ptr));
+            assert(self.container_tree.get_container(container_ptr).scheduler@ =~= old(self).container_tree.get_container(container_ptr).scheduler@.push(page_ptr));
             assert(
                 forall|child_t_ptr:ThreadPtr| 
                 #![auto]
-                old(self).container_perms@[container_ptr].value().scheduler@.contains(child_t_ptr)
+                old(self).container_tree.get_container(container_ptr).scheduler@.contains(child_t_ptr)
                 ==> self.thread_perms@.dom().contains(child_t_ptr)
                     &&
                     self.thread_perms@[child_t_ptr].value().owning_container == container_ptr
@@ -1561,14 +1499,10 @@ impl ProcessManager{
         let old_owned_threads = self.get_container(container_ptr).owned_threads;
         let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
 
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        let proc_list_node_ref = container_push_proc(container_ptr,&mut container_perm, page_ptr_1);
-        let scheduler_node_ref = scheduler_push_thread(container_ptr,&mut container_perm, &page_ptr_2);
-        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 2);
-        container_set_owned_threads(container_ptr,&mut container_perm, Ghost(old_owned_threads@.insert(page_ptr_2)));
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        let proc_list_node_ref = self.container_tree.container_tree_push_proc(container_ptr, page_ptr_1);
+        let scheduler_node_ref = self.container_tree.container_tree_scheduler_push_thread(container_ptr, page_ptr_2);
+        self.container_tree.container_tree_set_quota(container_ptr, old_mem_quota - 2);
+        self.container_tree.container_tree_set_owned_threads(container_ptr, Ghost(old_owned_threads@.insert(page_ptr_2)));
 
         let (new_proc_ptr, mut proc_perm, proc_thread_list_node_ref) = page_to_proc_with_first_thread(page_ptr_1, page_perm_1, container_ptr, proc_list_node_ref, new_pcid, None, page_ptr_2);
         proof {
@@ -1590,37 +1524,34 @@ impl ProcessManager{
         assert(self.container_cpu_wf());
         assert(self.memory_disjoint());
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf());
-        assert(self.containers_linkedlist_wf());
         assert(self.processes_container_wf()) by {
             seq_push_lemma::<ProcPtr>();
             assert(self.process_perms@[new_proc_ptr].value().owning_container == container_ptr);
             assert(self.process_perms@.dom().contains(new_proc_ptr));
             assert(
                 forall|child_p_ptr:ProcPtr| 
-                    #![trigger old(self).container_perms@[container_ptr].value().owned_procs@.contains(child_p_ptr) ]
-                    (old(self).container_perms@[container_ptr].value().owned_procs@.contains(child_p_ptr) || child_p_ptr == new_proc_ptr)
+                    #![trigger old(self).container_tree.get_container(container_ptr).owned_procs@.contains(child_p_ptr) ]
+                    (old(self).container_tree.get_container(container_ptr).owned_procs@.contains(child_p_ptr) || child_p_ptr == new_proc_ptr)
                     <==> 
-                    self.container_perms@[container_ptr].value().owned_procs@.contains(child_p_ptr)
+                    self.container_tree.get_container(container_ptr).owned_procs@.contains(child_p_ptr)
             );
             // assert(forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-            //     #![trigger self.container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr)]
-            //     self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr) && c_ptr != container_ptr
+            //     #![trigger self.container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
+            //     self.container_tree.container_dom().contains(c_ptr) && self.container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr) && c_ptr != container_ptr
             //     ==> 
             //     self.process_perms@.dom().contains(child_p_ptr)
             //     &&
             //     self.process_perms@[child_p_ptr].value().owning_container == c_ptr);
             assert(forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-                #![trigger self.container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr)]
-                self.container_perms@.dom().contains(c_ptr) && old(self).container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr) && c_ptr == container_ptr 
+                #![trigger self.container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
+                self.container_tree.container_dom().contains(c_ptr) && old(self).container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr) && c_ptr == container_ptr 
                 ==> 
                 self.process_perms@.dom().contains(child_p_ptr)
                 &&
                 self.process_perms@[child_p_ptr].value().owning_container == c_ptr);
             assert(forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-                #![trigger self.container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr)]
-                self.container_perms@.dom().contains(c_ptr) && self.container_perms@[c_ptr].value().owned_procs@.contains(child_p_ptr) && c_ptr == container_ptr 
+                #![trigger self.container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
+                self.container_tree.container_dom().contains(c_ptr) && self.container_tree.get_container(c_ptr).owned_procs@.contains(child_p_ptr) && c_ptr == container_ptr 
                 ==> 
                 self.process_perms@.dom().contains(child_p_ptr)
                 &&
@@ -1629,7 +1560,7 @@ impl ProcessManager{
             //     #![trigger self.process_perms@[p_ptr].value().owning_container]
             //     self.process_perms@.dom().contains(p_ptr)
             //     ==>
-            //     self.container_perms@.dom().contains(self.process_perms@[p_ptr].value().owning_container)
+            //     self.container_tree.container_dom().contains(self.process_perms@[p_ptr].value().owning_container)
             //     &&
             //     self.container_perms@[self.process_perms@[p_ptr].value().owning_container].value().owned_procs@.to_set().contains(p_ptr)
             //     &&
@@ -1662,11 +1593,11 @@ impl ProcessManager{
         assert(self.endpoints_container_wf());
         assert(self.schedulers_wf()) by {
             seq_push_lemma::<ThreadPtr>();
-            assert(self.container_perms@[container_ptr].value().scheduler@ =~= old(self).container_perms@[container_ptr].value().scheduler@.push(new_thread_ptr));
+            assert(self.container_tree.get_container(container_ptr).scheduler@ =~= old(self).container_tree.get_container(container_ptr).scheduler@.push(new_thread_ptr));
             assert(
                 forall|child_t_ptr:ThreadPtr| 
                 #![auto]
-                old(self).container_perms@[container_ptr].value().scheduler@.contains(child_t_ptr)
+                old(self).container_tree.get_container(container_ptr).scheduler@.contains(child_t_ptr)
                 ==> self.thread_perms@.dom().contains(child_t_ptr)
                     &&
                     self.thread_perms@[child_t_ptr].value().owning_container == container_ptr
@@ -1684,6 +1615,7 @@ impl ProcessManager{
             old(self).page_closure().contains(page_ptr_1) == false,
             old(self).page_closure().contains(page_ptr_2) == false,
             old(self).page_closure().contains(page_ptr_3) == false,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).depth != usize::MAX,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota >= 3 + new_quota,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).children.len() < CONTAINER_CHILD_LIST_LEN,
             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
@@ -1716,11 +1648,73 @@ impl ProcessManager{
                 old(self).proc_dom().contains(p_ptr)
                 ==> 
                 self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
-            forall|container_ptr:ContainerPtr|
-                #![trigger self.get_container(container_ptr)]
-                old(self).container_dom().contains(container_ptr) && container_ptr != old(self).get_thread(thread_ptr).owning_container
+            forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_dom().contains(c_ptr)]
+                old(self).container_dom().contains(c_ptr) && c_ptr != old(self).get_thread(thread_ptr).owning_container
                 ==> 
-                self.get_container(container_ptr) =~= old(self).get_container(container_ptr),
+                self.get_container(c_ptr).owned_procs =~= old(self).get_container(c_ptr).owned_procs
+                &&                
+                self.get_container(c_ptr).parent =~= old(self).get_container(c_ptr).parent
+                &&                
+                self.get_container(c_ptr).parent_rev_ptr =~= old(self).get_container(c_ptr).parent_rev_ptr
+                &&
+                self.get_container(c_ptr).children =~= old(self).get_container(c_ptr).children
+                &&
+                self.get_container(c_ptr).owned_endpoints =~= old(self).get_container(c_ptr).owned_endpoints
+                &&
+                self.get_container(c_ptr).mem_quota =~= old(self).get_container(c_ptr).mem_quota
+                &&
+                self.get_container(c_ptr).mem_used =~= old(self).get_container(c_ptr).mem_used
+                &&
+                self.get_container(c_ptr).owned_cpus =~= old(self).get_container(c_ptr).owned_cpus
+                &&
+                self.get_container(c_ptr).scheduler =~= old(self).get_container(c_ptr).scheduler
+                &&
+                self.get_container(c_ptr).owned_threads =~= old(self).get_container(c_ptr).owned_threads
+                &&
+                self.get_container(c_ptr).depth =~= old(self).get_container(c_ptr).depth
+                &&
+                self.get_container(c_ptr).uppertree_seq =~= old(self).get_container(c_ptr).uppertree_seq,
+            forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_dom().contains(c_ptr)]
+                self.container_dom().contains(c_ptr) && self.get_container(page_ptr_1).uppertree_seq@.contains(c_ptr)
+                ==>
+                self.get_container(c_ptr).subtree_set@ =~= self.get_container(c_ptr).subtree_set@.insert(page_ptr_1),
+            forall|c_ptr:ContainerPtr| 
+                #![trigger self.container_dom().contains(c_ptr)]
+                self.container_dom().contains(c_ptr) && self.get_container(page_ptr_1).uppertree_seq@.contains(c_ptr) == false
+                ==>
+                self.get_container(c_ptr).subtree_set =~= self.get_container(c_ptr).subtree_set,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_procs =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_procs,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).parent =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).parent,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).children@ =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).children@.push(page_ptr_1),
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_endpoints =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_endpoints,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota as int =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - new_quota - 3,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).mem_used =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_used,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_cpus =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_cpus,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).scheduler =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).scheduler,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_threads =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_threads,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).depth =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).depth,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).uppertree_seq =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).uppertree_seq,
+            self.get_container(old(self).get_thread(thread_ptr).owning_container).subtree_set@ =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).subtree_set@.insert(page_ptr_1),
+
+            self.get_container(page_ptr_1).owned_procs@ =~= Seq::<ProcPtr>::empty().push(page_ptr_2),
+            self.get_container(page_ptr_1).parent =~= Some(old(self).get_thread(thread_ptr).owning_container),
+            self.get_container(page_ptr_1).children@ =~= Seq::<ContainerPtr>::empty(),
+            self.get_container(page_ptr_1).owned_endpoints.wf(),
+            self.get_container(page_ptr_1).owned_endpoints@ =~= Seq::<EndpointPtr>::empty(),
+            self.get_container(page_ptr_1).mem_quota =~= new_quota,
+            self.get_container(page_ptr_1).mem_used =~= 0,
+            self.get_container(page_ptr_1).owned_cpus.wf(),
+            self.get_container(page_ptr_1).owned_cpus@ =~= Set::<CpuId>::empty(),
+            self.get_container(page_ptr_1).scheduler.wf(),
+            self.get_container(page_ptr_1).scheduler@ =~= Seq::<ThreadPtr>::empty().push(page_ptr_3),
+            self.get_container(page_ptr_1).owned_threads@.finite(),
+            self.get_container(page_ptr_1).owned_threads@ =~= Set::<ThreadPtr>::empty().insert(page_ptr_3),
+            self.get_container(page_ptr_1).depth as int =~= self.get_container(old(self).get_thread(thread_ptr).owning_container).depth + 1,
+            self.get_container(page_ptr_1).uppertree_seq@ =~= self.get_container(old(self).get_thread(thread_ptr).owning_container).uppertree_seq@.push(old(self).get_thread(thread_ptr).owning_container),
+            self.get_container(page_ptr_1).subtree_set@ =~= Set::<ContainerPtr>::empty(),
+
             forall|t_ptr:ThreadPtr| 
                 #![trigger old(self).get_thread(t_ptr)]
                 old(self).thread_dom().contains(t_ptr)
@@ -1752,24 +1746,14 @@ impl ProcessManager{
         let old_owned_threads = self.get_container(container_ptr).owned_threads;
         let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
 
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        let child_list_node_ref = container_push_child(container_ptr,&mut container_perm, page_ptr_1);
-        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 3 - new_quota);
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        let (proc_list_node_ref, scheduler_node_ref) = self.container_tree.new_container(container_ptr, page_ptr_2, page_ptr_3, new_quota, page_ptr_1, page_perm_1);
 
-        let (proc_list_node_ref, scheduler_node_ref, new_container_ptr, container_perm) = page_to_container(page_ptr_1, page_perm_1, page_ptr_2, container_ptr, child_list_node_ref, new_quota, ArraySet::<NUM_CPUS>::new(), page_ptr_3);
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(new_container_ptr, container_perm.get());
-        }
-
-        let (new_proc_ptr, mut proc_perm, proc_thread_list_node_ref) = page_to_proc_with_first_thread(page_ptr_2, page_perm_2, new_container_ptr, proc_list_node_ref, new_pcid, None, page_ptr_3);
+        let (new_proc_ptr, mut proc_perm, proc_thread_list_node_ref) = page_to_proc_with_first_thread(page_ptr_2, page_perm_2, page_ptr_1, proc_list_node_ref, new_pcid, None, page_ptr_3);
         proof {
             self.process_perms.borrow_mut().tracked_insert(new_proc_ptr, proc_perm.get());
         }
 
-        let (new_thread_ptr, thread_perm) = page_to_thread_with_endpoint(page_ptr_3, page_perm_3, &pt_regs, new_container_ptr, new_proc_ptr, proc_thread_list_node_ref, scheduler_node_ref, endpoint_ptr);
+        let (new_thread_ptr, thread_perm) = page_to_thread_with_endpoint(page_ptr_3, page_perm_3, &pt_regs, page_ptr_1, new_proc_ptr, proc_thread_list_node_ref, scheduler_node_ref, endpoint_ptr);
         proof {
             self.thread_perms.borrow_mut().tracked_insert(new_thread_ptr, thread_perm.get());
         }
@@ -1785,13 +1769,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-            seq_push_lemma::<ContainerPtr>();
-        };
-        assert(self.containers_linkedlist_wf()) by {
-            seq_push_lemma::<ContainerPtr>();
-        };
         assert(self.processes_container_wf()) by {
             seq_push_lemma::<ProcPtr>();
         };
@@ -1864,11 +1841,8 @@ impl ProcessManager{
         let container_ptr = self.get_thread(thread_ptr).owning_container;
 
 
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        let scheduler_node_ref = scheduler_push_thread(container_ptr,&mut container_perm, &thread_ptr);
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        let scheduler_node_ref = self.container_tree.container_tree_scheduler_push_thread(container_ptr, thread_ptr);
+
 
         let mut endpoint_perm = Tracked(self.endpoint_perms.borrow_mut().tracked_remove(endpoint_ptr));
         let (ret_thread_ptr, sll) = endpoint_pop_head(endpoint_ptr,&mut endpoint_perm);
@@ -1888,13 +1862,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-            seq_push_lemma::<ContainerPtr>();
-        };
-        assert(self.containers_linkedlist_wf()) by {
-            seq_push_lemma::<ContainerPtr>();
-        };
         assert(self.processes_container_wf()) by {
             seq_push_lemma::<ProcPtr>();
         };
@@ -1991,11 +1958,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-        };
-        assert(self.containers_linkedlist_wf()) by {
-        };
         assert(self.processes_container_wf()) by {
         };
         assert(self.processes_wf());
@@ -2085,11 +2047,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-        };
-        assert(self.containers_linkedlist_wf()) by {
-        };
         assert(self.processes_container_wf()) by {
         };
         assert(self.processes_wf());
@@ -2178,11 +2135,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-        };
-        assert(self.containers_linkedlist_wf()) by {
-        };
         assert(self.processes_container_wf()) by {
         };
         assert(self.processes_wf());
@@ -2273,11 +2225,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-        };
-        assert(self.containers_linkedlist_wf()) by {
-        };
         assert(self.processes_container_wf()) by {
         };
         assert(self.processes_wf());
@@ -2371,11 +2318,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-        };
-        assert(self.containers_linkedlist_wf()) by {
-        };
         assert(self.processes_container_wf()) by {
         };
         assert(self.processes_wf());
@@ -2459,12 +2401,8 @@ impl ProcessManager{
         let container_ptr = self.get_thread(thread_ptr).owning_container;
         let old_mem_quota = self.get_container(container_ptr).mem_quota;
 
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 1);
-        let sll_index = container_push_endpoint(container_ptr,&mut container_perm, page_ptr_1);
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        self.container_tree.container_tree_set_quota(container_ptr, old_mem_quota - 1);
+        let sll_index = self.container_tree.container_tree_push_endpoint(container_ptr, page_ptr_1);
 
         let (endpoint_ptr, endpoint_perm) = page_to_endpoint_with_thread_and_container(container_ptr, thread_ptr, sll_index, page_ptr_1, page_perm_1);
         proof {
@@ -2482,11 +2420,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-        };
-        assert(self.containers_linkedlist_wf()) by {
-        };
         assert(self.processes_container_wf()) by {
         };
         assert(self.processes_wf());
@@ -2611,7 +2544,7 @@ impl ProcessManager{
             old(self).get_thread(ret).endpoint_descriptors =~= self.get_thread(ret).endpoint_descriptors,
     {
         let container_ptr = self.cpu_list.get(cpu_id).owning_container;
-        assert(self.container_perms@.dom().contains(container_ptr)) by {
+        assert(self.container_tree.container_dom().contains(container_ptr)) by {
             assert(old(self).cpu_list@[cpu_id as int].owning_container == container_ptr);
             assert(self.container_cpu_wf());
             assert(
@@ -2619,15 +2552,12 @@ impl ProcessManager{
                 #![auto]
                 0 <= cpu_i < NUM_CPUS 
                 ==> 
-                old(self).container_perms@.dom().contains(old(self).cpu_list@[cpu_i as int].owning_container)
+                old(self).container_dom().contains(old(self).cpu_list@[cpu_i as int].owning_container)
             );
         };
 
-        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        let (ret_thread_ptr, sll) = scheduler_pop_head(container_ptr,&mut container_perm);
-        proof {
-            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
-        }
+        let (ret_thread_ptr, sll) = self.container_tree.container_tree_scheduler_pop_head(container_ptr);
+
         assert(old(self).get_container(container_ptr).scheduler@.contains(ret_thread_ptr));
 
         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(ret_thread_ptr);
@@ -2655,11 +2585,6 @@ impl ProcessManager{
         assert(self.memory_disjoint()) by {
         };
         assert(self.container_perms_wf());
-        assert(self.container_root_wf());
-        assert(self.container_tree_wf()) by {
-        };
-        assert(self.containers_linkedlist_wf()) by {
-        };
         assert(self.processes_container_wf()) by {
         };
         assert(self.processes_wf());

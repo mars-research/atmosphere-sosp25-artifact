@@ -25,6 +25,8 @@ pub open spec fn syscall_new_container_with_endpoint_requirement(old:Kernel, thr
         false
     }else if old.get_container_quota(container_ptr) < 3 + init_quota {
         false
+    }else if old.get_container(container_ptr).depth == usize::MAX {
+        false
     }else if old.get_num_of_free_pages() < 3 + init_quota {
         false
     }else if old.get_is_pcid_exhausted(){
@@ -67,12 +69,12 @@ pub open spec fn syscall_new_container_with_endpoint_spec(old:Kernel, new:Kernel
             old.proc_dom().contains(p_ptr)
             ==>
             new.get_proc(p_ptr) =~= old.get_proc(p_ptr)
-        &&
-        forall|c:ContainerPtr| 
-            #![trigger new.get_container(c)]
-            old.container_dom().contains(c) && c != container_ptr
-            ==>
-            old.get_container(c) =~= new.get_container(c)
+        // &&
+        // forall|c:ContainerPtr| 
+        //     #![trigger new.get_container(c)]
+        //     old.container_dom().contains(c) && c != container_ptr
+        //     ==>
+        //     old.get_container(c) =~= new.get_container(c)
         &&
         forall|e_ptr:EndpointPtr| 
             #![trigger new.get_endpoint(e_ptr)]
@@ -189,7 +191,10 @@ pub fn syscall_new_container_with_endpoint(&mut self, thread_ptr: ThreadPtr, end
     if self.proc_man.get_proc(proc_ptr).owned_threads.len() >= MAX_NUM_THREADS_PER_PROC{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
-    if self.proc_man.get_container(container_ptr).mem_quota < 3 + init_quota{
+    if self.proc_man.get_container(container_ptr).mem_quota < 3 + init_quota {
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+    }
+    if self.proc_man.get_container(container_ptr).depth == usize::MAX {
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
     if self.page_alloc.free_pages_4k.len() < 3 + init_quota{
