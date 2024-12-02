@@ -1,6 +1,6 @@
 //! Syscalls.
 
-use core::arch::{asm, global_asm};
+use core::arch::{naked_asm, global_asm};
 
 use asys::MAX_SYSCALLS;
 use memoffset::offset_of;
@@ -109,7 +109,7 @@ global_asm!(
 // All caller-saved registers are considered clobbered once invoked
 #[naked]
 unsafe extern "C" fn sys_entry() -> ! {
-    asm!(
+    naked_asm!(
         // We may not have a valid rsp
         // rax, r10, r11
 
@@ -241,7 +241,6 @@ unsafe extern "C" fn sys_entry() -> ! {
         switch_decision_offset = const offset_of!(Cpu, switch_decision),
         decision_no_switching = const SwitchDecision::NoSwitching as u64,
         decision_switch_to_preempted = const SwitchDecision::SwitchToPreempted as u64,
-        options(noreturn),
     );
 }
 

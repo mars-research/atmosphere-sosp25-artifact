@@ -13,9 +13,8 @@ mod lapic;
 mod mps;
 pub mod x86_xapic;
 
-use core::arch::asm;
+use core::arch::{asm, naked_asm};
 use core::convert::{Into, TryFrom};
-use core::mem::MaybeUninit;
 
 use bit_field::BitField;
 use x86::Ring;
@@ -63,7 +62,7 @@ macro_rules! wrap_interrupt_with_error_code {
 
             // Here rsp is at an InterruptStackFrame
             // [rip][cs][eflags][esp][ss]
-            core::arch::asm!(
+            naked_asm!(
                 "cli",
                 //"call {breakpoint}",
 
@@ -109,7 +108,6 @@ macro_rules! wrap_interrupt_with_error_code {
 
                 //breakpoint = sym crate::debugger::breakpoint,
                 handler = sym $handler,
-                options(noreturn),
             );
         }
 
@@ -128,7 +126,7 @@ macro_rules! wrap_interrupt {
 
             // Here rsp is at an InterruptStackFrame
             // [rip][cs][eflags][esp][ss]
-            core::arch::asm!(
+            naked_asm!(
                 "cli",
                 //"call {breakpoint}",
 
@@ -179,7 +177,6 @@ macro_rules! wrap_interrupt {
 
                 //breakpoint = sym crate::debugger::breakpoint,
                 handler = sym $handler,
-                options(noreturn),
             );
         }
 
