@@ -4,11 +4,9 @@
 
 #![no_std]
 #![feature(
-    asm_const,
     abi_x86_interrupt,
     alloc_error_handler,
     arbitrary_self_types,
-    const_mut_refs,
     custom_test_frameworks,
     naked_functions,
     pattern,
