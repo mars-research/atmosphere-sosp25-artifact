@@ -114,9 +114,11 @@ pub fn scheduler_pop_head(container_ptr:ContainerPtr, container_perm: &mut Track
             &&
             container_perm@.value().scheduler.node_ref_resolve(index) == old(container_perm)@.value().scheduler.node_ref_resolve(index),
     {
+        unsafe{
         let uptr = container_ptr as *mut MaybeUninit<Container>;
         let ret = (*uptr).assume_init_mut().scheduler.pop();
         ret
+        }
     }
 
 #[verifier(external_body)]

@@ -1,7 +1,7 @@
 use vstd::prelude::*;
 verus! {
 use crate::array::Array;
-use vstd::set_lib::lemma_len_subset;
+use vstd::set_lib::*;
 
 
 /// A set of intergers from 0 to N - 1.

@@ -8,7 +8,7 @@ use crate::pagetable::entry::*;
 use crate::pagetable::pagemap::*;
 use core::mem::MaybeUninit;
 use crate::array::Array;
-use crate::lemma::lemma_u::map_equal_implies_submap_each_other;
+use crate::lemma::lemma_u::*;
 
 
 pub fn page_map_set_kernel_entry_range(kernel_entries: &Array<usize,KERNEL_MEM_END_L4INDEX>,page_map_ptr: PageMapPtr, Tracked(page_map_perm): Tracked<&mut PointsTo<PageMap>>)
@@ -136,7 +136,7 @@ ensures
     assert(forall|cpu_id:CpuId| #![auto] 0 <= cpu_id < NUM_CPUS ==> ret_map@[cpu_id as int] =~= tlbmap_4k@[cpu_id as int]);
     assert(forall|cpu_id:CpuId| #![auto] 0 <= cpu_id < NUM_CPUS ==> ret_map@[cpu_id as int].submap_of(tlbmap_4k@[cpu_id as int]));
 
-    #[verifier::loop_isolation(false)]
+    // #[verifier::loop_isolation(false)]
     for cpu_id in 0 .. NUM_CPUS
     invariant
         0 <= cpu_id <= NUM_CPUS,

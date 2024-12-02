@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(warnings)]
 
 use vstd::prelude::verus;
 
