@@ -47,16 +47,16 @@ pub fn schedule(regs: &mut Registers) -> Option<Cycles> {
 
     log::info!("hello from cpu {:?} scheduler",cpu::get_cpu_id());
     loop{
-        unsafe{
-            let has_next_thread = kernel::sched_get_next_thread(regs);
-            if has_next_thread == false{
-                for i in 0..1000{
-                    asm!("nop");
-                }
-            }else{
-                break;
-            }
-        }
+        // unsafe{
+        //     let has_next_thread = kernel::sched_get_next_thread(regs);
+        //     if has_next_thread == false{
+        //         for i in 0..1000{
+        //             asm!("nop");
+        //         }
+        //     }else{
+        //         break;
+        //     }
+        // }
     }
     None
 }

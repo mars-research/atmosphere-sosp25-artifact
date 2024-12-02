@@ -4,6 +4,7 @@ use astd::sync::Mutex;
 use core::arch::asm;
 use core::mem::size_of;
 use verified::kernel::Kernel;
+use verified::define as vdefine;
 use crate::bridge::Bridge;
 use verified::bridge::SwitchDecision;
 use verified::bridge::TrustedBridge;
@@ -12,8 +13,6 @@ static KERNEL: Mutex<Option<Kernel>> = Mutex::new(None);
 
 use vstd::prelude::*;
 
-use verified::define as vdefine;
-
 trait PhysicalMemoryTypeExt {
     fn to_verified_page_state(&self) -> vdefine::PageState;
 }
@@ -21,10 +20,10 @@ trait PhysicalMemoryTypeExt {
 impl PhysicalMemoryTypeExt for PhysicalMemoryType {
     fn to_verified_page_state(&self) -> vdefine::PageState {
         match self {
-            Self::Available => vdefine::FREE,
-            Self::Domain => vdefine::MAPPED,
-            Self::PageTable => vdefine::PAGETABLE,
-            Self::Kernel | Self::Reserved => vdefine::UNAVAILABLE,
+            Self::Available => vdefine::PageState::Free4k,
+            Self::Domain => vdefine::PageState::Mapped4k,
+            Self::PageTable => vdefine::PageState::Allocated4k,
+            Self::Kernel | Self::Reserved => vdefine::PageState::Unavailable4k,
         }
     }
 }
