@@ -38,6 +38,7 @@ struct TagHeader {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum Tag<'a> {
     MemoryInfo(Pin<&'a MemoryInfo>),
     MemoryMap(Pin<&'a MemoryMap>),
