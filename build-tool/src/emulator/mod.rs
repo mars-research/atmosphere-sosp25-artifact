@@ -100,7 +100,7 @@ impl RunConfiguration {
             loader,
             dom0: None,
             payload: None,
-            memory: Byte::from_unit(16.0f64, ByteUnit::GiB).unwrap(),
+            memory: Byte::from_unit(8.0f64, ByteUnit::GiB).unwrap(),
             use_virtualization: false,
             use_grub: false,
             use_iommu: false,

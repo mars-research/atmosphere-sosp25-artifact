@@ -35,8 +35,8 @@ pub fn kernel_test() {
 pub fn kernel_new() {
     log::info!("kernel lock aquiring\n");
     log::info!("kernel size={:?}", size_of::<Kernel>());
-    // log::info!("proc_man size={:?}", size_of::<ProcessManager>());
-    // log::info!("mmu_man size={:?}", size_of::<MMUManager>());
+    log::info!("proc_man size={:?}", size_of::<ProcessManager>());
+    log::info!("mmu_man size={:?}", size_of::<MMUManager>());
     // log::info!("page_alloc size={:?}", size_of::<PageAllocator>());
 
     // log::info!("process size={:?}", size_of::<Process>());
