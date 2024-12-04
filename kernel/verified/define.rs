@@ -136,15 +136,15 @@ pub enum RetValueType{
 
 // -------------------- Begin of Const --------------------
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS:usize = 128;
-pub const MAX_NUM_THREADS_PER_PROC:usize = 250;
-pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 250;
+pub const MAX_NUM_THREADS_PER_PROC:usize = 128;
+pub const MAX_NUM_THREADS_PER_ENDPOINT:usize = 128;
 pub const MAX_NUM_PROCS:usize = PCID_MAX;
 pub const MAX_NUM_THREADS:usize = 500 * 4096;
 pub const IPC_MESSAGE_LEN:usize = 1024;
 pub const IPC_PAGEPAYLOAD_LEN:usize = 128;
 
 pub const KERNEL_MEM_END_L4INDEX:usize = 1; //1 for now
-pub const NUM_PAGES:usize = 2*1024*1024; //8GB
+pub const NUM_PAGES:usize = 128*1024; //512MB
 pub const PAGE_SZ_4k:usize = 1usize << 12;
 pub const PAGE_SZ_2m:usize = 1usize << 21;
 pub const PAGE_SZ_1g:usize = 1usize << 30;

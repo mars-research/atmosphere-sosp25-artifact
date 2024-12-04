@@ -13,6 +13,14 @@ static KERNEL: Mutex<Option<Kernel>> = Mutex::new(None);
 
 use vstd::prelude::*;
 
+use verified::process_manager::spec_impl::ProcessManager;
+use verified::memory_manager::MemoryManager;
+use verified::allocator::page_allocator_spec_impl::PageAllocator;
+use verified::process_manager::container::Container;
+use verified::process_manager::process::Process;
+use verified::process_manager::thread::Thread;
+use verified::process_manager::endpoint::Endpoint;
+
 trait PhysicalMemoryTypeExt {
     fn to_verified_page_state(&self) -> vdefine::PageState;
 }
@@ -36,12 +44,13 @@ pub fn kernel_new() {
     log::info!("kernel lock aquiring\n");
     log::info!("kernel size={:?}", size_of::<Kernel>());
     log::info!("proc_man size={:?}", size_of::<ProcessManager>());
-    log::info!("mmu_man size={:?}", size_of::<MMUManager>());
-    // log::info!("page_alloc size={:?}", size_of::<PageAllocator>());
+    log::info!("mmu_man size={:?}", size_of::<MemoryManager>());
+    log::info!("page_alloc size={:?}", size_of::<PageAllocator>());
 
-    // log::info!("process size={:?}", size_of::<Process>());
-    // log::info!("thread size={:?}", size_of::<Thread>());
-    // log::info!("endpoint size={:?}", size_of::<Endpoint>());
+    log::info!("container size={:?}", size_of::<Container>());
+    log::info!("process size={:?}", size_of::<Process>());
+    log::info!("thread size={:?}", size_of::<Thread>());
+    log::info!("endpoint size={:?}", size_of::<Endpoint>());
     // log::info!("Node size={:?}", size_of::<Node>());
     let mut my_int = KERNEL.lock();
     log::info!("kernel lock aquired");
