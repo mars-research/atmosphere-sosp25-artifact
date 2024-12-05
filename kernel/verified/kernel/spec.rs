@@ -226,7 +226,7 @@ impl Kernel{
 
     #[verifier(external_body)]
     pub fn kernel_init(&mut self, dom_0_container_ptr:ContainerPtr, dom_0_proc_ptr:ProcPtr, dom_0_thread_ptr:ThreadPtr, init_quota:usize, 
-        boot_pages:&mut ArrayVec::<(PageState, usize), NUM_PAGES>, container_ptr:ContainerPtr,
+        boot_pages:&mut ArrayVec::<(PageState, usize), NUM_PAGES>,
         dom0_page_map_ptr:PageMapPtr, kernel_entry:PageMapPtr,
         page_perm_0: Tracked<PagePerm4k>, page_perm_1: Tracked<PagePerm4k>, page_perm_2: Tracked<PagePerm4k>, dom0_page_map_perm: Tracked<PointsTo<PageMap>>
     )

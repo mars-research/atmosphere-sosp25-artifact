@@ -72,6 +72,10 @@ verus! {
         #[verifier(external_body)]
         pub fn init(&mut self, boot_pages:&mut ArrayVec::<(PageState, usize), NUM_PAGES>, container_ptr:ContainerPtr)
         {
+            self.free_pages_4k.init();
+            self.free_pages_2m.init();
+            self.free_pages_1g.init();
+
             for index in 0..NUM_PAGES{
                 match boot_pages.get(index).0{
                     PageState::Unavailable4k =>{

@@ -20,6 +20,11 @@ use verified::process_manager::container::Container;
 use verified::process_manager::process::Process;
 use verified::process_manager::thread::Thread;
 use verified::process_manager::endpoint::Endpoint;
+use verified::array_vec::ArrayVec as vArrayVec;
+use verified::pagetable::pagemap::PageMap;
+use verified::define::PagePerm4k;
+
+use vstd::simple_pptr::PointsTo;
 
 trait PhysicalMemoryTypeExt {
     fn to_verified_page_state(&self) -> vdefine::PageState;
@@ -613,16 +618,50 @@ pub fn kernel_init(
     kernel_pml4_entry_ptr: usize,
 ) {
 
-    // // log::info!("cpu_list addr {:p}",&(KERNEL.lock().as_ref().unwrap().cpu_list.ar));
-    // let mut boot_pages = vArrayVec::<(u8, usize), { 2 * 1024 * 1024 }>::new();
-    // let mut i = 0;
-    // while i != 2 * 1024 * 1024 {
-    //     boot_pages.push((
-    //         boot_page_ptrs[i].1.to_verified_page_state(),
-    //         boot_page_ptrs[i].0 as usize,
-    //     ));
-    //     i = i + 1;
-    // }
+    // log::info!("cpu_list addr {:p}",&(KERNEL.lock().as_ref().unwrap().cpu_list.ar));
+    let mut boot_pages = vArrayVec::<(vdefine::PageState, usize), { 128*1024 }>::new();
+    let mut i = 0;
+
+    let mut dom_0_container_ptr = 0;
+    let mut dom_0_proc_ptr = 0;
+    let mut dom_0_thread_ptr = 0;
+
+    while i != 128*1024 {
+        boot_pages.push((
+            boot_page_ptrs[i].1.to_verified_page_state(),
+            boot_page_ptrs[i].0 as usize,
+        ));
+        i = i + 1;
+    }
+
+    for i in 0..128*1024{
+        if boot_pages.get(i).0 == vdefine::PageState::Free4k{
+            boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
+            dom_0_container_ptr = boot_pages.get(i).1;
+            break;
+        }
+    }
+
+    for i in 0..128*1024{
+        if boot_pages.get(i).0 == vdefine::PageState::Free4k{
+            boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
+            dom_0_proc_ptr = boot_pages.get(i).1;
+            break;
+        }
+    }
+
+    for i in 0..128*1024{
+        if boot_pages.get(i).0 == vdefine::PageState::Free4k{
+            boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
+            dom_0_thread_ptr = boot_pages.get(i).1;
+            break;
+        }
+    }
+
+    log::info!("dom_0_container_ptr {:x?}",dom_0_container_ptr);
+    log::info!("dom_0_proc_ptr {:x?}",dom_0_proc_ptr);
+    log::info!("dom_0_thread_ptr {:x?}",dom_0_thread_ptr);
+
     // let dom0_pagetable = vPageTable::new(dom0_pagetable_ptr);
     // let kernel_page_entry = vPageEntry {
     //     addr: kernel_pml4_entry_ptr,
@@ -632,14 +671,25 @@ pub fn kernel_init(
     // dom0_pt_regs.r15 = 233;
     // let page_perms: Tracked<Map<PagePtr, PagePerm>> = Tracked::assume_new();
     // let init_pci_map = vPCIBitMap::new();
-    // let ret_code = KERNEL.lock().as_mut().unwrap().kernel_init(
-    //     &boot_pages,
-    //     page_perms,
-    //     dom0_pagetable,
-    //     kernel_page_entry,
-    //     dom0_pt_regs,
-    //     init_pci_map,
-    // );
+
+    let page_perm_0: Tracked<PagePerm4k> = Tracked::assume_new();
+    let page_perm_1: Tracked<PagePerm4k> = Tracked::assume_new();
+    let page_perm_2: Tracked<PagePerm4k> = Tracked::assume_new();
+    let dom0_page_map_perm: Tracked<PointsTo<PageMap>> = Tracked::assume_new();
+
+    KERNEL.lock().as_mut().unwrap().kernel_init(
+        dom_0_container_ptr,
+        dom_0_proc_ptr,
+        dom_0_thread_ptr,
+        0x2000,
+        &mut boot_pages,
+        dom0_pagetable_ptr,
+        kernel_pml4_entry_ptr,
+        page_perm_0,
+        page_perm_1,
+        page_perm_2,
+        dom0_page_map_perm
+    );
     
     // // log::info!("cpu 0 thread ptr {:?}",KERNEL.lock().as_ref().unwrap().cpu_list.ar[0].current_t);
     // log::info!("kernel init ret_code {:?}", ret_code);
