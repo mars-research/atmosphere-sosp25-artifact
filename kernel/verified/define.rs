@@ -144,7 +144,7 @@ pub const IPC_MESSAGE_LEN:usize = 1024;
 pub const IPC_PAGEPAYLOAD_LEN:usize = 128;
 
 pub const KERNEL_MEM_END_L4INDEX:usize = 1; //1 for now
-pub const NUM_PAGES:usize = 128*1024; //512MB
+pub const NUM_PAGES:usize = 1*1024*1024; //4GiB
 pub const PAGE_SZ_4k:usize = 1usize << 12;
 pub const PAGE_SZ_2m:usize = 1usize << 21;
 pub const PAGE_SZ_1g:usize = 1usize << 30;

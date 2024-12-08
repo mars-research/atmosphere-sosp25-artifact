@@ -5,6 +5,7 @@ use core::arch::asm;
 use core::mem::size_of;
 use verified::kernel::Kernel;
 use verified::define as vdefine;
+use verified::trap::Registers as vRegisters;
 use crate::bridge::Bridge;
 use verified::bridge::SwitchDecision;
 use verified::bridge::TrustedBridge;
@@ -619,14 +620,14 @@ pub fn kernel_init(
 ) {
 
     // log::info!("cpu_list addr {:p}",&(KERNEL.lock().as_ref().unwrap().cpu_list.ar));
-    let mut boot_pages = vArrayVec::<(vdefine::PageState, usize), { 128*1024 }>::new();
+    let mut boot_pages = vArrayVec::<(vdefine::PageState, usize), { vdefine::NUM_PAGES }>::new();
     let mut i = 0;
 
     let mut dom_0_container_ptr = 0;
     let mut dom_0_proc_ptr = 0;
     let mut dom_0_thread_ptr = 0;
 
-    while i != 128*1024 {
+    while i !=  vdefine::NUM_PAGES {
         boot_pages.push((
             boot_page_ptrs[i].1.to_verified_page_state(),
             boot_page_ptrs[i].0 as usize,
@@ -634,7 +635,7 @@ pub fn kernel_init(
         i = i + 1;
     }
 
-    for i in 0..128*1024{
+    for i in 0.. vdefine::NUM_PAGES{
         if boot_pages.get(i).0 == vdefine::PageState::Free4k{
             boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
             dom_0_container_ptr = boot_pages.get(i).1;
@@ -642,7 +643,7 @@ pub fn kernel_init(
         }
     }
 
-    for i in 0..128*1024{
+    for i in 0.. vdefine::NUM_PAGES{
         if boot_pages.get(i).0 == vdefine::PageState::Free4k{
             boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
             dom_0_proc_ptr = boot_pages.get(i).1;
@@ -650,7 +651,7 @@ pub fn kernel_init(
         }
     }
 
-    for i in 0..128*1024{
+    for i in 0.. vdefine::NUM_PAGES{
         if boot_pages.get(i).0 == vdefine::PageState::Free4k{
             boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
             dom_0_thread_ptr = boot_pages.get(i).1;
@@ -667,8 +668,8 @@ pub fn kernel_init(
     //     addr: kernel_pml4_entry_ptr,
     //     perm: 0x1 as usize,
     // };
-    // let mut dom0_pt_regs = vRegisters::new_empty();
-    // dom0_pt_regs.r15 = 233;
+    let mut dom0_pt_regs = vRegisters::new_empty();
+    dom0_pt_regs.r15 = 233;
     // let page_perms: Tracked<Map<PagePtr, PagePerm>> = Tracked::assume_new();
     // let init_pci_map = vPCIBitMap::new();
 
@@ -690,22 +691,39 @@ pub fn kernel_init(
         page_perm_2,
         dom0_page_map_perm
     );
+
+    log::info!("dom_0 thread info {:x?}", KERNEL.lock().as_ref().unwrap().get_current_cpu_info(0));
     
     // // log::info!("cpu 0 thread ptr {:?}",KERNEL.lock().as_ref().unwrap().cpu_list.ar[0].current_t);
     // log::info!("kernel init ret_code {:?}", ret_code);
-    // let dom0_retstruc = KERNEL
-    // .lock()
-    // .as_mut()
-    // .unwrap()
-    // .kernel_idle_pop_sched(0, &mut dom0_pt_regs);
-    // log::info!("dom0 is running on CPU 0");
-    // // kernel_test_ipc_test_call(dom0_pagetable_ptr);
-    // let pcid_dom0 = 0;
-    // log::info!("setting dom0's pcid: {:?}", pcid_dom0);
-    // let cr3 = dom0_pagetable_ptr | vdefine::PCID_ENABLE_MASK | pcid_dom0;
+    let dom0_retstruc = KERNEL
+    .lock()
+    .as_mut()
+    .unwrap()
+    .schedule_idle_cpu(0, &mut dom0_pt_regs);
+    // log::info!("scheduler_return_value {:?}", dom0_retstruc);
+    log::info!("dom0 is running on CPU 0");
+    // // // kernel_test_ipc_test_call(dom0_pagetable_ptr);
+    let pcid_dom0 = 0;
+    log::info!("setting dom0's pcid: {:x?}", pcid_dom0);
+    let cr3 = dom0_pagetable_ptr | vdefine::PCID_ENABLE_MASK | pcid_dom0;
     // Bridge::set_cr3(cr3 as u64);
 
-    // log::trace!("End of kernel init");
+    let new_endpoint_retstruc = KERNEL
+    .lock()
+    .as_mut()
+    .unwrap()
+    .syscall_new_endpoint(
+        dom_0_thread_ptr,
+        0,
+    );
+
+    match new_endpoint_retstruc.error_code{
+        vdefine::RetValueType::SuccessUsize{value:value} => { log::info!{"new endpoint ptr at {:x?}", value}; },
+        _ => { log::info!{"new endpoint failed"}; },
+    }
+
+    log::trace!("End of kernel init");
 }
 
 // pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
@@ -751,15 +769,17 @@ pub fn kernel_init(
 // }
 
 
-// pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters) {
-//     let cpu_id = cpu::get_cpu_id();
-//     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_endpoint(
-//         cpu_id,
-//         endpoint_index,
-//     );
-//     regs.rax = ret_struc.error_code as u64;
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-// }
+pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters) {
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
+    let ret_struc =  kernel.as_mut().unwrap().syscall_new_endpoint(
+        thread_info.0.unwrap(),
+        endpoint_index,
+    );
+    // regs.rax = ret_struc.error_code as u64;
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+}
 
 // pub fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegisters) -> usize{
 //     let cpu_id = cpu::get_cpu_id();

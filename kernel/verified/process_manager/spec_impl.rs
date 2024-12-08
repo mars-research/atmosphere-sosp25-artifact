@@ -1042,6 +1042,7 @@ impl ProcessManager{
                     }
                 );
             }
+
             for i in 2..NUM_CPUS{
                 (*root_container_ptr).assume_init_mut().owned_cpus.insert(i);
                 self.cpu_list.set(i,
@@ -1052,6 +1053,14 @@ impl ProcessManager{
                     }
                 );
             }
+
+            self.cpu_list.set(0,
+                Cpu{
+                    owning_container: dom_0_container_ptr,
+                    active: true,
+                    current_thread: Some(dom_0_thread_ptr),
+                }
+            );
         }
     }
 
