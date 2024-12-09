@@ -114,6 +114,12 @@ ensures
         #![trigger ret.1@.value()[i].is_empty()]
         0<=i<512 ==> ret.1@.value()[i].is_empty(),
 {
+    unsafe{
+        let uptr = page_ptr as *mut MaybeUninit<PageMap>;
+        for i in 0..512{
+            (*uptr).assume_init_mut().set(i, PageEntry::empty());
+        }
+    }
     (page_ptr, Tracked::assume_new())
 }
 

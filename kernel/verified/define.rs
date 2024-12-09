@@ -131,6 +131,8 @@ pub enum RetValueType{
     CpuIdle,
     Error,
     Else,
+    NoQuota,
+    VaInUse,
 }
 // -------------------- End of Types --------------------
 

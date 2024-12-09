@@ -2,6 +2,7 @@ use astd::boot::PhysicalMemoryType;
 use astd::heapless::Vec as ArrayVec;
 use astd::sync::Mutex;
 use core::arch::asm;
+use core::arch::x86_64::_rdtsc;
 use core::mem::size_of;
 use verified::kernel::Kernel;
 use verified::define as vdefine;
@@ -24,6 +25,7 @@ use verified::process_manager::endpoint::Endpoint;
 use verified::array_vec::ArrayVec as vArrayVec;
 use verified::pagetable::pagemap::PageMap;
 use verified::define::PagePerm4k;
+use verified::va_range::VaRange4K as vVaRange4K;
 
 use vstd::simple_pptr::PointsTo;
 
@@ -682,7 +684,6 @@ pub fn kernel_init(
         dom_0_container_ptr,
         dom_0_proc_ptr,
         dom_0_thread_ptr,
-        0x2000,
         &mut boot_pages,
         dom0_pagetable_ptr,
         kernel_pml4_entry_ptr,
@@ -723,20 +724,56 @@ pub fn kernel_init(
         _ => { log::info!{"new endpoint failed"}; },
     }
 
+    dom0_test_mmap();
+
     log::trace!("End of kernel init");
 }
 
-// pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
-//     let cpu_id = cpu::get_cpu_id();
-//     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_malloc(
-//         cpu_id,
-//         va,
-//         perm_bits,
-//         range,
-//     );
-//     regs.rax = ret_struc.0.error_code as u64;
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-// }
+pub fn dom0_test_mmap(){
+    unsafe{
+    let mut kernel = KERNEL.lock();
+    let start = _rdtsc();
+    let va:usize = 0xC000000000;
+    let iter = 50000;
+    log::info!("num of free pages: {:?}",kernel.as_ref().unwrap().page_alloc.free_pages_4k.len());
+    for i in 0..iter{
+
+        let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(0);
+    
+        let ret_struc =  kernel.as_mut().unwrap().syscall_mmap(
+            thread_info.0.unwrap(),
+            vVaRange4K::new(va + 4096 * i, 1)
+        );
+        match ret_struc.error_code{
+            vdefine::RetValueType::SuccessSeqUsize{..} => { 
+            },
+            vdefine::RetValueType::VaInUse => { 
+                log::info!{"mmap failed at {:?} error: va in use va:{:x?}", i, va + 4096 * i}; 
+                break; 
+            },
+            vdefine::RetValueType::NoQuota => { log::info!{"mmap failed at {:?} error: no quota", i}; break; },
+            _ => {},
+        }
+    }
+    
+    let end = _rdtsc();
+    log::info!("mmap cycle per syscall {:?}",(end-start) as usize /iter);
+    log::info!{"mmap test done"};
+    }
+}
+
+pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
+
+    let ret_struc =  kernel.as_mut().unwrap().syscall_mmap(
+        thread_info.0.unwrap(),
+        vVaRange4K::new(va, range)
+    );
+    // regs.rax = ret_struc.0.error_code as u64;
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+}
 
 // pub extern "C" fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vRegisters){
 //     let cpu_id = cpu::get_cpu_id();

@@ -135,7 +135,7 @@ pub fn syscall_mmap(&mut self, thread_ptr: ThreadPtr, va_range: VaRange4K) ->  (
     }
 
     if self.proc_man.get_container(container_ptr).mem_quota < va_range.len * 4{
-        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::NoQuota);
     }
 
     assert(self.page_alloc.free_pages_4k.len() >= va_range.len * 4) by {
@@ -143,7 +143,7 @@ pub fn syscall_mmap(&mut self, thread_ptr: ThreadPtr, va_range: VaRange4K) ->  (
     }
 
     if self.check_address_space_va_range_free(proc_ptr, &va_range) == false {
-        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::VaInUse);
     }
 
     let (num_page, seq_pages) = self.range_alloc_and_map(proc_ptr, &va_range);
