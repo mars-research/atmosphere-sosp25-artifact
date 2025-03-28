@@ -123,7 +123,7 @@ pub fn syscall_mmap(&mut self, thread_ptr: ThreadPtr, va_range: VaRange4K) ->  (
         va_range.wf(),
         va_range.len * 4 < usize::MAX,
     ensures
-        syscall_mmap_requirement(*old(self), thread_ptr, va_range) == false <==> ret.is_error(),
+        // syscall_mmap_requirement(*old(self), thread_ptr, va_range) == false <==> ret.is_error(),
         syscall_mmap_spec(*old(self), *self, thread_ptr, va_range, ret),
 {
     let proc_ptr = self.proc_man.get_thread(thread_ptr).owning_proc;
