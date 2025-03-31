@@ -8,88 +8,10 @@ verus! {
     use crate::lemma::lemma_u::*;
     use crate::lemma::lemma_t::*;
     use crate::process_manager::container_util_t::*;
-
-    pub struct ContainerTree{
-        pub root_container: ContainerPtr,
-
-        pub container_perms: Tracked<Map<ContainerPtr, PointsTo<Container>>>,
-    }
+    use crate::process_manager::spec_impl::ProcessManager;
 
     //specs
-    impl ContainerTree{
-        pub open spec fn container_dom(&self) -> Set<ContainerPtr>
-        {
-            self.container_perms@.dom()
-        }
-
-        pub open spec fn spec_get_container(&self, c_ptr:ContainerPtr) -> &Container
-        {
-            &self.container_perms@[c_ptr].value()
-        }
-
-        #[verifier(when_used_as_spec(spec_get_container))]
-        pub fn get_container(&self, container_ptr:ContainerPtr) -> (ret:&Container)
-            requires
-                self.wf(),
-                self.container_dom().contains(container_ptr),
-            ensures
-                self.get_container(container_ptr) == ret,
-        {
-            let tracked container_perm = self.container_perms.borrow().tracked_borrow(container_ptr);
-            let container : &Container = PPtr::<Container>::from_usize(container_ptr).borrow(Tracked(container_perm));
-            container
-        }
-
-        pub closed spec fn container_perms_wf(&self) -> bool{
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].is_init()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].is_init()
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].addr()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==>        
-                self.container_perms@[c_ptr].addr() == c_ptr
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().children.wf()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().children.wf()
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().children.unique()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().children.unique()
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().uppertree_seq@.no_duplicates()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==> 
-                self.container_perms@[c_ptr].value().uppertree_seq@.no_duplicates()
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@.dom().contains(c_ptr), self.container_perms@[c_ptr].value().children@.contains(c_ptr)]
-                self.container_perms@.dom().contains(c_ptr)
-                ==>
-                self.container_perms@[c_ptr].value().children@.contains(c_ptr) == false
-                &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().subtree_set@.finite()]
-                self.container_perms@.dom().contains(c_ptr)
-                ==>
-                self.container_perms@[c_ptr].value().subtree_set@.finite()
-            &&&
-            forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_perms@[c_ptr].value().uppertree_seq@.len(), self.container_perms@[c_ptr].value().depth]
-                self.container_perms@.dom().contains(c_ptr)
-                ==>
-                self.container_perms@[c_ptr].value().uppertree_seq@.len() == self.container_perms@[c_ptr].value().depth    
-        }
+    impl ProcessManager{
     
         pub closed spec fn container_root_wf(&self) -> bool{
             &&&
@@ -238,7 +160,7 @@ verus! {
             self.container_subtree_set_exclusive()
         }
 
-        pub open spec fn wf(&self) -> bool{
+        pub open spec fn container_tree_wf(&self) -> bool{
             &&&
             self.container_perms_wf()
             &&&
@@ -259,11 +181,11 @@ verus! {
     }
 
     //proof
-    impl ContainerTree{
+    impl ProcessManager{
 
         pub proof fn container_subtree_inv(&self)
             requires
-                self.wf()
+                self.container_tree_wf()
             ensures
                 forall|c_ptr:ContainerPtr|
                     #![trigger self.container_dom().contains(c_ptr)]
@@ -278,7 +200,7 @@ verus! {
 
         pub proof fn same_or_deeper_depth_imply_none_ancestor(&self, a_ptr:ContainerPtr, child_ptr:ContainerPtr)
             requires
-                self.wf(),
+                self.container_tree_wf(),
                 self.container_perms@.dom().contains(a_ptr),
                 self.container_perms@.dom().contains(child_ptr),
                 self.container_perms@[a_ptr].value().depth >= self.container_perms@[child_ptr].value().depth,
@@ -291,7 +213,7 @@ verus! {
 
         pub proof fn no_child_imply_no_subtree(&self, c_ptr:ContainerPtr)
             requires
-                self.wf(),
+                self.container_tree_wf(),
                 self.container_perms@.dom().contains(c_ptr),
                 self.container_perms@[c_ptr].value().children@ =~= Seq::empty(),
             ensures
@@ -325,7 +247,7 @@ verus! {
 
         pub proof fn in_child_impy_in_subtree(&self, c_ptr:ContainerPtr, child_ptr:ContainerPtr, s_ptr:ContainerPtr)
             requires
-                self.wf(),
+                self.container_tree_wf(),
                 self.container_perms@.dom().contains(c_ptr),
                 self.container_perms@[c_ptr].value().children@.contains(child_ptr),
                 self.container_perms@[child_ptr].value().subtree_set@.contains(s_ptr),
@@ -344,7 +266,7 @@ verus! {
 
         pub proof fn in_subtree_imply_exist_in_child(&self, c_ptr:ContainerPtr, s_ptr:ContainerPtr)
             requires
-                self.wf(),
+                self.container_tree_wf(),
                 self.container_perms@.dom().contains(c_ptr),
                 self.container_perms@[c_ptr].value().subtree_set@.contains(s_ptr),
             ensures
@@ -429,7 +351,7 @@ verus! {
 
         pub proof fn not_in_dom_imply_not_in_any_children_set(&self, s_ptr:ContainerPtr)
             requires
-                self.wf(),
+                self.container_tree_wf(),
                 self.container_perms@.dom().contains(s_ptr) == false,
         {
             assert(
@@ -443,7 +365,7 @@ verus! {
              
         pub proof fn container_tree_inv(&self)
             requires
-                self.wf()
+                self.container_tree_wf()
             ensures
                 forall|c_ptr:ContainerPtr|
                     #![auto]
@@ -454,7 +376,7 @@ verus! {
 
         pub proof fn container_subtree_disjoint_inv(&self)
             requires
-                self.wf()
+                self.container_tree_wf()
             ensures
                 forall|c_ptr_i:ContainerPtr, c_ptr_j:ContainerPtr|
                     #![trigger  self.get_container(c_ptr_i), self.get_container(c_ptr_j)]
@@ -519,19 +441,10 @@ verus! {
     }
 
     //exec
-    impl ContainerTree{
-        
-        pub fn new() -> Self{
-            ContainerTree{
-                root_container: 0,
-            
-                container_perms: Tracked(Map::tracked_empty()),
-            }
-        }
-
+    impl ProcessManager{
         pub fn check_is_ancestor(&self, a_ptr:ContainerPtr, child_ptr:ContainerPtr) -> (ret:bool)
             requires
-                self.wf(),
+                self.container_tree_wf(),
                 self.container_perms@.dom().contains(a_ptr),
                 self.container_perms@.dom().contains(child_ptr),
                 self.container_perms@[a_ptr].value().depth < self.container_perms@[child_ptr].value().depth,
@@ -557,7 +470,7 @@ verus! {
             while depth != 1
                 invariant
                     1 <= depth <= self.container_perms@[child_ptr].value().depth,
-                    self.wf(),
+                    self.container_tree_wf(),
                     self.container_perms@.dom().contains(a_ptr),
                     self.container_perms@.dom().contains(child_ptr),
                     self.container_perms@[a_ptr].value().depth < self.container_perms@[child_ptr].value().depth,
@@ -767,7 +680,7 @@ verus! {
 
         pub fn new_container(&mut self, container_ptr:ContainerPtr, init_quota:usize, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>)
             requires
-                old(self).wf(),
+                old(self).container_tree_wf(),
                 old(self).container_perms@.dom().contains(container_ptr),
                 old(self).container_perms@.dom().contains(page_ptr_1) == false,
                 old(self).container_perms@[container_ptr].value().children.len() < CONTAINER_CHILD_LIST_LEN,
@@ -776,7 +689,7 @@ verus! {
                 page_perm_1@.is_init(),
                 page_perm_1@.addr() == page_ptr_1,
             ensures
-                self.wf(),  
+                self.container_tree_wf(),  
                 self.container_dom() =~= old(self).container_dom().insert(page_ptr_1),
                 self.get_container(page_ptr_1).uppertree_seq@ =~= old(self).get_container(container_ptr).uppertree_seq@.push(container_ptr),
                 forall|c_ptr:ContainerPtr| 
@@ -1058,13 +971,13 @@ verus! {
 
         pub fn container_tree_scheduler_pop_head(&mut self, container_ptr:ContainerPtr) -> (ret:(ThreadPtr,SLLIndex))
             requires
-                old(self).wf(),
+                old(self).container_tree_wf(),
                 old(self).container_dom().contains(container_ptr),
                 old(self).get_container(container_ptr).scheduler.wf(),
                 old(self).get_container(container_ptr).scheduler.unique(),
                 old(self).get_container(container_ptr).scheduler.len() != 0,
             ensures
-                self.wf(),
+                self.container_tree_wf(),
                 self.container_dom() == old(self).container_dom(),
                 forall|c_ptr:ContainerPtr|
                     #![trigger self.get_container(c_ptr)]
@@ -1184,10 +1097,10 @@ verus! {
 
         pub fn container_tree_set_quota(&mut self, container_ptr:ContainerPtr, new_quota:usize)
             requires
-                old(self).wf(),
+                old(self).container_tree_wf(),
                 old(self).container_dom().contains(container_ptr),
             ensures
-                self.wf(),
+                self.container_tree_wf(),
                 old(self).container_dom() =~= self.container_dom(),
                 forall|c_ptr:ContainerPtr|
                     #![trigger self.get_container(c_ptr)]
@@ -1278,14 +1191,14 @@ verus! {
 
         pub fn container_tree_scheduler_push_thread(&mut self, container_ptr:ContainerPtr, thread_ptr:ThreadPtr) -> (ret:SLLIndex)
             requires
-                old(self).wf(),
+                old(self).container_tree_wf(),
                 old(self).container_dom().contains(container_ptr),
                 old(self).get_container(container_ptr).scheduler.wf(),
                 old(self).get_container(container_ptr).scheduler.unique(),
                 old(self).get_container(container_ptr).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
                 old(self).get_container(container_ptr).scheduler@.contains(thread_ptr) == false,
             ensures
-                self.wf(),
+                self.container_tree_wf(),
                 old(self).container_dom() =~= self.container_dom(),
                 forall|c_ptr:ContainerPtr|
                     #![trigger self.get_container(c_ptr)]
@@ -1396,10 +1309,10 @@ verus! {
 
         pub fn container_tree_set_owned_threads(&mut self, container_ptr:ContainerPtr, new_owned_threads:Ghost<Set<ThreadPtr>>)
             requires
-                old(self).wf(),
+                old(self).container_tree_wf(),
                 old(self).container_dom().contains(container_ptr),
             ensures
-                self.wf(),
+                self.container_tree_wf(),
                 old(self).container_dom() =~= self.container_dom(),
                 forall|c_ptr:ContainerPtr|
                     #![trigger self.get_container(c_ptr)]
@@ -1490,14 +1403,14 @@ verus! {
 
         pub fn container_tree_push_proc(&mut self, container_ptr:ContainerPtr, proc_ptr:ProcPtr) -> (ret:SLLIndex)
             requires
-                old(self).wf(),
+                old(self).container_tree_wf(),
                 old(self).container_dom().contains(container_ptr),
                 old(self).get_container(container_ptr).owned_procs.wf(),
                 old(self).get_container(container_ptr).owned_procs.unique(),
                 old(self).get_container(container_ptr).owned_procs.len() < CONTAINER_PROC_LIST_LEN,
                 old(self).get_container(container_ptr).owned_procs@.contains(proc_ptr) == false,
             ensures
-                self.wf(),
+                self.container_tree_wf(),
                 old(self).container_dom() =~= self.container_dom(),
                 forall|c_ptr:ContainerPtr|
                     #![trigger self.get_container(c_ptr)]
@@ -1608,14 +1521,14 @@ verus! {
 
         pub fn container_tree_push_endpoint(&mut self, container_ptr:ContainerPtr, endpoint_ptr:EndpointPtr) -> (ret:SLLIndex)
             requires
-                old(self).wf(),
+                old(self).container_tree_wf(),
                 old(self).container_dom().contains(container_ptr),
                 old(self).get_container(container_ptr).owned_endpoints.wf(),
                 old(self).get_container(container_ptr).owned_endpoints.unique(),
                 old(self).get_container(container_ptr).owned_endpoints.len() < CONTAINER_ENDPOINT_LIST_LEN,
                 old(self).get_container(container_ptr).owned_endpoints@.contains(endpoint_ptr) == false,
             ensures
-                self.wf(),
+                self.container_tree_wf(),
                 old(self).container_dom() =~= self.container_dom(),
                 forall|c_ptr:ContainerPtr|
                     #![trigger self.get_container(c_ptr)]
