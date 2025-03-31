@@ -87,362 +87,360 @@ impl ProcessManager{
         container
     }
 
-    // pub closed spec fn spec_get_proc(&self, proc_ptr:ProcPtr) -> &Process
+    pub closed spec fn spec_get_proc(&self, proc_ptr:ProcPtr) -> &Process
+        recommends
+            self.proc_perms_wf(),
+            self.proc_dom().contains(proc_ptr),
+    {
+        &self.process_perms@[proc_ptr].value()
+    }
+
+    #[verifier(when_used_as_spec(spec_get_proc))]
+    pub fn get_proc(&self, proc_ptr:ProcPtr) ->(ret:&Process)
+        requires
+            self.proc_perms_wf(),
+            self.process_fields_wf(),
+            self.proc_dom().contains(proc_ptr),
+        ensures
+            ret =~= self.get_proc(proc_ptr),
+            ret.owned_threads.wf(),
+            self.wf() ==> self.container_dom().contains(ret.owning_container),
+    {
+        let tracked proc_perm = self.process_perms.borrow().tracked_borrow(proc_ptr);
+        let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
+        proc
+    }
+
+    pub closed spec fn spec_get_proc_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> &Process
+        recommends
+            self.wf(),
+            self.thread_perms@.dom().contains(thread_ptr),
+    {
+        &self.process_perms@[self.get_thread(thread_ptr).owning_proc].value()
+    }
+
+    #[verifier(when_used_as_spec(spec_get_proc_by_thread_ptr))]
+    pub fn get_proc_by_thread_ptr(&self, thread_ptr:ThreadPtr) ->(ret:&Process)
+        requires
+            self.wf(),
+            self.thread_perms@.dom().contains(thread_ptr),
+        ensures
+            ret =~= self.spec_get_proc_by_thread_ptr(thread_ptr),
+    {
+        let proc_ptr = self.get_thread(thread_ptr).owning_proc;
+        let tracked proc_perm = self.process_perms.borrow().tracked_borrow(proc_ptr);
+        let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
+        proc
+    }
+
+    pub closed spec fn spec_get_thread(&self, thread_ptr:ThreadPtr) -> &Thread
+        recommends
+            self.wf(),
+            self.thread_dom().contains(thread_ptr),
+    {
+        &self.thread_perms@[thread_ptr].value()
+    }
+
+    #[verifier(when_used_as_spec(spec_get_thread))]
+    pub fn get_thread(&self, thread_ptr:ThreadPtr) -> (ret:&Thread)
+        requires
+            self.wf(),
+            self.thread_dom().contains(thread_ptr),
+        ensures
+            ret == self.get_thread(thread_ptr),
+            self.proc_dom().contains(ret.owning_proc),
+            self.container_dom().contains(ret.owning_container),
+            self.get_container(ret.owning_container).scheduler.wf(),
+            self.get_container(ret.owning_container).owned_procs.wf(),
+            self.get_container(ret.owning_container).children.wf(),
+    {
+        let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
+        let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
+        thread
+    }
+
+    pub closed spec fn spec_get_cpu(&self, cpu_id:CpuId) -> &Cpu
+        recommends
+            self.wf(),
+            0 <= cpu_id < NUM_CPUS,
+    {
+        &self.cpu_list@[cpu_id as int]
+    }
+
+    #[verifier(when_used_as_spec(spec_get_cpu))]
+    pub fn get_cpu(&self, cpu_id:CpuId) -> (ret: &Cpu)
+        requires
+            self.wf(),
+            0 <= cpu_id < NUM_CPUS,
+        ensures
+            ret == self.get_cpu(cpu_id),
+    {
+        self.cpu_list.get(cpu_id)
+    }
+
+    pub closed spec fn spec_get_is_cpu_running(&self, cpu_i:CpuId) -> bool
+        recommends
+            self.wf(),
+            0 <= cpu_i < NUM_CPUS,
+    {
+        self.cpu_list@[cpu_i as int].current_thread.is_Some()
+    }
+
+    #[verifier(when_used_as_spec(spec_get_is_cpu_running))]
+    pub fn get_is_cpu_running(&self, cpu_i:CpuId) -> (ret :bool)
+        requires
+            self.wf(),
+            0 <= cpu_i < NUM_CPUS,
+        ensures
+            ret == self.get_is_cpu_running(cpu_i),
+    {
+        self.cpu_list.get(cpu_i).current_thread.is_some()
+    }
+
+
+    // pub closed spec fn spec_get_container(&self, container_ptr:ContainerPtr) -> &Container
     //     recommends
     //         self.wf(),
-    //         self.proc_dom().contains(proc_ptr),
+    //         self.container_dom().contains(container_ptr),
     // {
-    //     &self.process_perms@[proc_ptr].value()
+    //     self.get_container(container_ptr)
     // }
 
-    // #[verifier(when_used_as_spec(spec_get_proc))]
-    // pub fn get_proc(&self, proc_ptr:ProcPtr) ->(ret:&Process)
+    // #[verifier(when_used_as_spec(spec_get_container))]
+    // pub fn get_container(&self, container_ptr:ContainerPtr) -> (ret:&Container)
     //     requires
     //         self.wf(),
-    //         self.proc_dom().contains(proc_ptr),
+    //         self.container_dom().contains(container_ptr),
     //     ensures
-    //         ret =~= self.get_proc(proc_ptr),
-    //         ret.owned_threads.wf(),
-    //         self.container_dom().contains(ret.owning_container)
+    //         self.get_container(container_ptr) == ret,
     // {
-    //     let tracked proc_perm = self.process_perms.borrow().tracked_borrow(proc_ptr);
-    //     let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
-    //     proc
+    //     self.get_container(container_ptr)
     // }
 
-//     pub closed spec fn spec_get_proc_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> &Process
-//         recommends
-//             self.wf(),
-//             self.thread_perms@.dom().contains(thread_ptr),
-//     {
-//         &self.process_perms@[self.get_thread(thread_ptr).owning_proc].value()
-//     }
+    pub closed spec fn spec_get_container_by_proc_ptr(&self, proc_ptr:ProcPtr) -> &Container
+        recommends
+            self.wf(),
+            self.proc_dom().contains(proc_ptr),
+    {
+        self.get_container(self.get_proc(proc_ptr).owning_container)
+    }
 
-//     #[verifier(when_used_as_spec(spec_get_proc_by_thread_ptr))]
-//     pub fn get_proc_by_thread_ptr(&self, thread_ptr:ThreadPtr) ->(ret:&Process)
-//         requires
-//             self.wf(),
-//             self.thread_perms@.dom().contains(thread_ptr),
-//         ensures
-//             ret =~= self.spec_get_proc_by_thread_ptr(thread_ptr),
-//     {
-//         let proc_ptr = self.get_thread(thread_ptr).owning_proc;
-//         let tracked proc_perm = self.process_perms.borrow().tracked_borrow(proc_ptr);
-//         let proc : &Process = PPtr::<Process>::from_usize(proc_ptr).borrow(Tracked(proc_perm));
-//         proc
-//     }
+    #[verifier(when_used_as_spec(spec_get_container_by_proc_ptr))]
+    pub fn get_container_by_proc_ptr(&self, proc_ptr:ProcPtr) -> (ret:&Container)
+        requires
+            self.wf(),
+            self.proc_dom().contains(proc_ptr),
+        ensures
+            self.get_container_by_proc_ptr(proc_ptr) == ret,
+            self.container_dom().contains(self.get_proc(proc_ptr).owning_container),
+            self.get_container(self.get_proc(proc_ptr).owning_container) == ret,
+            ret.scheduler.wf(),
+    {
+        let container_ptr = self.get_proc(proc_ptr).owning_container;
+        let container = self.get_container(container_ptr);
+        container
+    }
 
-//     pub closed spec fn spec_get_thread(&self, thread_ptr:ThreadPtr) -> &Thread
-//         recommends
-//             self.wf(),
-//             self.thread_dom().contains(thread_ptr),
-//     {
-//         &self.thread_perms@[thread_ptr].value()
-//     }
+    pub closed spec fn spec_get_container_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> &Container
+        recommends
+            self.wf(),
+            self.thread_perms@.dom().contains(thread_ptr),
+    {
+        self.get_container(self.get_proc_by_thread_ptr(thread_ptr).owning_container)
+    }
 
-//     #[verifier(when_used_as_spec(spec_get_thread))]
-//     pub fn get_thread(&self, thread_ptr:ThreadPtr) -> (ret:&Thread)
-//         requires
-//             self.wf(),
-//             self.thread_dom().contains(thread_ptr),
-//         ensures
-//             ret == self.get_thread(thread_ptr),
-//             self.proc_dom().contains(ret.owning_proc),
-//             self.container_dom().contains(ret.owning_container),
-//             self.get_container(ret.owning_container).scheduler.wf(),
-//             self.get_container(ret.owning_container).owned_procs.wf(),
-//             self.get_container(ret.owning_container).children.wf(),
-//     {
-//         proof{
-//             self.container_tree_inv();
-//         }
-//         let tracked thread_perm = self.thread_perms.borrow().tracked_borrow(thread_ptr);
-//         let thread : &Thread = PPtr::<Thread>::from_usize(thread_ptr).borrow(Tracked(thread_perm));
-//         thread
-//     }
+    #[verifier(when_used_as_spec(spec_get_container_by_thread_ptr))]
+    pub fn get_container_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret:&Container)
+        requires
+            self.wf(),
+            self.thread_perms@.dom().contains(thread_ptr),
+        ensures
+            self.get_container_by_thread_ptr(thread_ptr) == ret,
+    {
+        let container_ptr = self.get_proc_by_thread_ptr(thread_ptr).owning_container;
+        let container = self.get_container(container_ptr);
+        container
+    }
 
-//     pub closed spec fn spec_get_cpu(&self, cpu_id:CpuId) -> &Cpu
-//         recommends
-//             self.wf(),
-//             0 <= cpu_id < NUM_CPUS,
-//     {
-//         &self.cpu_list@[cpu_id as int]
-//     }
+    pub closed spec fn spec_get_endpoint(&self, endpoint_ptr:EndpointPtr) -> &Endpoint
+        recommends
+            self.wf(),
+            self.endpoint_perms@.dom().contains(endpoint_ptr),
+    {
+        &self.endpoint_perms@[endpoint_ptr].value()
+    }
 
-//     #[verifier(when_used_as_spec(spec_get_cpu))]
-//     pub fn get_cpu(&self, cpu_id:CpuId) -> (ret: &Cpu)
-//         requires
-//             self.wf(),
-//             0 <= cpu_id < NUM_CPUS,
-//         ensures
-//             ret == self.get_cpu(cpu_id),
-//     {
-//         self.cpu_list.get(cpu_id)
-//     }
+    #[verifier(when_used_as_spec(spec_get_endpoint))]
+    pub fn get_endpoint(&self, endpoint_ptr:EndpointPtr) -> (ret:&Endpoint)
+        requires
+            self.wf(),
+            self.endpoint_dom().contains(endpoint_ptr),
+        ensures
+            ret == self.get_endpoint(endpoint_ptr),
+            ret.queue.wf(),
+    {
+        let tracked endpoint_perm = self.endpoint_perms.borrow().tracked_borrow(endpoint_ptr);
+        let endpoint : &Endpoint = PPtr::<Endpoint>::from_usize(endpoint_ptr).borrow(Tracked(endpoint_perm));
+        endpoint
+    }
 
-//     pub closed spec fn spec_get_is_cpu_running(&self, cpu_i:CpuId) -> bool
-//         recommends
-//             self.wf(),
-//             0 <= cpu_i < NUM_CPUS,
-//     {
-//         self.cpu_list@[cpu_i as int].current_thread.is_Some()
-//     }
+    pub closed spec fn spec_get_thread_ptr_by_cpu_id(&self, cpu_id:CpuId) -> (ret: Option<ThreadPtr>)
+        recommends
+            self.wf(),
+            0 <= cpu_id < NUM_CPUS,
+    {
+        self.cpu_list@[cpu_id as int].current_thread
+    }
 
-//     #[verifier(when_used_as_spec(spec_get_is_cpu_running))]
-//     pub fn get_is_cpu_running(&self, cpu_i:CpuId) -> (ret :bool)
-//         requires
-//             self.wf(),
-//             0 <= cpu_i < NUM_CPUS,
-//         ensures
-//             ret == self.get_is_cpu_running(cpu_i),
-//     {
-//         self.cpu_list.get(cpu_i).current_thread.is_some()
-//     }
+    #[verifier(when_used_as_spec(spec_get_thread_ptr_by_cpu_id))]
+    pub fn get_thread_ptr_by_cpu_id(&self, cpu_id:CpuId) -> (ret: Option<ThreadPtr>)
+        requires
+            self.wf(),
+            0 <= cpu_id < NUM_CPUS,
+        ensures
+            ret == self.get_thread_ptr_by_cpu_id(cpu_id),
+            self.get_is_cpu_running(cpu_id) == ret.is_Some(),
+            ret.is_Some() ==> 
+                self.get_cpu(cpu_id).current_thread.is_Some()
+                &&
+                self.thread_dom().contains(ret.unwrap()),
+            self.get_thread_ptr_by_cpu_id(cpu_id) == ret,
+            self.get_cpu(cpu_id).current_thread == ret,
+    {
+        self.cpu_list.get(cpu_id).current_thread
+    }
 
+    pub closed spec fn spec_get_owning_proc_by_thread_ptr(&self, t_ptr:ThreadPtr) -> (ret: ProcPtr)
+        recommends
+            self.wf(),
+            self.thread_dom().contains(t_ptr),
+    {
+        self.get_thread(t_ptr).owning_proc
+    }
 
-//     pub closed spec fn spec_get_container(&self, container_ptr:ContainerPtr) -> &Container
-//         recommends
-//             self.wf(),
-//             self.container_dom().contains(container_ptr),
-//     {
-//         self.get_container(container_ptr)
-//     }
+    #[verifier(when_used_as_spec(spec_get_owning_proc_by_thread_ptr))]
+    pub fn get_owning_proc_by_thread_ptr(&self, t_ptr:ThreadPtr) -> (ret: ProcPtr)
+        requires
+            self.wf(),
+            self.thread_dom().contains(t_ptr),
+        ensures
+            ret == self.get_owning_proc_by_thread_ptr(t_ptr),
+            self.proc_dom().contains(ret),
+            self.get_thread(t_ptr).owning_proc == ret,
+    {
+        self.get_thread(t_ptr).owning_proc
+    }
 
-//     #[verifier(when_used_as_spec(spec_get_container))]
-//     pub fn get_container(&self, container_ptr:ContainerPtr) -> (ret:&Container)
-//         requires
-//             self.wf(),
-//             self.container_dom().contains(container_ptr),
-//         ensures
-//             self.get_container(container_ptr) == ret,
-//     {
-//         self.get_container(container_ptr)
-//     }
-
-//     pub closed spec fn spec_get_container_by_proc_ptr(&self, proc_ptr:ProcPtr) -> &Container
-//         recommends
-//             self.wf(),
-//             self.proc_dom().contains(proc_ptr),
-//     {
-//         self.get_container(self.get_proc(proc_ptr).owning_container)
-//     }
-
-//     #[verifier(when_used_as_spec(spec_get_container_by_proc_ptr))]
-//     pub fn get_container_by_proc_ptr(&self, proc_ptr:ProcPtr) -> (ret:&Container)
-//         requires
-//             self.wf(),
-//             self.proc_dom().contains(proc_ptr),
-//         ensures
-//             self.get_container_by_proc_ptr(proc_ptr) == ret,
-//             self.container_dom().contains(self.get_proc(proc_ptr).owning_container),
-//             self.get_container(self.get_proc(proc_ptr).owning_container) == ret,
-//             ret.scheduler.wf(),
-//     {
-//         let container_ptr = self.get_proc(proc_ptr).owning_container;
-//         let container = self.get_container(container_ptr);
-//         container
-//     }
-
-//     pub closed spec fn spec_get_container_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> &Container
-//         recommends
-//             self.wf(),
-//             self.thread_perms@.dom().contains(thread_ptr),
-//     {
-//         self.get_container(self.get_proc_by_thread_ptr(thread_ptr).owning_container)
-//     }
-
-//     #[verifier(when_used_as_spec(spec_get_container_by_thread_ptr))]
-//     pub fn get_container_by_thread_ptr(&self, thread_ptr:ThreadPtr) -> (ret:&Container)
-//         requires
-//             self.wf(),
-//             self.thread_perms@.dom().contains(thread_ptr),
-//         ensures
-//             self.get_container_by_thread_ptr(thread_ptr) == ret,
-//     {
-//         let container_ptr = self.get_proc_by_thread_ptr(thread_ptr).owning_container;
-//         let container = self.get_container(container_ptr);
-//         container
-//     }
-
-//     pub closed spec fn spec_get_endpoint(&self, endpoint_ptr:EndpointPtr) -> &Endpoint
-//         recommends
-//             self.wf(),
-//             self.endpoint_perms@.dom().contains(endpoint_ptr),
-//     {
-//         &self.endpoint_perms@[endpoint_ptr].value()
-//     }
-
-//     #[verifier(when_used_as_spec(spec_get_endpoint))]
-//     pub fn get_endpoint(&self, endpoint_ptr:EndpointPtr) -> (ret:&Endpoint)
-//         requires
-//             self.wf(),
-//             self.endpoint_dom().contains(endpoint_ptr),
-//         ensures
-//             ret == self.get_endpoint(endpoint_ptr),
-//             ret.queue.wf(),
-//     {
-//         let tracked endpoint_perm = self.endpoint_perms.borrow().tracked_borrow(endpoint_ptr);
-//         let endpoint : &Endpoint = PPtr::<Endpoint>::from_usize(endpoint_ptr).borrow(Tracked(endpoint_perm));
-//         endpoint
-//     }
-
-//     pub closed spec fn spec_get_thread_ptr_by_cpu_id(&self, cpu_id:CpuId) -> (ret: Option<ThreadPtr>)
-//         recommends
-//             self.wf(),
-//             0 <= cpu_id < NUM_CPUS,
-//     {
-//         self.cpu_list@[cpu_id as int].current_thread
-//     }
-
-//     #[verifier(when_used_as_spec(spec_get_thread_ptr_by_cpu_id))]
-//     pub fn get_thread_ptr_by_cpu_id(&self, cpu_id:CpuId) -> (ret: Option<ThreadPtr>)
-//         requires
-//             self.wf(),
-//             0 <= cpu_id < NUM_CPUS,
-//         ensures
-//             ret == self.get_thread_ptr_by_cpu_id(cpu_id),
-//             self.get_is_cpu_running(cpu_id) == ret.is_Some(),
-//             ret.is_Some() ==> 
-//                 self.get_cpu(cpu_id).current_thread.is_Some()
-//                 &&
-//                 self.thread_dom().contains(ret.unwrap()),
-//             self.get_thread_ptr_by_cpu_id(cpu_id) == ret,
-//             self.get_cpu(cpu_id).current_thread == ret,
-//     {
-//         self.cpu_list.get(cpu_id).current_thread
-//     }
-
-//     pub closed spec fn spec_get_owning_proc_by_thread_ptr(&self, t_ptr:ThreadPtr) -> (ret: ProcPtr)
-//         recommends
-//             self.wf(),
-//             self.thread_dom().contains(t_ptr),
-//     {
-//         self.get_thread(t_ptr).owning_proc
-//     }
-
-//     #[verifier(when_used_as_spec(spec_get_owning_proc_by_thread_ptr))]
-//     pub fn get_owning_proc_by_thread_ptr(&self, t_ptr:ThreadPtr) -> (ret: ProcPtr)
-//         requires
-//             self.wf(),
-//             self.thread_dom().contains(t_ptr),
-//         ensures
-//             ret == self.get_owning_proc_by_thread_ptr(t_ptr),
-//             self.proc_dom().contains(ret),
-//             self.get_thread(t_ptr).owning_proc == ret,
-//     {
-//         self.get_thread(t_ptr).owning_proc
-//     }
-
-//     pub fn get_proc_ptr_by_cpu_id(&self, cpu_id:CpuId) -> (ret: Option<ProcPtr>)
-//         requires
-//             self.wf(),
-//             0 <= cpu_id < NUM_CPUS,
-//         ensures
-//             self.get_is_cpu_running(cpu_id) <==> ret.is_Some(),
-//             ret.is_Some()
-//                 ==> 
-//                 self.get_is_cpu_running(cpu_id)
-//                 &&
-//                 self.cpu_list@[cpu_id as int].current_thread.is_Some()
-//                 &&
-//                 self.get_thread(self.cpu_list@[cpu_id as int].current_thread.unwrap()).owning_proc == ret.unwrap()
-//                 &&
-//                 self.proc_dom().contains(ret.unwrap()),
-//             ret.is_None()
-//                 ==> 
-//                 self.get_is_cpu_running(cpu_id) == false
-//                 &&
-//                 self.cpu_list@[cpu_id as int].current_thread.is_None()
+    pub fn get_proc_ptr_by_cpu_id(&self, cpu_id:CpuId) -> (ret: Option<ProcPtr>)
+        requires
+            self.wf(),
+            0 <= cpu_id < NUM_CPUS,
+        ensures
+            self.get_is_cpu_running(cpu_id) <==> ret.is_Some(),
+            ret.is_Some()
+                ==> 
+                self.get_is_cpu_running(cpu_id)
+                &&
+                self.cpu_list@[cpu_id as int].current_thread.is_Some()
+                &&
+                self.get_thread(self.cpu_list@[cpu_id as int].current_thread.unwrap()).owning_proc == ret.unwrap()
+                &&
+                self.proc_dom().contains(ret.unwrap()),
+            ret.is_None()
+                ==> 
+                self.get_is_cpu_running(cpu_id) == false
+                &&
+                self.cpu_list@[cpu_id as int].current_thread.is_None()
              
-//     {
-//         let thread_ptr_op = self.cpu_list.get(cpu_id).current_thread;
-//         if thread_ptr_op.is_some(){
-//             return Some(self.get_thread(thread_ptr_op.unwrap()).owning_proc);
-//         }else{
-//             return None;
-//         }
-//     }
+    {
+        let thread_ptr_op = self.cpu_list.get(cpu_id).current_thread;
+        if thread_ptr_op.is_some(){
+            return Some(self.get_thread(thread_ptr_op.unwrap()).owning_proc);
+        }else{
+            return None;
+        }
+    }
 
-//     pub open spec fn spec_get_endpoint_ptr_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> Option<EndpointPtr>
-//         recommends
-//             self.wf(),
-//             self.thread_dom().contains(thread_ptr),
-//             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
-//     {
-//         self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]
-//     }
+    pub open spec fn spec_get_endpoint_ptr_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> Option<EndpointPtr>
+        recommends
+            self.wf(),
+            self.thread_dom().contains(thread_ptr),
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+    {
+        self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int]
+    }
 
-//     #[verifier(when_used_as_spec(spec_get_endpoint_ptr_by_endpoint_idx))]
-//     pub fn get_endpoint_ptr_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> (ret: Option<EndpointPtr>)
-//         requires
-//             self.wf(),
-//             self.thread_dom().contains(thread_ptr),
-//             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
-//         ensures
-//             ret == self.get_endpoint_ptr_by_endpoint_idx(thread_ptr,endpoint_index),
-//             ret.is_Some() ==> self.endpoint_dom().contains(ret.unwrap()),
-//     {
-//         *self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index)
-//     }
+    #[verifier(when_used_as_spec(spec_get_endpoint_ptr_by_endpoint_idx))]
+    pub fn get_endpoint_ptr_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> (ret: Option<EndpointPtr>)
+        requires
+            self.wf(),
+            self.thread_dom().contains(thread_ptr),
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+        ensures
+            ret == self.get_endpoint_ptr_by_endpoint_idx(thread_ptr,endpoint_index),
+            ret.is_Some() ==> self.endpoint_dom().contains(ret.unwrap()),
+    {
+        *self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index)
+    }
 
-//     pub closed spec fn spec_get_endpoint_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> Option<&Endpoint>
-//         recommends
-//             self.wf(),
-//             self.thread_dom().contains(thread_ptr),
-//             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
-//     {
-//         if self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int].is_None(){
-//             None
-//         }else{
-//             Some(&self.get_endpoint(self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int].unwrap()))
-//         }
-//     }
+    pub closed spec fn spec_get_endpoint_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> Option<&Endpoint>
+        recommends
+            self.wf(),
+            self.thread_dom().contains(thread_ptr),
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+    {
+        if self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int].is_None(){
+            None
+        }else{
+            Some(&self.get_endpoint(self.get_thread(thread_ptr).endpoint_descriptors@[endpoint_index as int].unwrap()))
+        }
+    }
 
-//     #[verifier(when_used_as_spec(spec_get_endpoint_by_endpoint_idx))]
-//     pub fn get_endpoint_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> (ret: Option<&Endpoint>)
-//         requires
-//             self.wf(),
-//             self.thread_dom().contains(thread_ptr),
-//             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
-//         ensures
-//             ret == self.get_endpoint_by_endpoint_idx(thread_ptr,endpoint_index),
-//     {
-//         if self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).is_none(){
-//             None
-//         }else{
-//             Some(&self.get_endpoint(self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap()))
-//         } 
-//     }
+    #[verifier(when_used_as_spec(spec_get_endpoint_by_endpoint_idx))]
+    pub fn get_endpoint_by_endpoint_idx(&self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx) -> (ret: Option<&Endpoint>)
+        requires
+            self.wf(),
+            self.thread_dom().contains(thread_ptr),
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+        ensures
+            ret == self.get_endpoint_by_endpoint_idx(thread_ptr,endpoint_index),
+    {
+        if self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).is_none(){
+            None
+        }else{
+            Some(&self.get_endpoint(self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap()))
+        } 
+    }
 
-//     pub closed spec fn spec_get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> bool{
-//         exists|i:int| 
-//             #![trigger self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i]]
-//             0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS 
-//             &&
-//             self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].is_Some() && self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].unwrap() == endpoint_ptr
-//     }
+    pub closed spec fn spec_get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> bool{
+        exists|i:int| 
+            #![trigger self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i]]
+            0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS 
+            &&
+            self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].is_Some() && self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].unwrap() == endpoint_ptr
+    }
 
-//     pub fn get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> (ret:bool)
-//         requires
-//             self.wf(),
-//             self.thread_dom().contains(thread_ptr),
-//         ensures
-//             ret == self.spec_get_thread_owns_endpoint(thread_ptr, endpoint_ptr),
-//     {
-//         for index in 0..MAX_NUM_ENDPOINT_DESCRIPTORS
-//             invariant
-//                 self.wf(),
-//                 self.thread_dom().contains(thread_ptr),
-//                 forall|i:int| #![trigger self.get_thread(thread_ptr).endpoint_descriptors@[i]] 0 <= i < index ==> self.get_thread(thread_ptr).endpoint_descriptors@[i].is_None() || self.get_thread(thread_ptr).endpoint_descriptors@[i].unwrap() != endpoint_ptr
-//         {
-//             if self.get_thread(thread_ptr).endpoint_descriptors.get(index).is_some(){
-//                 if self.get_thread(thread_ptr).endpoint_descriptors.get(index).unwrap() == endpoint_ptr{
-//                     return true
-//                 }
-//             }
-//         }
-//         return false
-//     }
+    pub fn get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> (ret:bool)
+        requires
+            self.wf(),
+            self.thread_dom().contains(thread_ptr),
+        ensures
+            ret == self.spec_get_thread_owns_endpoint(thread_ptr, endpoint_ptr),
+    {
+        for index in 0..MAX_NUM_ENDPOINT_DESCRIPTORS
+            invariant
+                self.wf(),
+                self.thread_dom().contains(thread_ptr),
+                forall|i:int| #![trigger self.get_thread(thread_ptr).endpoint_descriptors@[i]] 0 <= i < index ==> self.get_thread(thread_ptr).endpoint_descriptors@[i].is_None() || self.get_thread(thread_ptr).endpoint_descriptors@[i].unwrap() != endpoint_ptr
+        {
+            if self.get_thread(thread_ptr).endpoint_descriptors.get(index).is_some(){
+                if self.get_thread(thread_ptr).endpoint_descriptors.get(index).unwrap() == endpoint_ptr{
+                    return true
+                }
+            }
+        }
+        return false
+    }
 }
 
 // //specs
@@ -451,433 +449,451 @@ impl ProcessManager{
         &&&
         container_perms_wf(self.root_container, &self.container_perms)
     }
-    pub open spec fn containers_linkedlist_wf(&self) -> bool{
-        &&&
-        containers_linkedlist_wf(self.root_container, &self.container_perms)
-    }
-    pub closed spec fn containers_wf(&self) -> bool{
+    pub closed spec fn container_tree_wf(&self) -> bool{
         &&&
         container_tree_wf(self.root_container, &self.container_perms)
     }
 
-    // pub closed spec fn process_tree_wf(&self, container_ptr:ContainerPtr) -> bool
-    //     recommends
-    //         self.container_dom().contains(container_ptr),
-    //         self.container_perms_wf()
-    // {
-    //     &&&
-    //     proc_tree_wf(self.get_container(container_ptr).root_process, self.process_perms.restrict(self.get_container(container_ptr).owned_procs@.to_set()))
-    // }
-//     pub closed spec fn cpus_wf(&self) -> bool{
-//         &&&
-//         self.cpu_list.wf()
-//         // &&&
-//         // forall|cpu_i:CpuId| 
-//         //     #![trigger self.cpu_list@[cpu_i as int].active]
-//         //     #![trigger self.cpu_list@[cpu_i as int].current_thread]
-//         //     self.cpu_list@[cpu_i as int].active == false ==> self.cpu_list@[cpu_i as int].current_thread.is_None()
-//     }
-//     pub closed spec fn container_cpu_wf(&self) -> bool{
-//         &&&
-//         forall|cpu_i:CpuId|
-//             #![trigger self.cpu_list@[cpu_i as int]]
-//             0 <= cpu_i < NUM_CPUS 
-//             ==> 
-//             self.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container)
-//         &&&
-//         forall|cpu_i:CpuId|
-//             #![trigger self.cpu_list@[cpu_i as int]]
-//             0 <= cpu_i < NUM_CPUS 
-//             ==> 
-//             self.get_container(self.cpu_list@[cpu_i as int].owning_container).owned_cpus@.contains(cpu_i)
-//         &&&
-//         forall|cpu_i:CpuId|
-//             #![trigger self.cpu_list@[cpu_i as int]]
-//             0 <= cpu_i < NUM_CPUS 
-//             ==> 
-//             self.cpu_list@[cpu_i as int].active == false ==> self.cpu_list@[cpu_i as int].current_thread.is_None()
-//     }
+    pub closed spec fn proc_perms_wf(&self) -> bool{
+        &&&
+        proc_perms_wf(self.process_perms@)
+    }
+    pub closed spec fn process_tree_wf(&self, container_ptr:ContainerPtr) -> bool
+        recommends
+            self.container_dom().contains(container_ptr),
+            self.container_perms_wf(),
+    {
+        &&&
+        proc_tree_wf(self.get_container(container_ptr).root_process, self.get_container(container_ptr).owned_procs@.to_set(), self.process_perms@)
+    }
+    pub closed spec fn process_trees_wf(&self) -> bool
+        recommends
+            self.container_perms_wf(),
+    {
+        &&&
+        forall|c_ptr:ContainerPtr|
+            #![trigger self.process_tree_wf(c_ptr)]
+            self.container_dom().contains(c_ptr) ==> self.process_tree_wf(c_ptr)
+    }
+    pub closed spec fn cpus_wf(&self) -> bool{
+        &&&
+        self.cpu_list.wf()
+        // &&&
+        // forall|cpu_i:CpuId| 
+        //     #![trigger self.cpu_list@[cpu_i as int].active]
+        //     #![trigger self.cpu_list@[cpu_i as int].current_thread]
+        //     self.cpu_list@[cpu_i as int].active == false ==> self.cpu_list@[cpu_i as int].current_thread.is_None()
+    }
+    pub closed spec fn container_cpu_wf(&self) -> bool{
+        &&&
+        forall|cpu_i:CpuId|
+            #![trigger self.cpu_list@[cpu_i as int]]
+            0 <= cpu_i < NUM_CPUS 
+            ==> 
+            self.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container)
+        &&&
+        forall|cpu_i:CpuId|
+            #![trigger self.cpu_list@[cpu_i as int]]
+            0 <= cpu_i < NUM_CPUS 
+            ==> 
+            self.get_container(self.cpu_list@[cpu_i as int].owning_container).owned_cpus@.contains(cpu_i)
+        &&&
+        forall|cpu_i:CpuId|
+            #![trigger self.cpu_list@[cpu_i as int]]
+            0 <= cpu_i < NUM_CPUS 
+            ==> 
+            self.cpu_list@[cpu_i as int].active == false ==> self.cpu_list@[cpu_i as int].current_thread.is_None()
+    }
 
-//     pub closed spec fn threads_cpu_wf(&self) -> bool {
-//         &&&
-//         forall|t_ptr:ThreadPtr|
-//             #![trigger self.thread_perms@[t_ptr].value().state]
-//             #![trigger self.thread_perms@[t_ptr].value().running_cpu]
-//             self.thread_perms@.dom().contains(t_ptr) 
-//             ==>
-//             (self.thread_perms@[t_ptr].value().running_cpu.is_Some() 
-//             <==> self.thread_perms@[t_ptr].value().state == ThreadState::RUNNING)
-//         &&&
-//         forall|t_ptr:ThreadPtr|
-//             #![trigger self.thread_perms@[t_ptr].value().running_cpu]
-//             self.thread_perms@.dom().contains(t_ptr) && self.thread_perms@[t_ptr].value().running_cpu.is_Some() 
-//             ==>
-//             0 <= self.thread_perms@[t_ptr].value().running_cpu.unwrap() < NUM_CPUS
-//             &&
-//             self.cpu_list@[self.thread_perms@[t_ptr].value().running_cpu.unwrap() as int].current_thread.is_Some()
-//             &&
-//             self.cpu_list@[self.thread_perms@[t_ptr].value().running_cpu.unwrap() as int].current_thread.unwrap() == t_ptr
-//             &&
-//             self.cpu_list@[self.thread_perms@[t_ptr].value().running_cpu.unwrap() as int].owning_container ==
-//                 self.thread_perms@[t_ptr].value().owning_container
-//         &&&        
-//         forall|cpu_i:CpuId|
-//             #![trigger self.cpu_list@[cpu_i as int].current_thread]
-//             0 <= cpu_i < NUM_CPUS && self.cpu_list@[cpu_i as int].current_thread.is_Some()
-//             ==> 
-//             self.thread_perms@.dom().contains(self.cpu_list@[cpu_i as int].current_thread.unwrap())
-//             &&
-//             self.thread_perms@[self.cpu_list@[cpu_i as int].current_thread.unwrap()].value().running_cpu.is_Some()
-//             &&
-//             self.thread_perms@[self.cpu_list@[cpu_i as int].current_thread.unwrap()].value().running_cpu.unwrap() == cpu_i
-//             &&
-//             self.cpu_list@[cpu_i as int].owning_container ==
-//                 self.thread_perms@[self.cpu_list@[cpu_i as int].current_thread.unwrap()].value().owning_container
-//     }
+    pub closed spec fn threads_cpu_wf(&self) -> bool {
+        &&&
+        forall|t_ptr:ThreadPtr|
+            #![trigger self.thread_perms@[t_ptr].value().state]
+            #![trigger self.thread_perms@[t_ptr].value().running_cpu]
+            self.thread_perms@.dom().contains(t_ptr) 
+            ==>
+            (self.thread_perms@[t_ptr].value().running_cpu.is_Some() 
+            <==> self.thread_perms@[t_ptr].value().state == ThreadState::RUNNING)
+        &&&
+        forall|t_ptr:ThreadPtr|
+            #![trigger self.thread_perms@[t_ptr].value().running_cpu]
+            self.thread_perms@.dom().contains(t_ptr) && self.thread_perms@[t_ptr].value().running_cpu.is_Some() 
+            ==>
+            0 <= self.thread_perms@[t_ptr].value().running_cpu.unwrap() < NUM_CPUS
+            &&
+            self.cpu_list@[self.thread_perms@[t_ptr].value().running_cpu.unwrap() as int].current_thread.is_Some()
+            &&
+            self.cpu_list@[self.thread_perms@[t_ptr].value().running_cpu.unwrap() as int].current_thread.unwrap() == t_ptr
+            &&
+            self.cpu_list@[self.thread_perms@[t_ptr].value().running_cpu.unwrap() as int].owning_container ==
+                self.thread_perms@[t_ptr].value().owning_container
+        &&&        
+        forall|cpu_i:CpuId|
+            #![trigger self.cpu_list@[cpu_i as int].current_thread]
+            0 <= cpu_i < NUM_CPUS && self.cpu_list@[cpu_i as int].current_thread.is_Some()
+            ==> 
+            self.thread_perms@.dom().contains(self.cpu_list@[cpu_i as int].current_thread.unwrap())
+            &&
+            self.thread_perms@[self.cpu_list@[cpu_i as int].current_thread.unwrap()].value().running_cpu.is_Some()
+            &&
+            self.thread_perms@[self.cpu_list@[cpu_i as int].current_thread.unwrap()].value().running_cpu.unwrap() == cpu_i
+            &&
+            self.cpu_list@[cpu_i as int].owning_container ==
+                self.thread_perms@[self.cpu_list@[cpu_i as int].current_thread.unwrap()].value().owning_container
+    }
 
-//     pub closed spec fn memory_disjoint(&self) -> bool{
-//         &&&
-//         self.container_dom().disjoint(self.process_perms@.dom())
-//         &&&
-//         self.container_dom().disjoint(self.thread_perms@.dom())
-//         &&&
-//         self.container_dom().disjoint(self.endpoint_perms@.dom())
-//         &&&
-//         self.process_perms@.dom().disjoint(self.thread_perms@.dom())
-//         &&&
-//         self.process_perms@.dom().disjoint(self.endpoint_perms@.dom())
-//         &&&
-//         self.thread_perms@.dom().disjoint(self.endpoint_perms@.dom())
-//     }
+    pub closed spec fn memory_disjoint(&self) -> bool{
+        &&&
+        self.container_dom().disjoint(self.process_perms@.dom())
+        &&&
+        self.container_dom().disjoint(self.thread_perms@.dom())
+        &&&
+        self.container_dom().disjoint(self.endpoint_perms@.dom())
+        &&&
+        self.process_perms@.dom().disjoint(self.thread_perms@.dom())
+        &&&
+        self.process_perms@.dom().disjoint(self.endpoint_perms@.dom())
+        &&&
+        self.thread_perms@.dom().disjoint(self.endpoint_perms@.dom())
+    }
 
-//     pub closed spec fn container_fields_wf(&self) -> bool{
-//         &&&
-//         forall|c_ptr:ContainerPtr| 
-//         #![trigger self.container_dom().contains(c_ptr)]
-//             self.container_dom().contains(c_ptr)
-//             ==> 
-//             self.get_container(c_ptr).owned_cpus.wf()
-//             &&
-//             self.get_container(c_ptr).scheduler.wf() 
-//             &&
-//             self.get_container(c_ptr).scheduler.unique() 
-//             &&
-//             self.get_container(c_ptr).owned_procs.wf()
-//             &&
-//             self.get_container(c_ptr).owned_procs.unique()
-//             &&
-//             self.get_container(c_ptr).owned_endpoints.wf()
-//             &&
-//             self.get_container(c_ptr).owned_endpoints.unique()
-//     }
+    pub closed spec fn container_fields_wf(&self) -> bool{
+        &&&
+        forall|c_ptr:ContainerPtr| 
+        #![trigger self.container_dom().contains(c_ptr)]
+            self.container_dom().contains(c_ptr)
+            ==> 
+            self.get_container(c_ptr).owned_cpus.wf()
+            &&
+            self.get_container(c_ptr).scheduler.wf() 
+            &&
+            self.get_container(c_ptr).scheduler.unique() 
+            &&
+            self.get_container(c_ptr).owned_procs.wf()
+            &&
+            self.get_container(c_ptr).owned_procs.unique()
+            &&
+            self.get_container(c_ptr).owned_endpoints.wf()
+            &&
+            self.get_container(c_ptr).owned_endpoints.unique()
+    }
 
-//     pub closed spec fn processes_container_wf(&self) -> bool{
-//         // &&&
-//         // forall|c_ptr:ContainerPtr| 
-//         //     #![trigger self.get_container(c_ptr).owned_procs]
-//         //     self.container_dom().contains(c_ptr)
-//         //     ==>
-//         //     self.get_container(c_ptr).owned_procs@.to_set().subset_of(self.process_perms@.dom())
-//         &&&
-//         forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-//             #![trigger self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
-//             self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)
-//             ==> self.process_perms@.dom().contains(child_p_ptr)
-//                 &&
-//                 self.process_perms@[child_p_ptr].value().owning_container == c_ptr
-//         &&&
-//         forall|p_ptr:ProcPtr| 
-//             #![trigger self.process_perms@[p_ptr].value().owning_container]
-//             self.process_perms@.dom().contains(p_ptr)
-//             ==>
-//             self.container_dom().contains(self.process_perms@[p_ptr].value().owning_container)
-//             &&
-//             self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs@.to_set().contains(p_ptr)
-//             &&
-//             self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs.node_ref_valid(self.process_perms@[p_ptr].value().rev_ptr)
-//             &&
-//             self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs.node_ref_resolve(self.process_perms@[p_ptr].value().rev_ptr) == p_ptr
-//         }
+    pub closed spec fn process_fields_wf(&self) -> bool{
+        &&&
+        forall|p_ptr:ProcPtr| 
+        #![trigger self.get_proc(p_ptr).owned_threads.wf()]
+            self.proc_dom().contains(p_ptr)
+            ==> 
+            self.get_proc(p_ptr).owned_threads.wf()
+    }
+
+    pub closed spec fn processes_container_wf(&self) -> bool{
+        // &&&
+        // forall|c_ptr:ContainerPtr| 
+        //     #![trigger self.get_container(c_ptr).owned_procs]
+        //     self.container_dom().contains(c_ptr)
+        //     ==>
+        //     self.get_container(c_ptr).owned_procs@.to_set().subset_of(self.process_perms@.dom())
+        &&&
+        forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
+            #![trigger self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
+            self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)
+            ==> self.process_perms@.dom().contains(child_p_ptr)
+                &&
+                self.process_perms@[child_p_ptr].value().owning_container == c_ptr
+        &&&
+        forall|p_ptr:ProcPtr| 
+            #![trigger self.process_perms@[p_ptr].value().owning_container]
+            self.process_perms@.dom().contains(p_ptr)
+            ==>
+            self.container_dom().contains(self.process_perms@[p_ptr].value().owning_container)
+            &&
+            self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs@.to_set().contains(p_ptr)
+            &&
+            self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs.node_ref_valid(self.process_perms@[p_ptr].value().rev_ptr)
+            &&
+            self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs.node_ref_resolve(self.process_perms@[p_ptr].value().rev_ptr) == p_ptr
+        }
+
+    pub closed spec fn threads_process_wf(&self) -> bool{
+        &&&
+        forall|p_ptr:ProcPtr| 
+            #![trigger self.process_perms@.dom().contains(p_ptr)]
+            self.process_perms@.dom().contains(p_ptr)
+            ==>
+            self.process_perms@[p_ptr].value().owned_threads.wf()
+            &&
+            self.process_perms@[p_ptr].value().owned_threads.unique()
+        &&&
+        forall|p_ptr:ProcPtr, child_t_ptr:ThreadPtr| 
+            #![trigger self.process_perms@.dom().contains(p_ptr), self.thread_perms@[child_t_ptr].value().owning_proc]
+            #![trigger self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)]
+            self.process_perms@.dom().contains(p_ptr) && self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)
+            ==> self.thread_perms@.dom().contains(child_t_ptr)
+                &&
+                self.thread_perms@[child_t_ptr].value().owning_proc == p_ptr
+        &&&
+        forall|t_ptr:ThreadPtr| 
+            #![trigger self.thread_perms@[t_ptr].value().owning_container]
+            #![trigger self.thread_perms@[t_ptr].value().owning_proc]
+            self.thread_perms@.dom().contains(t_ptr)
+            ==>
+            self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)
+            &&
+            self.process_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_proc)
+            &&
+            self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads@.contains(t_ptr)
+            &&
+            self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads.node_ref_valid(self.thread_perms@[t_ptr].value().proc_rev_ptr)
+            &&
+            self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads.node_ref_resolve(self.thread_perms@[t_ptr].value().proc_rev_ptr) == t_ptr
+            &&
+            self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owning_container == self.thread_perms@[t_ptr].value().owning_container
+    }
+    pub closed spec fn threads_perms_wf(&self) -> bool{
+        &&&
+        forall|t_ptr:ThreadPtr|
+        #![trigger self.thread_perms@[t_ptr].is_init()]
+        #![trigger self.thread_perms@[t_ptr].addr()]
+        #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors.wf()]
+        #![trigger self.thread_perms@[t_ptr].value().ipc_payload]
+        self.thread_perms@.dom().contains(t_ptr) 
+        ==>
+        self.thread_perms@[t_ptr].is_init()
+        &&
+        self.thread_perms@[t_ptr].addr() == t_ptr
+        &&
+        self.thread_perms@[t_ptr].value().endpoint_descriptors.wf()
+        &&
+        (self.thread_perms@[t_ptr].value().ipc_payload.get_payload_as_va_range().is_Some() ==> self.thread_perms@[t_ptr].value().ipc_payload.get_payload_as_va_range().unwrap().wf())
+    }
+
+    pub closed spec fn threads_container_wf(&self) -> bool{
+        &&&
+        forall|c_ptr:ContainerPtr| 
+        // #![trigger self.container_dom().contains(c_ptr)]
+        #![trigger self.get_container(c_ptr).owned_threads]
+            self.container_dom().contains(c_ptr)
+            ==>
+            self.get_container(c_ptr).owned_threads@.subset_of(self.thread_perms@.dom())
+        &&&
+        forall|c_ptr:ContainerPtr, t_ptr:ThreadPtr| 
+            #![trigger self.get_container(c_ptr).owned_threads@.contains(t_ptr)]
+            self.container_dom().contains(c_ptr) 
+            &&
+            self.get_container(c_ptr).owned_threads@.contains(t_ptr)
+            ==>
+            self.thread_perms@[t_ptr].value().owning_container == c_ptr 
+        &&&
+        forall|t_ptr:ThreadPtr| 
+            #![trigger self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)]
+            self.thread_perms@.dom().contains(t_ptr) 
+            ==>
+            self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container) 
+            &&
+            self.get_container(self.thread_perms@[t_ptr].value().owning_container).owned_threads@.contains(t_ptr)
+    }
+
+    pub closed spec fn endpoint_perms_wf(&self) -> bool {
+        &&&
+        forall|e_ptr:EndpointPtr| 
+            #![trigger self.endpoint_perms@.dom().contains(e_ptr) ]
+            self.endpoint_perms@.dom().contains(e_ptr) 
+            ==> 
+            self.endpoint_perms@[e_ptr].is_init()
+            &&
+            self.endpoint_perms@[e_ptr].addr() == e_ptr
+            &&
+            self.endpoint_perms@[e_ptr].value().queue.wf()
+            &&
+            self.endpoint_perms@[e_ptr].value().queue.unique()
+            &&
+            self.endpoint_perms@[e_ptr].value().owning_threads@.finite()
+            &&
+            self.endpoint_perms@[e_ptr].value().rf_counter == self.endpoint_perms@[e_ptr].value().owning_threads@.len()
+            &&
+            self.endpoint_perms@[e_ptr].value().owning_threads@.subset_of(self.thread_perms@.dom())
+    }
+
+    pub closed spec fn threads_endpoint_descriptors_wf(&self) -> bool {
+        &&&
+        forall|t_ptr:ThreadPtr, i: usize|
+            #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int]]
+            self.thread_perms@.dom().contains(t_ptr) && 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS
+            &&
+            self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].is_Some()
+            ==>
+            self.endpoint_perms@.dom().contains(self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].unwrap())
+            &&
+            self.endpoint_perms@[self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].unwrap()].value().owning_threads@.contains(t_ptr)
+        &&&
+        forall|e_ptr:EndpointPtr, t_ptr:ThreadPtr| 
+            #![trigger self.endpoint_perms@[e_ptr].value().owning_threads@.contains(t_ptr)]
+            #![trigger self.spec_get_thread_owns_endpoint(t_ptr, e_ptr)]
+            self.endpoint_perms@.dom().contains(e_ptr) 
+            &&
+            self.endpoint_perms@[e_ptr].value().owning_threads@.contains(t_ptr)
+            ==>
+            self.thread_perms@.dom().contains(t_ptr)
+            &&
+            self.spec_get_thread_owns_endpoint(t_ptr, e_ptr)
+            // &&
+            // ( exists|i:int| 
+            //     #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors@[i]]
+            //     0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS 
+            //     &&
+            //     self.thread_perms@[t_ptr].value().endpoint_descriptors@[i].is_Some() || self.thread_perms@[t_ptr].value().endpoint_descriptors@[i].unwrap() == e_ptr
+            // )
+    }
     
-//     pub closed spec fn processes_wf(&self) -> bool{
-//         &&&
-//         forall|p_ptr:ProcPtr| 
-//             #![trigger self.process_perms@.dom().contains(p_ptr)]
-//             self.process_perms@.dom().contains(p_ptr)
-//             ==>
-//             self.process_perms@[p_ptr].is_init()
-//             &&            
-//             self.process_perms@[p_ptr].addr() == p_ptr
-//     }
+    pub closed spec fn endpoints_queue_wf(&self) -> bool {
+        &&&
+        forall|t_ptr:ThreadPtr|
+            #![trigger self.thread_perms@[t_ptr].value().state]
+            #![trigger self.thread_perms@[t_ptr].value().blocking_endpoint_ptr]
+            #![trigger self.thread_perms@[t_ptr].value().endpoint_rev_ptr]
+            self.thread_perms@.dom().contains(t_ptr)
+            &&
+            self.thread_perms@[t_ptr].value().state == ThreadState::BLOCKED
+            ==>
+            self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.is_Some()
+            &&
+            self.thread_perms@[t_ptr].value().endpoint_rev_ptr.is_Some()
+            &&
+            self.endpoint_perms@.dom().contains(self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap())
+            &&
+            self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue@.contains(t_ptr)
+            &&
+            self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue.node_ref_valid(self.thread_perms@[t_ptr].value().endpoint_rev_ptr.unwrap())
+            &&
+            self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue.node_ref_resolve(self.thread_perms@[t_ptr].value().endpoint_rev_ptr.unwrap()) == t_ptr
+        &&&
+        forall|e_ptr:EndpointPtr, i:int| 
+            #![trigger self.endpoint_perms@[e_ptr].value().queue@[i]]
+            self.endpoint_perms@.dom().contains(e_ptr) && 0 <= i < self.endpoint_perms@[e_ptr].value().queue@.len()
+            ==>
+            self.thread_perms@.dom().contains(self.endpoint_perms@[e_ptr].value().queue@[i])
+            &&
+            self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().blocking_endpoint_ptr == Some(e_ptr)
+            &&
+            self.endpoint_perms@[e_ptr].value().owning_threads@.contains(self.endpoint_perms@[e_ptr].value().queue@[i])
+            &&
+            self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().state == ThreadState::BLOCKED
+    }
 
-//     pub closed spec fn threads_process_wf(&self) -> bool{
-//         &&&
-//         forall|p_ptr:ProcPtr| 
-//             #![trigger self.process_perms@.dom().contains(p_ptr)]
-//             self.process_perms@.dom().contains(p_ptr)
-//             ==>
-//             self.process_perms@[p_ptr].value().owned_threads.wf()
-//             &&
-//             self.process_perms@[p_ptr].value().owned_threads.unique()
-//         &&&
-//         forall|p_ptr:ProcPtr, child_t_ptr:ThreadPtr| 
-//             #![trigger self.process_perms@.dom().contains(p_ptr), self.thread_perms@[child_t_ptr].value().owning_proc]
-//             #![trigger self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)]
-//             self.process_perms@.dom().contains(p_ptr) && self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)
-//             ==> self.thread_perms@.dom().contains(child_t_ptr)
-//                 &&
-//                 self.thread_perms@[child_t_ptr].value().owning_proc == p_ptr
-//         &&&
-//         forall|t_ptr:ThreadPtr| 
-//             #![trigger self.thread_perms@[t_ptr].value().owning_container]
-//             #![trigger self.thread_perms@[t_ptr].value().owning_proc]
-//             self.thread_perms@.dom().contains(t_ptr)
-//             ==>
-//             self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)
-//             &&
-//             self.process_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_proc)
-//             &&
-//             self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads@.contains(t_ptr)
-//             &&
-//             self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads.node_ref_valid(self.thread_perms@[t_ptr].value().proc_rev_ptr)
-//             &&
-//             self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads.node_ref_resolve(self.thread_perms@[t_ptr].value().proc_rev_ptr) == t_ptr
-//             &&
-//             self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owning_container == self.thread_perms@[t_ptr].value().owning_container
-//     }
-//     pub closed spec fn threads_perms_wf(&self) -> bool{
-//         &&&
-//         forall|t_ptr:ThreadPtr|
-//         #![trigger self.thread_perms@.dom().contains(t_ptr) ]
-//         self.thread_perms@.dom().contains(t_ptr) 
-//         ==>
-//         self.thread_perms@[t_ptr].is_init()
-//         &&
-//         self.thread_perms@[t_ptr].addr() == t_ptr
-//         &&
-//         self.thread_perms@[t_ptr].value().endpoint_descriptors.wf()
-//         &&
-//         (self.thread_perms@[t_ptr].value().ipc_payload.get_payload_as_va_range().is_Some() ==> self.thread_perms@[t_ptr].value().ipc_payload.get_payload_as_va_range().unwrap().wf())
-//     }
+    pub closed spec fn endpoints_container_wf(&self) -> bool{
+        &&&
+        forall|c_ptr:ContainerPtr, child_e_ptr:EndpointPtr| 
+            #![trigger self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)]
+            self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)
+            ==> self.endpoint_perms@.dom().contains(child_e_ptr)
+                &&
+                self.endpoint_perms@[child_e_ptr].value().owning_container == c_ptr
+        &&&
+        forall|e_ptr:EndpointPtr| 
+            #![trigger self.endpoint_perms@[e_ptr].value().owning_container]
+            self.endpoint_perms@.dom().contains(e_ptr)
+            ==>
+            self.container_dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
+            &&
+            self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints@.to_set().contains(e_ptr)
+            &&
+            self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
+            &&
+            self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr
+        }
 
-//     pub closed spec fn threads_container_wf(&self) -> bool{
-//         &&&
-//         forall|c_ptr:ContainerPtr| 
-//         // #![trigger self.container_dom().contains(c_ptr)]
-//         #![trigger self.get_container(c_ptr).owned_threads]
-//             self.container_dom().contains(c_ptr)
-//             ==>
-//             self.get_container(c_ptr).owned_threads@.subset_of(self.thread_perms@.dom())
-//         &&&
-//         forall|c_ptr:ContainerPtr, t_ptr:ThreadPtr| 
-//             #![trigger self.get_container(c_ptr).owned_threads@.contains(t_ptr)]
-//             self.container_dom().contains(c_ptr) 
-//             &&
-//             self.get_container(c_ptr).owned_threads@.contains(t_ptr)
-//             ==>
-//             self.thread_perms@[t_ptr].value().owning_container == c_ptr 
-//         &&&
-//         forall|t_ptr:ThreadPtr| 
-//             #![trigger self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)]
-//             self.thread_perms@.dom().contains(t_ptr) 
-//             ==>
-//             self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container) 
-//             &&
-//             self.get_container(self.thread_perms@[t_ptr].value().owning_container).owned_threads@.contains(t_ptr)
-//     }
+    pub closed spec fn schedulers_wf(&self) -> bool{
+        &&&
+        forall|t_ptr:ThreadPtr|
+            #![trigger self.thread_perms@[t_ptr].value().state]
+            #![trigger self.thread_perms@[t_ptr].value().scheduler_rev_ptr]
+            self.thread_perms@.dom().contains(t_ptr)
+            &&
+            self.thread_perms@[t_ptr].value().state == ThreadState::SCHEDULED
+            ==>
+            self.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler@.contains(t_ptr)
+            &&
+            self.thread_perms@[t_ptr].value().scheduler_rev_ptr.is_Some() 
+            &&
+            self.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler.node_ref_valid(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap())
+            && 
+            self.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler.node_ref_resolve(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap()) == t_ptr
+        &&&
+        forall|c_ptr:ContainerPtr, t_ptr:ThreadPtr|
+            #![trigger self.get_container(c_ptr).scheduler@.contains(t_ptr)]
+            #![trigger self.container_dom().contains(c_ptr), self.thread_perms@[t_ptr].value().owning_container]
+            #![trigger self.container_dom().contains(c_ptr), self.thread_perms@[t_ptr].value().state]
+            self.container_dom().contains(c_ptr) &&  self.get_container(c_ptr).scheduler@.contains(t_ptr)
+            ==>
+            self.thread_perms@.dom().contains(t_ptr)
+            &&
+            self.thread_perms@[t_ptr].value().owning_container == c_ptr
+            &&
+            self.thread_perms@[t_ptr].value().state == ThreadState::SCHEDULED
+    }
 
-//     pub closed spec fn endpoint_perms_wf(&self) -> bool {
-//         &&&
-//         forall|e_ptr:EndpointPtr| 
-//             #![trigger self.endpoint_perms@.dom().contains(e_ptr) ]
-//             self.endpoint_perms@.dom().contains(e_ptr) 
-//             ==> 
-//             self.endpoint_perms@[e_ptr].is_init()
-//             &&
-//             self.endpoint_perms@[e_ptr].addr() == e_ptr
-//             &&
-//             self.endpoint_perms@[e_ptr].value().queue.wf()
-//             &&
-//             self.endpoint_perms@[e_ptr].value().queue.unique()
-//             &&
-//             self.endpoint_perms@[e_ptr].value().owning_threads@.finite()
-//             &&
-//             self.endpoint_perms@[e_ptr].value().rf_counter == self.endpoint_perms@[e_ptr].value().owning_threads@.len()
-//             &&
-//             self.endpoint_perms@[e_ptr].value().owning_threads@.subset_of(self.thread_perms@.dom())
-//     }
+    pub closed spec fn pcid_ioid_wf(&self) -> bool{
+        &&&
+        forall|p_ptr_i:ProcPtr, p_ptr_j:ProcPtr| 
+            #![trigger self.process_perms@[p_ptr_i].value().pcid, self.process_perms@[p_ptr_j].value().pcid]
+            self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
+            ==>
+            self.process_perms@[p_ptr_i].value().pcid != self.process_perms@[p_ptr_j].value().pcid
+        &&&
+        forall|p_ptr_i:ProcPtr, p_ptr_j:ProcPtr| 
+            #![trigger self.process_perms@[p_ptr_i].value().ioid, self.process_perms@[p_ptr_j].value().ioid]
+            self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
+            &&
+            self.process_perms@[p_ptr_i].value().ioid.is_Some() && self.process_perms@[p_ptr_j].value().ioid.is_Some() 
+            ==>
+            self.process_perms@[p_ptr_i].value().ioid.unwrap() != self.process_perms@[p_ptr_j].value().ioid.unwrap()
+    }
 
-//     pub closed spec fn threads_endpoint_descriptors_wf(&self) -> bool {
-//         &&&
-//         forall|t_ptr:ThreadPtr, i: usize|
-//             #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int]]
-//             self.thread_perms@.dom().contains(t_ptr) && 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS
-//             &&
-//             self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].is_Some()
-//             ==>
-//             self.endpoint_perms@.dom().contains(self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].unwrap())
-//             &&
-//             self.endpoint_perms@[self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].unwrap()].value().owning_threads@.contains(t_ptr)
-//         &&&
-//         forall|e_ptr:EndpointPtr, t_ptr:ThreadPtr| 
-//             #![trigger self.endpoint_perms@[e_ptr].value().owning_threads@.contains(t_ptr)]
-//             #![trigger self.spec_get_thread_owns_endpoint(t_ptr, e_ptr)]
-//             self.endpoint_perms@.dom().contains(e_ptr) 
-//             &&
-//             self.endpoint_perms@[e_ptr].value().owning_threads@.contains(t_ptr)
-//             ==>
-//             self.thread_perms@.dom().contains(t_ptr)
-//             &&
-//             self.spec_get_thread_owns_endpoint(t_ptr, e_ptr)
-//             // &&
-//             // ( exists|i:int| 
-//             //     #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors@[i]]
-//             //     0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS 
-//             //     &&
-//             //     self.thread_perms@[t_ptr].value().endpoint_descriptors@[i].is_Some() || self.thread_perms@[t_ptr].value().endpoint_descriptors@[i].unwrap() == e_ptr
-//             // )
-//     }
-    
-//     pub closed spec fn endpoints_queue_wf(&self) -> bool {
-//         &&&
-//         forall|t_ptr:ThreadPtr|
-//             #![trigger self.thread_perms@[t_ptr].value().state]
-//             #![trigger self.thread_perms@[t_ptr].value().blocking_endpoint_ptr]
-//             #![trigger self.thread_perms@[t_ptr].value().endpoint_rev_ptr]
-//             self.thread_perms@.dom().contains(t_ptr)
-//             &&
-//             self.thread_perms@[t_ptr].value().state == ThreadState::BLOCKED
-//             ==>
-//             self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.is_Some()
-//             &&
-//             self.thread_perms@[t_ptr].value().endpoint_rev_ptr.is_Some()
-//             &&
-//             self.endpoint_perms@.dom().contains(self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap())
-//             &&
-//             self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue@.contains(t_ptr)
-//             &&
-//             self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue.node_ref_valid(self.thread_perms@[t_ptr].value().endpoint_rev_ptr.unwrap())
-//             &&
-//             self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue.node_ref_resolve(self.thread_perms@[t_ptr].value().endpoint_rev_ptr.unwrap()) == t_ptr
-//         &&&
-//         forall|e_ptr:EndpointPtr, i:int| 
-//             #![trigger self.endpoint_perms@[e_ptr].value().queue@[i]]
-//             self.endpoint_perms@.dom().contains(e_ptr) && 0 <= i < self.endpoint_perms@[e_ptr].value().queue@.len()
-//             ==>
-//             self.thread_perms@.dom().contains(self.endpoint_perms@[e_ptr].value().queue@[i])
-//             &&
-//             self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().blocking_endpoint_ptr == Some(e_ptr)
-//             &&
-//             self.endpoint_perms@[e_ptr].value().owning_threads@.contains(self.endpoint_perms@[e_ptr].value().queue@[i])
-//             &&
-//             self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().state == ThreadState::BLOCKED
-//     }
-
-//     pub closed spec fn endpoints_container_wf(&self) -> bool{
-//         &&&
-//         forall|c_ptr:ContainerPtr, child_e_ptr:EndpointPtr| 
-//             #![trigger self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)]
-//             self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)
-//             ==> self.endpoint_perms@.dom().contains(child_e_ptr)
-//                 &&
-//                 self.endpoint_perms@[child_e_ptr].value().owning_container == c_ptr
-//         &&&
-//         forall|e_ptr:EndpointPtr| 
-//             #![trigger self.endpoint_perms@[e_ptr].value().owning_container]
-//             self.endpoint_perms@.dom().contains(e_ptr)
-//             ==>
-//             self.container_dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
-//             &&
-//             self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints@.to_set().contains(e_ptr)
-//             &&
-//             self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
-//             &&
-//             self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr
-//         }
-
-//     pub closed spec fn schedulers_wf(&self) -> bool{
-//         &&&
-//         forall|t_ptr:ThreadPtr|
-//             #![trigger self.thread_perms@[t_ptr].value().state]
-//             #![trigger self.thread_perms@[t_ptr].value().scheduler_rev_ptr]
-//             self.thread_perms@.dom().contains(t_ptr)
-//             &&
-//             self.thread_perms@[t_ptr].value().state == ThreadState::SCHEDULED
-//             ==>
-//             self.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler@.contains(t_ptr)
-//             &&
-//             self.thread_perms@[t_ptr].value().scheduler_rev_ptr.is_Some() 
-//             &&
-//             self.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler.node_ref_valid(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap())
-//             && 
-//             self.get_container(self.thread_perms@[t_ptr].value().owning_container).scheduler.node_ref_resolve(self.thread_perms@[t_ptr].value().scheduler_rev_ptr.unwrap()) == t_ptr
-//         &&&
-//         forall|c_ptr:ContainerPtr, t_ptr:ThreadPtr|
-//             #![trigger self.get_container(c_ptr).scheduler@.contains(t_ptr)]
-//             #![trigger self.container_dom().contains(c_ptr), self.thread_perms@[t_ptr].value().owning_container]
-//             #![trigger self.container_dom().contains(c_ptr), self.thread_perms@[t_ptr].value().state]
-//             self.container_dom().contains(c_ptr) &&  self.get_container(c_ptr).scheduler@.contains(t_ptr)
-//             ==>
-//             self.thread_perms@.dom().contains(t_ptr)
-//             &&
-//             self.thread_perms@[t_ptr].value().owning_container == c_ptr
-//             &&
-//             self.thread_perms@[t_ptr].value().state == ThreadState::SCHEDULED
-//     }
-
-//     pub closed spec fn pcid_ioid_wf(&self) -> bool{
-//         &&&
-//         forall|p_ptr_i:ProcPtr, p_ptr_j:ProcPtr| 
-//             #![trigger self.process_perms@[p_ptr_i].value().pcid, self.process_perms@[p_ptr_j].value().pcid]
-//             self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
-//             ==>
-//             self.process_perms@[p_ptr_i].value().pcid != self.process_perms@[p_ptr_j].value().pcid
-//         &&&
-//         forall|p_ptr_i:ProcPtr, p_ptr_j:ProcPtr| 
-//             #![trigger self.process_perms@[p_ptr_i].value().ioid, self.process_perms@[p_ptr_j].value().ioid]
-//             self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
-//             &&
-//             self.process_perms@[p_ptr_i].value().ioid.is_Some() && self.process_perms@[p_ptr_j].value().ioid.is_Some() 
-//             ==>
-//             self.process_perms@[p_ptr_i].value().ioid.unwrap() != self.process_perms@[p_ptr_j].value().ioid.unwrap()
-//     }
-
-//     pub closed spec fn wf(&self) -> bool{
-//         &&&
-//         self.wf()
-//         &&&
-//         self.cpus_wf()
-//         &&&
-//         self.container_cpu_wf()
-//         &&&
-//         self.memory_disjoint()
-//         &&&
-//         self.container_perms_wf()
-//         &&&
-//         self.processes_container_wf()
-//         &&&
-//         self.processes_wf()
-//         &&&
-//         self.threads_process_wf()
-//         &&&
-//         self.threads_perms_wf()
-//         &&&
-//         self.endpoint_perms_wf()
-//         &&&
-//         self.threads_endpoint_descriptors_wf()
-//         &&&
-//         self.endpoints_queue_wf()
-//         &&&
-//         self.endpoints_container_wf()
-//         &&&
-//         self.schedulers_wf()
-//         &&&
-//         self.pcid_ioid_wf()
-//         &&&
-//         self.threads_cpu_wf()
-//         &&&
-//         self.threads_container_wf()
-//     }
+    pub closed spec fn wf(&self) -> bool{
+        &&&
+        self.container_perms_wf()
+        &&&
+        self.container_tree_wf()    
+        &&&
+        self.container_fields_wf()    
+        &&&
+        self.proc_perms_wf()
+        &&&
+        self.process_trees_wf()
+        &&&
+        self.process_fields_wf()
+        &&&
+        self.cpus_wf()
+        &&&
+        self.container_cpu_wf()
+        &&&
+        self.memory_disjoint()
+        &&&
+        self.container_perms_wf()
+        &&&
+        self.processes_container_wf()
+        &&&
+        self.threads_process_wf()
+        &&&
+        self.threads_perms_wf()
+        &&&
+        self.endpoint_perms_wf()
+        &&&
+        self.threads_endpoint_descriptors_wf()
+        &&&
+        self.endpoints_queue_wf()
+        &&&
+        self.endpoints_container_wf()
+        &&&
+        self.schedulers_wf()
+        &&&
+        self.pcid_ioid_wf()
+        &&&
+        self.threads_cpu_wf()
+        &&&
+        self.threads_container_wf()
+    }
 }
 
 // //proofs

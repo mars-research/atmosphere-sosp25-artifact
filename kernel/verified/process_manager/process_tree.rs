@@ -10,53 +10,53 @@ verus! {
     use crate::process_manager::proc_util_t::*;
     use crate::process_manager::spec_impl::ProcessManager;
 
-    pub open spec fn proc_perms_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>) -> bool{
+    pub open spec fn proc_perms_wf(proc_perms:Map<ProcPtr, PointsTo<Process>>) -> bool{
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_perms[p_ptr].is_init()]
-            proc_tree_dom.contains(p_ptr)
+            proc_perms.dom().contains(p_ptr)
             ==> 
             proc_perms[p_ptr].is_init()
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_perms[p_ptr].addr()]
-            proc_tree_dom.contains(p_ptr)
+            proc_perms.dom().contains(p_ptr)
             ==>        
             proc_perms[p_ptr].addr() == p_ptr
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_perms[p_ptr].value().children.wf()]
-            proc_tree_dom.contains(p_ptr)
+            proc_perms.dom().contains(p_ptr)
             ==> 
             proc_perms[p_ptr].value().children.wf()
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_perms[p_ptr].value().children.unique()]
-            proc_tree_dom.contains(p_ptr)
+            proc_perms.dom().contains(p_ptr)
             ==> 
             proc_perms[p_ptr].value().children.unique()
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_perms[p_ptr].value().uppertree_seq@.no_duplicates()]
-            proc_tree_dom.contains(p_ptr)
+            proc_perms.dom().contains(p_ptr)
             ==> 
             proc_perms[p_ptr].value().uppertree_seq@.no_duplicates()
         &&&
         forall|p_ptr:ProcPtr| 
-            #![trigger proc_tree_dom.contains(p_ptr), proc_perms[p_ptr].value().children@.contains(p_ptr)]
-            proc_tree_dom.contains(p_ptr)
+            #![trigger proc_perms.dom().contains(p_ptr), proc_perms[p_ptr].value().children@.contains(p_ptr)]
+            proc_perms.dom().contains(p_ptr)
             ==>
             proc_perms[p_ptr].value().children@.contains(p_ptr) == false
             &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_perms[p_ptr].value().subtree_set@.finite()]
-            proc_tree_dom.contains(p_ptr)
+            proc_perms.dom().contains(p_ptr)
             ==>
             proc_perms[p_ptr].value().subtree_set@.finite()
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_perms[p_ptr].value().uppertree_seq@.len(), proc_perms[p_ptr].value().depth]
-            proc_tree_dom.contains(p_ptr)
+            proc_perms.dom().contains(p_ptr)
             ==>
             proc_perms[p_ptr].value().uppertree_seq@.len() == proc_perms[p_ptr].value().depth
     }
@@ -207,8 +207,8 @@ verus! {
     }
 
     pub open spec fn proc_tree_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>) -> bool{
-        &&&
-        proc_perms_wf(root_proc, proc_tree_dom, proc_perms)
+        // &&&
+        // proc_perms_wf(proc_perms)
         &&&
         proc_root_wf(root_proc, proc_tree_dom, proc_perms)
         &&&
@@ -228,7 +228,8 @@ verus! {
     //proof
     pub proof fn proc_subtree_inv(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
         ensures
             forall|p_ptr:ProcPtr|
@@ -244,7 +245,8 @@ verus! {
 
     pub proof fn same_or_deeper_depth_imply_none_ancestor(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>, a_ptr:ProcPtr, child_ptr:ProcPtr)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
             proc_tree_dom.contains(a_ptr),
             proc_tree_dom.contains(child_ptr),
@@ -257,8 +259,9 @@ verus! {
     }
 
     pub proof fn no_child_imply_no_subtree(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>, p_ptr:ProcPtr)
-        requires                
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+        requires              
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
             proc_tree_dom.contains(p_ptr),
             proc_perms[p_ptr].value().children@ =~= Seq::empty(),
@@ -293,7 +296,8 @@ verus! {
 
     pub proof fn in_child_impy_in_subtree(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>, p_ptr:ProcPtr, child_ptr:ProcPtr, s_ptr:ProcPtr)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
             proc_tree_dom.contains(p_ptr),
             proc_perms[p_ptr].value().children@.contains(child_ptr),
@@ -313,7 +317,8 @@ verus! {
 
     pub proof fn in_subtree_imply_exist_in_child(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>, p_ptr:ProcPtr, s_ptr:ProcPtr)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
             proc_tree_dom.contains(p_ptr),
             proc_perms[p_ptr].value().subtree_set@.contains(s_ptr),
@@ -399,7 +404,8 @@ verus! {
 
     pub proof fn not_in_dom_imply_not_in_any_children_set(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>, s_ptr:ProcPtr)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
             proc_tree_dom.contains(s_ptr) == false,
     {
@@ -414,7 +420,8 @@ verus! {
             
     pub proof fn proc_tree_inv(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
         ensures
             forall|p_ptr:ProcPtr|
@@ -426,7 +433,8 @@ verus! {
 
     pub proof fn proc_subtree_disjoint_inv(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom, proc_perms),
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, proc_perms),
+            proc_perms_wf(proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, proc_perms),
         ensures
             forall|p_ptr_i:ProcPtr, p_ptr_j:ProcPtr|
@@ -489,10 +497,40 @@ verus! {
         );
     }
 
+    pub proof fn no_change_to_trees_fields_imply_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, old_proc_perms:Map<ProcPtr, PointsTo<Process>>,  new_proc_perms:Map<ProcPtr, PointsTo<Process>>)
+        requires
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, old_proc_perms),
+            proc_tree_wf(root_proc, proc_tree_dom, old_proc_perms),
+            proc_perms_wf(new_proc_perms),
+            old_proc_perms.dom() =~= new_proc_perms.dom(),
+            forall|p_ptr:ProcPtr|
+                #![trigger old_proc_perms[p_ptr]]
+                #![trigger new_proc_perms[p_ptr]]
+                old_proc_perms.dom().contains(p_ptr)
+                ==>
+                new_proc_perms[p_ptr].is_init()
+                &&
+                old_proc_perms[p_ptr].value().parent =~= new_proc_perms[p_ptr].value().parent
+                &&
+                old_proc_perms[p_ptr].value().parent_rev_ptr =~= new_proc_perms[p_ptr].value().parent_rev_ptr
+                &&
+                old_proc_perms[p_ptr].value().children =~= new_proc_perms[p_ptr].value().children
+                &&
+                old_proc_perms[p_ptr].value().depth =~= new_proc_perms[p_ptr].value().depth
+                &&
+                old_proc_perms[p_ptr].value().uppertree_seq =~= new_proc_perms[p_ptr].value().uppertree_seq
+                &&
+                old_proc_perms[p_ptr].value().subtree_set =~= new_proc_perms[p_ptr].value().subtree_set,
+        ensures
+            proc_tree_wf(root_proc, proc_tree_dom, new_proc_perms),
+    {
+    }
+
     pub proof fn no_change_to_tree_fields_imply_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, old_proc_perms:Map<ProcPtr, PointsTo<Process>>,  new_proc_perms:Map<ProcPtr, PointsTo<Process>>)
         requires
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, old_proc_perms),
             proc_tree_wf(root_proc, proc_tree_dom, old_proc_perms),
-            proc_perms_wf(root_proc, proc_tree_dom, new_proc_perms),
+            proc_perms_wf(new_proc_perms),
             old_proc_perms.dom() =~= new_proc_perms.dom(),
             forall|p_ptr:ProcPtr|
                 #![trigger old_proc_perms[p_ptr]]
@@ -523,9 +561,9 @@ verus! {
         &&&
         proc_tree_dom_subset_of_proc_dom(proc_tree_dom, old_proc_perms)
         &&&
-        proc_perms_wf(root_proc, proc_tree_dom, old_proc_perms)
+        proc_perms_wf(old_proc_perms)
         &&&
-        proc_perms_wf(root_proc, proc_tree_dom.insert(new_proc_ptr), new_proc_perms)
+        proc_perms_wf(new_proc_perms)
         &&&
         proc_tree_wf(root_proc, proc_tree_dom, old_proc_perms)
         &&&
@@ -768,7 +806,7 @@ verus! {
     //exec
     pub fn check_is_ancestor(root_proc:ProcPtr, proc_tree_dom: Ghost<Set<ProcPtr>>, proc_perms:&Tracked<Map<ProcPtr, PointsTo<Process>>>, a_ptr:ProcPtr, child_ptr:ProcPtr) -> (ret:bool)
         requires
-            proc_perms_wf(root_proc, proc_tree_dom@, proc_perms@),
+            proc_perms_wf(proc_perms@),
             proc_tree_wf(root_proc, proc_tree_dom@, proc_perms@),
             proc_tree_dom_subset_of_proc_dom(proc_tree_dom@, proc_perms@),
             proc_tree_dom@.contains(a_ptr),
@@ -796,7 +834,7 @@ verus! {
         while depth != 1
             invariant
                 1 <= depth <= proc_perms@[child_ptr].value().depth,
-                proc_perms_wf(root_proc, proc_tree_dom@, proc_perms@),
+                proc_perms_wf(proc_perms@),
                 proc_tree_wf(root_proc, proc_tree_dom@, proc_perms@),
                 proc_tree_dom_subset_of_proc_dom(proc_tree_dom@, proc_perms@),
                 proc_tree_dom@.contains(a_ptr),
