@@ -48,27 +48,31 @@ impl ProcessManager{
         self.container_perms@.dom() + self.process_perms@.dom() + self.thread_perms@.dom() + self.endpoint_perms@.dom()
     }
 
+    #[verifier(inline)]
     pub open spec fn container_dom(&self) -> Set<ContainerPtr>
     {
         self.container_perms@.dom()
     }
 
-    pub closed spec fn proc_dom(&self) -> Set<ProcPtr>
+    #[verifier(inline)]
+    pub open spec fn proc_dom(&self) -> Set<ProcPtr>
     {
         self.process_perms@.dom()
     }
 
-    pub closed spec fn thread_dom(&self) -> Set<ThreadPtr>
+    #[verifier(inline)]
+    pub open spec fn thread_dom(&self) -> Set<ThreadPtr>
     {
         self.thread_perms@.dom()
     }
 
-    pub closed spec fn endpoint_dom(&self) -> Set<EndpointPtr>
+    #[verifier(inline)]
+    pub open spec fn endpoint_dom(&self) -> Set<EndpointPtr>
     {
         self.endpoint_perms@.dom()
     }
 
-    
+    #[verifier(inline)]
     pub open spec fn spec_get_container(&self, c_ptr:ContainerPtr) -> &Container
     {
         &self.container_perms@[c_ptr].value()
@@ -87,7 +91,8 @@ impl ProcessManager{
         container
     }
 
-    pub closed spec fn spec_get_proc(&self, proc_ptr:ProcPtr) -> &Process
+    #[verifier(inline)]
+    pub open spec fn spec_get_proc(&self, proc_ptr:ProcPtr) -> &Process
         recommends
             self.proc_perms_wf(),
             self.proc_dom().contains(proc_ptr),
@@ -133,7 +138,8 @@ impl ProcessManager{
         proc
     }
 
-    pub closed spec fn spec_get_thread(&self, thread_ptr:ThreadPtr) -> &Thread
+    #[verifier(inline)]
+    pub open spec fn spec_get_thread(&self, thread_ptr:ThreadPtr) -> &Thread
         recommends
             self.wf(),
             self.thread_dom().contains(thread_ptr),
@@ -159,7 +165,8 @@ impl ProcessManager{
         thread
     }
 
-    pub closed spec fn spec_get_cpu(&self, cpu_id:CpuId) -> &Cpu
+    #[verifier(inline)]
+    pub open spec fn spec_get_cpu(&self, cpu_id:CpuId) -> &Cpu
         recommends
             self.wf(),
             0 <= cpu_id < NUM_CPUS,
@@ -262,7 +269,8 @@ impl ProcessManager{
         container
     }
 
-    pub closed spec fn spec_get_endpoint(&self, endpoint_ptr:EndpointPtr) -> &Endpoint
+    #[verifier(inline)]
+    pub open spec fn spec_get_endpoint(&self, endpoint_ptr:EndpointPtr) -> &Endpoint
         recommends
             self.wf(),
             self.endpoint_perms@.dom().contains(endpoint_ptr),
@@ -412,35 +420,35 @@ impl ProcessManager{
         } 
     }
 
-    pub closed spec fn spec_get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> bool{
-        exists|i:int| 
-            #![trigger self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i]]
-            0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS 
-            &&
-            self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].is_Some() && self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].unwrap() == endpoint_ptr
-    }
+    // pub closed spec fn spec_get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> bool{
+    //     exists|i:int| 
+    //         #![trigger self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i]]
+    //         0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS 
+    //         &&
+    //         self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].is_Some() && self.thread_perms@[thread_ptr].value().endpoint_descriptors@[i].unwrap() == endpoint_ptr
+    // }
 
-    pub fn get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> (ret:bool)
-        requires
-            self.wf(),
-            self.thread_dom().contains(thread_ptr),
-        ensures
-            ret == self.spec_get_thread_owns_endpoint(thread_ptr, endpoint_ptr),
-    {
-        for index in 0..MAX_NUM_ENDPOINT_DESCRIPTORS
-            invariant
-                self.wf(),
-                self.thread_dom().contains(thread_ptr),
-                forall|i:int| #![trigger self.get_thread(thread_ptr).endpoint_descriptors@[i]] 0 <= i < index ==> self.get_thread(thread_ptr).endpoint_descriptors@[i].is_None() || self.get_thread(thread_ptr).endpoint_descriptors@[i].unwrap() != endpoint_ptr
-        {
-            if self.get_thread(thread_ptr).endpoint_descriptors.get(index).is_some(){
-                if self.get_thread(thread_ptr).endpoint_descriptors.get(index).unwrap() == endpoint_ptr{
-                    return true
-                }
-            }
-        }
-        return false
-    }
+    // pub fn get_thread_owns_endpoint(&self, thread_ptr:ThreadPtr, endpoint_ptr:EndpointPtr) -> (ret:bool)
+    //     requires
+    //         self.wf(),
+    //         self.thread_dom().contains(thread_ptr),
+    //     ensures
+    //         ret == self.spec_get_thread_owns_endpoint(thread_ptr, endpoint_ptr),
+    // {
+    //     for index in 0..MAX_NUM_ENDPOINT_DESCRIPTORS
+    //         invariant
+    //             self.wf(),
+    //             self.thread_dom().contains(thread_ptr),
+    //             forall|i:int| #![trigger self.get_thread(thread_ptr).endpoint_descriptors@[i]] 0 <= i < index ==> self.get_thread(thread_ptr).endpoint_descriptors@[i].is_None() || self.get_thread(thread_ptr).endpoint_descriptors@[i].unwrap() != endpoint_ptr
+    //     {
+    //         if self.get_thread(thread_ptr).endpoint_descriptors.get(index).is_some(){
+    //             if self.get_thread(thread_ptr).endpoint_descriptors.get(index).unwrap() == endpoint_ptr{
+    //                 return true
+    //             }
+    //         }
+    //     }
+    //     return false
+    // }
 }
 
 // //specs
@@ -458,22 +466,42 @@ impl ProcessManager{
         &&&
         proc_perms_wf(self.process_perms@)
     }
-    pub closed spec fn process_tree_wf(&self, container_ptr:ContainerPtr) -> bool
+
+    #[verifier(inline)]
+    closed spec fn process_tree_wf(&self, container_ptr:ContainerPtr) -> bool
         recommends
             self.container_dom().contains(container_ptr),
             self.container_perms_wf(),
+            self.get_container(container_ptr).root_process.is_Some(),
     {
-        &&&
-        proc_tree_wf(self.get_container(container_ptr).root_process, self.get_container(container_ptr).owned_procs@.to_set(), self.process_perms@)
+        proc_tree_wf(self.get_container(container_ptr).root_process.unwrap(), self.get_container(container_ptr).owned_procs@.to_set(), self.process_perms@)
     }
     pub closed spec fn process_trees_wf(&self) -> bool
         recommends
             self.container_perms_wf(),
     {
+        // &&&
+        // forall|c_ptr:ContainerPtr|
+        //     #![trigger proc_tree_wf(self.get_container(c_ptr).root_process, self.get_container(c_ptr).owned_procs@.to_set(), self.process_perms@)]
+        //     self.container_dom().contains(c_ptr) 
+        //     ==> 
+        //     proc_tree_wf(self.get_container(c_ptr).root_process, self.get_container(c_ptr).owned_procs@.to_set(), self.process_perms@)
         &&&
         forall|c_ptr:ContainerPtr|
             #![trigger self.process_tree_wf(c_ptr)]
-            self.container_dom().contains(c_ptr) ==> self.process_tree_wf(c_ptr)
+            self.container_dom().contains(c_ptr) 
+            &&
+            self.get_container(c_ptr).root_process.is_Some()
+            ==> 
+            self.process_tree_wf(c_ptr)
+        &&&
+        forall|c_ptr:ContainerPtr|
+            #![trigger self.get_container(c_ptr).root_process, self.get_container(c_ptr).owned_procs]
+            self.container_dom().contains(c_ptr) 
+            &&
+            self.get_container(c_ptr).root_process.is_None()
+            ==> 
+            self.get_container(c_ptr).owned_procs@.len() == 0
     }
     pub closed spec fn cpus_wf(&self) -> bool{
         &&&
@@ -487,19 +515,16 @@ impl ProcessManager{
     pub closed spec fn container_cpu_wf(&self) -> bool{
         &&&
         forall|cpu_i:CpuId|
-            #![trigger self.cpu_list@[cpu_i as int]]
+            #![trigger self.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container)]
+            #![trigger self.get_container(self.cpu_list@[cpu_i as int].owning_container).owned_cpus]
             0 <= cpu_i < NUM_CPUS 
             ==> 
             self.container_dom().contains(self.cpu_list@[cpu_i as int].owning_container)
-        &&&
-        forall|cpu_i:CpuId|
-            #![trigger self.cpu_list@[cpu_i as int]]
-            0 <= cpu_i < NUM_CPUS 
-            ==> 
+            &&
             self.get_container(self.cpu_list@[cpu_i as int].owning_container).owned_cpus@.contains(cpu_i)
         &&&
         forall|cpu_i:CpuId|
-            #![trigger self.cpu_list@[cpu_i as int]]
+            #![trigger self.cpu_list@[cpu_i as int].active]
             0 <= cpu_i < NUM_CPUS 
             ==> 
             self.cpu_list@[cpu_i as int].active == false ==> self.cpu_list@[cpu_i as int].current_thread.is_None()
@@ -560,12 +585,18 @@ impl ProcessManager{
     pub closed spec fn container_fields_wf(&self) -> bool{
         &&&
         forall|c_ptr:ContainerPtr| 
-        #![trigger self.container_dom().contains(c_ptr)]
+        #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr)]        
+        // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).owned_cpus]
+        // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).scheduler]
+        // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).owned_procs]
+        // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).owned_endpoints]
+        // #![trigger self.get_container(c_ptr)]
+            // #![trigger self.container_dom().contains(c_ptr)]
             self.container_dom().contains(c_ptr)
             ==> 
             self.get_container(c_ptr).owned_cpus.wf()
             &&
-            self.get_container(c_ptr).scheduler.wf() 
+            self.get_container(c_ptr).scheduler.wf()
             &&
             self.get_container(c_ptr).scheduler.unique() 
             &&
@@ -581,10 +612,12 @@ impl ProcessManager{
     pub closed spec fn process_fields_wf(&self) -> bool{
         &&&
         forall|p_ptr:ProcPtr| 
-        #![trigger self.get_proc(p_ptr).owned_threads.wf()]
+        #![trigger self.get_proc(p_ptr).owned_threads]
             self.proc_dom().contains(p_ptr)
             ==> 
             self.get_proc(p_ptr).owned_threads.wf()
+            &&
+            self.get_proc(p_ptr).owned_threads.unique()
     }
 
     pub closed spec fn processes_container_wf(&self) -> bool{
@@ -596,6 +629,7 @@ impl ProcessManager{
         //     self.get_container(c_ptr).owned_procs@.to_set().subset_of(self.process_perms@.dom())
         &&&
         forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
+            #![trigger self.container_dom().contains(c_ptr), self.process_perms@[child_p_ptr].value().owning_container]
             #![trigger self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
             self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)
             ==> self.process_perms@.dom().contains(child_p_ptr)
@@ -604,11 +638,12 @@ impl ProcessManager{
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger self.process_perms@[p_ptr].value().owning_container]
+            // #![trigger self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs]
             self.process_perms@.dom().contains(p_ptr)
             ==>
             self.container_dom().contains(self.process_perms@[p_ptr].value().owning_container)
             &&
-            self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs@.to_set().contains(p_ptr)
+            self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs@.contains(p_ptr)
             &&
             self.get_container(self.process_perms@[p_ptr].value().owning_container).owned_procs.node_ref_valid(self.process_perms@[p_ptr].value().rev_ptr)
             &&
@@ -617,25 +652,18 @@ impl ProcessManager{
 
     pub closed spec fn threads_process_wf(&self) -> bool{
         &&&
-        forall|p_ptr:ProcPtr| 
-            #![trigger self.process_perms@.dom().contains(p_ptr)]
-            self.process_perms@.dom().contains(p_ptr)
-            ==>
-            self.process_perms@[p_ptr].value().owned_threads.wf()
-            &&
-            self.process_perms@[p_ptr].value().owned_threads.unique()
-        &&&
         forall|p_ptr:ProcPtr, child_t_ptr:ThreadPtr| 
-            #![trigger self.process_perms@.dom().contains(p_ptr), self.thread_perms@[child_t_ptr].value().owning_proc]
+            // #![trigger self.process_perms@.dom().contains(p_ptr), self.thread_perms@[child_t_ptr].value().owning_proc]
             #![trigger self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)]
             self.process_perms@.dom().contains(p_ptr) && self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)
-            ==> self.thread_perms@.dom().contains(child_t_ptr)
-                &&
-                self.thread_perms@[child_t_ptr].value().owning_proc == p_ptr
+            ==> 
+            self.thread_perms@.dom().contains(child_t_ptr)
+            &&
+            self.thread_perms@[child_t_ptr].value().owning_proc == p_ptr
         &&&
         forall|t_ptr:ThreadPtr| 
-            #![trigger self.thread_perms@[t_ptr].value().owning_container]
             #![trigger self.thread_perms@[t_ptr].value().owning_proc]
+            #![trigger self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads]
             self.thread_perms@.dom().contains(t_ptr)
             ==>
             self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)
@@ -711,39 +739,34 @@ impl ProcessManager{
             self.endpoint_perms@[e_ptr].value().owning_threads@.finite()
             &&
             self.endpoint_perms@[e_ptr].value().rf_counter == self.endpoint_perms@[e_ptr].value().owning_threads@.len()
-            &&
-            self.endpoint_perms@[e_ptr].value().owning_threads@.subset_of(self.thread_perms@.dom())
+            // &&
+            // self.endpoint_perms@[e_ptr].value().owning_threads@.subset_of(self.thread_perms@.dom())
     }
 
     pub closed spec fn threads_endpoint_descriptors_wf(&self) -> bool {
         &&&
-        forall|t_ptr:ThreadPtr, i: usize|
-            #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int]]
-            self.thread_perms@.dom().contains(t_ptr) && 0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS
+        forall|t_ptr:ThreadPtr, e_idx: EndpointIdx|
+            #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors@[e_idx as int]]
+            self.thread_perms@.dom().contains(t_ptr) && 0 <= e_idx < MAX_NUM_ENDPOINT_DESCRIPTORS
             &&
-            self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].is_Some()
+            self.thread_perms@[t_ptr].value().endpoint_descriptors@[e_idx as int].is_Some()
             ==>
-            self.endpoint_perms@.dom().contains(self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].unwrap())
+            self.endpoint_perms@.dom().contains(self.thread_perms@[t_ptr].value().endpoint_descriptors@[e_idx as int].unwrap())
             &&
-            self.endpoint_perms@[self.thread_perms@[t_ptr].value().endpoint_descriptors@[i as int].unwrap()].value().owning_threads@.contains(t_ptr)
+            self.endpoint_perms@[self.thread_perms@[t_ptr].value().endpoint_descriptors@[e_idx as int].unwrap()].value().owning_threads@.contains((t_ptr, e_idx))
         &&&
-        forall|e_ptr:EndpointPtr, t_ptr:ThreadPtr| 
-            #![trigger self.endpoint_perms@[e_ptr].value().owning_threads@.contains(t_ptr)]
-            #![trigger self.spec_get_thread_owns_endpoint(t_ptr, e_ptr)]
+        forall|e_ptr:EndpointPtr, t_ptr:ThreadPtr, e_idx:EndpointIdx| 
+            #![trigger self.endpoint_perms@[e_ptr].value().owning_threads@.contains((t_ptr, e_idx))]
             self.endpoint_perms@.dom().contains(e_ptr) 
             &&
-            self.endpoint_perms@[e_ptr].value().owning_threads@.contains(t_ptr)
+            self.endpoint_perms@[e_ptr].value().owning_threads@.contains((t_ptr, e_idx))
             ==>
             self.thread_perms@.dom().contains(t_ptr)
             &&
-            self.spec_get_thread_owns_endpoint(t_ptr, e_ptr)
-            // &&
-            // ( exists|i:int| 
-            //     #![trigger self.thread_perms@[t_ptr].value().endpoint_descriptors@[i]]
-            //     0 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS 
-            //     &&
-            //     self.thread_perms@[t_ptr].value().endpoint_descriptors@[i].is_Some() || self.thread_perms@[t_ptr].value().endpoint_descriptors@[i].unwrap() == e_ptr
-            // )
+            self.thread_perms@[t_ptr].value().endpoint_descriptors@[e_idx as int].is_Some()
+            &&
+            self.thread_perms@[t_ptr].value().endpoint_descriptors@[e_idx as int].unwrap() == e_ptr
+
     }
     
     pub closed spec fn endpoints_queue_wf(&self) -> bool {
@@ -757,6 +780,11 @@ impl ProcessManager{
             self.thread_perms@[t_ptr].value().state == ThreadState::BLOCKED
             ==>
             self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.is_Some()
+            &&
+            self.thread_perms@[t_ptr].value().blocking_endpoint_index.is_Some()
+            &&
+            self.thread_perms@[t_ptr].value().endpoint_descriptors@[self.thread_perms@[t_ptr].value().blocking_endpoint_index.unwrap() as int] 
+                == Some(self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap())
             &&
             self.thread_perms@[t_ptr].value().endpoint_rev_ptr.is_Some()
             &&
@@ -775,8 +803,6 @@ impl ProcessManager{
             self.thread_perms@.dom().contains(self.endpoint_perms@[e_ptr].value().queue@[i])
             &&
             self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().blocking_endpoint_ptr == Some(e_ptr)
-            &&
-            self.endpoint_perms@[e_ptr].value().owning_threads@.contains(self.endpoint_perms@[e_ptr].value().queue@[i])
             &&
             self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().state == ThreadState::BLOCKED
     }
@@ -806,7 +832,7 @@ impl ProcessManager{
     pub closed spec fn schedulers_wf(&self) -> bool{
         &&&
         forall|t_ptr:ThreadPtr|
-            #![trigger self.thread_perms@[t_ptr].value().state]
+            // #![trigger self.thread_perms@[t_ptr].value().state]
             #![trigger self.thread_perms@[t_ptr].value().scheduler_rev_ptr]
             self.thread_perms@.dom().contains(t_ptr)
             &&
@@ -836,13 +862,13 @@ impl ProcessManager{
     pub closed spec fn pcid_ioid_wf(&self) -> bool{
         &&&
         forall|p_ptr_i:ProcPtr, p_ptr_j:ProcPtr| 
-            #![trigger self.process_perms@[p_ptr_i].value().pcid, self.process_perms@[p_ptr_j].value().pcid]
+            #![trigger self.process_perms@.dom().contains(p_ptr_i), self.process_perms@.dom().contains(p_ptr_j), self.process_perms@[p_ptr_i].value().pcid, self.process_perms@[p_ptr_j].value().pcid]
             self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
             ==>
             self.process_perms@[p_ptr_i].value().pcid != self.process_perms@[p_ptr_j].value().pcid
         &&&
         forall|p_ptr_i:ProcPtr, p_ptr_j:ProcPtr| 
-            #![trigger self.process_perms@[p_ptr_i].value().ioid, self.process_perms@[p_ptr_j].value().ioid]
+            #![trigger self.process_perms@.dom().contains(p_ptr_i), self.process_perms@.dom().contains(p_ptr_j), self.process_perms@[p_ptr_i].value().ioid, self.process_perms@[p_ptr_j].value().ioid]
             self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
             &&
             self.process_perms@[p_ptr_i].value().ioid.is_Some() && self.process_perms@[p_ptr_j].value().ioid.is_Some() 
@@ -896,8 +922,8 @@ impl ProcessManager{
     }
 }
 
-// //proofs
-// impl ProcessManager{
+//proofs
+impl ProcessManager{
 //     pub proof fn container_thread_inv_1(&self)
 //         requires
 //             self.wf()
@@ -1173,526 +1199,531 @@ impl ProcessManager{
 //     {
 //     }
 
-//     // pub proof fn wf_imply_container_proc_disjoint(&self)
-//     //     requires
-//     //         self.wf(),
-//     //     ensures
-//     //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
-//     //             self.container_dom().contains(c_ptr_i) && self.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
-//     //             ==>
-//     //             self.container_perms@[c_ptr_i].value().children@.to_set().disjoint(self.container_perms@[c_ptr_j].value().children@.to_set()),
-//     //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
-//     //             self.container_dom().contains(c_ptr_i) && self.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
-//     //             ==>
-//     //             self.container_perms@[c_ptr_i].value().owned_procs@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_procs@.to_set()),
-//     //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
-//     //             self.container_dom().contains(c_ptr_i) && self.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
-//     //             ==>
-//     //             self.container_perms@[c_ptr_i].value().owned_endpoints@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_endpoints@.to_set()),
-//     //         forall|p_ptr_i:ProcPtr, p_ptr_j: ProcPtr|
-//     //             self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
-//     //             ==>
-//     //             self.process_perms@[p_ptr_i].value().owned_threads@.to_set().disjoint(self.process_perms@[p_ptr_j].value().owned_threads@.to_set()),
-//     // {
-//     //     // assert(false);
-//     // }
-// }
+    // pub proof fn wf_imply_container_proc_disjoint(&self)
+    //     requires
+    //         self.wf(),
+    //     ensures
+    //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
+    //             self.container_dom().contains(c_ptr_i) && self.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
+    //             ==>
+    //             self.container_perms@[c_ptr_i].value().children@.to_set().disjoint(self.container_perms@[c_ptr_j].value().children@.to_set()),
+    //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
+    //             self.container_dom().contains(c_ptr_i) && self.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
+    //             ==>
+    //             self.container_perms@[c_ptr_i].value().owned_procs@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_procs@.to_set()),
+    //         forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr|
+    //             self.container_dom().contains(c_ptr_i) && self.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
+    //             ==>
+    //             self.container_perms@[c_ptr_i].value().owned_endpoints@.to_set().disjoint(self.container_perms@[c_ptr_j].value().owned_endpoints@.to_set()),
+    //         forall|p_ptr_i:ProcPtr, p_ptr_j: ProcPtr|
+    //             self.process_perms@.dom().contains(p_ptr_i) && self.process_perms@.dom().contains(p_ptr_j) && p_ptr_i != p_ptr_j
+    //             ==>
+    //             self.process_perms@[p_ptr_i].value().owned_threads@.to_set().disjoint(self.process_perms@[p_ptr_j].value().owned_threads@.to_set()),
+    // {
+    //     // assert(false);
+    // }
 
-// //exec
-// impl ProcessManager{
+    pub proof fn wf_imply_container_owned_proc_disjoint(&self)
+        requires
+            self.wf(),
+        ensures
+            forall|c_ptr_i:ContainerPtr, c_ptr_j: ContainerPtr, p_ptr:ProcPtr|
+                #![auto]
+                self.container_dom().contains(c_ptr_i) && self.container_dom().contains(c_ptr_j) && c_ptr_i != c_ptr_j
+                &&
+                self.get_container(c_ptr_i).owned_procs@.contains(p_ptr)
+                ==>
+                self.get_container(c_ptr_j).owned_procs@.contains(p_ptr) == false,
+    {
+        // assert(false);
+    }
+}
 
-//     pub fn new() -> (ret:Self)
-//     {
-//         ProcessManager{
-//             container_tree: ContainerTree::new(),
+//exec
+impl ProcessManager{
 
-//             process_perms: Tracked(Map::tracked_empty()),
-//             thread_perms: Tracked(Map::tracked_empty()),
-//             endpoint_perms: Tracked(Map::tracked_empty()),
+    pub fn new() -> (ret:Self)
+    {
+        ProcessManager{
+            root_container: 0,
+            container_perms: Tracked(Map::tracked_empty()),
+            process_perms: Tracked(Map::tracked_empty()),
+            thread_perms: Tracked(Map::tracked_empty()),
+            endpoint_perms: Tracked(Map::tracked_empty()),
         
-//             cpu_list: Array::<Cpu, NUM_CPUS>::new(),
-//         }
-//     }
+            cpu_list: Array::<Cpu, NUM_CPUS>::new(),
+        }
+    }
     
-//     #[verifier(external_body)]
-//     pub fn init(&mut self, dom_0_container_ptr:ContainerPtr, dom_0_proc_ptr:ProcPtr, dom_0_thread_ptr:ThreadPtr, init_quota:usize, page_perm_0: Tracked<PagePerm4k>, page_perm_1: Tracked<PagePerm4k>, page_perm_2: Tracked<PagePerm4k>)
-//     {
-//         unsafe{
-//             self.root_container = dom_0_container_ptr;
-//             let root_container_ptr = dom_0_container_ptr as *mut MaybeUninit<Container>;
-//             (*root_container_ptr).assume_init_mut().owned_procs.init();
+    #[verifier(external_body)]
+    pub fn init(&mut self, dom_0_container_ptr:ContainerPtr, dom_0_proc_ptr:ProcPtr, dom_0_thread_ptr:ThreadPtr, init_quota:usize, page_perm_0: Tracked<PagePerm4k>, page_perm_1: Tracked<PagePerm4k>, page_perm_2: Tracked<PagePerm4k>)
+    {
+        unsafe{
+            self.root_container = dom_0_container_ptr;
+            let root_container_ptr = dom_0_container_ptr as *mut MaybeUninit<Container>;
+            (*root_container_ptr).assume_init_mut().owned_procs.init();
 
-//             let sll1 = (*root_container_ptr).assume_init_mut().owned_procs.push(&dom_0_proc_ptr);
-//             (*root_container_ptr).assume_init_mut().parent = None;
-//             (*root_container_ptr).assume_init_mut().parent_rev_ptr = None;
-//             (*root_container_ptr).assume_init_mut().children.init();
-//             (*root_container_ptr).assume_init_mut().owned_endpoints.init();
-//             (*root_container_ptr).assume_init_mut().mem_quota = init_quota;
-//             (*root_container_ptr).assume_init_mut().mem_used = 0;
-//             (*root_container_ptr).assume_init_mut().owned_cpus.init();
-//             (*root_container_ptr).assume_init_mut().scheduler.init();
-//             let sll2 = (*root_container_ptr).assume_init_mut().scheduler.push(&dom_0_thread_ptr);
-//             (*root_container_ptr).assume_init_mut().depth = 0;
+            let sll1 = (*root_container_ptr).assume_init_mut().owned_procs.push(&dom_0_proc_ptr);
+            (*root_container_ptr).assume_init_mut().root_process = Some(dom_0_proc_ptr);
+            (*root_container_ptr).assume_init_mut().parent = None;
+            (*root_container_ptr).assume_init_mut().parent_rev_ptr = None;
+            (*root_container_ptr).assume_init_mut().children.init();
+            (*root_container_ptr).assume_init_mut().owned_endpoints.init();
+            (*root_container_ptr).assume_init_mut().mem_quota = init_quota;
+            (*root_container_ptr).assume_init_mut().mem_used = 0;
+            (*root_container_ptr).assume_init_mut().owned_cpus.init();
+            (*root_container_ptr).assume_init_mut().scheduler.init();
+            let sll2 = (*root_container_ptr).assume_init_mut().scheduler.push(&dom_0_thread_ptr);
+            (*root_container_ptr).assume_init_mut().depth = 0;
 
-//             let root_proc_ptr = dom_0_proc_ptr as *mut MaybeUninit<Process>;
-//             (*root_proc_ptr).assume_init_mut().owning_container = dom_0_container_ptr;
-//             (*root_proc_ptr).assume_init_mut().rev_ptr = sll2;
-//             (*root_proc_ptr).assume_init_mut().pcid = 0;
-//             (*root_proc_ptr).assume_init_mut().ioid = None;
-//             (*root_proc_ptr).assume_init_mut().owned_threads.init(); 
-//             let sll3 = (*root_proc_ptr).assume_init_mut().owned_threads.push(&dom_0_thread_ptr);
+            let root_proc_ptr = dom_0_proc_ptr as *mut MaybeUninit<Process>;
+            (*root_proc_ptr).assume_init_mut().owning_container = dom_0_container_ptr;
+            (*root_proc_ptr).assume_init_mut().rev_ptr = sll2;
+            (*root_proc_ptr).assume_init_mut().pcid = 0;
+            (*root_proc_ptr).assume_init_mut().ioid = None;
+            (*root_proc_ptr).assume_init_mut().owned_threads.init(); 
+            (*root_proc_ptr).assume_init_mut().parent = None;
+            (*root_proc_ptr).assume_init_mut().parent_rev_ptr = None;
+            (*root_proc_ptr).assume_init_mut().children.init();
+            (*root_proc_ptr).assume_init_mut().depth = 0;
+            let sll3 = (*root_proc_ptr).assume_init_mut().owned_threads.push(&dom_0_thread_ptr);
             
-//             let root_thread_ptr = dom_0_thread_ptr as *mut MaybeUninit<Thread>;
-//             (*root_thread_ptr).assume_init_mut().owning_container = dom_0_container_ptr;
-//             (*root_thread_ptr).assume_init_mut().owning_proc = dom_0_proc_ptr;
-//             (*root_thread_ptr).assume_init_mut().state = ThreadState::SCHEDULED;
-//             (*root_thread_ptr).assume_init_mut().proc_rev_ptr = sll3;
-//             (*root_thread_ptr).assume_init_mut().scheduler_rev_ptr = Some(sll2);
-//             (*root_thread_ptr).assume_init_mut().blocking_endpoint_ptr = None;
-//             (*root_thread_ptr).assume_init_mut().endpoint_rev_ptr = None;
-//             (*root_thread_ptr).assume_init_mut().running_cpu = None;
-//             (*root_thread_ptr).assume_init_mut().endpoint_descriptors.init2none();
-//             (*root_thread_ptr).assume_init_mut().ipc_payload = IPCPayLoad::Empty;
-//             (*root_thread_ptr).assume_init_mut().error_code = None;
+            let root_thread_ptr = dom_0_thread_ptr as *mut MaybeUninit<Thread>;
+            (*root_thread_ptr).assume_init_mut().owning_container = dom_0_container_ptr;
+            (*root_thread_ptr).assume_init_mut().owning_proc = dom_0_proc_ptr;
+            (*root_thread_ptr).assume_init_mut().state = ThreadState::SCHEDULED;
+            (*root_thread_ptr).assume_init_mut().proc_rev_ptr = sll3;
+            (*root_thread_ptr).assume_init_mut().scheduler_rev_ptr = Some(sll2);
+            (*root_thread_ptr).assume_init_mut().blocking_endpoint_ptr = None;
+            (*root_thread_ptr).assume_init_mut().endpoint_rev_ptr = None;
+            (*root_thread_ptr).assume_init_mut().running_cpu = None;
+            (*root_thread_ptr).assume_init_mut().endpoint_descriptors.init2none();
+            (*root_thread_ptr).assume_init_mut().ipc_payload = IPCPayLoad::Empty;
+            (*root_thread_ptr).assume_init_mut().error_code = None;
 
-//             for i in 0..2{
-//                 (*root_container_ptr).assume_init_mut().owned_cpus.insert(i);
-//                 self.cpu_list.set(i,
-//                     Cpu{
-//                         owning_container: dom_0_container_ptr,
-//                         active: true,
-//                         current_thread: None,
-//                     }
-//                 );
-//             }
+            for i in 0..2{
+                (*root_container_ptr).assume_init_mut().owned_cpus.insert(i);
+                self.cpu_list.set(i,
+                    Cpu{
+                        owning_container: dom_0_container_ptr,
+                        active: true,
+                        current_thread: None,
+                    }
+                );
+            }
 
-//             for i in 2..NUM_CPUS{
-//                 (*root_container_ptr).assume_init_mut().owned_cpus.insert(i);
-//                 self.cpu_list.set(i,
-//                     Cpu{
-//                         owning_container: dom_0_container_ptr,
-//                         active: false,
-//                         current_thread: None,
-//                     }
-//                 );
-//             }
+            for i in 2..NUM_CPUS{
+                (*root_container_ptr).assume_init_mut().owned_cpus.insert(i);
+                self.cpu_list.set(i,
+                    Cpu{
+                        owning_container: dom_0_container_ptr,
+                        active: false,
+                        current_thread: None,
+                    }
+                );
+            }
 
-//             self.cpu_list.set(0,
-//                 Cpu{
-//                     owning_container: dom_0_container_ptr,
-//                     active: true,
-//                     current_thread: Some(dom_0_thread_ptr),
-//                 }
-//             );
-//         }
-//     }
+            self.cpu_list.set(0,
+                Cpu{
+                    owning_container: dom_0_container_ptr,
+                    active: true,
+                    current_thread: Some(dom_0_thread_ptr),
+                }
+            );
+        }
+    }
 
-//     pub fn set_container_mem_quota(&mut self, container_ptr:ContainerPtr, new_quota:usize)
-//         requires
-//             old(self).wf(),
-//             old(self).container_dom().contains(container_ptr),
-//         ensures
-//             self.wf(),
-//             self.proc_dom() =~= old(self).proc_dom(),
-//             self.thread_dom() =~= old(self).thread_dom(),
-//             self.container_dom() =~= old(self).container_dom(),
-//             self.endpoint_dom() =~= old(self).endpoint_dom(), 
-//             self.page_closure() =~= old(self).page_closure(),
-//             forall|p_ptr:ProcPtr|
-//                 #![auto]
-//                 self.proc_dom().contains(p_ptr)
-//                 ==>
-//                 self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
-//             forall|t_ptr:ThreadPtr|
-//                 #![auto]
-//                 self.thread_dom().contains(t_ptr)
-//                 ==>
-//                 self.get_thread(t_ptr) =~= old(self).get_thread(t_ptr),
-//             forall|c_ptr:ContainerPtr|
-//                 #![auto]
-//                 self.container_dom().contains(c_ptr) && c_ptr != container_ptr
-//                 ==>
-//                 self.get_container(c_ptr) =~= old(self).get_container(c_ptr),
-//             forall|e_ptr:EndpointPtr|
-//                 #![auto]
-//                 self.endpoint_dom().contains(e_ptr)
-//                 ==>
-//                 self.get_endpoint(e_ptr) =~= old(self).get_endpoint(e_ptr),
-//             self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
-//             self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
-//             self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
-//             self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
-//             self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
-//             self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
-//             // self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
-//             self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
-//             self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
-//             self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
-//             self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
-//             self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
-//             self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
-//             self.get_container(container_ptr).mem_quota =~= new_quota,
-//     {
-//         self.container_tree_set_quota(container_ptr, new_quota);
-//         assert(self.wf());
-//         assert(self.cpus_wf());
-//         assert(self.container_cpu_wf());
-//         assert(self.memory_disjoint());
-//         assert(self.container_perms_wf());
-//         assert(self.processes_container_wf());
-//         assert(self.processes_wf());
-//         assert(self.threads_process_wf());
-//         assert(self.threads_perms_wf());
-//         assert(self.endpoint_perms_wf());
-//         assert(self.threads_endpoint_descriptors_wf());
-//         assert(self.endpoints_queue_wf());
-//         assert(self.endpoints_container_wf());
-//         assert(self.schedulers_wf());
-//         assert(self.pcid_ioid_wf());
-//         assert(self.threads_cpu_wf());
-//         assert(self.threads_container_wf());
+    pub fn set_container_mem_quota(&mut self, container_ptr:ContainerPtr, new_quota:usize)
+        requires
+            old(self).wf(),
+            old(self).container_dom().contains(container_ptr),
+        ensures
+            self.wf(),
+            self.proc_dom() =~= old(self).proc_dom(),
+            self.thread_dom() =~= old(self).thread_dom(),
+            self.container_dom() =~= old(self).container_dom(),
+            self.endpoint_dom() =~= old(self).endpoint_dom(), 
+            self.page_closure() =~= old(self).page_closure(),
+            forall|p_ptr:ProcPtr|
+                #![auto]
+                self.proc_dom().contains(p_ptr)
+                ==>
+                self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
+            forall|t_ptr:ThreadPtr|
+                #![auto]
+                self.thread_dom().contains(t_ptr)
+                ==>
+                self.get_thread(t_ptr) =~= old(self).get_thread(t_ptr),
+            forall|c_ptr:ContainerPtr|
+                #![auto]
+                self.container_dom().contains(c_ptr) && c_ptr != container_ptr
+                ==>
+                self.get_container(c_ptr) =~= old(self).get_container(c_ptr),
+            forall|e_ptr:EndpointPtr|
+                #![auto]
+                self.endpoint_dom().contains(e_ptr)
+                ==>
+                self.get_endpoint(e_ptr) =~= old(self).get_endpoint(e_ptr),
+            self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+            self.get_container(container_ptr).parent =~= old(self).get_container(container_ptr).parent,
+            self.get_container(container_ptr).parent_rev_ptr =~= old(self).get_container(container_ptr).parent_rev_ptr,
+            self.get_container(container_ptr).children =~= old(self).get_container(container_ptr).children,
+            self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
+            self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
+            // self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
+            self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+            self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
+            self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
+            self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
+            self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
+            self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
+            self.get_container(container_ptr).root_process =~= old(self).get_container(container_ptr).root_process,
+            self.get_container(container_ptr).mem_quota =~= new_quota,
+    {
+        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+        container_set_mem_quota(container_ptr,&mut container_perm, new_quota);
+        proof {
+            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+        }
+
+        assert(self.container_perms_wf());
+        assert(self.container_tree_wf()) by {
+            container_no_change_to_tree_fields_imply_wf(self.root_container, &old(self).container_perms, &self.container_perms);
+        };
+        assert(self.container_fields_wf());
+        assert(self.proc_perms_wf());
+        assert(self.process_trees_wf()) by 
+        {
+            // seq_to_set_lemma::<ProcPtr>();
+            assert forall|c_ptr:ContainerPtr|
+            #![trigger self.container_dom().contains(c_ptr)]
+            #![trigger self.process_tree_wf(c_ptr)]
+            self.container_dom().contains(c_ptr) && self.get_container(c_ptr).root_process.is_Some() implies self.process_tree_wf(c_ptr)
+                by {
+                    process_no_change_to_trees_fields_imply_wf(self.get_container(c_ptr).root_process.unwrap(), self.get_container(c_ptr).owned_procs@.to_set(), 
+                    old(self).process_perms@, self.process_perms@);
+            };
+        };
+        assert(self.process_fields_wf()) by {
+            assert(
+                forall|p_ptr:ProcPtr| 
+                #![trigger self.get_proc(p_ptr)]
+                    self.proc_dom().contains(p_ptr)
+                    ==> 
+                    self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr));
+        };
+        assert(self.cpus_wf());
+        assert(self.container_cpu_wf());
+        assert(self.memory_disjoint());
+        assert(self.container_perms_wf());
+        assert(self.processes_container_wf());
+        assert(self.threads_process_wf());
+        assert(self.threads_perms_wf());
+        assert(self.endpoint_perms_wf());
+        assert(self.threads_endpoint_descriptors_wf());
+        assert(self.endpoints_queue_wf());
+        assert(self.endpoints_container_wf());
+        assert(self.schedulers_wf());
+        assert(self.pcid_ioid_wf());
+        assert(self.threads_cpu_wf());
+        assert(self.threads_container_wf());
         
-//     }
+    }
 
-//     pub fn new_thread(&mut self, proc_ptr:ProcPtr, pt_regs:Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:ThreadPtr)
-//         requires
-//             old(self).wf(),
-//             old(self).proc_dom().contains(proc_ptr),
-//             old(self).page_closure().contains(page_ptr) == false,
-//             old(self).get_proc(proc_ptr).owned_threads.len() < MAX_NUM_THREADS_PER_PROC,
-//             old(self).get_container_by_proc_ptr(proc_ptr).mem_quota > 0,
-//             old(self).get_container_by_proc_ptr(proc_ptr).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
-//             page_perm@.is_init(),
-//             page_perm@.addr() == page_ptr,
-//         ensures
-//             self.wf(),
-//             self.page_closure() =~= old(self).page_closure().insert(page_ptr),
-//             self.proc_dom() =~= old(self).proc_dom(),
-//             self.endpoint_dom() == old(self).endpoint_dom(),
-//             self.container_dom() == old(self).container_dom(),
-//             self.thread_dom() == old(self).thread_dom().insert(ret),
-//             old(self).get_container(old(self).get_proc(proc_ptr).owning_container).mem_quota - 1 == self.get_container(self.get_proc(proc_ptr).owning_container).mem_quota,
-//             old(self).get_proc(proc_ptr).pcid =~= self.get_proc(proc_ptr).pcid,
-//             old(self).get_proc(proc_ptr).ioid =~= self.get_proc(proc_ptr).ioid,
-//             forall|p_ptr:ProcPtr|
-//                 #![trigger self.get_proc(p_ptr)]
-//                 self.proc_dom().contains(p_ptr) && p_ptr != proc_ptr
-//                 ==> 
-//                 self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
-//             forall|container_ptr:ContainerPtr|
-//                 #![trigger self.get_container(container_ptr).owned_procs]
-//                 self.container_dom().contains(container_ptr) && container_ptr != self.get_proc(proc_ptr).owning_container
-//                 ==> 
-//                 self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
-//     {
-//         proof{seq_push_lemma::<ThreadPtr>();}
-//         let container_ptr = self.get_proc(proc_ptr).owning_container;
-//         let old_mem_quota =  self.get_container(container_ptr).mem_quota;
-//         let old_owned_threads = self.get_container(container_ptr).owned_threads;
-//         let mut proc_perm = Tracked(self.process_perms.borrow_mut().tracked_remove(proc_ptr));
-//         let proc_node_ref = proc_push_thread(proc_ptr,&mut proc_perm, &page_ptr);
-//         proof {
-//             self.process_perms.borrow_mut().tracked_insert(proc_ptr, proc_perm.get());
-//         }
+    pub fn new_thread(&mut self, proc_ptr:ProcPtr, pt_regs:Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:ThreadPtr)
+        requires
+            old(self).wf(),
+            old(self).proc_dom().contains(proc_ptr),
+            old(self).page_closure().contains(page_ptr) == false,
+            old(self).get_proc(proc_ptr).owned_threads.len() < MAX_NUM_THREADS_PER_PROC,
+            old(self).get_container_by_proc_ptr(proc_ptr).mem_quota > 0,
+            old(self).get_container_by_proc_ptr(proc_ptr).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
+            page_perm@.is_init(),
+            page_perm@.addr() == page_ptr,
+        ensures
+            self.wf(),
+            self.page_closure() =~= old(self).page_closure().insert(page_ptr),
+            self.proc_dom() =~= old(self).proc_dom(),
+            self.endpoint_dom() == old(self).endpoint_dom(),
+            self.container_dom() == old(self).container_dom(),
+            self.thread_dom() == old(self).thread_dom().insert(ret),
+            old(self).get_container(old(self).get_proc(proc_ptr).owning_container).mem_quota - 1 == self.get_container(self.get_proc(proc_ptr).owning_container).mem_quota,
+            old(self).get_proc(proc_ptr).pcid =~= self.get_proc(proc_ptr).pcid,
+            old(self).get_proc(proc_ptr).ioid =~= self.get_proc(proc_ptr).ioid,
+            forall|p_ptr:ProcPtr|
+                #![trigger self.get_proc(p_ptr)]
+                self.proc_dom().contains(p_ptr) && p_ptr != proc_ptr
+                ==> 
+                self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
+            forall|container_ptr:ContainerPtr|
+                #![trigger self.get_container(container_ptr).owned_procs]
+                self.container_dom().contains(container_ptr) && container_ptr != self.get_proc(proc_ptr).owning_container
+                ==> 
+                self.get_container(container_ptr).owned_procs =~= old(self).get_container(container_ptr).owned_procs,
+    {
+        // proof{seq_push_lemma::<ThreadPtr>();}
+        let container_ptr = self.get_proc(proc_ptr).owning_container;
+        let old_mem_quota =  self.get_container(container_ptr).mem_quota;
+        let old_owned_threads = self.get_container(container_ptr).owned_threads;
+        let mut proc_perm = Tracked(self.process_perms.borrow_mut().tracked_remove(proc_ptr));
+        let proc_node_ref = proc_push_thread(proc_ptr,&mut proc_perm, &page_ptr);
+        proof {
+            self.process_perms.borrow_mut().tracked_insert(proc_ptr, proc_perm.get());
+        }
 
-//         let scheduler_node_ref = self.container_tree_scheduler_push_thread(container_ptr, page_ptr);
-//         self.container_tree_set_quota(container_ptr, old_mem_quota - 1);
-//         self.container_tree_set_owned_threads(container_ptr, Ghost(old_owned_threads@.insert(page_ptr)));
+        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+        let scheduler_node_ref = scheduler_push_thread(container_ptr,&mut container_perm, &page_ptr);
+        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 1);
+        container_set_owned_threads(container_ptr,&mut container_perm, Ghost(old_owned_threads@.insert(page_ptr)));
+        proof {
+            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+        }
 
-//         let (thread_ptr, thread_perm) = page_to_thread(page_ptr, page_perm, &pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref);
+        let (thread_ptr, thread_perm) = page_to_thread(page_ptr, page_perm, &pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref);
         
-//         proof {
-//             self.thread_perms.borrow_mut().tracked_insert(thread_ptr, thread_perm.get());
-//         }
-//         assert(self.cpus_wf());
-//         assert(self.container_cpu_wf());
-//         assert(self.memory_disjoint());
-//         assert(self.container_perms_wf());
-//         assert(self.processes_container_wf());
-//         assert(self.processes_wf());
-
-//         assert(self.threads_process_wf()) by {
-//             assert(self.process_perms@[proc_ptr].value().owned_threads@ =~= old(self).process_perms@[proc_ptr].value().owned_threads@.push(page_ptr));
-//             assert(
-//                 forall|child_t_ptr:ThreadPtr| 
-//                 #![auto]
-//                 old(self).process_perms@[proc_ptr].value().owned_threads@.contains(child_t_ptr)
-//                 ==> self.thread_perms@.dom().contains(child_t_ptr)
-//                     &&
-//                     self.thread_perms@[child_t_ptr].value().owning_proc == proc_ptr
-//             );
-//         };
-//         assert(self.threads_perms_wf());
-//         assert(self.endpoint_perms_wf());
-//         assert(self.threads_endpoint_descriptors_wf());
-//         assert(self.endpoints_queue_wf());
-//         assert(self.endpoints_container_wf()) by {
-//             assert(
-//                 forall|c_ptr:ContainerPtr| 
-//                     #![trigger self.get_container(c_ptr)]
-//                     self.container_dom().contains(c_ptr)
-//                     ==> 
-//                     self.get_container(c_ptr).owned_endpoints =~= old(self).get_container(c_ptr).owned_endpoints
-//             );
-//             assert(
-//                 forall|child_e_ptr:EndpointPtr| 
-//                     #![trigger self.endpoint_perms@.dom().contains(child_e_ptr)]
-//                     self.endpoint_perms@.dom().contains(child_e_ptr)
-//                     ==> 
-//                     self.endpoint_perms@[child_e_ptr].value() =~= old(self).endpoint_perms@[child_e_ptr].value()
-//             );
-//             assert(
-//                 forall|c_ptr:ContainerPtr, child_e_ptr:EndpointPtr| 
-//                     #![trigger self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)]
-//                     self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)
-//                     ==> self.endpoint_perms@.dom().contains(child_e_ptr)
-//                         &&
-//                         self.endpoint_perms@[child_e_ptr].value().owning_container == c_ptr);
-//             assert(
-//                 forall|e_ptr:EndpointPtr| 
-//                     #![trigger self.endpoint_perms@[e_ptr].value().owning_container]
-//                     self.endpoint_perms@.dom().contains(e_ptr)
-//                     ==>
-//                     self.container_dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
-//                     &&
-//                     self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints@.to_set().contains(e_ptr)
-//                     &&
-//                     self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
-//                     &&
-//                     self.get_container(self.endpoint_perms@[e_ptr].value().owning_container).owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr);
-//         };
-//         assert(self.schedulers_wf()) by {
-//             assert(self.get_container(container_ptr).scheduler@ =~= old(self).get_container(container_ptr).scheduler@.push(page_ptr));
-//             assert(
-//                 forall|child_t_ptr:ThreadPtr| 
-//                 #![auto]
-//                 old(self).get_container(container_ptr).scheduler@.contains(child_t_ptr)
-//                 ==> self.thread_perms@.dom().contains(child_t_ptr)
-//                     &&
-//                     self.thread_perms@[child_t_ptr].value().owning_container == container_ptr
-//             );
-//         };
-//         thread_ptr
-//     }        
+        proof {
+            self.thread_perms.borrow_mut().tracked_insert(thread_ptr, thread_perm.get());
+        }
 
 
-//     pub fn new_thread_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, proc_ptr:ProcPtr, pt_regs:&Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:ThreadPtr)
-//         requires
-//             old(self).wf(),
-//             old(self).proc_dom().contains(proc_ptr),
-//             old(self).thread_dom().contains(thread_ptr),
-//             old(self).page_closure().contains(page_ptr) == false,
-//             old(self).get_proc(proc_ptr).owned_threads.len() < MAX_NUM_THREADS_PER_PROC,
-//             old(self).get_container_by_proc_ptr(proc_ptr).mem_quota > 0,
-//             old(self).get_container_by_proc_ptr(proc_ptr).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
-//             old(self).get_thread(thread_ptr).owning_proc == proc_ptr,
-//             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
-//             old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).is_Some() || old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).is_Some(),
-//             old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).unwrap().rf_counter_is_full() == false || old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).rf_counter_is_full() == false,
-//             page_perm@.is_init(),
-//             page_perm@.addr() == page_ptr,
-//         ensures
-//             self.wf(),
-//             self.page_closure() =~= old(self).page_closure().insert(page_ptr),
-//             self.proc_dom() =~= old(self).proc_dom(),
-//             self.endpoint_dom() == old(self).endpoint_dom(),
-//             self.container_dom() == old(self).container_dom(),
-//             self.thread_dom() == old(self).thread_dom().insert(ret),
-//             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - 1 == self.get_container(self.get_thread(thread_ptr).owning_container).mem_quota,
-//             old(self).get_proc(proc_ptr).pcid =~= self.get_proc(proc_ptr).pcid,
-//             old(self).get_proc(proc_ptr).ioid =~= self.get_proc(proc_ptr).ioid,
-//             forall|p_ptr:ProcPtr|
-//                 #![trigger self.get_proc(p_ptr)]
-//                 self.proc_dom().contains(p_ptr) && p_ptr != proc_ptr
-//                 ==> 
-//                 self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
-//             forall|container_ptr:ContainerPtr|
-//                 #![trigger self.get_container(container_ptr)]
-//                 self.container_dom().contains(container_ptr) && container_ptr != self.get_thread(thread_ptr).owning_container
-//                 ==> 
-//                 self.get_container(container_ptr) =~= old(self).get_container(container_ptr)
-//                 &&
-//                 self.get_container(container_ptr).owned_threads@.contains(ret) == false,
-//             forall|t_ptr:ThreadPtr| 
-//                 #![trigger old(self).get_thread(t_ptr)]
-//                 old(self).thread_dom().contains(t_ptr)
-//                 ==>
-//                 old(self).get_thread(t_ptr) =~= self.get_thread(t_ptr),
-//             forall|e_ptr:EndpointPtr| 
-//                 #![trigger self.get_endpoint(e_ptr)]
-//                 self.endpoint_dom().contains(e_ptr) && e_ptr != old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()
-//                 ==> 
-//                 old(self).get_endpoint(e_ptr) =~= self.get_endpoint(e_ptr),
-//             self.get_proc(proc_ptr).owned_threads@ == old(self).get_proc(proc_ptr).owned_threads@.push(ret),
-//             self.get_container(self.get_thread(thread_ptr).owning_container).owned_procs =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).owned_procs,
-//             self.get_container(self.get_thread(thread_ptr).owning_container).owned_endpoints@ =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).owned_endpoints@,
-//             self.get_container(self.get_thread(thread_ptr).owning_container).subtree_set =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).subtree_set,
-//             self.get_container(self.get_thread(thread_ptr).owning_container).depth =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).depth,
-//             self.get_container(self.get_thread(thread_ptr).owning_container).owned_threads@ =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).owned_threads@.insert(ret),
-//             self.get_thread(ret).owning_container == old(self).get_thread(thread_ptr).owning_container,
-//             self.get_thread(ret).endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {None}).update(0, Some(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap())),
-//             self.get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).owning_threads@ =~= old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).owning_threads@.insert(ret),
-//             self.get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).queue_state =~= old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).queue_state,
-//     {
-//         let container_ptr = self.get_proc(proc_ptr).owning_container;
-//         let old_mem_quota =  self.get_container(container_ptr).mem_quota;
-//         let old_owned_threads = self.get_container(container_ptr).owned_threads;
-//         let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
-//         let mut proc_perm = Tracked(self.process_perms.borrow_mut().tracked_remove(proc_ptr));
-//         let proc_node_ref = proc_push_thread(proc_ptr,&mut proc_perm, &page_ptr);
-//         proof {
-//             self.process_perms.borrow_mut().tracked_insert(proc_ptr, proc_perm.get());
-//         }
 
-//         let scheduler_node_ref = self.container_tree_scheduler_push_thread(container_ptr, page_ptr);
-//         self.container_tree_set_quota(container_ptr, old_mem_quota - 1);
-//         self.container_tree_set_owned_threads(container_ptr, Ghost(old_owned_threads@.insert(page_ptr)));
-
-//         let (new_thread_ptr, new_thread_perm) = page_to_thread_with_endpoint(page_ptr, page_perm, pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref, endpoint_ptr);
-//         proof {
-//             self.thread_perms.borrow_mut().tracked_insert(new_thread_ptr, new_thread_perm.get());
-//         }
-
-//         let mut endpoint_perm = Tracked(self.endpoint_perms.borrow_mut().tracked_remove(endpoint_ptr));
-//         endpoint_add_ref(endpoint_ptr,&mut endpoint_perm, page_ptr);
-//         proof {
-//             self.endpoint_perms.borrow_mut().tracked_insert(endpoint_ptr, endpoint_perm.get());
-//         }
-//         assert(self.cpus_wf());
-//         assert(self.container_cpu_wf());
-//         assert(self.memory_disjoint());
-//         assert(self.container_perms_wf());
-//         assert(self.processes_container_wf());
-//         assert(self.processes_wf());
-
-//         assert(self.threads_process_wf()) by {
-//             seq_push_lemma::<ThreadPtr>();
-//             assert(self.process_perms@[proc_ptr].value().owned_threads@ =~= old(self).process_perms@[proc_ptr].value().owned_threads@.push(page_ptr));
-//             assert(
-//                 forall|child_t_ptr:ThreadPtr| 
-//                 #![auto]
-//                 old(self).process_perms@[proc_ptr].value().owned_threads@.contains(child_t_ptr)
-//                 ==> self.thread_perms@.dom().contains(child_t_ptr)
-//                     &&
-//                     self.thread_perms@[child_t_ptr].value().owning_proc == proc_ptr
-//             );
-//             assert(forall|p_ptr:ProcPtr| 
-//                 #![trigger self.process_perms@.dom().contains(p_ptr)]
-//                 self.process_perms@.dom().contains(p_ptr)
-//                 ==>
-//                 self.process_perms@[p_ptr].value().owned_threads.wf()
-//                 &&
-//                 self.process_perms@[p_ptr].value().owned_threads.unique()
-//             );
-//             assert(forall|p_ptr:ProcPtr, child_t_ptr:ThreadPtr| 
-//                 #![trigger self.process_perms@.dom().contains(p_ptr), self.thread_perms@[child_t_ptr].value().owning_proc]
-//                 #![trigger self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)]
-//                 self.process_perms@.dom().contains(p_ptr) && self.process_perms@[p_ptr].value().owned_threads@.contains(child_t_ptr)
-//                 ==> self.thread_perms@.dom().contains(child_t_ptr)
-//                     &&
-//                     self.thread_perms@[child_t_ptr].value().owning_proc == p_ptr
-//                 );
-//             assert(forall|t_ptr:ThreadPtr| 
-//                 #![trigger self.thread_perms@[t_ptr].value().owning_container]
-//                 #![trigger self.thread_perms@[t_ptr].value().owning_proc]
-//                 self.thread_perms@.dom().contains(t_ptr)
-//                 ==>
-//                 self.container_dom().contains(self.thread_perms@[t_ptr].value().owning_container)
-//                 &&
-//                 self.process_perms@.dom().contains(self.thread_perms@[t_ptr].value().owning_proc)
-//                 &&
-//                 self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads@.contains(t_ptr)
-//                 &&
-//                 self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads.node_ref_valid(self.thread_perms@[t_ptr].value().proc_rev_ptr)
-//                 &&
-//                 self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owned_threads.node_ref_resolve(self.thread_perms@[t_ptr].value().proc_rev_ptr) == t_ptr
-//                 &&
-//                 self.process_perms@[self.thread_perms@[t_ptr].value().owning_proc].value().owning_container == self.thread_perms@[t_ptr].value().owning_container
-//             );
-//         };
-//         assert(self.threads_perms_wf());
-//         assert(self.endpoint_perms_wf());
-//         assert(self.threads_endpoint_descriptors_wf()) by {
-//             seq_update_lemma::<Option<EndpointPtr>>();
-//             assert(forall|i:int| #![auto] 1 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.thread_perms@[new_thread_ptr].value().endpoint_descriptors@[i].is_None());
-//             assert(self.thread_perms@[new_thread_ptr].value().endpoint_descriptors@[0] =~= Some(endpoint_ptr));
-//         };
-//         assert(self.endpoints_queue_wf());
-//         assert(self.endpoints_container_wf()) by {
-//             // assert(
-//             //     forall|c_ptr:ContainerPtr| 
-//             //         #![trigger self.container_perms@[c_ptr]]
-//             //         self.container_dom().contains(c_ptr)
-//             //         ==> 
-//             //         self.get_container(c_ptr).owned_endpoints =~= old(self).get_container(c_ptr).owned_endpoints
-//             // );
-//             // assert(
-//             //     forall|child_e_ptr:EndpointPtr| 
-//             //         #![trigger self.endpoint_perms@.dom().contains(child_e_ptr)]
-//             //         self.endpoint_perms@.dom().contains(child_e_ptr) && child_e_ptr != endpoint_ptr
-//             //         ==> 
-//             //         self.endpoint_perms@[child_e_ptr].value() =~= old(self).endpoint_perms@[child_e_ptr].value()
-//             // );
-//             // assert(
-//             //     forall|c_ptr:ContainerPtr, child_e_ptr:EndpointPtr| 
-//             //         #![trigger self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)]
-//             //         self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_endpoints@.contains(child_e_ptr)
-//             //         ==> self.endpoint_perms@.dom().contains(child_e_ptr)
-//             //             &&
-//             //             self.endpoint_perms@[child_e_ptr].value().owning_container == c_ptr);
-//             // assert(
-//             //     forall|e_ptr:EndpointPtr| 
-//             //         #![trigger self.endpoint_perms@[e_ptr].value().owning_container]
-//             //         self.endpoint_perms@.dom().contains(e_ptr)
-//             //         ==>
-//             //         self.container_dom().contains(self.endpoint_perms@[e_ptr].value().owning_container)
-//             //         &&
-//             //         self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints@.to_set().contains(e_ptr)
-//             //         &&
-//             //         self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints.node_ref_valid(self.endpoint_perms@[e_ptr].value().container_rev_ptr)
-//             //         &&
-//             //         self.container_perms@[self.endpoint_perms@[e_ptr].value().owning_container].value().owned_endpoints.node_ref_resolve(self.endpoint_perms@[e_ptr].value().container_rev_ptr) == e_ptr);
-//         };
-//         assert(self.schedulers_wf()) by {
-//             seq_push_lemma::<ThreadPtr>();
-//             assert(self.get_container(container_ptr).scheduler@ =~= old(self).get_container(container_ptr).scheduler@.push(page_ptr));
-//             assert(
-//                 forall|child_t_ptr:ThreadPtr| 
-//                 #![auto]
-//                 old(self).get_container(container_ptr).scheduler@.contains(child_t_ptr)
-//                 ==> self.thread_perms@.dom().contains(child_t_ptr)
-//                     &&
-//                     self.thread_perms@[child_t_ptr].value().owning_container == container_ptr
-//             );
-//         };
-//         new_thread_ptr
-//     } 
+        assert(self.container_perms_wf());
+        assert(self.container_tree_wf()) by {
+            container_no_change_to_tree_fields_imply_wf(self.root_container, &old(self).container_perms, &self.container_perms);
+        };
+        assert(self.container_fields_wf());
+        assert(self.proc_perms_wf()) by {
+            assert(forall|p_ptr:ProcPtr| 
+                #![auto]
+                self.process_perms@.dom().contains(p_ptr) && proc_ptr != p_ptr
+                ==>
+                old(self).process_perms@[p_ptr].value().subtree_set =~= self.process_perms@[p_ptr].value().subtree_set
+            );
+        };
+        assert(self.process_trees_wf()) by 
+        {
+            // seq_to_set_lemma::<ProcPtr>();
+            assert forall|c_ptr:ContainerPtr|
+            #![trigger self.container_dom().contains(c_ptr)]
+            #![trigger self.process_tree_wf(c_ptr)]
+            self.container_dom().contains(c_ptr) && self.get_container(c_ptr).root_process.is_Some() implies self.process_tree_wf(c_ptr)
+                by {
+                    process_no_change_to_trees_fields_imply_wf(self.get_container(c_ptr).root_process.unwrap(), self.get_container(c_ptr).owned_procs@.to_set(), 
+                    old(self).process_perms@, self.process_perms@);
+            };
+        };
+        assert(self.process_fields_wf()) by {
+            assert(
+                forall|p_ptr:ProcPtr| 
+                #![trigger self.get_proc(p_ptr)]
+                    self.proc_dom().contains(p_ptr) && proc_ptr != p_ptr
+                    ==> 
+                    self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr));
+        };
+        assert(self.cpus_wf());
+        assert(self.container_cpu_wf());
+        assert(self.memory_disjoint());
+        assert(self.container_perms_wf());
+        assert(self.processes_container_wf());
+        assert(self.threads_process_wf()) by {
+            seq_push_lemma::<ThreadPtr>();
+            assert(
+                forall|p_ptr:ProcPtr| 
+                #![auto]
+                self.process_perms@.dom().contains(p_ptr) && p_ptr != proc_ptr
+                ==> 
+                old(self).process_perms@[p_ptr].value().owned_threads =~= self.process_perms@[p_ptr].value().owned_threads
+            );
+        };
+        assert(self.threads_perms_wf());
+        assert(self.endpoint_perms_wf());
+        assert(self.threads_endpoint_descriptors_wf());
+        assert(self.endpoints_queue_wf());
+        assert(self.endpoints_container_wf());
+        assert(self.schedulers_wf()) by {seq_push_lemma::<ThreadPtr>();};
+        assert(self.pcid_ioid_wf());
+        assert(self.threads_cpu_wf());
+        assert(self.threads_container_wf());
+        thread_ptr
+    }        
 
 
-//     pub fn new_proc_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, pt_regs:&Registers, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, page_ptr_2: PagePtr, page_perm_2: Tracked<PagePerm4k>, new_pcid:Pcid)
-//         requires
-//             old(self).wf(),
-//             old(self).thread_dom().contains(thread_ptr),
-//             old(self).page_closure().contains(page_ptr_1) == false,
-//             old(self).page_closure().contains(page_ptr_2) == false,
-//             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota >= 2,
-//             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_procs.len() < CONTAINER_PROC_LIST_LEN,
-//             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
-//             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
-//             old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).is_Some() || old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).is_Some(),
-//             old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).unwrap().rf_counter_is_full() == false || old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).rf_counter_is_full() == false,
-//             forall|p_ptr_i:ProcPtr| 
-//                 #![trigger old(self).proc_dom().contains(p_ptr_i) ]
-//                 old(self).proc_dom().contains(p_ptr_i) 
-//                 ==>
-//                 old(self).get_proc(p_ptr_i).pcid != new_pcid,
-//             page_perm_1@.is_init(),
-//             page_perm_1@.addr() == page_ptr_1,
-//             page_perm_2@.is_init(),
-//             page_perm_2@.addr() == page_ptr_2,
-//             page_ptr_1 != page_ptr_2,
-//         ensures
-//             self.wf(),
+    pub fn new_thread_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, proc_ptr:ProcPtr, pt_regs:&Registers, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:ThreadPtr)
+        requires
+            old(self).wf(),
+            old(self).proc_dom().contains(proc_ptr),
+            old(self).thread_dom().contains(thread_ptr),
+            old(self).page_closure().contains(page_ptr) == false,
+            old(self).get_proc(proc_ptr).owned_threads.len() < MAX_NUM_THREADS_PER_PROC,
+            old(self).get_container_by_proc_ptr(proc_ptr).mem_quota > 0,
+            old(self).get_container_by_proc_ptr(proc_ptr).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
+            old(self).get_thread(thread_ptr).owning_proc == proc_ptr,
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+            old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).is_Some() || old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).is_Some(),
+            old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).unwrap().rf_counter_is_full() == false || old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).rf_counter_is_full() == false,
+            page_perm@.is_init(),
+            page_perm@.addr() == page_ptr,
+        ensures
+            self.wf(),
+            self.page_closure() =~= old(self).page_closure().insert(page_ptr),
+            self.proc_dom() =~= old(self).proc_dom(),
+            self.endpoint_dom() == old(self).endpoint_dom(),
+            self.container_dom() == old(self).container_dom(),
+            self.thread_dom() == old(self).thread_dom().insert(ret),
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - 1 == self.get_container(self.get_thread(thread_ptr).owning_container).mem_quota,
+            old(self).get_proc(proc_ptr).pcid =~= self.get_proc(proc_ptr).pcid,
+            old(self).get_proc(proc_ptr).ioid =~= self.get_proc(proc_ptr).ioid,
+            forall|p_ptr:ProcPtr|
+                #![trigger self.get_proc(p_ptr)]
+                self.proc_dom().contains(p_ptr) && p_ptr != proc_ptr
+                ==> 
+                self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
+            forall|container_ptr:ContainerPtr|
+                #![trigger self.get_container(container_ptr)]
+                self.container_dom().contains(container_ptr) && container_ptr != self.get_thread(thread_ptr).owning_container
+                ==> 
+                self.get_container(container_ptr) =~= old(self).get_container(container_ptr)
+                &&
+                self.get_container(container_ptr).owned_threads@.contains(ret) == false,
+            forall|t_ptr:ThreadPtr| 
+                #![trigger old(self).get_thread(t_ptr)]
+                old(self).thread_dom().contains(t_ptr)
+                ==>
+                old(self).get_thread(t_ptr) =~= self.get_thread(t_ptr),
+            forall|e_ptr:EndpointPtr| 
+                #![trigger self.get_endpoint(e_ptr)]
+                self.endpoint_dom().contains(e_ptr) && e_ptr != old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()
+                ==> 
+                old(self).get_endpoint(e_ptr) =~= self.get_endpoint(e_ptr),
+            self.get_proc(proc_ptr).owned_threads@ == old(self).get_proc(proc_ptr).owned_threads@.push(ret),
+            self.get_container(self.get_thread(thread_ptr).owning_container).owned_procs =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).owned_procs,
+            self.get_container(self.get_thread(thread_ptr).owning_container).owned_endpoints@ =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).owned_endpoints@,
+            self.get_container(self.get_thread(thread_ptr).owning_container).subtree_set =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).subtree_set,
+            self.get_container(self.get_thread(thread_ptr).owning_container).depth =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).depth,
+            self.get_container(self.get_thread(thread_ptr).owning_container).owned_threads@ =~= old(self).get_container(self.get_thread(thread_ptr).owning_container).owned_threads@.insert(ret),
+            self.get_thread(ret).owning_container == old(self).get_thread(thread_ptr).owning_container,
+            self.get_thread(ret).endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {None}).update(0, Some(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap())),
+            self.get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).owning_threads@ =~= old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).owning_threads@.insert((ret,0)),
+            self.get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).queue_state =~= old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).queue_state,
+    {
+
+            proof{seq_push_lemma::<ThreadPtr>();}
+            let container_ptr = self.get_proc(proc_ptr).owning_container;
+            let old_mem_quota =  self.get_container(container_ptr).mem_quota;
+            let old_owned_threads = self.get_container(container_ptr).owned_threads;
+            let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
+            let mut proc_perm = Tracked(self.process_perms.borrow_mut().tracked_remove(proc_ptr));
+            let proc_node_ref = proc_push_thread(proc_ptr,&mut proc_perm, &page_ptr);
+            proof {
+                self.process_perms.borrow_mut().tracked_insert(proc_ptr, proc_perm.get());
+            }
+    
+            let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+            let scheduler_node_ref = scheduler_push_thread(container_ptr,&mut container_perm, &page_ptr);
+            container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 1);
+            container_set_owned_threads(container_ptr,&mut container_perm, Ghost(old_owned_threads@.insert(page_ptr)));
+            proof {
+                self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+            }
+    
+            let (thread_ptr, thread_perm) = page_to_thread_with_endpoint(page_ptr, page_perm, &pt_regs, container_ptr, proc_ptr, proc_node_ref, scheduler_node_ref, endpoint_ptr);
+            
+            proof {
+                self.thread_perms.borrow_mut().tracked_insert(thread_ptr, thread_perm.get());
+            }
+    
+            let mut endpoint_perm = Tracked(self.endpoint_perms.borrow_mut().tracked_remove(endpoint_ptr));
+            endpoint_add_ref(endpoint_ptr,&mut endpoint_perm, page_ptr, 0);
+            proof {
+                self.endpoint_perms.borrow_mut().tracked_insert(endpoint_ptr, endpoint_perm.get());
+            }
+    
+            assert(self.container_perms_wf());
+            assert(self.container_tree_wf()) by {
+                container_no_change_to_tree_fields_imply_wf(self.root_container, &old(self).container_perms, &self.container_perms);
+            };
+            assert(self.container_fields_wf());
+            assert(self.proc_perms_wf()) by {
+                assert(forall|p_ptr:ProcPtr| 
+                    #![auto]
+                    self.process_perms@.dom().contains(p_ptr) && proc_ptr != p_ptr
+                    ==>
+                    old(self).process_perms@[p_ptr].value().subtree_set =~= self.process_perms@[p_ptr].value().subtree_set
+                );
+            };
+            assert(self.process_trees_wf()) by 
+            {
+                // seq_to_set_lemma::<ProcPtr>();
+                assert forall|c_ptr:ContainerPtr|
+                #![trigger self.container_dom().contains(c_ptr)]
+                #![trigger self.process_tree_wf(c_ptr)]
+                self.container_dom().contains(c_ptr) && self.get_container(c_ptr).root_process.is_Some() implies self.process_tree_wf(c_ptr)
+                    by {
+                        process_no_change_to_trees_fields_imply_wf(self.get_container(c_ptr).root_process.unwrap(), self.get_container(c_ptr).owned_procs@.to_set(), 
+                        old(self).process_perms@, self.process_perms@);
+                };
+            };
+            assert(self.process_fields_wf()) by {
+                assert(
+                    forall|p_ptr:ProcPtr| 
+                    #![trigger self.get_proc(p_ptr)]
+                        self.proc_dom().contains(p_ptr) && proc_ptr != p_ptr
+                        ==> 
+                        self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr));
+            };
+            assert(self.cpus_wf());
+            assert(self.container_cpu_wf());
+            assert(self.memory_disjoint());
+            assert(self.container_perms_wf());
+            assert(self.processes_container_wf());
+            assert(self.threads_process_wf()) by {
+                assert(
+                    forall|p_ptr:ProcPtr| 
+                    #![auto]
+                    self.process_perms@.dom().contains(p_ptr) && p_ptr != proc_ptr
+                    ==> 
+                    old(self).process_perms@[p_ptr].value().owned_threads =~= self.process_perms@[p_ptr].value().owned_threads
+                );
+            };
+            assert(self.threads_perms_wf());
+            assert(self.endpoint_perms_wf());
+            assert(self.threads_endpoint_descriptors_wf());
+            assert(self.endpoints_queue_wf());
+            assert(self.endpoints_container_wf());
+            assert(self.schedulers_wf());
+            assert(self.pcid_ioid_wf());
+            assert(self.threads_cpu_wf());
+            assert(self.threads_container_wf());
+            thread_ptr
+    } 
+
+
+    pub fn new_proc_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, pt_regs:&Registers, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, page_ptr_2: PagePtr, page_perm_2: Tracked<PagePerm4k>, new_pcid:Pcid)
+        requires
+            old(self).wf(),
+            old(self).thread_dom().contains(thread_ptr),
+            old(self).page_closure().contains(page_ptr_1) == false,
+            old(self).page_closure().contains(page_ptr_2) == false,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota >= 2,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_procs.len() < CONTAINER_PROC_LIST_LEN,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
+            old(self).get_proc(old(self).get_thread(thread_ptr).owning_proc).children.len() < PROC_CHILD_LIST_LEN,
+            old(self).get_proc(old(self).get_thread(thread_ptr).owning_proc).depth != usize::MAX,
+            0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
+            old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).is_Some() || old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).is_Some(),
+            old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).unwrap().rf_counter_is_full() == false || old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).rf_counter_is_full() == false,
+            forall|p_ptr_i:ProcPtr| 
+                #![trigger old(self).proc_dom().contains(p_ptr_i) ]
+                old(self).proc_dom().contains(p_ptr_i) 
+                ==>
+                old(self).get_proc(p_ptr_i).pcid != new_pcid,
+            page_perm_1@.is_init(),
+            page_perm_1@.addr() == page_ptr_1,
+            page_perm_2@.is_init(),
+            page_perm_2@.addr() == page_ptr_2,
+            page_ptr_1 != page_ptr_2,
+        ensures
+            self.wf(),
 //             self.page_closure() =~= old(self).page_closure().insert(page_ptr_1).insert(page_ptr_2),
 //             self.proc_dom() =~= old(self).proc_dom().insert(page_ptr_1),
 //             self.endpoint_dom() == old(self).endpoint_dom(),
@@ -1729,121 +1760,146 @@ impl ProcessManager{
 //             self.get_thread(page_ptr_2).owning_container == old(self).get_thread(thread_ptr).owning_container,
 //             self.get_thread(page_ptr_2).endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {None}).update(0, Some(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap())),
 //             self.get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).owning_threads@ =~= old(self).get_endpoint(old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).unwrap()).owning_threads@.insert(page_ptr_2),
-//     {
-//         // proof{seq_push_lemma::<ThreadPtr>();}
-//         let container_ptr = self.get_thread(thread_ptr).owning_container;
-//         let old_mem_quota =  self.get_container(container_ptr).mem_quota;
-//         let old_owned_threads = self.get_container(container_ptr).owned_threads;
-//         let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
+    {
+        // proof{seq_push_lemma::<ThreadPtr>();}
+        let container_ptr = self.get_thread(thread_ptr).owning_container;
+        let old_proc_ptr = self.get_thread(thread_ptr).owning_proc;
+        let old_mem_quota =  self.get_container(container_ptr).mem_quota;
+        let old_owned_threads = self.get_container(container_ptr).owned_threads;
+        let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
 
-//         let proc_list_node_ref = self.container_tree_push_proc(container_ptr, page_ptr_1);
-//         let scheduler_node_ref = self.container_tree_scheduler_push_thread(container_ptr, page_ptr_2);
-//         self.container_tree_set_quota(container_ptr, old_mem_quota - 2);
-//         self.container_tree_set_owned_threads(container_ptr, Ghost(old_owned_threads@.insert(page_ptr_2)));
+        let old_upper_tree_seq = self.get_proc(old_proc_ptr).uppertree_seq;
+        let old_depth = self.get_proc(old_proc_ptr).depth;
 
-//         let (new_proc_ptr, mut proc_perm, proc_thread_list_node_ref) = page_to_proc_with_first_thread(page_ptr_1, page_perm_1, container_ptr, proc_list_node_ref, new_pcid, None, page_ptr_2);
-//         proof {
-//             self.process_perms.borrow_mut().tracked_insert(new_proc_ptr, proc_perm.get());
-//         }
+        assert forall |p_ptr:ProcPtr| 
+            #![trigger self.get_proc(p_ptr).children] 
+            #![trigger self.get_proc(p_ptr).uppertree_seq] 
+            self.proc_dom().contains(p_ptr) 
+            implies 
+            self.get_proc(p_ptr).children@.contains(page_ptr_1) == false 
+            &&
+            self.get_proc(p_ptr).uppertree_seq@.contains(page_ptr_1) == false 
+            &&
+            self.get_proc(p_ptr).uppertree_seq@.contains(p_ptr) == false 
+        by{
+            proc_tree_wf_imply_childern_uppertree_specs(
+                self.get_container(self.get_proc(p_ptr).owning_container).root_process.unwrap(), 
+                self.get_container(self.get_proc(p_ptr).owning_container).owned_procs@.to_set(),
+                self.process_perms@);
+        };
 
-//         let (new_thread_ptr, thread_perm) = page_to_thread_with_endpoint(page_ptr_2, page_perm_2, pt_regs, container_ptr, new_proc_ptr, proc_thread_list_node_ref, scheduler_node_ref, endpoint_ptr);
-//         proof {
-//             self.thread_perms.borrow_mut().tracked_insert(new_thread_ptr, thread_perm.get());
-//         }
+        let mut old_proc_perm = Tracked(self.process_perms.borrow_mut().tracked_remove(old_proc_ptr));
+        let child_list_node_ref = proc_push_child(old_proc_ptr,&mut old_proc_perm, &page_ptr_1);
+        proof {
+            self.process_perms.borrow_mut().tracked_insert(old_proc_ptr, old_proc_perm.get());
+        }
 
-//         let mut endpoint_perm = Tracked(self.endpoint_perms.borrow_mut().tracked_remove(endpoint_ptr));
-//         endpoint_add_ref(endpoint_ptr,&mut endpoint_perm, new_thread_ptr);
-//         proof {
-//             self.endpoint_perms.borrow_mut().tracked_insert(endpoint_ptr, endpoint_perm.get());
-//         }
+        let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
+        let proc_list_node_ref = container_push_proc(container_ptr,&mut container_perm, page_ptr_1);
+        let scheduler_node_ref = scheduler_push_thread(container_ptr, &mut container_perm, &page_ptr_2);
+        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 2);
+        container_set_owned_threads(container_ptr,&mut container_perm, Ghost(old_owned_threads@.insert(page_ptr_2)));
+        proof {
+            self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
+        }
 
-//         assert(self.cpus_wf());
-//         assert(self.container_cpu_wf());
-//         assert(self.memory_disjoint());
-//         assert(self.container_perms_wf());
-//         assert(self.processes_container_wf()) by {
-//             seq_push_lemma::<ProcPtr>();
-//             assert(self.process_perms@[new_proc_ptr].value().owning_container == container_ptr);
-//             assert(self.process_perms@.dom().contains(new_proc_ptr));
-//             assert(
-//                 forall|child_p_ptr:ProcPtr| 
-//                     #![trigger old(self).get_container(container_ptr).owned_procs@.contains(child_p_ptr) ]
-//                     (old(self).get_container(container_ptr).owned_procs@.contains(child_p_ptr) || child_p_ptr == new_proc_ptr)
-//                     <==> 
-//                     self.get_container(container_ptr).owned_procs@.contains(child_p_ptr)
-//             );
-//             // assert(forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-//             //     #![trigger self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
-//             //     self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_procs@.contains(child_p_ptr) && c_ptr != container_ptr
-//             //     ==> 
-//             //     self.process_perms@.dom().contains(child_p_ptr)
-//             //     &&
-//             //     self.process_perms@[child_p_ptr].value().owning_container == c_ptr);
-//             assert(forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-//                 #![trigger self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
-//                 self.container_dom().contains(c_ptr) && old(self).get_container(c_ptr).owned_procs@.contains(child_p_ptr) && c_ptr == container_ptr 
-//                 ==> 
-//                 self.process_perms@.dom().contains(child_p_ptr)
-//                 &&
-//                 self.process_perms@[child_p_ptr].value().owning_container == c_ptr);
-//             assert(forall|c_ptr:ContainerPtr, child_p_ptr:ProcPtr| 
-//                 #![trigger self.get_container(c_ptr).owned_procs@.contains(child_p_ptr)]
-//                 self.container_dom().contains(c_ptr) && self.get_container(c_ptr).owned_procs@.contains(child_p_ptr) && c_ptr == container_ptr 
-//                 ==> 
-//                 self.process_perms@.dom().contains(child_p_ptr)
-//                 &&
-//                 self.process_perms@[child_p_ptr].value().owning_container == c_ptr);
-//             // assert(forall|p_ptr:ProcPtr| 
-//             //     #![trigger self.process_perms@[p_ptr].value().owning_container]
-//             //     self.process_perms@.dom().contains(p_ptr)
-//             //     ==>
-//             //     self.container_dom().contains(self.process_perms@[p_ptr].value().owning_container)
-//             //     &&
-//             //     self.container_perms@[self.process_perms@[p_ptr].value().owning_container].value().owned_procs@.to_set().contains(p_ptr)
-//             //     &&
-//             //     self.container_perms@[self.process_perms@[p_ptr].value().owning_container].value().owned_procs.node_ref_valid(self.process_perms@[p_ptr].value().rev_ptr)
-//             //     &&
-//             //     self.container_perms@[self.process_perms@[p_ptr].value().owning_container].value().owned_procs.node_ref_resolve(self.process_perms@[p_ptr].value().rev_ptr) == p_ptr);
-//         };
-//         assert(self.processes_wf());
+        let (new_proc_ptr, mut proc_perm, proc_thread_list_node_ref) = page_to_proc_with_first_thread(page_ptr_1, page_perm_1, container_ptr, proc_list_node_ref, new_pcid, None, page_ptr_2, 
+            Some(old_proc_ptr), Some(child_list_node_ref), Ghost(old_upper_tree_seq@.push(old_proc_ptr)), Ghost(Set::empty()), old_depth + 1);
+        proof {
+            self.process_perms.borrow_mut().tracked_insert(new_proc_ptr, proc_perm.get());
+        }
+        let (new_thread_ptr, thread_perm) = page_to_thread_with_endpoint(page_ptr_2, page_perm_2, pt_regs, container_ptr, new_proc_ptr, proc_thread_list_node_ref, scheduler_node_ref, endpoint_ptr);
+        proof {
+            self.thread_perms.borrow_mut().tracked_insert(new_thread_ptr, thread_perm.get());
+        }
 
-//         assert(self.threads_process_wf()) by {
-//             seq_push_lemma::<ThreadPtr>();
-//             // assert(self.process_perms@[new_proc_ptr].value().owned_threads@ =~= Seq::<ThreadPtr>::empty().push(new_thread_ptr));
-//             // assert(
-//             //     forall|child_t_ptr:ThreadPtr| 
-//             //     #![auto]
-//             //     self.process_perms@[new_proc_ptr].value().owned_threads@.contains(child_t_ptr)
-//             //     ==> self.thread_perms@.dom().contains(child_t_ptr)
-//             //         &&
-//             //         self.thread_perms@[child_t_ptr].value().owning_proc == new_proc_ptr
-//             // );
-//         };
-//         assert(self.threads_perms_wf());
-//         assert(self.endpoint_perms_wf());
-//         assert(self.threads_endpoint_descriptors_wf()) by {
-//             seq_update_lemma::<Option<EndpointPtr>>();
-//             assert(forall|i:int| #![auto] 1 <= i < MAX_NUM_ENDPOINT_DESCRIPTORS ==> self.thread_perms@[new_thread_ptr].value().endpoint_descriptors@[i].is_None());
-//             assert(self.thread_perms@[new_thread_ptr].value().endpoint_descriptors@[0] =~= Some(endpoint_ptr));
-//         };
-//         assert(self.endpoints_queue_wf());
-//         assert(self.endpoints_container_wf());
-//         assert(self.schedulers_wf()) by {
-//             seq_push_lemma::<ThreadPtr>();
-//             assert(self.get_container(container_ptr).scheduler@ =~= old(self).get_container(container_ptr).scheduler@.push(new_thread_ptr));
-//             assert(
-//                 forall|child_t_ptr:ThreadPtr| 
-//                 #![auto]
-//                 old(self).get_container(container_ptr).scheduler@.contains(child_t_ptr)
-//                 ==> self.thread_perms@.dom().contains(child_t_ptr)
-//                     &&
-//                     self.thread_perms@[child_t_ptr].value().owning_container == container_ptr
-//             );
-//         };
-//         assert(self.pcid_ioid_wf());
-//         assert(self.threads_cpu_wf());
-//         assert(self.threads_container_wf());
-//     } 
+        let mut endpoint_perm = Tracked(self.endpoint_perms.borrow_mut().tracked_remove(endpoint_ptr));
+        endpoint_add_ref(endpoint_ptr,&mut endpoint_perm, new_thread_ptr, 0);
+        proof {
+            self.endpoint_perms.borrow_mut().tracked_insert(endpoint_ptr, endpoint_perm.get());
+        }
+
+        proc_perms_update_subtree_set(&mut self.process_perms, Ghost(old_upper_tree_seq@.push(old_proc_ptr)), new_proc_ptr);
+        assert(self.container_perms_wf());
+        assert(self.container_tree_wf()) by {
+            container_no_change_to_tree_fields_imply_wf(self.root_container, &old(self).container_perms, &self.container_perms);
+        };
+        assert(self.container_fields_wf());
+        assert(self.proc_perms_wf()) by {
+            seq_push_lemma::<usize>();
+            seq_push_unique_lemma::<usize>();
+        };
+        assert(self.process_trees_wf()) by 
+        {
+            // seq_to_set_lemma::<ProcPtr>();           
+            seq_push_lemma::<usize>();
+            seq_push_unique_lemma::<usize>();
+
+            assert forall|c_ptr:ContainerPtr|
+            #![trigger self.container_dom().contains(c_ptr)]
+            #![trigger self.process_tree_wf(c_ptr)]
+            self.container_dom().contains(c_ptr) && 
+            self.get_container(c_ptr).root_process.is_Some() 
+            implies 
+            self.process_tree_wf(c_ptr)
+                by {
+                    if c_ptr != container_ptr{
+                        assert(
+                            forall|p_ptr:ProcPtr|
+                            #![auto]
+                                Ghost(old_upper_tree_seq@.push(old_proc_ptr))@.contains(p_ptr) ==>
+                                self.get_container(c_ptr).owned_procs@.to_set().contains(p_ptr) == false
+                        ) by {
+                            old(self).wf_imply_container_owned_proc_disjoint();
+                            proc_tree_wf_imply_uppertree_subset_of_tree(old(self).get_container(container_ptr).root_process.unwrap(), old(self).get_container(container_ptr).owned_procs@.to_set(), 
+                                old(self).process_perms@);
+                        };
+                        process_no_change_to_tree_fields_imply_wf(self.get_container(c_ptr).root_process.unwrap(), self.get_container(c_ptr).owned_procs@.to_set(), 
+                            old(self).process_perms@, self.process_perms@);
+                        assert(self.process_tree_wf(c_ptr));
+                    }
+                    else{
+                        proc_tree_wf_imply_uppertree_subset_of_tree(old(self).get_container(container_ptr).root_process.unwrap(), old(self).get_container(container_ptr).owned_procs@.to_set(), 
+                        old(self).process_perms@);
+            
+                        new_proc_preserve_tree_inv(self.get_container(container_ptr).root_process.unwrap(), old(self).get_container(container_ptr).owned_procs@.to_set(), 
+                            old(self).process_perms@, self.process_perms@, old_proc_ptr, new_proc_ptr);
+                        assert(self.get_container(container_ptr).owned_procs@.to_set() =~= old(self).get_container(container_ptr).owned_procs@.to_set().insert(new_proc_ptr));
+                        assert(self.process_tree_wf(container_ptr));
+                    }
+            };
+
+        };
+        assert(self.process_fields_wf()) by {
+        };
+        assert(self.cpus_wf());
+        assert(self.container_cpu_wf());
+        assert(self.memory_disjoint());
+        assert(self.container_perms_wf());
+        assert(self.processes_container_wf()) by {            
+            seq_push_lemma::<usize>();
+            seq_push_unique_lemma::<usize>();
+        };
+        assert(self.threads_process_wf()) by {
+            seq_push_lemma::<usize>();
+            seq_push_unique_lemma::<usize>();
+        };
+        assert(self.threads_perms_wf());
+        assert(self.endpoint_perms_wf());
+        assert(self.threads_endpoint_descriptors_wf());
+        assert(self.endpoints_queue_wf());
+        assert(self.endpoints_container_wf());
+        assert(self.schedulers_wf()) by {
+            seq_push_lemma::<usize>();
+            seq_push_unique_lemma::<usize>();
+        };
+        assert(self.pcid_ioid_wf());
+        assert(self.threads_cpu_wf());
+        assert(self.threads_container_wf()) by {
+            seq_push_lemma::<usize>();
+            seq_push_unique_lemma::<usize>();
+        };
+    } 
 
 //     pub fn new_container_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, pt_regs:Registers, new_pcid:Pcid, new_quota:usize, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, page_ptr_2: PagePtr, page_perm_2: Tracked<PagePerm4k>, page_ptr_3: PagePtr, page_perm_3: Tracked<PagePerm4k>)
 //         requires
@@ -2891,7 +2947,7 @@ impl ProcessManager{
 //     }
 
 
-// }
+}
 
 }
 

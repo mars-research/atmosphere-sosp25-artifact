@@ -54,6 +54,15 @@ pub proof fn seq_push_lemma<A>()
 }
 
 #[verifier(external_body)]
+pub proof fn seq_to_set_lemma<A>()
+    ensures
+    forall|s: Seq<A>, a:A|
+        #![trigger s.contains(a)]
+        #![trigger s.to_set().contains(a)]
+        s.contains(a) == s.to_set().contains(a)
+{}
+
+#[verifier(external_body)]
 pub proof fn seq_pop_unique_lemma<A>()
     ensures
         forall|s: Seq<A>, i:int|

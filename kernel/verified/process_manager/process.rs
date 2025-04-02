@@ -12,7 +12,7 @@ verus! {
 
         pub parent: Option<ProcPtr>,
         pub parent_rev_ptr: Option<SLLIndex>,
-        pub children: StaticLinkedList<ProcPtr,CONTAINER_CHILD_LIST_LEN>,
+        pub children: StaticLinkedList<ProcPtr,PROC_CHILD_LIST_LEN>,
         pub uppertree_seq: Ghost<Seq<ProcPtr>>,
         pub subtree_set: Ghost<Set<ProcPtr>>,
         pub depth: usize,

@@ -8,7 +8,7 @@ verus! {
     use crate::lemma::lemma_u::*;
     use crate::lemma::lemma_t::*;
     use crate::process_manager::container_util_t::*;
-    use crate::process_manager::spec_impl::ProcessManager;
+    // use crate::process_manager::spec_impl::ProcessManager;
 
     pub open spec fn container_perms_wf(root_container:ContainerPtr, container_perms:&Tracked<Map<ContainerPtr, PointsTo<Container>>>) -> bool{
         &&&
@@ -124,9 +124,9 @@ verus! {
         &&&
         forall|c_ptr:ContainerPtr| 
             #![trigger container_perms@[c_ptr].value().parent_rev_ptr.is_Some()]
-            #![trigger container_perms@[container_perms@[c_ptr].value().parent.unwrap()].value().children@.contains(c_ptr)]
-            #![trigger container_perms@[container_perms@[c_ptr].value().parent.unwrap()].value().children.node_ref_valid(container_perms@[c_ptr].value().parent_rev_ptr.unwrap())]
-            #![trigger container_perms@[container_perms@[c_ptr].value().parent.unwrap()].value().children.node_ref_resolve(container_perms@[c_ptr].value().parent_rev_ptr.unwrap())]
+            // #![trigger container_perms@[container_perms@[c_ptr].value().parent.unwrap()].value().children@.contains(c_ptr)]
+            // #![trigger container_perms@[container_perms@[c_ptr].value().parent.unwrap()].value().children.node_ref_valid(container_perms@[c_ptr].value().parent_rev_ptr.unwrap())]
+            // #![trigger container_perms@[container_perms@[c_ptr].value().parent.unwrap()].value().children.node_ref_resolve(container_perms@[c_ptr].value().parent_rev_ptr.unwrap())]
             container_perms@.dom().contains(c_ptr) && c_ptr != root_container 
             ==> 
             container_perms@[c_ptr].value().parent_rev_ptr.is_Some()
@@ -479,7 +479,7 @@ verus! {
         );
     }
 
-    pub proof fn no_change_to_tree_fields_imply_wf(root_container:ContainerPtr, old_container_perms:&Tracked<Map<ContainerPtr, PointsTo<Container>>>,  new_container_perms:&Tracked<Map<ContainerPtr, PointsTo<Container>>>)
+    pub proof fn container_no_change_to_tree_fields_imply_wf(root_container:ContainerPtr, old_container_perms:&Tracked<Map<ContainerPtr, PointsTo<Container>>>,  new_container_perms:&Tracked<Map<ContainerPtr, PointsTo<Container>>>)
         requires
             container_tree_wf(root_container, old_container_perms),
             container_perms_wf(root_container, new_container_perms),

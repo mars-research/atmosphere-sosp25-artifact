@@ -8,7 +8,7 @@ verus! {
         pub queue_state: EndpointState,
     
         pub rf_counter: usize,
-        pub owning_threads: Ghost<Set<ThreadPtr>>,
+        pub owning_threads: Ghost<Set<(ThreadPtr, EndpointIdx)>>,
 
         pub owning_container: ContainerPtr,
         pub container_rev_ptr: SLLIndex,
@@ -19,7 +19,7 @@ verus! {
             self.rf_counter == usize::MAX
         }
 
-        pub open spec fn get_owning_threads(&self) -> Set<ThreadPtr>{
+        pub open spec fn get_owning_threads(&self) -> Set<(ThreadPtr, EndpointIdx)>{
             self.owning_threads@
         }
     }

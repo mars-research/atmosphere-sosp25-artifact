@@ -32,6 +32,7 @@ pub fn scheduler_push_thread(container_ptr:ContainerPtr, container_perm: &mut Tr
         container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
         container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
         container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
 
         container_perm@.value().scheduler.wf(),
@@ -84,6 +85,7 @@ pub fn scheduler_pop_head(container_ptr:ContainerPtr, container_perm: &mut Track
         container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
         container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
         container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
 
         container_perm@.value().scheduler.wf(),
@@ -147,6 +149,7 @@ pub fn container_push_proc(container_ptr:ContainerPtr, container_perm: &mut Trac
         container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
         container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
         container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
         container_perm@.value().owned_procs.wf(),
         container_perm@.value().owned_procs@ == old(container_perm)@.value().owned_procs@.push(p_ptr),
@@ -200,6 +203,7 @@ pub fn container_push_child(container_ptr:ContainerPtr, container_perm: &mut Tra
         container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
         container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
         container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
         container_perm@.value().children.wf(),
         container_perm@.value().children@ == old(container_perm)@.value().children@.push(c_ptr),
@@ -253,6 +257,7 @@ pub fn container_push_endpoint(container_ptr:ContainerPtr, container_perm: &mut 
         container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
         container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
         container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
         container_perm@.value().owned_endpoints.wf(),
         container_perm@.value().owned_endpoints@ == old(container_perm)@.value().owned_endpoints@.push(e_ptr),
@@ -303,6 +308,8 @@ pub fn container_set_mem_quota(container_ptr:ContainerPtr, container_perm: &mut 
         container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
         container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
         container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
         container_perm@.value().mem_quota =~= value,
 {
@@ -334,13 +341,15 @@ pub fn container_set_owned_threads(container_ptr:ContainerPtr, container_perm: &
         container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
         container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
         container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
         container_perm@.value().owned_threads =~= owned_threads,
 {
 }
 
 #[verifier(external_body)]
-pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, first_proc:ProcPtr, parent_container:ContainerPtr, parent_rev_ptr:SLLIndex, init_quota:usize, new_cpus: ArraySet<NUM_CPUS>, first_thread:ThreadPtr) -> (ret:(SLLIndex,SLLIndex,ContainerPtr,Tracked<PointsTo<Container>>))
+pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, first_proc:ProcPtr, parent_container:ContainerPtr, 
+    parent_rev_ptr:SLLIndex, init_quota:usize, new_cpus: ArraySet<NUM_CPUS>, first_thread:ThreadPtr) -> (ret:(SLLIndex,SLLIndex,ContainerPtr,Tracked<PointsTo<Container>>))
     requires    
         page_perm@.is_init(),
         page_perm@.addr() == page_ptr,
@@ -388,6 +397,7 @@ pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, firs
         ret.3@.value().scheduler.node_ref_resolve(ret.1) == first_thread,
         ret.3@.value().owned_threads@ =~= Set::<ThreadPtr>::empty().insert(first_thread),
         ret.3@.value().can_have_children =~= false,
+        ret.3@.value().root_process =~= Some(first_proc),
 {
     unsafe{
         let uptr = page_ptr as *mut MaybeUninit<Container>;
@@ -402,6 +412,7 @@ pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, firs
         (*uptr).assume_init_mut().owned_cpus = new_cpus;
         (*uptr).assume_init_mut().scheduler.init();
         let sll2 = (*uptr).assume_init_mut().scheduler.push(&first_thread);
+        (*uptr).assume_init_mut().root_process = Some(first_proc);
         (sll1,sll2,page_ptr, Tracked::assume_new())
     }
 }
@@ -462,6 +473,7 @@ pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<Page
         ret.3@.value().uppertree_seq =~= uppertree_seq,
 
         ret.3@.value().can_have_children =~= false,
+        ret.3@.value().root_process =~= Some(first_proc),
 {
     unsafe{
         let uptr = page_ptr as *mut MaybeUninit<Container>;
@@ -477,6 +489,7 @@ pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<Page
         (*uptr).assume_init_mut().scheduler.init();
         (*uptr).assume_init_mut().depth = depth;
         let sll2 = (*uptr).assume_init_mut().scheduler.push(&first_thread);
+        (*uptr).assume_init_mut().root_process = Some(first_proc);
         (sll1,sll2,page_ptr, Tracked::assume_new())
     }
 }

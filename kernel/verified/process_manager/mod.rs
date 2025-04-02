@@ -6,7 +6,7 @@ pub mod process_tree;
 // pub mod process_tree_spec_impl;
 pub mod thread;
 pub mod endpoint;
-pub mod spec_impl;
+// pub mod spec_impl;
 pub mod cpu;
 pub mod thread_util_t;
 pub mod proc_util_t;

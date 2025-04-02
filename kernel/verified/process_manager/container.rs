@@ -12,7 +12,7 @@ verus! {
         pub uppertree_seq: Ghost<Seq<ContainerPtr>>,
         pub subtree_set: Ghost<Set<ContainerPtr>>,
 
-        pub root_process: ProcPtr,
+        pub root_process: Option<ProcPtr>,
         pub owned_procs: StaticLinkedList<ProcPtr,CONTAINER_PROC_LIST_LEN>,
         pub owned_endpoints: StaticLinkedList<EndpointPtr,CONTAINER_ENDPOINT_LIST_LEN>,
         pub owned_threads: Ghost<Set<ThreadPtr>>,

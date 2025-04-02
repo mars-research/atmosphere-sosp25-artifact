@@ -14,6 +14,7 @@ verus! {
         pub scheduler_rev_ptr: Option<SLLIndex>,
         
         pub blocking_endpoint_ptr: Option<EndpointPtr>,
+        pub blocking_endpoint_index: Option<EndpointIdx>,
         pub endpoint_rev_ptr: Option<SLLIndex>,
 
         pub running_cpu: Option<CpuId>,

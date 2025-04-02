@@ -7,12 +7,12 @@ use crate::process_manager::endpoint::*;
 
 
 #[verifier(external_body)]
-pub fn endpoint_add_ref(endpoint_ptr:EndpointPtr, endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr: ThreadPtr)
+pub fn endpoint_add_ref(endpoint_ptr:EndpointPtr, endpoint_perm: &mut Tracked<PointsTo<Endpoint>>, thread_ptr: ThreadPtr, endpoint_idx: EndpointIdx)
     requires    
         old(endpoint_perm)@.is_init(),
         old(endpoint_perm)@.addr() == endpoint_ptr,
         old(endpoint_perm)@.value().rf_counter != usize::MAX,
-        old(endpoint_perm)@.value().get_owning_threads().contains(thread_ptr) == false,
+        old(endpoint_perm)@.value().get_owning_threads().contains((thread_ptr, endpoint_idx)) == false,
     ensures
         endpoint_perm@.is_init(),
         endpoint_perm@.addr() == endpoint_ptr, 
@@ -23,7 +23,7 @@ pub fn endpoint_add_ref(endpoint_ptr:EndpointPtr, endpoint_perm: &mut Tracked<Po
         endpoint_perm@.value().owning_container == old(endpoint_perm)@.value().owning_container,
         endpoint_perm@.value().container_rev_ptr == old(endpoint_perm)@.value().container_rev_ptr,
         endpoint_perm@.value().rf_counter == old(endpoint_perm)@.value().rf_counter + 1,
-        endpoint_perm@.value().get_owning_threads() == old(endpoint_perm)@.value().get_owning_threads().insert(thread_ptr),
+        endpoint_perm@.value().get_owning_threads() == old(endpoint_perm)@.value().get_owning_threads().insert((thread_ptr, endpoint_idx)),
 {
     unsafe{
         let uptr = endpoint_ptr as *mut MaybeUninit<Endpoint>;
@@ -230,7 +230,7 @@ pub fn page_to_endpoint(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (r
         ret.1@.value().queue@ =~= Seq::<ThreadPtr>::empty(),
         ret.1@.value().queue_state =~= EndpointState::SEND,
         ret.1@.value().rf_counter =~= 0,
-        ret.1@.value().owning_threads@ =~= Set::<ThreadPtr>::empty(),
+        ret.1@.value().owning_threads@ =~= Set::<(ThreadPtr,EndpointIdx)>::empty(),
         ret.1@.value().owning_container == 0,
         ret.1@.value().container_rev_ptr == 0,
 {
@@ -246,7 +246,7 @@ pub fn page_to_endpoint(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (r
 }
 
 
-pub fn page_to_endpoint_with_thread_and_container(owning_container:ContainerPtr, owning_thread:ThreadPtr, sll:SLLIndex, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:(EndpointPtr,Tracked<PointsTo<Endpoint>>))
+pub fn page_to_endpoint_with_thread_and_container(owning_container:ContainerPtr, owning_thread:ThreadPtr, endpoint_idx:EndpointIdx, sll:SLLIndex, page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>) -> (ret:(EndpointPtr,Tracked<PointsTo<Endpoint>>))
     requires    
         page_perm@.is_init(),
         page_perm@.addr() == page_ptr,
@@ -259,12 +259,12 @@ pub fn page_to_endpoint_with_thread_and_container(owning_container:ContainerPtr,
         ret.1@.value().queue@ =~= Seq::<ThreadPtr>::empty(),
         ret.1@.value().queue_state =~= EndpointState::SEND,
         ret.1@.value().rf_counter =~= 1,
-        ret.1@.value().owning_threads@ =~= Set::<ThreadPtr>::empty().insert(owning_thread),
+        ret.1@.value().owning_threads@ =~= Set::<(ThreadPtr, EndpointIdx)>::empty().insert((owning_thread, endpoint_idx)),
         ret.1@.value().owning_container == owning_container,
         ret.1@.value().container_rev_ptr == sll,
 {
     let (mut endpoint_ptr, mut endpoint_perm) = page_to_endpoint(page_ptr, page_perm);
-    endpoint_add_ref(endpoint_ptr, &mut endpoint_perm, owning_thread);
+    endpoint_add_ref(endpoint_ptr, &mut endpoint_perm, owning_thread, endpoint_idx);
     endpoint_set_owning_container(endpoint_ptr, &mut endpoint_perm, owning_container);
     endpoint_set_sll_index(endpoint_ptr, &mut endpoint_perm, sll);
     (endpoint_ptr, endpoint_perm)
