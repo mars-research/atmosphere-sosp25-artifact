@@ -625,6 +625,49 @@ verus! {
     {
     }
 
+    pub open spec fn new_proc_tree_ensures(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, new_proc_perms:Map<ProcPtr, PointsTo<Process>>, 
+        new_proc_ptr:ProcPtr) -> bool
+    {
+        &&&
+        root_proc == new_proc_ptr
+        &&&
+        proc_perms_wf(new_proc_perms)
+        &&&
+        proc_tree_dom == set![new_proc_ptr]
+        &&&
+        proc_tree_dom_subset_of_proc_dom(proc_tree_dom, new_proc_perms)
+        &&&
+        new_proc_perms[new_proc_ptr].value().parent.is_None()
+        &&&
+        new_proc_perms[new_proc_ptr].value().parent_rev_ptr.is_None()
+        &&&
+        new_proc_perms[new_proc_ptr].value().children@ =~= Seq::empty()
+        &&&
+        new_proc_perms[new_proc_ptr].value().uppertree_seq@ =~= Seq::empty()
+        &&&
+        new_proc_perms[new_proc_ptr].value().depth == 0
+        &&&
+        new_proc_perms[new_proc_ptr].value().subtree_set@ =~= Set::<ProcPtr>::empty()
+        &&&
+        new_proc_perms[new_proc_ptr].value().children.unique()
+    }
+
+    pub proof fn new_proc_tree_infer_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, new_proc_perms:Map<ProcPtr, PointsTo<Process>>, 
+        new_proc_ptr:ProcPtr)
+        requires
+            new_proc_tree_ensures(root_proc, proc_tree_dom, new_proc_perms, new_proc_ptr),
+        ensures
+            proc_root_wf(root_proc, proc_tree_dom, new_proc_perms),
+            proc_childern_parent_wf(root_proc, proc_tree_dom, new_proc_perms),
+            procs_linkedlist_wf(root_proc, proc_tree_dom, new_proc_perms),
+            proc_childern_depth_wf(root_proc, proc_tree_dom, new_proc_perms),
+            proc_subtree_set_wf(root_proc, proc_tree_dom, new_proc_perms),
+            proc_uppertree_seq_wf(root_proc, proc_tree_dom, new_proc_perms),
+            proc_subtree_set_exclusive(root_proc, proc_tree_dom, new_proc_perms),
+            proc_tree_wf(root_proc, proc_tree_dom, new_proc_perms),
+        {}
+
+
     pub open spec fn new_proc_ensures(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, old_proc_perms:Map<ProcPtr, PointsTo<Process>>,  new_proc_perms:Map<ProcPtr, PointsTo<Process>>, 
         proc_ptr:ProcPtr, new_proc_ptr:ProcPtr) -> bool
     {
