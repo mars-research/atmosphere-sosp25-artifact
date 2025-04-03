@@ -134,7 +134,7 @@ verus! {
             proc_perms[proc_perms[p_ptr].value().parent.unwrap()].value().children@.contains(p_ptr)
     }
     
-    pub open spec fn procs_linkedlist_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>) -> bool{  
+    pub closed spec fn procs_linkedlist_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, proc_perms:Map<ProcPtr, PointsTo<Process>>) -> bool{  
         &&&
         forall|p_ptr:ProcPtr| 
             #![trigger proc_tree_dom.contains(proc_perms[p_ptr].value().parent.unwrap())]
@@ -655,7 +655,18 @@ verus! {
     pub proof fn new_proc_tree_infer_wf(root_proc:ProcPtr, proc_tree_dom:Set<ProcPtr>, new_proc_perms:Map<ProcPtr, PointsTo<Process>>, 
         new_proc_ptr:ProcPtr)
         requires
-            new_proc_tree_ensures(root_proc, proc_tree_dom, new_proc_perms, new_proc_ptr),
+            // new_proc_tree_ensures(root_proc, proc_tree_dom, new_proc_perms, new_proc_ptr),
+            root_proc == new_proc_ptr,
+            proc_perms_wf(new_proc_perms),
+            proc_tree_dom == set![new_proc_ptr],
+            proc_tree_dom_subset_of_proc_dom(proc_tree_dom, new_proc_perms),
+            new_proc_perms[new_proc_ptr].value().parent.is_None(),
+            new_proc_perms[new_proc_ptr].value().parent_rev_ptr.is_None(),
+            new_proc_perms[new_proc_ptr].value().children@ =~= Seq::empty(),
+            new_proc_perms[new_proc_ptr].value().uppertree_seq@ =~= Seq::empty(),
+            new_proc_perms[new_proc_ptr].value().depth == 0,
+            new_proc_perms[new_proc_ptr].value().subtree_set@ =~= Set::<ProcPtr>::empty(),
+            new_proc_perms[new_proc_ptr].value().children.unique(),
         ensures
             proc_root_wf(root_proc, proc_tree_dom, new_proc_perms),
             proc_childern_parent_wf(root_proc, proc_tree_dom, new_proc_perms),

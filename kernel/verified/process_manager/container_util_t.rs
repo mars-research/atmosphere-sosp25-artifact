@@ -497,7 +497,8 @@ pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<Page
 
 #[verifier(external_body)]
 pub fn page_to_container_tree_version_1(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, parent_container:ContainerPtr, parent_rev_ptr:SLLIndex, 
-        init_quota:usize, new_cpus: ArraySet<NUM_CPUS>,depth:usize, subtree_set: Ghost<Set<ContainerPtr>>, uppertree_seq: Ghost<Seq<ContainerPtr>>) 
+        init_quota:usize, new_cpus: ArraySet<NUM_CPUS>,depth:usize, subtree_set: Ghost<Set<ContainerPtr>>, uppertree_seq: Ghost<Seq<ContainerPtr>>,
+        root_process:Option<ProcPtr>) 
             -> (ret:(ContainerPtr,Tracked<PointsTo<Container>>))
     requires    
         page_perm@.is_init(),
@@ -534,6 +535,8 @@ pub fn page_to_container_tree_version_1(page_ptr: PagePtr, page_perm: Tracked<Pa
         ret.1@.value().subtree_set =~= subtree_set,
         ret.1@.value().uppertree_seq =~= uppertree_seq,
 
+        ret.1@.value().root_process == root_process,
+
         ret.1@.value().can_have_children =~= false,
 {
     unsafe{
@@ -548,8 +551,69 @@ pub fn page_to_container_tree_version_1(page_ptr: PagePtr, page_perm: Tracked<Pa
         (*uptr).assume_init_mut().owned_cpus = new_cpus;
         (*uptr).assume_init_mut().scheduler.init();
         (*uptr).assume_init_mut().depth = depth;
+        (*uptr).assume_init_mut().root_process == root_process;
         (page_ptr, Tracked::assume_new())
     }
 }
+
+#[verifier(external_body)]
+pub fn container_perms_update_subtree_set(perms: &mut Tracked<Map<ContainerPtr, PointsTo<Container>>>, uppertree_seq: Ghost<Seq<ContainerPtr>>, new_container_ptr:ContainerPtr)
+    ensures
+        old(perms)@.dom() =~= perms@.dom(),
+        forall|c_ptr:ContainerPtr| 
+            #![trigger uppertree_seq@.contains(c_ptr)]
+            #![trigger perms@.dom().contains(c_ptr)]
+            #![trigger perms@[c_ptr]]
+            perms@.dom().contains(c_ptr) && uppertree_seq@.contains(c_ptr) == false
+            ==>               
+            perms@[c_ptr] =~= old(perms)@[c_ptr],
+        forall|c_ptr:ContainerPtr| 
+            // #![trigger perms@[c_ptr].value().owning_container]
+            #![trigger perms@.dom().contains(c_ptr)]
+            #![trigger perms@[c_ptr]]
+            perms@.dom().contains(c_ptr)
+            ==>               
+            perms@[c_ptr].is_init() =~= old(perms)@[c_ptr].is_init()
+            &&
+            perms@[c_ptr].addr() =~= old(perms)@[c_ptr].addr()
+            &&
+            perms@[c_ptr].value().parent =~= old(perms)@[c_ptr].value().parent
+            &&
+            perms@[c_ptr].value().parent_rev_ptr =~= old(perms)@[c_ptr].value().parent_rev_ptr
+            &&
+            perms@[c_ptr].value().children =~= old(perms)@[c_ptr].value().children
+            &&
+            perms@[c_ptr].value().depth =~= old(perms)@[c_ptr].value().depth
+            &&
+            perms@[c_ptr].value().uppertree_seq =~= old(perms)@[c_ptr].value().uppertree_seq
+            // &&
+            // perms@[c_ptr].value().subtree_set =~= old(perms)@[c_ptr].value().subtree_set
+            &&
+            perms@[c_ptr].value().root_process =~= old(perms)@[c_ptr].value().root_process
+            &&
+            perms@[c_ptr].value().owned_procs =~= old(perms)@[c_ptr].value().owned_procs
+            &&
+            perms@[c_ptr].value().owned_endpoints =~= old(perms)@[c_ptr].value().owned_endpoints
+            &&
+            perms@[c_ptr].value().owned_threads =~= old(perms)@[c_ptr].value().owned_threads
+            &&
+            perms@[c_ptr].value().mem_quota =~= old(perms)@[c_ptr].value().mem_quota
+            &&
+            perms@[c_ptr].value().mem_used =~= old(perms)@[c_ptr].value().mem_used
+            &&
+            perms@[c_ptr].value().owned_cpus =~= old(perms)@[c_ptr].value().owned_cpus
+            &&
+            perms@[c_ptr].value().scheduler =~= old(perms)@[c_ptr].value().scheduler
+            &&
+            perms@[c_ptr].value().can_have_children =~= old(perms)@[c_ptr].value().can_have_children,
+        forall|c_ptr:ProcPtr| 
+            #![trigger uppertree_seq@.contains(c_ptr)]
+            #![trigger perms@[c_ptr].value().subtree_set]
+            #![trigger old(perms)@[c_ptr].value().subtree_set]
+            uppertree_seq@.contains(c_ptr)
+            ==>               
+            perms@[c_ptr].value().subtree_set@ =~= old(perms)@[c_ptr].value().subtree_set@.insert(new_container_ptr),
+        perms@[new_container_ptr].value().subtree_set =~= old(perms)@[new_container_ptr].value().subtree_set,
+{}
 
 }

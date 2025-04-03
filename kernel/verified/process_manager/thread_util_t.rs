@@ -88,7 +88,11 @@ pub fn page_to_thread_with_endpoint(page_ptr: PagePtr, page_perm: Tracked<PagePe
 }
 
 #[verifier(external_body)]
-pub fn thread_set_blocking_endpoint_endpoint_ref_scheduler_ref_state_and_ipc_payload(thread_ptr:ThreadPtr, thread_perm: &mut Tracked<PointsTo<Thread>>, blocking_endpoint_ptr: Option<EndpointPtr>, endpoint_rev_ptr: Option<SLLIndex>,scheduler_rev_ptr: Option<SLLIndex>, state:ThreadState, ipc_payload: IPCPayLoad) 
+pub fn thread_set_blocking_endpoint_endpoint_ref_scheduler_ref_state_and_ipc_payload(
+    thread_ptr:ThreadPtr, thread_perm: &mut Tracked<PointsTo<Thread>>, blocking_endpoint_ptr: Option<EndpointPtr>, 
+    endpoint_rev_ptr: Option<SLLIndex>,scheduler_rev_ptr: Option<SLLIndex>, state:ThreadState, ipc_payload: IPCPayLoad,
+    blocking_endpoint_index:Option<EndpointIdx>    
+) 
     requires    
         old(thread_perm)@.is_init(),
         old(thread_perm)@.addr() == thread_ptr,
@@ -107,6 +111,7 @@ pub fn thread_set_blocking_endpoint_endpoint_ref_scheduler_ref_state_and_ipc_pay
         thread_perm@.value().ipc_payload == ipc_payload,
         thread_perm@.value().error_code == old(thread_perm)@.value().error_code,
         thread_perm@.value().trap_frame == old(thread_perm)@.value().trap_frame,
+        thread_perm@.value().blocking_endpoint_index == blocking_endpoint_index
 {
     unsafe{
         let uptr = thread_ptr as *mut MaybeUninit<Thread>;
@@ -115,6 +120,7 @@ pub fn thread_set_blocking_endpoint_endpoint_ref_scheduler_ref_state_and_ipc_pay
         let ret = (*uptr).assume_init_mut().blocking_endpoint_ptr = blocking_endpoint_ptr;
         let ret = (*uptr).assume_init_mut().endpoint_rev_ptr = endpoint_rev_ptr;
         let ret = (*uptr).assume_init_mut().ipc_payload = ipc_payload;
+        let ret = (*uptr).assume_init_mut().blocking_endpoint_index = blocking_endpoint_index;
         return ret;
     }
 }
@@ -140,6 +146,7 @@ pub fn thread_set_endpoint_descriptor(thread_ptr:ThreadPtr, thread_perm: &mut Tr
         thread_perm@.value().ipc_payload == old(thread_perm)@.value().ipc_payload,
         thread_perm@.value().error_code == old(thread_perm)@.value().error_code,
         thread_perm@.value().trap_frame == old(thread_perm)@.value().trap_frame,
+        thread_perm@.value().blocking_endpoint_index == old(thread_perm)@.value().blocking_endpoint_index,
 {
     unsafe{
         let uptr = thread_ptr as *mut MaybeUninit<Thread>;
@@ -220,6 +227,7 @@ pub fn thread_set_trap_frame_fast(thread_ptr:ThreadPtr, thread_perm: &mut Tracke
         thread_perm@.value().endpoint_descriptors == old(thread_perm)@.value().endpoint_descriptors,
         thread_perm@.value().ipc_payload == old(thread_perm)@.value().ipc_payload,
         thread_perm@.value().error_code == old(thread_perm)@.value().error_code,
+        thread_perm@.value().blocking_endpoint_index == old(thread_perm)@.value().blocking_endpoint_index,
         thread_perm@.value().trap_frame.unwrap() == *pt_regs,
 {
     unsafe{
