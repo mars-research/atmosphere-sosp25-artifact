@@ -112,6 +112,23 @@ impl Kernel{
         self.get_proc(p_ptr).owned_threads.len() >= MAX_NUM_THREADS_PER_PROC
     }
 
+    pub open spec fn get_is_process_childern_list_full(&self, p_ptr:ProcPtr) -> bool
+        recommends
+            self.wf(),
+            self.proc_dom().contains(p_ptr),
+    {
+        self.get_proc(p_ptr).children.len() >= PROC_CHILD_LIST_LEN
+    }
+
+    pub open spec fn get_is_process_depth_overflow(&self, p_ptr:ProcPtr) -> bool
+        recommends
+            self.wf(),
+            self.proc_dom().contains(p_ptr),
+    {
+        self.get_proc(p_ptr).depth >= usize::MAX
+    }
+
+
     pub open spec fn get_proc_ptr_by_cpu_id(&self, cpu_id:CpuId) -> (ret: Option<ProcPtr>)
         recommends
             self.wf(),
@@ -172,6 +189,7 @@ impl Kernel{
         self.get_container(c_ptr).owned_procs.len() >= CONTAINER_PROC_LIST_LEN
     }
 
+    
     pub open spec fn get_is_children_list_full(&self, c_ptr:ContainerPtr) -> bool
         recommends
             self.wf(),

@@ -131,7 +131,7 @@ pub open spec fn syscall_new_container_with_endpoint_spec(old:Kernel, new:Kernel
         &&
         new.get_thread(new_thread_ptr).endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {None}).update(0, Some(endpoint_ptr))
         &&
-        new.get_endpoint(endpoint_ptr).owning_threads@ =~= old.get_endpoint(endpoint_ptr).owning_threads@.insert(new_thread_ptr)
+        new.get_endpoint(endpoint_ptr).owning_threads@ =~= old.get_endpoint(endpoint_ptr).owning_threads@.insert((new_thread_ptr, 0))
         &&
         new.get_container_owned_pages(new_container_ptr) == Set::<PagePtr>::empty()
         &&

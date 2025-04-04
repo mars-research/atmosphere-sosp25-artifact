@@ -5,7 +5,7 @@ verus! {
 // use crate::process_manager::spec_impl::*;
 // use crate::util::page_ptr_util_u::*;
 // use crate::lemma::lemma_t::set_lemma;
-// use crate::lemma::lemma_u::*;
+use crate::lemma::lemma_u::*;
 // use crate::util::page_ptr_util_u::*;
 use crate::define::*;
 // use crate::trap::*;
@@ -20,7 +20,9 @@ pub open spec fn syscall_new_proc_with_endpoint_requirement(old:Kernel, thread_p
     let proc_ptr = old.get_thread(thread_ptr).owning_proc;
     let pcid = old.get_proc(proc_ptr).pcid;
     let container_ptr = old.get_thread(thread_ptr).owning_container;
-    if old.get_is_process_thread_list_full(proc_ptr){
+    if old.get_is_process_childern_list_full(proc_ptr){
+        false
+    }else if old.get_is_process_depth_overflow(proc_ptr){
         false
     }else if old.get_container_quota(container_ptr) < va_range.len * 3 + 2{
         false
@@ -65,9 +67,15 @@ pub open spec fn syscall_new_proc_with_endpoint_spec(old:Kernel, new:Kernel, thr
         &&
         forall|p_ptr:ProcPtr| 
             #![trigger new.get_proc(p_ptr)]
-            old.proc_dom().contains(p_ptr)
-            ==>
-            new.get_proc(p_ptr) =~= old.get_proc(p_ptr)
+            old.proc_dom().contains(p_ptr) && old.get_container(container_ptr).owned_procs@.contains(p_ptr) == false
+            ==> 
+            old.get_proc(p_ptr) =~= new.get_proc(p_ptr)
+        &&
+        forall|p_ptr:ProcPtr| 
+        #![trigger new.get_proc(p_ptr)]
+        old.proc_dom().contains(p_ptr)
+        ==> 
+        old.get_proc(p_ptr).owned_threads =~= new.get_proc(p_ptr).owned_threads
         &&
         forall|c:ContainerPtr| 
             #![trigger new.get_container_owned_pages(c)]
@@ -120,7 +128,7 @@ pub open spec fn syscall_new_proc_with_endpoint_spec(old:Kernel, new:Kernel, thr
         &&
         new.get_thread(new_thread_ptr).endpoint_descriptors@ =~= Seq::new(MAX_NUM_ENDPOINT_DESCRIPTORS as nat,|i: int| {None}).update(0, Some(endpoint_ptr))
         &&
-        new.get_endpoint(endpoint_ptr).owning_threads@ =~= old.get_endpoint(endpoint_ptr).owning_threads@.insert(new_thread_ptr)
+        new.get_endpoint(endpoint_ptr).owning_threads@ =~= old.get_endpoint(endpoint_ptr).owning_threads@.insert((new_thread_ptr, 0))
         &&
         (forall|page_ptr:PagePtr|
             #![trigger new.get_physical_page_mapping()[page_ptr]]
@@ -165,16 +173,21 @@ pub fn syscall_new_proc_with_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint
         syscall_new_proc_with_endpoint_requirement(*old(self), thread_ptr, endpoint_index, *pt_regs, va_range) == false <==> ret.is_error(),
         syscall_new_proc_with_endpoint_spec(*old(self), *self, thread_ptr, endpoint_index, *pt_regs, va_range, ret),
 {
+    proof{seq_push_lemma::<usize>();}
     let proc_ptr = self.proc_man.get_thread(thread_ptr).owning_proc;
     let pcid = self.proc_man.get_proc(proc_ptr).pcid;
     let container_ptr = self.proc_man.get_thread(thread_ptr).owning_container;
 
     proof{
         self.proc_man.thread_inv();
+        self.proc_man.process_inv();
         assert(self.proc_man.get_proc(proc_ptr).owning_container == container_ptr);
     }
 
-    if self.proc_man.get_proc(proc_ptr).owned_threads.len() >= MAX_NUM_THREADS_PER_PROC{
+    if self.proc_man.get_proc(proc_ptr).children.len() >= PROC_CHILD_LIST_LEN{
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+    }
+    if self.proc_man.get_proc(proc_ptr).depth >= usize::MAX{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
     if self.proc_man.get_container(container_ptr).mem_quota < va_range.len * 3 + 2{

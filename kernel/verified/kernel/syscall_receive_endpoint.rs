@@ -131,7 +131,7 @@ pub open spec fn is_pass_endpoint_completed(old: Kernel, new: Kernel, src_thread
     && // shared endpoint queue (send queue) should have one less blocked threads.
     new.get_endpoint(shared_endpoint).queue@ =~= old.get_endpoint(shared_endpoint).queue@.skip(1)
     && // dst thread should now a owner of payload (endpoint) 
-    new.get_endpoint(src_payload_endpoint_ptr).owning_threads@ =~= old.get_endpoint(src_payload_endpoint_ptr).owning_threads@.insert(dst_thread_ptr)
+    new.get_endpoint(src_payload_endpoint_ptr).owning_threads@ =~= old.get_endpoint(src_payload_endpoint_ptr).owning_threads@.insert((dst_thread_ptr, to))
 }   
 
 pub open spec fn syscall_receive_endpoint_fail(old:Kernel, new:Kernel, receiver_thread_ptr: ThreadPtr, blocking_endpoint_index: EndpointIdx, receiver_endpoint_payload:EndpointIdx) -> bool

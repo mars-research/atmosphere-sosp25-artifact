@@ -241,7 +241,7 @@ pub open spec fn syscall_send_endpoint_spec(old:Kernel, new:Kernel, sender_threa
             &&
             (blocking_endpoint_ptr != sender_endpoint_ptr ==> new.get_endpoint(sender_endpoint_ptr).queue =~= old.get_endpoint(sender_endpoint_ptr).queue)
             &&
-            new.get_endpoint(sender_endpoint_ptr).owning_threads@ =~= old.get_endpoint(sender_endpoint_ptr).owning_threads@.insert(receiver_thread_ptr)
+            new.get_endpoint(sender_endpoint_ptr).owning_threads@ =~= old.get_endpoint(sender_endpoint_ptr).owning_threads@.insert((receiver_thread_ptr, receiver_endpoint_payload))
             && 
             new.get_endpoint(sender_endpoint_ptr).queue_state =~= old.get_endpoint(sender_endpoint_ptr).queue_state
     }

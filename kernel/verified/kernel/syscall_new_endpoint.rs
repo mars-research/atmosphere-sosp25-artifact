@@ -107,7 +107,7 @@ pub open spec fn syscall_new_endpoint_success_post(old:Kernel, new:Kernel, threa
         && 
         new.get_endpoint(new_endpoint_ptr).rf_counter =~= 1
         && 
-        new.get_endpoint(new_endpoint_ptr).owning_threads@ =~= Set::<ThreadPtr>::empty().insert(thread_id)
+        new.get_endpoint(new_endpoint_ptr).owning_threads@ =~= Set::<(ThreadPtr, EndpointIdx)>::empty().insert((thread_id, endpoint_index))
         && 
         new.get_endpoint(new_endpoint_ptr).owning_container =~= container_ptr
     )
