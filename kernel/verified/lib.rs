@@ -21,7 +21,7 @@ pub mod kernel;
 pub mod lemma;
 pub mod util;
 
-pub mod user_level_isolation;
+// pub mod user_level_isolation;
 
 verus! {
 

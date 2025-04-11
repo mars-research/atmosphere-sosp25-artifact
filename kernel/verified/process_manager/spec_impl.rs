@@ -586,13 +586,21 @@ impl ProcessManager{
     pub closed spec fn container_fields_wf(&self) -> bool{
         &&&
         forall|c_ptr:ContainerPtr| 
-        #![trigger self.container_dom().contains(c_ptr)]        
+        // #![trigger self.container_dom().contains(c_ptr)]        
         // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).owned_cpus]
         // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).scheduler]
         // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).owned_procs]
         // #![trigger self.container_dom().contains(c_ptr), self.get_container(c_ptr).owned_endpoints]
         // #![trigger self.get_container(c_ptr)]
             // #![trigger self.container_dom().contains(c_ptr)]
+            
+        #![trigger self.get_container(c_ptr).owned_cpus.wf()]  
+        #![trigger self.get_container(c_ptr).scheduler.wf()]  
+        #![trigger self.get_container(c_ptr).owned_procs.wf()]  
+        #![trigger self.get_container(c_ptr).owned_endpoints.wf()]   
+        #![trigger self.get_container(c_ptr).scheduler.unique()]  
+        #![trigger self.get_container(c_ptr).owned_procs.unique()]  
+        #![trigger self.get_container(c_ptr).owned_endpoints.unique()]  
             self.container_dom().contains(c_ptr)
             ==> 
             self.get_container(c_ptr).owned_cpus.wf()
@@ -614,7 +622,9 @@ impl ProcessManager{
         &&&
         forall|p_ptr:ProcPtr| 
         // #![trigger self.get_proc(p_ptr).owned_threads]
-            #![trigger self.proc_dom().contains(p_ptr)]
+            // #![trigger self.proc_dom().contains(p_ptr)]
+            #![trigger self.get_proc(p_ptr).owned_threads.wf()]
+            #![trigger self.get_proc(p_ptr).owned_threads.unique()]
             self.proc_dom().contains(p_ptr)
             ==> 
             self.get_proc(p_ptr).owned_threads.wf()
@@ -1995,12 +2005,12 @@ impl ProcessManager{
             self.thread_dom() == old(self).thread_dom().insert(page_ptr_3),
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - 3 - new_quota == self.get_container(self.get_thread(thread_ptr).owning_container).mem_quota,
             forall|p_ptr:ProcPtr|
-                #![trigger old(self).proc_dom().contains(p_ptr)]
+                #![trigger self.get_proc(p_ptr)]
                 old(self).proc_dom().contains(p_ptr)
                 ==> 
                 self.get_proc(p_ptr) =~= old(self).get_proc(p_ptr),
             forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_dom().contains(c_ptr)]
+                #![trigger self.get_container(c_ptr)]
                 old(self).container_dom().contains(c_ptr) && c_ptr != old(self).get_thread(thread_ptr).owning_container
                 ==> 
                 self.get_container(c_ptr).owned_procs =~= old(self).get_container(c_ptr).owned_procs
@@ -2027,12 +2037,12 @@ impl ProcessManager{
                 &&
                 self.get_container(c_ptr).uppertree_seq =~= old(self).get_container(c_ptr).uppertree_seq,
             forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_dom().contains(c_ptr)]
+                #![trigger self.get_container(c_ptr)]
                 self.container_dom().contains(c_ptr) && self.get_container(page_ptr_1).uppertree_seq@.contains(c_ptr)
                 ==>
                 self.get_container(c_ptr).subtree_set@ =~= self.get_container(c_ptr).subtree_set@.insert(page_ptr_1),
             forall|c_ptr:ContainerPtr| 
-                #![trigger self.container_dom().contains(c_ptr)]
+                #![trigger self.get_container(c_ptr)]
                 self.container_dom().contains(c_ptr) && self.get_container(page_ptr_1).uppertree_seq@.contains(c_ptr) == false
                 ==>
                 self.get_container(c_ptr).subtree_set =~= self.get_container(c_ptr).subtree_set,

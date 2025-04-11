@@ -29,6 +29,7 @@ pub fn proc_push_thread(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Proce
         proc_perm@.value().uppertree_seq =~= old(proc_perm)@.value().uppertree_seq,
         proc_perm@.value().subtree_set =~= old(proc_perm)@.value().subtree_set,
         proc_perm@.value().depth =~= old(proc_perm)@.value().depth,
+        proc_perm@.value().dmd_paging_mode =~= old(proc_perm)@.value().dmd_paging_mode,
 
         proc_perm@.value().owned_threads.wf(),
         proc_perm@.value().owned_threads@ =~= old(proc_perm)@.value().owned_threads@.push(*thread_ptr),
@@ -79,6 +80,7 @@ pub fn proc_push_child(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Proces
         proc_perm@.value().uppertree_seq =~= old(proc_perm)@.value().uppertree_seq,
         proc_perm@.value().subtree_set =~= old(proc_perm)@.value().subtree_set,
         proc_perm@.value().depth =~= old(proc_perm)@.value().depth,
+        proc_perm@.value().dmd_paging_mode =~= old(proc_perm)@.value().dmd_paging_mode,
 
         proc_perm@.value().children.wf(),
         proc_perm@.value().children@ =~= old(proc_perm)@.value().children@.push(*new_proc_ptr),
@@ -133,6 +135,7 @@ pub fn page_to_proc(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, owning_co
         ret.1@.value().uppertree_seq == uppertree_seq,
         ret.1@.value().subtree_set == subtree_set,
         ret.1@.value().depth == depth,
+        ret.1@.value().dmd_paging_mode == DemandPagingMode::NoDMDPG,
 {
     unsafe{
         let uptr = page_ptr as *mut MaybeUninit<Process>;
@@ -145,6 +148,7 @@ pub fn page_to_proc(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, owning_co
         (*uptr).assume_init_mut().parent = parent;
         (*uptr).assume_init_mut().parent_rev_ptr = parent_rev_ptr;
         (*uptr).assume_init_mut().depth = depth;
+        (*uptr).assume_init_mut().dmd_paging_mode = DemandPagingMode::NoDMDPG;
         (page_ptr, Tracked::assume_new())
     }
 }
@@ -180,6 +184,7 @@ pub fn page_to_proc_with_first_thread(page_ptr: PagePtr, page_perm: Tracked<Page
         ret.1@.value().uppertree_seq == uppertree_seq,
         ret.1@.value().subtree_set == subtree_set,
         ret.1@.value().depth == depth,
+        ret.1@.value().dmd_paging_mode == DemandPagingMode::NoDMDPG,
 {
     let (p_ptr, mut p_perm) = page_to_proc(page_ptr, page_perm, owning_container, rev_ptr, pcid, ioid, parent, parent_rev_ptr, uppertree_seq, subtree_set, depth);
     let sll = proc_push_thread(p_ptr, &mut p_perm, &first_thread);
@@ -226,7 +231,9 @@ pub fn proc_perms_update_subtree_set(perms: &mut Tracked<Map<ProcPtr, PointsTo<P
             &&
             perms@[p_ptr].value().uppertree_seq =~= old(perms)@[p_ptr].value().uppertree_seq
             &&
-            perms@[p_ptr].value().depth =~= old(perms)@[p_ptr].value().depth,
+            perms@[p_ptr].value().depth =~= old(perms)@[p_ptr].value().depth
+            &&
+            perms@[p_ptr].value().dmd_paging_mode =~= old(perms)@[p_ptr].value().dmd_paging_mode,
         forall|p_ptr:ProcPtr| 
             #![trigger uppertree_seq@.contains(p_ptr)]
             #![trigger perms@[p_ptr].value().subtree_set]

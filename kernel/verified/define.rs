@@ -219,6 +219,13 @@ pub const MAX_CONTAINER_SCHEDULER_LEN:usize = 10;
 
 // -------------------- Begin of Structs --------------------
 #[derive(Clone, Copy, Debug)]
+pub enum DemandPagingMode{
+    NoDMDPG,
+    DirectParentPrc,
+    AllParentProc,
+    AllParentContainer,
+}
+#[derive(Clone, Copy, Debug)]
 pub enum SwitchDecision{
     NoSwitch,
     NoThread,

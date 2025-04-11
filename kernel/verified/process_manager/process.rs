@@ -16,5 +16,7 @@ verus! {
         pub uppertree_seq: Ghost<Seq<ProcPtr>>,
         pub subtree_set: Ghost<Set<ProcPtr>>,
         pub depth: usize,
+
+        pub dmd_paging_mode: DemandPagingMode,
     }
 }
