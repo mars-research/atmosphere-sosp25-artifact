@@ -8,7 +8,7 @@ verus! {
     use crate::lemma::lemma_u::*;
     use crate::lemma::lemma_t::*;
     use crate::process_manager::container_util_t::*;
-    // use crate::process_manager::spec_impl::ContainerManager;
+    // use crate::process_manager::spec_proof::ContainerManager;
 
     pub open spec fn container_perms_wf(container_perms:Map<ContainerPtr, PointsTo<Container>>) -> bool{
         &&&

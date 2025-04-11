@@ -2,7 +2,7 @@ use vstd::prelude::*;
 verus! {
 use crate::allocator::page_allocator_spec_impl::*;
 use crate::memory_manager::spec_impl::*;
-use crate::process_manager::spec_impl::*;
+use crate::process_manager::spec_proof::*;
 use crate::util::page_ptr_util_u::*;
 use vstd::simple_pptr::PointsTo;
 use crate::pagetable::pagemap::PageMap;

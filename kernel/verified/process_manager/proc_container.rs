@@ -9,7 +9,7 @@ verus! {
     use crate::lemma::lemma_u::*;
     use crate::lemma::lemma_t::*;
     use crate::process_manager::proc_util_t::*;
-    use crate::process_manager::spec_impl::ProcessManager;
+    use crate::process_manager::spec_proof::ProcessManager;
 
     pub closed spec fn processes_container_wf(&self) -> bool{
         // &&&

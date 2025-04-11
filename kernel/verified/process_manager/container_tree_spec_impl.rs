@@ -8,7 +8,7 @@ verus! {
     use crate::lemma::lemma_u::*;
     use crate::lemma::lemma_t::*;
     use crate::process_manager::container_util_t::*;
-    use crate::process_manager::spec_impl::ProcessManager;
+    use crate::process_manager::spec_proof::ProcessManager;
 
     //specs
     impl ProcessManager{
