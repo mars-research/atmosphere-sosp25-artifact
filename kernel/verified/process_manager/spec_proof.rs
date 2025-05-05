@@ -21,6 +21,7 @@ verus! {
     use crate::trap::Registers;
     use crate::process_manager::container_tree::*;
     use crate::process_manager::process_tree::*;
+    use crate::quota::*;
     // use crate::process_manager::container_tree_spec_impl::*;
 
 pub struct ProcessManager{
@@ -1309,7 +1310,7 @@ impl ProcessManager{
     }
     
     #[verifier(external_body)]
-    pub fn init(&mut self, dom_0_container_ptr:ContainerPtr, dom_0_proc_ptr:ProcPtr, dom_0_thread_ptr:ThreadPtr, init_quota:usize, page_perm_0: Tracked<PagePerm4k>, page_perm_1: Tracked<PagePerm4k>, page_perm_2: Tracked<PagePerm4k>)
+    pub fn init(&mut self, dom_0_container_ptr:ContainerPtr, dom_0_proc_ptr:ProcPtr, dom_0_thread_ptr:ThreadPtr, init_quota:Quota, page_perm_0: Tracked<PagePerm4k>, page_perm_1: Tracked<PagePerm4k>, page_perm_2: Tracked<PagePerm4k>)
     {
         unsafe{
             self.root_container = dom_0_container_ptr;
@@ -1322,8 +1323,8 @@ impl ProcessManager{
             (*root_container_ptr).assume_init_mut().parent_rev_ptr = None;
             (*root_container_ptr).assume_init_mut().children.init();
             (*root_container_ptr).assume_init_mut().owned_endpoints.init();
-            (*root_container_ptr).assume_init_mut().mem_quota = init_quota;
-            (*root_container_ptr).assume_init_mut().mem_used = 0;
+            (*root_container_ptr).assume_init_mut().quota = init_quota;
+            // (*root_container_ptr).assume_init_mut().mem_used = 0;
             (*root_container_ptr).assume_init_mut().owned_cpus.init();
             (*root_container_ptr).assume_init_mut().scheduler.init();
             let sll2 = (*root_container_ptr).assume_init_mut().scheduler.push(&dom_0_thread_ptr);
@@ -1386,7 +1387,7 @@ impl ProcessManager{
         }
     }
 
-    pub fn set_container_mem_quota(&mut self, container_ptr:ContainerPtr, new_quota:usize)
+    pub fn set_container_mem_quota_mem_4k(&mut self, container_ptr:ContainerPtr, new_quota:usize)
         requires
             old(self).wf(),
             old(self).container_dom().contains(container_ptr),
@@ -1424,17 +1425,17 @@ impl ProcessManager{
             self.get_container(container_ptr).owned_endpoints =~= old(self).get_container(container_ptr).owned_endpoints,
             self.get_container(container_ptr).owned_threads =~= old(self).get_container(container_ptr).owned_threads,
             // self.get_container(container_ptr).mem_quota =~= old(self).get_container(container_ptr).mem_quota,
-            self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
+            // self.get_container(container_ptr).mem_used =~= old(self).get_container(container_ptr).mem_used,
             self.get_container(container_ptr).owned_cpus =~= old(self).get_container(container_ptr).owned_cpus,
             self.get_container(container_ptr).scheduler =~= old(self).get_container(container_ptr).scheduler,
             self.get_container(container_ptr).depth =~= old(self).get_container(container_ptr).depth,
             self.get_container(container_ptr).uppertree_seq =~= old(self).get_container(container_ptr).uppertree_seq,
             self.get_container(container_ptr).subtree_set =~= old(self).get_container(container_ptr).subtree_set,
             self.get_container(container_ptr).root_process =~= old(self).get_container(container_ptr).root_process,
-            self.get_container(container_ptr).mem_quota =~= new_quota,
+            self.get_container(container_ptr).quota =~= old(self).get_container(container_ptr).quota.spec_set_mem_4k(new_quota),
     {
         let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        container_set_mem_quota(container_ptr,&mut container_perm, new_quota);
+        container_set_quota_mem_4k(container_ptr,&mut container_perm, new_quota);
         proof {
             self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
         }
@@ -2175,7 +2176,7 @@ impl ProcessManager{
             old(self).page_closure().contains(page_ptr_1) == false,
             page_perm_1@.is_init(),
             page_perm_1@.addr() == page_ptr_1,
-            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota > 0,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_4k > 0,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_endpoints.len() < CONTAINER_ENDPOINT_LIST_LEN,
         ensures
             self.wf(),
@@ -2204,7 +2205,7 @@ impl ProcessManager{
                 old(self).endpoint_dom().contains(e_ptr)
                 ==> 
                 old(self).get_endpoint(e_ptr) =~= self.get_endpoint(e_ptr),
-            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - 1 == self.get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.spec_subtract_mem_4k(self.get_container(old(self).get_thread(thread_ptr).owning_container).quota, 1),
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_cpus == self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_cpus,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_threads == self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_threads,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).scheduler == self.get_container(old(self).get_thread(thread_ptr).owning_container).scheduler,
@@ -2220,10 +2221,10 @@ impl ProcessManager{
             self.get_endpoint(page_ptr_1).owning_container =~= old(self).get_thread(thread_ptr).owning_container,
     {
         let container_ptr = self.get_thread(thread_ptr).owning_container;
-        let old_mem_quota = self.get_container(container_ptr).mem_quota;
+        let old_mem_quota = self.get_container(container_ptr).quota.mem_4k;
 
         let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
-        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 1);
+        container_set_quota_mem_4k(container_ptr,&mut container_perm, old_mem_quota - 1);
         let sll_index =  container_push_endpoint(container_ptr,&mut container_perm, page_ptr_1);;
         proof {
             self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());
@@ -2280,6 +2281,45 @@ impl ProcessManager{
             seq_push_lemma::<usize>();
             seq_push_unique_lemma::<usize>();
             seq_update_lemma::<Option<EndpointPtr>>();
+            assert(
+                forall|t_ptr:ThreadPtr|
+                    #![trigger self.thread_perms@[t_ptr].value().state]
+                    #![trigger self.thread_perms@[t_ptr].value().blocking_endpoint_ptr]
+                    #![trigger self.thread_perms@[t_ptr].value().endpoint_rev_ptr]
+                    self.thread_perms@.dom().contains(t_ptr)
+                    &&
+                    self.thread_perms@[t_ptr].value().state == ThreadState::BLOCKED
+                    ==>
+                    self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.is_Some()
+                    &&
+                    self.thread_perms@[t_ptr].value().blocking_endpoint_index.is_Some()
+                    &&
+                    0 <= self.thread_perms@[t_ptr].value().blocking_endpoint_index.unwrap() < MAX_NUM_ENDPOINT_DESCRIPTORS
+                    &&
+                    self.thread_perms@[t_ptr].value().endpoint_descriptors@[self.thread_perms@[t_ptr].value().blocking_endpoint_index.unwrap() as int] 
+                        == Some(self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap())
+                    &&
+                    self.thread_perms@[t_ptr].value().endpoint_rev_ptr.is_Some()
+                    &&
+                    self.endpoint_perms@.dom().contains(self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap())
+                    &&
+                    self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue@.contains(t_ptr)
+                    &&
+                    self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue.node_ref_valid(self.thread_perms@[t_ptr].value().endpoint_rev_ptr.unwrap())
+                    &&
+                    self.endpoint_perms@[self.thread_perms@[t_ptr].value().blocking_endpoint_ptr.unwrap()].value().queue.node_ref_resolve(self.thread_perms@[t_ptr].value().endpoint_rev_ptr.unwrap()) == t_ptr
+                );
+            assert(
+                forall|e_ptr:EndpointPtr, i:int| 
+                    #![trigger self.endpoint_perms@[e_ptr].value().queue@[i]]
+                    self.endpoint_perms@.dom().contains(e_ptr) && 0 <= i < self.endpoint_perms@[e_ptr].value().queue@.len()
+                    ==>
+                    self.thread_perms@.dom().contains(self.endpoint_perms@[e_ptr].value().queue@[i])
+                    &&
+                    self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().blocking_endpoint_ptr == Some(e_ptr)
+                    &&
+                    self.thread_perms@[self.endpoint_perms@[e_ptr].value().queue@[i]].value().state == ThreadState::BLOCKED
+            );
         };
         assert(self.endpoints_container_wf()) by {
             seq_push_lemma::<usize>();
@@ -2326,7 +2366,7 @@ impl ProcessManager{
                 old(self).endpoint_dom().contains(e_ptr)
                 ==> 
                 old(self).get_endpoint(e_ptr) =~= self.get_endpoint(e_ptr),
-            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).mem_quota == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).mem_quota,
+            old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).quota == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).quota,
             old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_cpus == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_cpus,
             old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_threads == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).owned_threads,
             old(self).get_container(old(self).cpu_list@[cpu_id as int].owning_container).scheduler@.skip(1) == self.get_container(old(self).cpu_list@[cpu_id as int].owning_container).scheduler@,

@@ -14,7 +14,7 @@ pub open spec fn syscall_new_thread_requirement(old:Kernel, thread_id: ThreadPtr
         false
     }else{
         let c_id = old.get_proc_owning_container(p_id);
-        if old.get_container_quota(c_id) < 1 {
+        if old.get_container_quota(c_id).mem_4k < 1 {
             false
         }else{
             if old.get_is_scheduler_full(c_id) {
@@ -68,7 +68,7 @@ impl Kernel{
         if self.proc_man.get_proc(proc_ptr).owned_threads.len() >= MAX_NUM_THREADS_PER_PROC{
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
-        if self.proc_man.get_container_by_proc_ptr(proc_ptr).mem_quota == 0{
+        if self.proc_man.get_container_by_proc_ptr(proc_ptr).quota.mem_4k == 0{
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
         if self.proc_man.get_container_by_proc_ptr(proc_ptr).scheduler.len() >= MAX_CONTAINER_SCHEDULER_LEN {

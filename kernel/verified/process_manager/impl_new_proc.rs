@@ -31,7 +31,7 @@ impl ProcessManager{
             old(self).thread_dom().contains(thread_ptr),
             old(self).page_closure().contains(page_ptr_1) == false,
             old(self).page_closure().contains(page_ptr_2) == false,
-            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota >= 2,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_4k >= 2,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_procs.len() < CONTAINER_PROC_LIST_LEN,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
             old(self).get_proc(old(self).get_thread(thread_ptr).owning_proc).children.len() < PROC_CHILD_LIST_LEN,
@@ -56,7 +56,7 @@ impl ProcessManager{
             self.endpoint_dom() == old(self).endpoint_dom(),
             self.container_dom() == old(self).container_dom(),
             self.thread_dom() == old(self).thread_dom().insert(page_ptr_2),
-            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - 2 == self.get_container(self.get_thread(thread_ptr).owning_container).mem_quota,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.spec_subtract_mem_4k(self.get_container(self.get_thread(thread_ptr).owning_container).quota, 2),
             forall|p_ptr:ProcPtr|
                 #![trigger old(self).proc_dom().contains(p_ptr)]
                 old(self).proc_dom().contains(p_ptr) && 
@@ -118,7 +118,7 @@ impl ProcessManager{
         broadcast use ProcessManager::reveal_internal_wf;
         let container_ptr = self.get_thread(thread_ptr).owning_container;
         let old_proc_ptr = self.get_thread(thread_ptr).owning_proc;
-        let old_mem_quota =  self.get_container(container_ptr).mem_quota;
+        let old_mem_quota =  self.get_container(container_ptr).quota.mem_4k;
         let old_owned_threads = self.get_container(container_ptr).owned_threads;
         let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
 
@@ -151,7 +151,7 @@ impl ProcessManager{
         let mut container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(container_ptr));
         let proc_list_node_ref = container_push_proc(container_ptr,&mut container_perm, page_ptr_1);
         let scheduler_node_ref = scheduler_push_thread(container_ptr, &mut container_perm, &page_ptr_2);
-        container_set_mem_quota(container_ptr,&mut container_perm, old_mem_quota - 2);
+        container_set_quota_mem_4k(container_ptr,&mut container_perm, old_mem_quota - 2);
         container_set_owned_threads(container_ptr,&mut container_perm, Ghost(old_owned_threads@.insert(page_ptr_2)));
         proof {
             self.container_perms.borrow_mut().tracked_insert(container_ptr, container_perm.get());

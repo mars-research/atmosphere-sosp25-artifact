@@ -19,7 +19,7 @@ pub open spec fn syscall_mmap_return_value(old:Kernel,  thread_ptr: ThreadPtr, v
     let pcid = old.proc_man.get_proc(proc_ptr).pcid;
     let container_ptr = old.proc_man.get_proc(proc_ptr).owning_container;
 
-    if old.get_container_quota(container_ptr) < va_range.len * 4{
+    if old.get_container_quota(container_ptr).mem_4k < va_range.len * 4{
         UserRetValueType::ErrorNoQuota
     }else if old.address_space_range_free(proc_ptr, &va_range) == false {
         UserRetValueType::ErrorVaInUse
@@ -163,12 +163,12 @@ pub fn syscall_mmap(&mut self, thread_ptr: ThreadPtr, va_range: VaRange4K) ->  (
         self.proc_man.process_inv();
     }
 
-    if self.proc_man.get_container(container_ptr).mem_quota < va_range.len * 4{
+    if self.proc_man.get_container(container_ptr).quota.mem_4k < va_range.len * 4{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::ErrorNoQuota);
     }
 
     assert(self.page_alloc.free_pages_4k.len() >= va_range.len * 4) by {
-        old(self).fold_lemma();
+        old(self).fold_mem_4k_lemma();
     }
 
     if self.check_address_space_va_range_free(proc_ptr, &va_range) == false {
@@ -177,8 +177,8 @@ pub fn syscall_mmap(&mut self, thread_ptr: ThreadPtr, va_range: VaRange4K) ->  (
 
     let (num_page, seq_pages) = self.range_alloc_and_map(proc_ptr, &va_range);
 
-    assert(self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).mem_quota) == old(self).container_dom().fold(0, |e:int, a:ContainerPtr| e + old(self).get_container(a).mem_quota) - num_page) by {
-        self.fold_change_lemma(*old(self), container_ptr);
+    assert(self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.mem_4k) == old(self).container_dom().fold(0, |e:int, a:ContainerPtr| e + old(self).get_container(a).quota.mem_4k) - num_page) by {
+        self.fold_change_mem_4k_lemma(*old(self), container_ptr);
     }
     assert(self.total_wf());
     

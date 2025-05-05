@@ -34,6 +34,7 @@ verus! {
         Pages{va_range: VaRange4K},
         Endpoint{endpoint_index:EndpointIdx},
         Pci{bus:u8,dev:u8,fun:u8},
+        PageFault{vaddr: VAddr},
         Empty,
     }
     impl IPCPayLoad {
@@ -116,6 +117,24 @@ verus! {
         {
             match self {
                 IPCPayLoad::Pci{bus:bus,dev:dev,fun:fun} => Some((*bus,*dev,*fun)),
+                _ => None,
+            } 
+        }
+
+        pub open spec fn spec_get_payload_as_page_fault(&self) -> Option<VAddr>{
+            match self {
+                IPCPayLoad::PageFault{vaddr:vaddr} => Some(*vaddr),
+                _ => None,
+            } 
+        }
+
+        #[verifier(when_used_as_spec(spec_get_payload_as_page_fault))]
+        pub fn get_payload_as_page_fault(&self) -> (ret:Option<VAddr>)
+            ensures
+                ret == self.spec_get_payload_as_page_fault(),
+        {
+            match self {
+                IPCPayLoad::PageFault{vaddr:vaddr} => Some(*vaddr),
                 _ => None,
             } 
         }

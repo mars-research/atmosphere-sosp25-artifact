@@ -8,6 +8,7 @@ use crate::process_manager::container::Container;
 use crate::process_manager::endpoint::Endpoint;
 use crate::process_manager::cpu::*;
 use crate::pagetable::entry::MapEntry;
+use crate::quota::Quota;
 
 impl Kernel{
     pub open spec fn proc_dom(&self) -> Set<ProcPtr>
@@ -54,12 +55,12 @@ impl Kernel{
         self.proc_man.get_container(c_ptr)
     }
 
-    pub open spec fn get_container_quota(&self, c_ptr:ContainerPtr) -> usize
+    pub open spec fn get_container_quota(&self, c_ptr:ContainerPtr) -> Quota
         recommends
             self.wf(),
             self.container_dom().contains(c_ptr)
     {
-        self.proc_man.get_container(c_ptr).mem_quota
+        self.proc_man.get_container(c_ptr).quota
     }
 
     pub open spec fn get_endpoint(&self, e_ptr:EndpointPtr) -> &Endpoint

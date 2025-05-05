@@ -46,7 +46,7 @@ pub fn create_entry(&mut self, proc_ptr:ProcPtr, va:VAddr) -> (ret: (usize, Page
     requires
         old(self).wf(),
         old(self).proc_dom().contains(proc_ptr),
-        old(self).get_container_quota(old(self).get_proc(proc_ptr).owning_container) >= 3,
+        old(self).get_container_quota(old(self).get_proc(proc_ptr).owning_container).mem_4k >= 3,
         old(self).get_num_of_free_pages() >= 3,
         va_4k_valid(va),
         old(self).get_address_space(proc_ptr).dom().contains(va) == false,
@@ -97,11 +97,11 @@ pub fn create_entry(&mut self, proc_ptr:ProcPtr, va:VAddr) -> (ret: (usize, Page
         self.get_container(old(self).get_proc(proc_ptr).owning_container).owned_endpoints =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).owned_endpoints,
         self.get_container(old(self).get_proc(proc_ptr).owning_container).owned_threads =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).owned_threads,
         // self.get_container(old(self).get_proc(proc_ptr).owning_container).mem_quota =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).mem_quota,
-        self.get_container(old(self).get_proc(proc_ptr).owning_container).mem_used =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).mem_used,
+        // self.get_container(old(self).get_proc(proc_ptr).owning_container).mem_used =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).mem_used,
         self.get_container(old(self).get_proc(proc_ptr).owning_container).owned_cpus =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).owned_cpus,
         self.get_container(old(self).get_proc(proc_ptr).owning_container).scheduler =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).scheduler,
         self.get_container(old(self).get_proc(proc_ptr).owning_container).depth =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).depth,
-        self.get_container(old(self).get_proc(proc_ptr).owning_container).mem_quota as int =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).mem_quota - ret.0,
+        old(self).get_container(old(self).get_proc(proc_ptr).owning_container).quota.spec_subtract_mem_4k(self.get_container(old(self).get_proc(proc_ptr).owning_container).quota, ret.0),
         self.get_container(old(self).get_proc(proc_ptr).owning_container).subtree_set =~= old(self).get_container(old(self).get_proc(proc_ptr).owning_container).subtree_set,
         self.mem_man.get_pagetable_by_pcid(self.get_proc(proc_ptr).pcid).unwrap().spec_resolve_mapping_l2(spec_va2index(va).0, spec_va2index(va).1, spec_va2index(va).2).is_Some(),
         self.mem_man.get_pagetable_by_pcid(self.get_proc(proc_ptr).pcid).unwrap().spec_resolve_mapping_l2(spec_va2index(va).0, spec_va2index(va).1, spec_va2index(va).2).unwrap().addr == ret.1,
@@ -122,7 +122,7 @@ pub fn create_entry(&mut self, proc_ptr:ProcPtr, va:VAddr) -> (ret: (usize, Page
     {
         let mut ret = 0;
         let container_ptr = self.proc_man.get_proc(proc_ptr).owning_container;
-        let old_quota = self.proc_man.get_container(container_ptr).mem_quota;
+        let old_quota_4k = self.proc_man.get_container(container_ptr).quota.mem_4k;
         let target_pcid = self.proc_man.get_proc(proc_ptr).pcid;
         proof{va_lemma();}
         let (l4i, l3i, l2i, l1i) = va2index(va);
@@ -211,7 +211,7 @@ pub fn create_entry(&mut self, proc_ptr:ProcPtr, va:VAddr) -> (ret: (usize, Page
             ret = ret + 1;
             l2_entry_op = self.mem_man.get_pagetable_l2_entry(target_pcid, l4i, l3i, l2i, &l3_entry);
         }
-        self.proc_man.set_container_mem_quota(container_ptr, old_quota - ret);
+        self.proc_man.set_container_mem_quota_mem_4k(container_ptr, old_quota_4k - ret);
 
         assert(self.wf()) by {
             assert(self.mem_man.wf());

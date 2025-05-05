@@ -16,18 +16,27 @@ use crate::va_range::VaRange4K;
 use crate::trap::Registers;
 // use crate::pagetable::pagemap_util_t::*;
 use crate::lemma::lemma_t::*;
+use crate::quota::Quota;
 
-pub open spec fn syscall_new_container_with_endpoint_requirement(old:Kernel, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers, va_range:VaRange4K, init_quota:usize) -> bool {
+pub open spec fn syscall_new_container_with_endpoint_requirement(old:Kernel, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers, va_range:VaRange4K, init_quota:Quota) -> bool {
     let proc_ptr = old.get_thread(thread_ptr).owning_proc;
     let pcid = old.get_proc(proc_ptr).pcid;
     let container_ptr = old.get_thread(thread_ptr).owning_container;
     if old.get_is_process_thread_list_full(proc_ptr){
         false
-    }else if old.get_container_quota(container_ptr) < 3 + init_quota {
+    }else if old.get_container_quota(container_ptr).mem_4k < 3 + init_quota.mem_4k {
+        false
+    }else if old.get_container_quota(container_ptr).mem_2m < init_quota.mem_2m {
+        false
+    }else if old.get_container_quota(container_ptr).mem_1g < init_quota.mem_1g {
+        false
+    }else if old.get_container_quota(container_ptr).pcid < 1 + init_quota.pcid {
+        false
+    }else if old.get_container_quota(container_ptr).ioid < init_quota.ioid {
         false
     }else if old.get_container(container_ptr).depth == usize::MAX {
         false
-    }else if old.get_num_of_free_pages() < 3 + init_quota {
+    }else if old.get_num_of_free_pages() < 3 + init_quota.mem_4k {
         false
     }else if old.get_is_pcid_exhausted(){
         false
@@ -37,14 +46,14 @@ pub open spec fn syscall_new_container_with_endpoint_requirement(old:Kernel, thr
         false
     }else if old.get_is_children_list_full(container_ptr){
         false
-    }else if init_quota < 3 * va_range.len{
+    }else if init_quota.mem_4k < 3 * va_range.len{
         false
     }else{
         true
     }
 }
 
-pub open spec fn syscall_new_container_with_endpoint_spec(old:Kernel, new:Kernel, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers, va_range:VaRange4K, init_quota:usize, ret: SyscallReturnStruct) -> bool {
+pub open spec fn syscall_new_container_with_endpoint_spec(old:Kernel, new:Kernel, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers, va_range:VaRange4K, init_quota:Quota, ret: SyscallReturnStruct) -> bool {
     let proc_ptr = old.get_thread(thread_ptr).owning_proc;
     let pcid = old.get_proc(proc_ptr).pcid;
     let container_ptr = old.get_thread(thread_ptr).owning_container;
@@ -167,13 +176,14 @@ pub open spec fn syscall_new_container_with_endpoint_spec(old:Kernel, new:Kernel
 
 impl Kernel{
 
-pub fn syscall_new_container_with_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers, va_range:VaRange4K, init_quota: usize) ->  (ret: SyscallReturnStruct)
+pub fn syscall_new_container_with_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint_index: EndpointIdx, pt_regs:Registers, va_range:VaRange4K, init_quota: Quota) ->  (ret: SyscallReturnStruct)
     requires
         old(self).wf(),
         old(self).thread_dom().contains(thread_ptr),
         va_range.wf(),
         va_range.len * 3 < usize::MAX,
-        3 + init_quota < usize::MAX,
+        3 + init_quota.mem_4k < usize::MAX,
+        1 + init_quota.pcid < usize::MAX,
         0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS
     ensures
         syscall_new_container_with_endpoint_requirement(*old(self), thread_ptr, endpoint_index, pt_regs, va_range, init_quota) == false <==> ret.is_error(),
@@ -191,15 +201,28 @@ pub fn syscall_new_container_with_endpoint(&mut self, thread_ptr: ThreadPtr, end
     if self.proc_man.get_proc(proc_ptr).owned_threads.len() >= MAX_NUM_THREADS_PER_PROC{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
-    if self.proc_man.get_container(container_ptr).mem_quota < 3 + init_quota {
+    if self.proc_man.get_container(container_ptr).quota.mem_4k < 3 + init_quota.mem_4k {
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+    }
+    if self.proc_man.get_container(container_ptr).quota.mem_2m < init_quota.mem_2m {
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+    }
+    if self.proc_man.get_container(container_ptr).quota.mem_1g < init_quota.mem_1g {
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+    }
+    if self.proc_man.get_container(container_ptr).quota.pcid < 1 + init_quota.pcid {
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+    }
+    if self.proc_man.get_container(container_ptr).quota.ioid < init_quota.ioid {
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
     if self.proc_man.get_container(container_ptr).depth == usize::MAX {
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
-    if self.page_alloc.free_pages_4k.len() < 3 + init_quota{
+    if self.page_alloc.free_pages_4k.len() < 3 + init_quota.mem_4k {
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
+
     if self.mem_man.free_pcids.len() < 1 {
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
@@ -221,7 +244,7 @@ pub fn syscall_new_container_with_endpoint(&mut self, thread_ptr: ThreadPtr, end
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
 
-    if init_quota < 3 * va_range.len{
+    if init_quota.mem_4k < 3 * va_range.len{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
 
@@ -233,7 +256,7 @@ pub fn syscall_new_container_with_endpoint(&mut self, thread_ptr: ThreadPtr, end
     // let (page_map_ptr, mut page_map_perm) = page_perm_to_page_map(page_ptr_1,page_perm_1);
     let new_pcid = self.mem_man.alloc_page_table(page_ptr_3);
     assert(self.proc_man == old(self).proc_man);
-    self.proc_man.new_container_with_endpoint(thread_ptr, endpoint_index, pt_regs, new_pcid, init_quota, page_ptr_2, page_perm_2, page_ptr_3, page_perm_3, page_ptr_4, page_perm_4);
+    self.proc_man.new_container_with_endpoint(thread_ptr, endpoint_index, pt_regs, new_pcid, &init_quota, page_ptr_2, page_perm_2, page_ptr_3, page_perm_3, page_ptr_4, page_perm_4);
 
     assert(self.mem_man.wf());
     assert(self.page_alloc.wf());

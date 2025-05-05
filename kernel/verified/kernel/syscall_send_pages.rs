@@ -175,7 +175,7 @@ pub open spec fn syscall_send_pages_spec(old:Kernel, new:Kernel, sender_thread_p
     else if old.address_space_range_free(receiver_proc_ptr, &receiver_va_range) == false{
         old =~= new
     }
-    else if old.get_container(receiver_container_ptr).mem_quota < receiver_va_range.len * 3{
+    else if old.get_container(receiver_container_ptr).quota.mem_4k < receiver_va_range.len * 3{
         old =~= new
     }
     else if old.page_alloc.free_pages_4k.len() < receiver_va_range.len * 3 {
@@ -359,7 +359,7 @@ pub fn syscall_send_pages(&mut self, sender_thread_ptr: ThreadPtr, sender_endpoi
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
 
-    if self.proc_man.get_container(receiver_container_ptr).mem_quota < receiver_va_range.len * 3{
+    if self.proc_man.get_container(receiver_container_ptr).quota.mem_4k < receiver_va_range.len * 3{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
 

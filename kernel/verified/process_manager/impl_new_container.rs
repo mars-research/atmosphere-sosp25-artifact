@@ -22,10 +22,11 @@ verus! {
     use crate::process_manager::container_tree::*;
     use crate::process_manager::process_tree::*;
     use crate::process_manager::spec_proof::*;
+    use crate::quota::Quota;
 
 impl ProcessManager{
 
-    pub fn new_container_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, pt_regs:Registers, new_pcid:Pcid, new_quota:usize, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, page_ptr_2: PagePtr, page_perm_2: Tracked<PagePerm4k>, page_ptr_3: PagePtr, page_perm_3: Tracked<PagePerm4k>)
+    pub fn new_container_with_endpoint(&mut self, thread_ptr:ThreadPtr, endpoint_index:EndpointIdx, pt_regs:Registers, new_pcid:Pcid, new_quota:&Quota, page_ptr_1: PagePtr, page_perm_1: Tracked<PagePerm4k>, page_ptr_2: PagePtr, page_perm_2: Tracked<PagePerm4k>, page_ptr_3: PagePtr, page_perm_3: Tracked<PagePerm4k>)
         requires
             old(self).wf(),
             old(self).thread_dom().contains(thread_ptr),
@@ -33,7 +34,8 @@ impl ProcessManager{
             old(self).page_closure().contains(page_ptr_2) == false,
             old(self).page_closure().contains(page_ptr_3) == false,
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).depth != usize::MAX,
-            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota >= 3 + new_quota,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_4k - 3 >= new_quota.mem_4k,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.spec_greater(new_quota),
             old(self).get_container(old(self).get_thread(thread_ptr).owning_container).children.len() < CONTAINER_CHILD_LIST_LEN,
             0 <= endpoint_index < MAX_NUM_ENDPOINT_DESCRIPTORS,
             old(self).get_endpoint_by_endpoint_idx(thread_ptr, endpoint_index).is_Some() || old(self).get_endpoint_ptr_by_endpoint_idx(thread_ptr, endpoint_index).is_Some(),
@@ -59,7 +61,11 @@ impl ProcessManager{
             self.endpoint_dom() == old(self).endpoint_dom(),
             self.container_dom() == old(self).container_dom().insert(page_ptr_1),
             self.thread_dom() == old(self).thread_dom().insert(page_ptr_3),
-            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - 3 - new_quota == self.get_container(self.get_thread(thread_ptr).owning_container).mem_quota,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_4k - 3 - new_quota.mem_4k == self.get_container(self.get_thread(thread_ptr).owning_container).quota.mem_4k,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_2m - new_quota.mem_2m == self.get_container(self.get_thread(thread_ptr).owning_container).quota.mem_2m,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_1g - new_quota.mem_1g == self.get_container(self.get_thread(thread_ptr).owning_container).quota.mem_1g,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.pcid - new_quota.pcid == self.get_container(self.get_thread(thread_ptr).owning_container).quota.pcid,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.ioid - new_quota.ioid == self.get_container(self.get_thread(thread_ptr).owning_container).quota.ioid,
             forall|p_ptr:ProcPtr|
                 #![trigger self.get_proc(p_ptr)]
                 old(self).proc_dom().contains(p_ptr)
@@ -79,9 +85,9 @@ impl ProcessManager{
                 &&
                 self.get_container(c_ptr).owned_endpoints =~= old(self).get_container(c_ptr).owned_endpoints
                 &&
-                self.get_container(c_ptr).mem_quota =~= old(self).get_container(c_ptr).mem_quota
-                &&
-                self.get_container(c_ptr).mem_used =~= old(self).get_container(c_ptr).mem_used
+                self.get_container(c_ptr).quota =~= old(self).get_container(c_ptr).quota
+                // &&
+                // self.get_container(c_ptr).mem_used =~= old(self).get_container(c_ptr).mem_used
                 &&
                 self.get_container(c_ptr).owned_cpus =~= old(self).get_container(c_ptr).owned_cpus
                 &&
@@ -106,8 +112,12 @@ impl ProcessManager{
             self.get_container(old(self).get_thread(thread_ptr).owning_container).parent =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).parent,
             self.get_container(old(self).get_thread(thread_ptr).owning_container).children@ =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).children@.push(page_ptr_1),
             self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_endpoints =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_endpoints,
-            self.get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota as int =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_quota - new_quota - 3,
-            self.get_container(old(self).get_thread(thread_ptr).owning_container).mem_used =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_used,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_4k - 3 - new_quota.mem_4k == self.get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_4k,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_2m - new_quota.mem_2m == self.get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_2m,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_1g - new_quota.mem_1g == self.get_container(old(self).get_thread(thread_ptr).owning_container).quota.mem_1g,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.pcid - new_quota.pcid == self.get_container(old(self).get_thread(thread_ptr).owning_container).quota.pcid,
+            old(self).get_container(old(self).get_thread(thread_ptr).owning_container).quota.ioid - new_quota.ioid == self.get_container(old(self).get_thread(thread_ptr).owning_container).quota.ioid,
+            // self.get_container(old(self).get_thread(thread_ptr).owning_container).mem_used =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).mem_used,
             self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_cpus =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_cpus,
             self.get_container(old(self).get_thread(thread_ptr).owning_container).scheduler =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).scheduler,
             self.get_container(old(self).get_thread(thread_ptr).owning_container).owned_threads =~= old(self).get_container(old(self).get_thread(thread_ptr).owning_container).owned_threads,
@@ -120,8 +130,8 @@ impl ProcessManager{
             self.get_container(page_ptr_1).children@ =~= Seq::<ContainerPtr>::empty(),
             self.get_container(page_ptr_1).owned_endpoints.wf(),
             self.get_container(page_ptr_1).owned_endpoints@ =~= Seq::<EndpointPtr>::empty(),
-            self.get_container(page_ptr_1).mem_quota =~= new_quota,
-            self.get_container(page_ptr_1).mem_used =~= 0,
+            self.get_container(page_ptr_1).quota =~= *new_quota,
+            // self.get_container(page_ptr_1).mem_used =~= 0,
             self.get_container(page_ptr_1).owned_cpus.wf(),
             self.get_container(page_ptr_1).owned_cpus@ =~= Set::<CpuId>::empty(),
             self.get_container(page_ptr_1).scheduler.wf(),
@@ -145,7 +155,7 @@ impl ProcessManager{
             self.get_container(page_ptr_1).children@ == Seq::<ContainerPtr>::empty(),
             self.get_container(page_ptr_1).owned_procs@ == Seq::<ProcPtr>::empty().push(page_ptr_2),
             self.get_container(page_ptr_1).owned_threads@ == Set::<ThreadPtr>::empty().insert(page_ptr_3),
-            self.get_container(page_ptr_1).mem_quota == new_quota,
+            self.get_container(page_ptr_1).quota == new_quota,
             self.get_proc(page_ptr_2).pcid =~= new_pcid,
             self.get_proc(page_ptr_2).ioid.is_None(),
             self.get_proc(page_ptr_2).owned_threads@ == Seq::<ThreadPtr>::empty().push(page_ptr_3),
@@ -160,8 +170,9 @@ impl ProcessManager{
     {     
         proof{seq_push_lemma::<ThreadPtr>();}
         broadcast use ProcessManager::reveal_internal_wf;
+
         let old_container_ptr = self.get_thread(thread_ptr).owning_container;
-        let old_mem_quota =  self.get_container(old_container_ptr).mem_quota;
+        let mut old_quota =  self.get_container(old_container_ptr).quota;
         let endpoint_ptr = self.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).unwrap();
         let new_upper_tree_ghost = Ghost(self.get_container(old_container_ptr).uppertree_seq@.push(old_container_ptr));
         let old_depth = self.get_container(old_container_ptr).depth;
@@ -182,16 +193,17 @@ impl ProcessManager{
                 self.root_container, 
                 self.container_perms@);
         };
-
+        old_quota.subtract_mem_4k(3);
+        old_quota.subtract_new_quota(new_quota);
         let mut old_container_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(old_container_ptr));
-        container_set_mem_quota(old_container_ptr,&mut old_container_perm, old_mem_quota - new_quota - 3);
+        container_set_quota(old_container_ptr,&mut old_container_perm, &old_quota);
         let child_list_node_ref = container_push_child(old_container_ptr,&mut old_container_perm, page_ptr_1);
         proof {
             self.container_perms.borrow_mut().tracked_insert(old_container_ptr, old_container_perm.get());
         }
 
         let (new_container_ptr, mut new_container_perm) = page_to_container_tree_version_1(
-            page_ptr_1, page_perm_1, old_container_ptr, child_list_node_ref, new_quota, ArraySet::<NUM_CPUS>::new(),
+            page_ptr_1, page_perm_1, old_container_ptr, child_list_node_ref, *new_quota, ArraySet::<NUM_CPUS>::new(),
                     old_depth + 1, Ghost(Set::<ContainerPtr>::empty()), new_upper_tree_ghost, Some(page_ptr_2)
         );
 

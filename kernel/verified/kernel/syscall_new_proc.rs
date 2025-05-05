@@ -24,7 +24,7 @@ pub open spec fn syscall_new_proc_with_endpoint_requirement(old:Kernel, thread_p
         false
     }else if old.get_is_process_depth_overflow(proc_ptr){
         false
-    }else if old.get_container_quota(container_ptr) < va_range.len * 3 + 2{
+    }else if old.get_container_quota(container_ptr).mem_4k < va_range.len * 3 + 2{
         false
     }else if old.get_is_scheduler_full(container_ptr) {
         false
@@ -190,7 +190,7 @@ pub fn syscall_new_proc_with_endpoint(&mut self, thread_ptr: ThreadPtr, endpoint
     if self.proc_man.get_proc(proc_ptr).depth >= usize::MAX{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
-    if self.proc_man.get_container(container_ptr).mem_quota < va_range.len * 3 + 2{
+    if self.proc_man.get_container(container_ptr).quota.mem_4k < va_range.len * 3 + 2{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
     if self.proc_man.get_container(container_ptr).scheduler.len() >= MAX_CONTAINER_SCHEDULER_LEN {

@@ -8,6 +8,7 @@ use vstd::simple_pptr::PointsTo;
 use crate::pagetable::pagemap::PageMap;
 use crate::array_vec::ArrayVec;
 use crate::define::*;
+use crate::quota::Quota;
 
 pub struct Kernel{
     pub page_alloc: PageAllocator,
@@ -153,17 +154,30 @@ impl Kernel{
         self.page_mapping_wf()
     }
 
-    pub open spec fn total_quota_wf(&self) -> bool{
+    pub open spec fn total_mem_4k_quota_wf(&self) -> bool{
         &&&
         self.get_num_of_free_pages() ==
-            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).mem_quota)
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.mem_4k)
     }
+
+    pub open spec fn total_pcid_quota_wf(&self) -> bool{
+        &&&
+        self.mem_man.free_pcids.len() ==
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.pcid)
+    }
+
+    pub open spec fn total_ioid_quota_wf(&self) -> bool{
+        &&&
+        self.mem_man.free_ioids.len() ==
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.ioid)
+    }
+
 
     pub open spec fn total_wf(&self) -> bool{
         &&&
         self.wf()
         &&&
-        self.total_quota_wf()
+        self.total_mem_4k_quota_wf()
     }
 }
 
@@ -374,7 +388,7 @@ impl Kernel {
 
     // @TODO: prove this
     #[verifier(external_body)]
-    pub proof fn fold_change_lemma(&self, old:Kernel, mod_c_ptr:ContainerPtr)
+    pub proof fn fold_change_mem_4k_lemma(&self, old:Kernel, mod_c_ptr:ContainerPtr)
         requires
             self.container_dom() == old.container_dom(),
             self.container_dom().contains(mod_c_ptr),
@@ -382,22 +396,78 @@ impl Kernel {
                 #![auto]
                 self.container_dom().contains(c_ptr) && c_ptr != mod_c_ptr
                 ==>
-                self.get_container(c_ptr).mem_quota == old.get_container(c_ptr).mem_quota
+                self.get_container(c_ptr).quota.mem_4k == old.get_container(c_ptr).quota.mem_4k
         ensures
-            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).mem_quota)
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.mem_4k)
             ==
-            old.container_dom().fold(0, |e:int, a:ContainerPtr| e + old.get_container(a).mem_quota) - old.get_container(mod_c_ptr).mem_quota + self.get_container(mod_c_ptr).mem_quota
+            old.container_dom().fold(0, |e:int, a:ContainerPtr| e + old.get_container(a).quota.mem_4k) - old.get_container(mod_c_ptr).quota.mem_4k + self.get_container(mod_c_ptr).quota.mem_4k
     {}
 
     // @TODO: prove this
     #[verifier(external_body)]
-    pub proof fn fold_lemma(&self)
+    pub proof fn fold_mem_4k_lemma(&self)
         ensures
             forall|c_ptr:ContainerPtr|
             #![auto]
             self.container_dom().contains(c_ptr)
             ==>
-            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).mem_quota) >= self.get_container(c_ptr).mem_quota 
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.mem_4k) >= self.get_container(c_ptr).quota.mem_4k 
+    {}
+
+    // @TODO: prove this
+    #[verifier(external_body)]
+    pub proof fn fold_change_pcid_lemma(&self, old:Kernel, mod_c_ptr:ContainerPtr)
+        requires
+            self.container_dom() == old.container_dom(),
+            self.container_dom().contains(mod_c_ptr),
+            forall|c_ptr:ContainerPtr|
+                #![auto]
+                self.container_dom().contains(c_ptr) && c_ptr != mod_c_ptr
+                ==>
+                self.get_container(c_ptr).quota.pcid == old.get_container(c_ptr).quota.pcid
+        ensures
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.pcid)
+            ==
+            old.container_dom().fold(0, |e:int, a:ContainerPtr| e + old.get_container(a).quota.pcid) - old.get_container(mod_c_ptr).quota.pcid + self.get_container(mod_c_ptr).quota.pcid
+    {}
+
+    // @TODO: prove this
+    #[verifier(external_body)]
+    pub proof fn fold_pcid_lemma(&self)
+        ensures
+            forall|c_ptr:ContainerPtr|
+            #![auto]
+            self.container_dom().contains(c_ptr)
+            ==>
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.pcid) >= self.get_container(c_ptr).quota.pcid 
+    {}
+
+    // @TODO: prove this
+    #[verifier(external_body)]
+    pub proof fn fold_change_ioid_lemma(&self, old:Kernel, mod_c_ptr:ContainerPtr)
+        requires
+            self.container_dom() == old.container_dom(),
+            self.container_dom().contains(mod_c_ptr),
+            forall|c_ptr:ContainerPtr|
+                #![auto]
+                self.container_dom().contains(c_ptr) && c_ptr != mod_c_ptr
+                ==>
+                self.get_container(c_ptr).quota.ioid == old.get_container(c_ptr).quota.ioid
+        ensures
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.ioid)
+            ==
+            old.container_dom().fold(0, |e:int, a:ContainerPtr| e + old.get_container(a).quota.ioid) - old.get_container(mod_c_ptr).quota.ioid + self.get_container(mod_c_ptr).quota.ioid
+    {}
+
+    // @TODO: prove this
+    #[verifier(external_body)]
+    pub proof fn fold_ioid_lemma(&self)
+        ensures
+            forall|c_ptr:ContainerPtr|
+            #![auto]
+            self.container_dom().contains(c_ptr)
+            ==>
+            self.container_dom().fold(0, |e:int, a:ContainerPtr| e + self.get_container(a).quota.ioid) >= self.get_container(c_ptr).quota.ioid 
     {}
 }
 
@@ -423,7 +493,15 @@ impl Kernel{
     {
         self.page_alloc.init(boot_pages, dom_0_container_ptr);
         self.mem_man.init(dom0_page_map_ptr, kernel_entry, dom_0_proc_ptr, &mut self.page_alloc, dom0_page_map_perm);
-        self.proc_man.init(dom_0_container_ptr, dom_0_proc_ptr, dom_0_thread_ptr, self.page_alloc.free_pages_4k.len(), page_perm_0, page_perm_1, page_perm_2);
+        self.proc_man.init(dom_0_container_ptr, dom_0_proc_ptr, dom_0_thread_ptr, 
+            Quota{
+                mem_4k:self.page_alloc.free_pages_4k.len(),
+                mem_2m:0,
+                mem_1g:0,
+                pcid:4095,
+                ioid:4096,
+            }
+            , page_perm_0, page_perm_1, page_perm_2);
     }
 }
 

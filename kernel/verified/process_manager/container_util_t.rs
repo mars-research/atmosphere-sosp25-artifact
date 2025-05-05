@@ -5,6 +5,7 @@ use crate::define::*;
 use vstd::simple_pptr::PointsTo;
 use crate::process_manager::container::*;
 use crate::array_set::ArraySet;
+use crate::quota::Quota;
 
 #[verifier(external_body)]
 pub fn scheduler_push_thread(container_ptr:ContainerPtr, container_perm: &mut Tracked<PointsTo<Container>>, thread_ptr: &ThreadPtr) -> (ret: SLLIndex)
@@ -23,8 +24,8 @@ pub fn scheduler_push_thread(container_ptr:ContainerPtr, container_perm: &mut Tr
         container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
         container_perm@.value().children =~= old(container_perm)@.value().children,
         container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
-        container_perm@.value().mem_quota =~= old(container_perm)@.value().mem_quota,
-        container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
         container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
         container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
         // container_perm@.value().scheduler =~= old(container_perm)@.value().scheduler,
@@ -77,8 +78,8 @@ pub fn scheduler_pop_head(container_ptr:ContainerPtr, container_perm: &mut Track
         container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
         container_perm@.value().children =~= old(container_perm)@.value().children,
         container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
-        container_perm@.value().mem_quota =~= old(container_perm)@.value().mem_quota,
-        container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
         container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
         container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
         container_perm@.value().depth =~= old(container_perm)@.value().depth,
@@ -140,8 +141,8 @@ pub fn container_push_proc(container_ptr:ContainerPtr, container_perm: &mut Trac
         container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
         container_perm@.value().children =~= old(container_perm)@.value().children,
         container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
-        container_perm@.value().mem_quota =~= old(container_perm)@.value().mem_quota,
-        container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
         container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
         container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
         container_perm@.value().scheduler =~= old(container_perm)@.value().scheduler,
@@ -194,8 +195,8 @@ pub fn container_push_child(container_ptr:ContainerPtr, container_perm: &mut Tra
         container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
         // container_perm@.value().children =~= old(container_perm)@.value().children,
         container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
-        container_perm@.value().mem_quota =~= old(container_perm)@.value().mem_quota,
-        container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
         container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
         container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
         container_perm@.value().scheduler =~= old(container_perm)@.value().scheduler,
@@ -248,8 +249,8 @@ pub fn container_push_endpoint(container_ptr:ContainerPtr, container_perm: &mut 
         container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
         container_perm@.value().children =~= old(container_perm)@.value().children,
         // container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
-        container_perm@.value().mem_quota =~= old(container_perm)@.value().mem_quota,
-        container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
         container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
         container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
         container_perm@.value().scheduler =~= old(container_perm)@.value().scheduler,
@@ -287,7 +288,7 @@ pub fn container_push_endpoint(container_ptr:ContainerPtr, container_perm: &mut 
 
 
 #[verifier(external_body)]
-pub fn container_set_mem_quota(container_ptr:ContainerPtr, container_perm: &mut Tracked<PointsTo<Container>>, value: usize) 
+pub fn container_set_quota_mem_4k(container_ptr:ContainerPtr, container_perm: &mut Tracked<PointsTo<Container>>, value: usize) 
     requires    
         old(container_perm)@.is_init(),
         old(container_perm)@.addr() == container_ptr,
@@ -299,8 +300,8 @@ pub fn container_set_mem_quota(container_ptr:ContainerPtr, container_perm: &mut 
         container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
         container_perm@.value().children =~= old(container_perm)@.value().children,
         container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
-        // container_perm@.value().mem_quota =~= old(container_perm)@.value().mem_quota,
-        container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        // container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
         container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
         container_perm@.value().scheduler =~= old(container_perm)@.value().scheduler,
         container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
@@ -311,11 +312,44 @@ pub fn container_set_mem_quota(container_ptr:ContainerPtr, container_perm: &mut 
         container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
         container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
 
-        container_perm@.value().mem_quota =~= value,
+        container_perm@.value().quota =~= old(container_perm)@.value().quota.spec_set_mem_4k(value),
 {
     unsafe{
         let uptr = container_ptr as *mut MaybeUninit<Container>;
-        (*uptr).assume_init_mut().mem_quota = value;
+        (*uptr).assume_init_mut().quota.set_mem_4k(value);
+    }
+}
+
+#[verifier(external_body)]
+pub fn container_set_quota(container_ptr:ContainerPtr, container_perm: &mut Tracked<PointsTo<Container>>, new_quota: &Quota) 
+    requires    
+        old(container_perm)@.is_init(),
+        old(container_perm)@.addr() == container_ptr,
+    ensures
+        container_perm@.is_init(),
+        container_perm@.addr() == container_ptr, 
+        container_perm@.value().owned_procs =~= old(container_perm)@.value().owned_procs,
+        container_perm@.value().parent =~= old(container_perm)@.value().parent,
+        container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
+        container_perm@.value().children =~= old(container_perm)@.value().children,
+        container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
+        // container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
+        container_perm@.value().scheduler =~= old(container_perm)@.value().scheduler,
+        container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
+        container_perm@.value().depth =~= old(container_perm)@.value().depth,
+        container_perm@.value().uppertree_seq =~= old(container_perm)@.value().uppertree_seq,
+        container_perm@.value().subtree_set =~= old(container_perm)@.value().subtree_set,
+        container_perm@.value().can_have_children =~= old(container_perm)@.value().can_have_children,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
+        container_perm@.value().root_process =~= old(container_perm)@.value().root_process,
+
+        container_perm@.value().quota =~= *new_quota,
+{
+    unsafe{
+        let uptr = container_ptr as *mut MaybeUninit<Container>;
+        (*uptr).assume_init_mut().quota = *new_quota;
     }
 }
 
@@ -332,8 +366,8 @@ pub fn container_set_owned_threads(container_ptr:ContainerPtr, container_perm: &
         container_perm@.value().parent_rev_ptr =~= old(container_perm)@.value().parent_rev_ptr,
         container_perm@.value().children =~= old(container_perm)@.value().children,
         container_perm@.value().owned_endpoints =~= old(container_perm)@.value().owned_endpoints,
-        container_perm@.value().mem_quota =~= old(container_perm)@.value().mem_quota,
-        container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
+        container_perm@.value().quota =~= old(container_perm)@.value().quota,
+        // container_perm@.value().mem_used =~= old(container_perm)@.value().mem_used,
         container_perm@.value().owned_cpus =~= old(container_perm)@.value().owned_cpus,
         container_perm@.value().scheduler =~= old(container_perm)@.value().scheduler,
         // container_perm@.value().owned_threads =~= old(container_perm)@.value().owned_threads,
@@ -349,7 +383,7 @@ pub fn container_set_owned_threads(container_ptr:ContainerPtr, container_perm: &
 
 #[verifier(external_body)]
 pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, first_proc:ProcPtr, parent_container:ContainerPtr, 
-    parent_rev_ptr:SLLIndex, init_quota:usize, new_cpus: ArraySet<NUM_CPUS>, first_thread:ThreadPtr) -> (ret:(SLLIndex,SLLIndex,ContainerPtr,Tracked<PointsTo<Container>>))
+    parent_rev_ptr:SLLIndex, init_quota:Quota, new_cpus: ArraySet<NUM_CPUS>, first_thread:ThreadPtr) -> (ret:(SLLIndex,SLLIndex,ContainerPtr,Tracked<PointsTo<Container>>))
     requires    
         page_perm@.is_init(),
         page_perm@.addr() == page_ptr,
@@ -381,8 +415,8 @@ pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, firs
         forall|index:SLLIndex|
             #![trigger ret.3@.value().owned_endpoints.node_ref_valid(index)] 
             ret.3@.value().owned_endpoints.node_ref_valid(index) == false,
-        ret.3@.value().mem_quota =~= init_quota,
-        ret.3@.value().mem_used =~= 0,
+        ret.3@.value().quota =~= init_quota,
+        // ret.3@.value().mem_used =~= 0,
         ret.3@.value().owned_cpus =~= new_cpus,
 
         ret.3@.value().scheduler.wf(),        
@@ -407,8 +441,8 @@ pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, firs
         (*uptr).assume_init_mut().parent_rev_ptr = Some(parent_rev_ptr);
         (*uptr).assume_init_mut().children.init();
         (*uptr).assume_init_mut().owned_endpoints.init();
-        (*uptr).assume_init_mut().mem_quota = init_quota;
-        (*uptr).assume_init_mut().mem_used = 0;
+        (*uptr).assume_init_mut().quota = init_quota;
+        // (*uptr).assume_init_mut().mem_used = 0;
         (*uptr).assume_init_mut().owned_cpus = new_cpus;
         (*uptr).assume_init_mut().scheduler.init();
         let sll2 = (*uptr).assume_init_mut().scheduler.push(&first_thread);
@@ -419,7 +453,7 @@ pub fn page_to_container(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, firs
 
 #[verifier(external_body)]
 pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, first_proc:ProcPtr, parent_container:ContainerPtr, parent_rev_ptr:SLLIndex, 
-        init_quota:usize, new_cpus: ArraySet<NUM_CPUS>, first_thread:ThreadPtr, depth:usize, subtree_set: Ghost<Set<ContainerPtr>>, uppertree_seq: Ghost<Seq<ContainerPtr>>) 
+        init_quota:Quota, new_cpus: ArraySet<NUM_CPUS>, first_thread:ThreadPtr, depth:usize, subtree_set: Ghost<Set<ContainerPtr>>, uppertree_seq: Ghost<Seq<ContainerPtr>>) 
             -> (ret:(SLLIndex,SLLIndex,ContainerPtr,Tracked<PointsTo<Container>>))
     requires    
         page_perm@.is_init(),
@@ -452,8 +486,8 @@ pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<Page
         forall|index:SLLIndex|
             #![trigger ret.3@.value().owned_endpoints.node_ref_valid(index)] 
             ret.3@.value().owned_endpoints.node_ref_valid(index) == false,
-        ret.3@.value().mem_quota =~= init_quota,
-        ret.3@.value().mem_used =~= 0,
+        ret.3@.value().quota =~= init_quota,
+        // ret.3@.value().mem_used =~= 0,
         ret.3@.value().owned_cpus =~= new_cpus,
 
         ret.3@.value().scheduler.wf(),        
@@ -483,8 +517,8 @@ pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<Page
         (*uptr).assume_init_mut().parent_rev_ptr = Some(parent_rev_ptr);
         (*uptr).assume_init_mut().children.init();
         (*uptr).assume_init_mut().owned_endpoints.init();
-        (*uptr).assume_init_mut().mem_quota = init_quota;
-        (*uptr).assume_init_mut().mem_used = 0;
+        (*uptr).assume_init_mut().quota = init_quota;
+        // (*uptr).assume_init_mut().mem_used = 0;
         (*uptr).assume_init_mut().owned_cpus = new_cpus;
         (*uptr).assume_init_mut().scheduler.init();
         (*uptr).assume_init_mut().depth = depth;
@@ -497,7 +531,7 @@ pub fn page_to_container_tree_version(page_ptr: PagePtr, page_perm: Tracked<Page
 
 #[verifier(external_body)]
 pub fn page_to_container_tree_version_1(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, parent_container:ContainerPtr, parent_rev_ptr:SLLIndex, 
-        init_quota:usize, new_cpus: ArraySet<NUM_CPUS>,depth:usize, subtree_set: Ghost<Set<ContainerPtr>>, uppertree_seq: Ghost<Seq<ContainerPtr>>,
+        init_quota:Quota, new_cpus: ArraySet<NUM_CPUS>,depth:usize, subtree_set: Ghost<Set<ContainerPtr>>, uppertree_seq: Ghost<Seq<ContainerPtr>>,
         root_process:Option<ProcPtr>) 
             -> (ret:(ContainerPtr,Tracked<PointsTo<Container>>))
     requires    
@@ -523,8 +557,8 @@ pub fn page_to_container_tree_version_1(page_ptr: PagePtr, page_perm: Tracked<Pa
         ret.1@.value().owned_endpoints.wf(),        
         ret.1@.value().owned_endpoints@ =~= Seq::<EndpointPtr>::empty(),
         ret.1@.value().owned_endpoints.len() == 0,
-        ret.1@.value().mem_quota =~= init_quota,
-        ret.1@.value().mem_used =~= 0,
+        ret.1@.value().quota =~= init_quota,
+        // ret.1@.value().mem_used =~= 0,
         ret.1@.value().owned_cpus =~= new_cpus,
 
         ret.1@.value().scheduler.wf(),        
@@ -546,8 +580,8 @@ pub fn page_to_container_tree_version_1(page_ptr: PagePtr, page_perm: Tracked<Pa
         (*uptr).assume_init_mut().parent_rev_ptr = Some(parent_rev_ptr);
         (*uptr).assume_init_mut().children.init();
         (*uptr).assume_init_mut().owned_endpoints.init();
-        (*uptr).assume_init_mut().mem_quota = init_quota;
-        (*uptr).assume_init_mut().mem_used = 0;
+        (*uptr).assume_init_mut().quota = init_quota;
+        // (*uptr).assume_init_mut().mem_used = 0;
         (*uptr).assume_init_mut().owned_cpus = new_cpus;
         (*uptr).assume_init_mut().scheduler.init();
         (*uptr).assume_init_mut().depth = depth;
@@ -597,9 +631,9 @@ pub fn container_perms_update_subtree_set(perms: &mut Tracked<Map<ContainerPtr, 
             &&
             perms@[c_ptr].value().owned_threads =~= old(perms)@[c_ptr].value().owned_threads
             &&
-            perms@[c_ptr].value().mem_quota =~= old(perms)@[c_ptr].value().mem_quota
-            &&
-            perms@[c_ptr].value().mem_used =~= old(perms)@[c_ptr].value().mem_used
+            perms@[c_ptr].value().quota =~= old(perms)@[c_ptr].value().quota
+            // &&
+            // perms@[c_ptr].value().mem_used =~= old(perms)@[c_ptr].value().mem_used
             &&
             perms@[c_ptr].value().owned_cpus =~= old(perms)@[c_ptr].value().owned_cpus
             &&

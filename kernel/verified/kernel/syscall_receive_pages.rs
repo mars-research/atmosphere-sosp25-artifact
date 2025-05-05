@@ -331,7 +331,7 @@ pub fn syscall_receive_pages(&mut self, receiver_thread_ptr: ThreadPtr, endpoint
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
 
-    if self.proc_man.get_container(receiver_container_ptr).mem_quota < receiver_va_range.len * 3{
+    if self.proc_man.get_container(receiver_container_ptr).quota.mem_4k < receiver_va_range.len * 3{
         return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
     }
 

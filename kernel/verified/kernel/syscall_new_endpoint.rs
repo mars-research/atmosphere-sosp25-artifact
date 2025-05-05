@@ -14,7 +14,7 @@ pub open spec fn syscall_new_endpoint_success_pre(old:Kernel, thread_id: ThreadP
     if  old.get_thread(thread_id).endpoint_descriptors@[endpoint_index as int].is_Some(){
         false
     }
-    else if old.get_container(container_ptr).mem_quota == 0{
+    else if old.get_container(container_ptr).quota.mem_4k == 0{
         false
     }
     else if old.get_container(container_ptr).owned_endpoints.len() >= CONTAINER_ENDPOINT_LIST_LEN {
@@ -85,7 +85,15 @@ pub open spec fn syscall_new_endpoint_success_post(old:Kernel, new:Kernel, threa
         &&
         new.get_container(container_ptr).owned_endpoints@ =~= old.get_container(container_ptr).owned_endpoints@.push(new_endpoint_ptr)
         &&
-        new.get_container(container_ptr).mem_quota == old.get_container(container_ptr).mem_quota - 1
+        new.get_container(container_ptr).quota.mem_4k == old.get_container(container_ptr).quota.mem_4k - 1
+        &&
+        new.get_container(container_ptr).quota.mem_2m == old.get_container(container_ptr).quota.mem_2m
+        &&
+        new.get_container(container_ptr).quota.mem_1g == old.get_container(container_ptr).quota.mem_1g
+        &&
+        new.get_container(container_ptr).quota.pcid == old.get_container(container_ptr).quota.pcid
+        &&
+        new.get_container(container_ptr).quota.ioid == old.get_container(container_ptr).quota.ioid
         &&
         new.get_container(container_ptr).owned_threads == old.get_container(container_ptr).owned_threads
         &&
@@ -135,7 +143,7 @@ impl Kernel{
         if self.proc_man.get_thread(thread_ptr).endpoint_descriptors.get(endpoint_index).is_some(){
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
-        if self.proc_man.get_container(container_ptr).mem_quota == 0{
+        if self.proc_man.get_container(container_ptr).quota.mem_4k == 0{
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
         if self.proc_man.get_container(container_ptr).owned_endpoints.len() >= CONTAINER_ENDPOINT_LIST_LEN  {

@@ -3,6 +3,7 @@ verus! {
     use crate::define::*;
     use crate::slinkedlist::spec_impl_u::*;
     use crate::array_set::*;
+    use crate::quota::*;
 
     pub struct Container{
         pub parent: Option<ContainerPtr>,
@@ -17,13 +18,14 @@ verus! {
         pub owned_endpoints: StaticLinkedList<EndpointPtr,CONTAINER_ENDPOINT_LIST_LEN>,
         pub owned_threads: Ghost<Set<ThreadPtr>>,
 
-        pub mem_quota: usize, 
+        // pub mem_quota: usize, 
         // pub mem_quota_2m: usize,        
         // pub mem_quota_1g: usize,
 
-        pub mem_used: usize,
+        // pub mem_used: usize,
         // pub mem_used_2m: usize,
         // pub mem_used_1g: usize,
+        pub quota: Quota,
 
         pub owned_cpus: ArraySet<NUM_CPUS>,
         pub scheduler: StaticLinkedList<ThreadPtr,MAX_CONTAINER_SCHEDULER_LEN>,

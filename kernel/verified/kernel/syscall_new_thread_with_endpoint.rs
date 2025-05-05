@@ -7,6 +7,7 @@ verus! {
 use crate::define::*;
 use crate::trap::*;
 use crate::kernel::Kernel;
+use crate::quota::Quota;
 
 pub open spec fn syscall_new_thread_with_endpoint_requirement(old:Kernel, thread_id: ThreadPtr, endpoint_index: EndpointIdx) -> bool {
     let p_id = old.get_owning_proc_by_thread_ptr(thread_id);
@@ -14,7 +15,7 @@ pub open spec fn syscall_new_thread_with_endpoint_requirement(old:Kernel, thread
         false
     }else{
         let c_id = old.get_proc_owning_container(p_id);
-        if old.get_container_quota(c_id) < 1 {
+        if old.get_container_quota(c_id).mem_4k < 1 {
             false
         }else{
             if old.get_is_scheduler_full(c_id) {
@@ -112,7 +113,7 @@ pub open spec fn syscall_new_thread_with_endpoint_spec(old:Kernel, new:Kernel, t
         &&&
         new.get_container(target_container_ptr).owned_threads@ =~= old.get_container(target_container_ptr).owned_threads@.insert(new_thread_ptr)
         &&&
-        new.get_container(target_container_ptr).mem_quota as int == old.get_container(target_container_ptr).mem_quota - 1
+        old.get_container(target_container_ptr).quota.spec_subtract_mem_4k(new.get_container(target_container_ptr).quota, 1)
         &&&
         new.get_thread(new_thread_ptr).owning_container == target_container_ptr
         &&&
@@ -140,7 +141,7 @@ impl Kernel{
         if self.proc_man.get_proc(proc_ptr).owned_threads.len() >= MAX_NUM_THREADS_PER_PROC{
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
-        if self.proc_man.get_container_by_proc_ptr(proc_ptr).mem_quota == 0{
+        if self.proc_man.get_container_by_proc_ptr(proc_ptr).quota.mem_4k == 0{
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
         if self.proc_man.get_container_by_proc_ptr(proc_ptr).scheduler.len() >= MAX_CONTAINER_SCHEDULER_LEN {
