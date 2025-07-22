@@ -1,7 +1,7 @@
 import json
 
 # parse x:
-f = open('/home/xiangdc/atmosphere/time.json')
+f = open('time.json')
 data = json.load(f)
 
 # the result is a Python dictionary:
