@@ -87,9 +87,9 @@ pub unsafe fn sys_log(data: *const u8, len: usize, level: log::Level) -> isize {
     syscall!(__NR_LOG, data, len, level as usize)
 }
 
-// pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
-//     return syscall!(__NR_MMAP,va,perm_bits,range) as usize;
-// }
+pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
+    return syscall!(__NR_MMAP,va,perm_bits,range) as usize;
+}
 
 // pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
 //     let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;

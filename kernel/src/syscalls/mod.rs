@@ -51,7 +51,7 @@ pub unsafe fn init_cpu() {
     CPU0_SYSCALL_SP = CPU0_SYSCALL_STACK.as_ptr().add(CPU0_SYSCALL_STACK.len()) as u64;
 
     SYSCALLS[asys::__NR_PRINT] = sys_print as u64;
-    // SYSCALLS[asys::__NR_MMAP] = kernel::sys_mmap as u64;
+    SYSCALLS[asys::__NR_MMAP] = kernel::sys_mmap as u64;
     // SYSCALLS[asys::__NR_MRESOLVE] = kernel::sys_resolve as u64;
     // SYSCALLS[asys::__NR_MRESOLVE_IO] = kernel::sys_resolve_io as u64;
     // SYSCALLS[asys::__NR_NEW_END] = kernel::sys_new_endpoint as u64;

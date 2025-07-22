@@ -734,7 +734,7 @@ pub fn dom0_test_mmap(){
     let mut kernel = KERNEL.lock();
     let start = _rdtsc();
     let va:usize = 0xC000000000;
-    let iter = 50000;
+    let iter = 5000000;
     log::info!("num of free pages: {:?}",kernel.as_ref().unwrap().page_alloc.free_pages_4k.len());
     for i in 0..iter{
 
@@ -771,7 +771,13 @@ pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vR
         thread_info.0.unwrap(),
         vVaRange4K::new(va, range)
     );
-    // regs.rax = ret_struc.0.error_code as u64;
+    regs.rax = 
+        if ret_struc.is_error(){
+            log::info!{"sys_mmap failed"};
+            1
+        }else{
+            0
+        };
     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
 }
 

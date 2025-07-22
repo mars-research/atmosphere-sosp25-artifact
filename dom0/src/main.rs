@@ -59,6 +59,8 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
         asys::sys_print("meow".as_ptr(), 4);
     }
     // unsafe {
+    //     dom0_test_mmap();
+    // }
     //     let io_cr3 = asys::sys_rd_io_cr3();
     //     log::info!("Dom0 IOMMU table @ {:x}", io_cr3);
     //     let error_code = asys::sys_mmap(IOMMU_TEST_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, 1);
@@ -133,6 +135,26 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 //         }
 //     }
 // }
+
+unsafe fn dom0_test_mmap(){
+    let va:usize = 0xC000000000;
+    let iter = 5000000;
+    let start = _rdtsc();
+    for i in 0..iter{
+        let error_code = asys::sys_mmap(va + 4095 * i as usize, 0x0000_0000_0000_0002u64 as usize, 1);
+        match error_code {
+            1 =>{
+
+            }
+            _ =>{
+
+            }
+        }
+    }
+    let end: u64 = _rdtsc();
+    log::info!("mmap cycle per syscall {:?}",(end-start) as usize /iter);
+    log::info!{"mmap test done"};
+}
 
 /// The kernel panic handler.
 #[panic_handler]
