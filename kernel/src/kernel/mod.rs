@@ -724,7 +724,7 @@ pub fn kernel_init(
         _ => { log::info!{"new endpoint failed"}; },
     }
 
-    dom0_test_mmap();
+    // dom0_test_mmap();
 
     log::trace!("End of kernel init");
 }
