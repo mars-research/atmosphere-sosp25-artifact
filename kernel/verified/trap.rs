@@ -1,39 +1,45 @@
-use vstd::prelude::*;
 use core::mem::MaybeUninit;
+use vstd::prelude::*;
 verus! {
 
-pub struct TrapFrameOption{
+pub struct TrapFrameOption {
     pub reg: Registers,
     pub exists: bool,
 }
+
 impl TrapFrameOption {
-    pub open spec fn is_Some(&self) -> bool{
+    pub open spec fn is_Some(&self) -> bool {
         self.exists
     }
-    pub open spec fn is_None(&self) -> bool{
+
+    pub open spec fn is_None(&self) -> bool {
         self.exists == false
     }
 
     pub open spec fn spec_unwrap(&self) -> &Registers
-        recommends self.is_Some()
+        recommends
+            self.is_Some(),
     {
         &self.reg
     }
+
     pub open spec fn get_Some_0(&self) -> &Registers
-        recommends self.is_Some()
+        recommends
+            self.is_Some(),
     {
         &self.reg
     }
-    
-    pub fn is_some(&self) -> (ret:bool)
-        ensures 
-            ret == self.is_Some()
+
+    pub fn is_some(&self) -> (ret: bool)
+        ensures
+            ret == self.is_Some(),
     {
         self.exists
     }
-    pub fn is_none(&self) -> (ret:bool)
-        ensures 
-            ret == self.is_None()
+
+    pub fn is_none(&self) -> (ret: bool)
+        ensures
+            ret == self.is_None(),
     {
         self.exists == false
     }
@@ -50,7 +56,7 @@ impl TrapFrameOption {
     pub fn set_self_fast(&mut self, src: &Registers)
         ensures
             self.is_Some(),
-            self.get_Some_0() =~= src
+            self.get_Some_0() =~= src,
     {
         self.exists = true;
         self.reg.rbx = src.rbx;
@@ -67,7 +73,7 @@ impl TrapFrameOption {
     pub fn set_self(&mut self, src: &Registers)
         ensures
             self.is_Some(),
-            self.get_Some_0() =~= src
+            self.get_Some_0() =~= src,
     {
         self.exists = true;
         self.reg = *src;
@@ -99,7 +105,7 @@ impl TrapFrameOption {
     {
         *dst = self.reg;
     }
-    
+
     pub fn set_to_none(&mut self)
         ensures
             self.is_None(),
@@ -111,10 +117,7 @@ impl TrapFrameOption {
         ensures
             ret.is_None(),
     {
-        Self{
-            reg: Registers::zeroed(),
-            exists: false,
-        }
+        Self { reg: Registers::zeroed(), exists: false }
     }
 }
 
@@ -137,9 +140,7 @@ pub struct Registers {
     pub rsi: u64,
     pub rdi: u64,
     pub rax: u64,
-
     // Original interrupt stack frame
-
     pub error_code: u64,
     pub rip: u64,
     pub cs: u64,
@@ -151,76 +152,69 @@ pub struct Registers {
 impl Registers {
     #[verifier(external_body)]
     pub const fn zeroed() -> Self {
-        unsafe {
-            MaybeUninit::zeroed().assume_init()
-        }
+        unsafe { MaybeUninit::zeroed().assume_init() }
     }
 
     #[verifier(external_body)]
-    pub fn random() -> (ret: Self)
-    {
-        unsafe{
+    pub fn random() -> (ret: Self) {
+        unsafe {
             return MaybeUninit::uninit().assume_init();
         }
     }
 
-    pub fn new_empty()-> (ret : Self)
-    {
+    pub fn new_empty() -> (ret: Self) {
         let ret = Self {
-            r15 : 0,
-            r14 : 0,
-            r13 : 0,
-            r12 : 0,
-            rbp : 0,
-            rbx : 0,
-            r11 : 0,
-            r10 : 0,
-            r9 : 0,
-            r8 : 0,
-            rcx : 0,
-            rdx : 0,
-            rsi : 0,
-            rdi : 0,
-            rax : 0,
-
+            r15: 0,
+            r14: 0,
+            r13: 0,
+            r12: 0,
+            rbp: 0,
+            rbx: 0,
+            r11: 0,
+            r10: 0,
+            r9: 0,
+            r8: 0,
+            rcx: 0,
+            rdx: 0,
+            rsi: 0,
+            rdi: 0,
+            rax: 0,
             error_code: 0,
-            rip : 0,
-            cs : 0,
-            flags : 0,
-            rsp : 0,
-            ss : 0,
+            rip: 0,
+            cs: 0,
+            flags: 0,
+            rsp: 0,
+            ss: 0,
         };
         ret
     }
 
-    pub fn new(input: &Registers) -> (ret : Self)
+    pub fn new(input: &Registers) -> (ret: Self)
         ensures
-        ret =~= *input,
+            ret =~= *input,
     {
         let ret = Self {
-            r15 : input.r15,
-            r14 : input.r14,
-            r13 : input.r13,
-            r12 : input.r12,
-            rbp : input.rbp,
-            rbx : input.rbx,
-
-            r11 : input.r11,
-            r10 : input.r10,
-            r9 : input.r9,
-            r8 : input.r8,
-            rcx : input.rcx,
-            rdx : input.rdx,
-            rsi : input.rsi,
-            rdi : input.rdi,
-            rax : input.rax,
-
+            r15: input.r15,
+            r14: input.r14,
+            r13: input.r13,
+            r12: input.r12,
+            rbp: input.rbp,
+            rbx: input.rbx,
+            r11: input.r11,
+            r10: input.r10,
+            r9: input.r9,
+            r8: input.r8,
+            rcx: input.rcx,
+            rdx: input.rdx,
+            rsi: input.rsi,
+            rdi: input.rdi,
+            rax: input.rax,
             error_code: input.error_code,
-            rip : input.rip,
-            cs : input.cs,
-            flags : input.flags,
-            rsp : input.rsp,
-            ss : input.ss,
+            rip: input.rip,
+            cs: input.cs,
+            flags: input.flags,
+            rsp: input.rsp,
+            ss: input.ss,
         };
         ret
     }
@@ -228,7 +222,7 @@ impl Registers {
     #[verifier(external_body)]
     pub fn set_self_fast(&mut self, src: &Registers)
         ensures
-            self == src
+            self == src,
     {
         self.rbx = src.rbx;
         self.rbp = src.rbp;
@@ -240,7 +234,6 @@ impl Registers {
         self.rip = src.rip;
         self.flags = src.flags;
     }
-
 }
 
-}
+} // verus!

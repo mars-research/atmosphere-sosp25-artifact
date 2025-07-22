@@ -1,14 +1,18 @@
 use vstd::prelude::*;
 verus! {
+
 use core::mem::MaybeUninit;
 use crate::define::*;
 use vstd::simple_pptr::PointsTo;
 use crate::process_manager::process::*;
 
-
 #[verifier(external_body)]
-pub fn proc_push_thread(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Process>>, thread_ptr: &ThreadPtr) -> (ret: SLLIndex)
-    requires    
+pub fn proc_push_thread(
+    proc_ptr: ProcPtr,
+    proc_perm: &mut Tracked<PointsTo<Process>>,
+    thread_ptr: &ThreadPtr,
+) -> (ret: SLLIndex)
+    requires
         old(proc_perm)@.is_init(),
         old(proc_perm)@.addr() == proc_ptr,
         old(proc_perm)@.value().owned_threads.wf(),
@@ -30,27 +34,32 @@ pub fn proc_push_thread(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Proce
         proc_perm@.value().subtree_set =~= old(proc_perm)@.value().subtree_set,
         proc_perm@.value().depth =~= old(proc_perm)@.value().depth,
         proc_perm@.value().dmd_paging_mode =~= old(proc_perm)@.value().dmd_paging_mode,
-
         proc_perm@.value().owned_threads.wf(),
-        proc_perm@.value().owned_threads@ =~= old(proc_perm)@.value().owned_threads@.push(*thread_ptr),
+        proc_perm@.value().owned_threads@ =~= old(proc_perm)@.value().owned_threads@.push(
+            *thread_ptr,
+        ),
         proc_perm@.value().owned_threads.len() == old(proc_perm)@.value().owned_threads.len() + 1,
-        forall|index:SLLIndex|
+        forall|index: SLLIndex|
             #![trigger old(proc_perm)@.value().owned_threads.node_ref_valid(index)]
             #![trigger proc_perm@.value().owned_threads.node_ref_valid(index)]
-            old(proc_perm)@.value().owned_threads.node_ref_valid(index) ==> proc_perm@.value().owned_threads.node_ref_valid(index),
-        forall|index:SLLIndex| 
+            old(proc_perm)@.value().owned_threads.node_ref_valid(index)
+                ==> proc_perm@.value().owned_threads.node_ref_valid(index),
+        forall|index: SLLIndex|
             #![trigger old(proc_perm)@.value().owned_threads.node_ref_valid(index)]
             old(proc_perm)@.value().owned_threads.node_ref_valid(index) ==> index != ret,
-        forall|index:SLLIndex| 
+        forall|index: SLLIndex|
             #![trigger old(proc_perm)@.value().owned_threads.node_ref_valid(index)]
             #![trigger proc_perm@.value().owned_threads.node_ref_resolve(index)]
             #![trigger old(proc_perm)@.value().owned_threads.node_ref_resolve(index)]
-            old(proc_perm)@.value().owned_threads.node_ref_valid(index) ==> proc_perm@.value().owned_threads.node_ref_resolve(index) == old(proc_perm)@.value().owned_threads.node_ref_resolve(index),
+            old(proc_perm)@.value().owned_threads.node_ref_valid(index)
+                ==> proc_perm@.value().owned_threads.node_ref_resolve(index) == old(
+                proc_perm,
+            )@.value().owned_threads.node_ref_resolve(index),
         proc_perm@.value().owned_threads.node_ref_valid(ret),
         proc_perm@.value().owned_threads.node_ref_resolve(ret) == *thread_ptr,
         proc_perm@.value().owned_threads.unique(),
 {
-    unsafe{
+    unsafe {
         let uptr = proc_ptr as *mut MaybeUninit<Process>;
         let ret = (*uptr).assume_init_mut().owned_threads.push(thread_ptr);
         return ret;
@@ -58,8 +67,12 @@ pub fn proc_push_thread(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Proce
 }
 
 #[verifier(external_body)]
-pub fn proc_push_child(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Process>>, new_proc_ptr: &ProcPtr) -> (ret: SLLIndex)
-    requires    
+pub fn proc_push_child(
+    proc_ptr: ProcPtr,
+    proc_perm: &mut Tracked<PointsTo<Process>>,
+    new_proc_ptr: &ProcPtr,
+) -> (ret: SLLIndex)
+    requires
         old(proc_perm)@.is_init(),
         old(proc_perm)@.addr() == proc_ptr,
         old(proc_perm)@.value().children.wf(),
@@ -81,27 +94,30 @@ pub fn proc_push_child(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Proces
         proc_perm@.value().subtree_set =~= old(proc_perm)@.value().subtree_set,
         proc_perm@.value().depth =~= old(proc_perm)@.value().depth,
         proc_perm@.value().dmd_paging_mode =~= old(proc_perm)@.value().dmd_paging_mode,
-
         proc_perm@.value().children.wf(),
         proc_perm@.value().children@ =~= old(proc_perm)@.value().children@.push(*new_proc_ptr),
         proc_perm@.value().children.len() == old(proc_perm)@.value().children.len() + 1,
-        forall|index:SLLIndex|
+        forall|index: SLLIndex|
             #![trigger old(proc_perm)@.value().children.node_ref_valid(index)]
             #![trigger proc_perm@.value().children.node_ref_valid(index)]
-            old(proc_perm)@.value().children.node_ref_valid(index) ==> proc_perm@.value().children.node_ref_valid(index),
-        forall|index:SLLIndex| 
+            old(proc_perm)@.value().children.node_ref_valid(index)
+                ==> proc_perm@.value().children.node_ref_valid(index),
+        forall|index: SLLIndex|
             #![trigger old(proc_perm)@.value().children.node_ref_valid(index)]
             old(proc_perm)@.value().children.node_ref_valid(index) ==> index != ret,
-        forall|index:SLLIndex| 
+        forall|index: SLLIndex|
             #![trigger old(proc_perm)@.value().children.node_ref_valid(index)]
             #![trigger proc_perm@.value().children.node_ref_resolve(index)]
             #![trigger old(proc_perm)@.value().children.node_ref_resolve(index)]
-            old(proc_perm)@.value().children.node_ref_valid(index) ==> proc_perm@.value().children.node_ref_resolve(index) == old(proc_perm)@.value().children.node_ref_resolve(index),
+            old(proc_perm)@.value().children.node_ref_valid(index)
+                ==> proc_perm@.value().children.node_ref_resolve(index) == old(
+                proc_perm,
+            )@.value().children.node_ref_resolve(index),
         proc_perm@.value().children.node_ref_valid(ret),
         proc_perm@.value().children.node_ref_resolve(ret) == *new_proc_ptr,
         proc_perm@.value().children.unique(),
 {
-    unsafe{
+    unsafe {
         let uptr = proc_ptr as *mut MaybeUninit<Process>;
         let ret = (*uptr).assume_init_mut().children.push(new_proc_ptr);
         return ret;
@@ -109,9 +125,20 @@ pub fn proc_push_child(proc_ptr:ProcPtr, proc_perm: &mut Tracked<PointsTo<Proces
 }
 
 #[verifier(external_body)]
-pub fn page_to_proc(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, owning_container:ContainerPtr, rev_ptr: SLLIndex, pcid:Pcid, ioid:Option<IOid>, 
-    parent: Option<ProcPtr>, parent_rev_ptr: Option<SLLIndex>, uppertree_seq: Ghost<Seq<ProcPtr>>, subtree_set: Ghost<Set<ProcPtr>>, depth: usize) -> (ret:(ProcPtr,Tracked<PointsTo<Process>>))
-    requires    
+pub fn page_to_proc(
+    page_ptr: PagePtr,
+    page_perm: Tracked<PagePerm4k>,
+    owning_container: ContainerPtr,
+    rev_ptr: SLLIndex,
+    pcid: Pcid,
+    ioid: Option<IOid>,
+    parent: Option<ProcPtr>,
+    parent_rev_ptr: Option<SLLIndex>,
+    uppertree_seq: Ghost<Seq<ProcPtr>>,
+    subtree_set: Ghost<Set<ProcPtr>>,
+    depth: usize,
+) -> (ret: (ProcPtr, Tracked<PointsTo<Process>>))
+    requires
         page_perm@.is_init(),
         page_perm@.addr() == page_ptr,
     ensures
@@ -125,7 +152,7 @@ pub fn page_to_proc(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, owning_co
         ret.1@.value().owned_threads.wf(),
         ret.1@.value().owned_threads@ == Seq::<ThreadPtr>::empty(),
         ret.1@.value().owned_threads.len() == 0,
-        forall|index:SLLIndex|
+        forall|index: SLLIndex|
             #![trigger ret.1@.value().owned_threads.node_ref_valid(index)]
             ret.1@.value().owned_threads.node_ref_valid(index) == false,
         ret.1@.value().parent == parent,
@@ -137,7 +164,7 @@ pub fn page_to_proc(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, owning_co
         ret.1@.value().depth == depth,
         ret.1@.value().dmd_paging_mode == DemandPagingMode::NoDMDPG,
 {
-    unsafe{
+    unsafe {
         let uptr = page_ptr as *mut MaybeUninit<Process>;
         (*uptr).assume_init_mut().owning_container = owning_container;
         (*uptr).assume_init_mut().rev_ptr = rev_ptr;
@@ -153,10 +180,21 @@ pub fn page_to_proc(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, owning_co
     }
 }
 
-pub fn page_to_proc_with_first_thread(page_ptr: PagePtr, page_perm: Tracked<PagePerm4k>, owning_container:ContainerPtr, rev_ptr: SLLIndex, pcid:Pcid, 
-    ioid:Option<IOid>, first_thread:ThreadPtr, parent: Option<ProcPtr>, parent_rev_ptr: Option<SLLIndex>, uppertree_seq: Ghost<Seq<ProcPtr>>, subtree_set: Ghost<Set<ProcPtr>>, depth: usize) 
-        -> (ret:(ProcPtr,Tracked<PointsTo<Process>>,SLLIndex))
-    requires    
+pub fn page_to_proc_with_first_thread(
+    page_ptr: PagePtr,
+    page_perm: Tracked<PagePerm4k>,
+    owning_container: ContainerPtr,
+    rev_ptr: SLLIndex,
+    pcid: Pcid,
+    ioid: Option<IOid>,
+    first_thread: ThreadPtr,
+    parent: Option<ProcPtr>,
+    parent_rev_ptr: Option<SLLIndex>,
+    uppertree_seq: Ghost<Seq<ProcPtr>>,
+    subtree_set: Ghost<Set<ProcPtr>>,
+    depth: usize,
+) -> (ret: (ProcPtr, Tracked<PointsTo<Process>>, SLLIndex))
+    requires
         page_perm@.is_init(),
         page_perm@.addr() == page_ptr,
     ensures
@@ -186,62 +224,75 @@ pub fn page_to_proc_with_first_thread(page_ptr: PagePtr, page_perm: Tracked<Page
         ret.1@.value().depth == depth,
         ret.1@.value().dmd_paging_mode == DemandPagingMode::NoDMDPG,
 {
-    let (p_ptr, mut p_perm) = page_to_proc(page_ptr, page_perm, owning_container, rev_ptr, pcid, ioid, parent, parent_rev_ptr, uppertree_seq, subtree_set, depth);
+    let (p_ptr, mut p_perm) = page_to_proc(
+        page_ptr,
+        page_perm,
+        owning_container,
+        rev_ptr,
+        pcid,
+        ioid,
+        parent,
+        parent_rev_ptr,
+        uppertree_seq,
+        subtree_set,
+        depth,
+    );
     let sll = proc_push_thread(p_ptr, &mut p_perm, &first_thread);
-    
+
     (p_ptr, p_perm, sll)
 }
 
 #[verifier(external_body)]
-pub fn proc_perms_update_subtree_set(perms: &mut Tracked<Map<ProcPtr, PointsTo<Process>>>, uppertree_seq: Ghost<Seq<ProcPtr>>, new_proc_ptr:ProcPtr)
+pub fn proc_perms_update_subtree_set(
+    perms: &mut Tracked<Map<ProcPtr, PointsTo<Process>>>,
+    uppertree_seq: Ghost<Seq<ProcPtr>>,
+    new_proc_ptr: ProcPtr,
+)
     ensures
         old(perms)@.dom() =~= perms@.dom(),
-        forall|p_ptr:ProcPtr| 
+        forall|p_ptr: ProcPtr|
             #![trigger uppertree_seq@.contains(p_ptr)]
             #![trigger perms@.dom().contains(p_ptr)]
             #![trigger perms@[p_ptr]]
             perms@.dom().contains(p_ptr) && uppertree_seq@.contains(p_ptr) == false
-            ==>               
-            perms@[p_ptr] =~= old(perms)@[p_ptr],
-        forall|p_ptr:ProcPtr| 
-            // #![trigger perms@[p_ptr].value().owning_container]
+                ==> perms@[p_ptr] =~= old(perms)@[p_ptr],
+        forall|p_ptr: ProcPtr|
+         // #![trigger perms@[p_ptr].value().owning_container]
+
             #![trigger perms@.dom().contains(p_ptr)]
             #![trigger perms@[p_ptr]]
-            perms@.dom().contains(p_ptr)
-            ==>               
-            perms@[p_ptr].is_init() =~= old(perms)@[p_ptr].is_init()
-            &&
-            perms@[p_ptr].addr() =~= old(perms)@[p_ptr].addr()
-            &&
-            perms@[p_ptr].value().owning_container =~= old(perms)@[p_ptr].value().owning_container
-            &&
-            perms@[p_ptr].value().rev_ptr =~= old(perms)@[p_ptr].value().rev_ptr
-            &&
-            perms@[p_ptr].value().pcid =~= old(perms)@[p_ptr].value().pcid
-            &&
-            perms@[p_ptr].value().ioid =~= old(perms)@[p_ptr].value().ioid
-            &&
-            perms@[p_ptr].value().owned_threads =~= old(perms)@[p_ptr].value().owned_threads
-            &&
-            perms@[p_ptr].value().parent =~= old(perms)@[p_ptr].value().parent
-            &&
-            perms@[p_ptr].value().parent_rev_ptr =~= old(perms)@[p_ptr].value().parent_rev_ptr
-            &&
-            perms@[p_ptr].value().children =~= old(perms)@[p_ptr].value().children
-            &&
-            perms@[p_ptr].value().uppertree_seq =~= old(perms)@[p_ptr].value().uppertree_seq
-            &&
-            perms@[p_ptr].value().depth =~= old(perms)@[p_ptr].value().depth
-            &&
-            perms@[p_ptr].value().dmd_paging_mode =~= old(perms)@[p_ptr].value().dmd_paging_mode,
-        forall|p_ptr:ProcPtr| 
+            perms@.dom().contains(p_ptr) ==> perms@[p_ptr].is_init() =~= old(
+                perms,
+            )@[p_ptr].is_init() && perms@[p_ptr].addr() =~= old(perms)@[p_ptr].addr()
+                && perms@[p_ptr].value().owning_container =~= old(
+                perms,
+            )@[p_ptr].value().owning_container && perms@[p_ptr].value().rev_ptr =~= old(
+                perms,
+            )@[p_ptr].value().rev_ptr && perms@[p_ptr].value().pcid =~= old(
+                perms,
+            )@[p_ptr].value().pcid && perms@[p_ptr].value().ioid =~= old(perms)@[p_ptr].value().ioid
+                && perms@[p_ptr].value().owned_threads =~= old(perms)@[p_ptr].value().owned_threads
+                && perms@[p_ptr].value().parent =~= old(perms)@[p_ptr].value().parent
+                && perms@[p_ptr].value().parent_rev_ptr =~= old(
+                perms,
+            )@[p_ptr].value().parent_rev_ptr && perms@[p_ptr].value().children =~= old(
+                perms,
+            )@[p_ptr].value().children && perms@[p_ptr].value().uppertree_seq =~= old(
+                perms,
+            )@[p_ptr].value().uppertree_seq && perms@[p_ptr].value().depth =~= old(
+                perms,
+            )@[p_ptr].value().depth && perms@[p_ptr].value().dmd_paging_mode =~= old(
+                perms,
+            )@[p_ptr].value().dmd_paging_mode,
+        forall|p_ptr: ProcPtr|
             #![trigger uppertree_seq@.contains(p_ptr)]
             #![trigger perms@[p_ptr].value().subtree_set]
             #![trigger old(perms)@[p_ptr].value().subtree_set]
-            uppertree_seq@.contains(p_ptr)
-            ==>               
-            perms@[p_ptr].value().subtree_set@ =~= old(perms)@[p_ptr].value().subtree_set@.insert(new_proc_ptr),
+            uppertree_seq@.contains(p_ptr) ==> perms@[p_ptr].value().subtree_set@ =~= old(
+                perms,
+            )@[p_ptr].value().subtree_set@.insert(new_proc_ptr),
         perms@[new_proc_ptr].value().subtree_set =~= old(perms)@[new_proc_ptr].value().subtree_set,
-{}
-
+{
 }
+
+} // verus!

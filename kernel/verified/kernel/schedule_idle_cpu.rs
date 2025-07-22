@@ -1,5 +1,6 @@
 use vstd::prelude::*;
 verus! {
+
 // use crate::allocator::page_allocator_spec_impl::*;
 // use crate::memory_manager::spec_impl::*;
 // use crate::process_manager::spec_proof::*;
@@ -8,16 +9,16 @@ use crate::define::*;
 use crate::trap::*;
 use crate::kernel::Kernel;
 
-impl Kernel{
-
-    pub fn schedule_idle_cpu(&mut self, cpu_id:CpuId, pt_regs: &mut Registers) -> (ret: SyscallReturnStruct)
+impl Kernel {
+    pub fn schedule_idle_cpu(&mut self, cpu_id: CpuId, pt_regs: &mut Registers) -> (ret:
+        SyscallReturnStruct)
         requires
             old(self).wf(),
             0 <= cpu_id < NUM_CPUS,
         ensures
             self.wf(),
     {
-        proof{
+        proof {
             self.proc_man.thread_inv();
             self.proc_man.endpoint_inv();
             self.proc_man.container_inv();
@@ -28,16 +29,13 @@ impl Kernel{
 
         if self.proc_man.cpu_list.get(cpu_id).active == false {
             return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
-        }    
-
-        if self.proc_man.cpu_list.get(cpu_id).current_thread.is_some(){
-            return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
-        }    
-
-        if self.proc_man.get_container(container_ptr).scheduler.len() == 0{
+        }
+        if self.proc_man.cpu_list.get(cpu_id).current_thread.is_some() {
             return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
         }
-
+        if self.proc_man.get_container(container_ptr).scheduler.len() == 0 {
+            return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
+        }
         let ret_thread_ptr = self.proc_man.pop_scheduler_for_idle_cpu(cpu_id, pt_regs);
         let proc_ptr = self.proc_man.get_thread(ret_thread_ptr).owning_proc;
         let pcid = self.proc_man.get_proc(proc_ptr).pcid;
@@ -46,4 +44,4 @@ impl Kernel{
     }
 }
 
-}
+} // verus!
