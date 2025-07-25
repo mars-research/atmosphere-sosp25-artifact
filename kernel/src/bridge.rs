@@ -15,7 +15,7 @@ impl TrustedBridge for Bridge {
     fn set_cr3(cr3: u64) {
         unsafe {
             asm!(
-                "mov {tmp}, {pcide}",
+                "mov {tmp}, [rip + {pcide}]",
                 "test {tmp}, {tmp}",
                 "jnz 2f",
 
