@@ -1,6 +1,7 @@
 use astd::boot::PhysicalMemoryType;
 use astd::heapless::Vec as ArrayVec;
 use astd::sync::Mutex;
+use verified::define::NUM_CPUS;
 use core::arch::asm;
 use core::arch::x86_64::_rdtsc;
 use core::mem::size_of;
@@ -49,571 +50,32 @@ pub fn kernel_test() {
 }
 
 pub fn kernel_new() {
-    log::info!("kernel lock aquiring\n");
-    log::info!("kernel size={:?}", size_of::<Kernel>());
-    log::info!("proc_man size={:?}", size_of::<ProcessManager>());
-    log::info!("mmu_man size={:?}", size_of::<MemoryManager>());
-    log::info!("page_alloc size={:?}", size_of::<PageAllocator>());
+    // log::info!("kernel size={:?}", size_of::<Kernel>());
+    // log::info!("proc_man size={:?}", size_of::<ProcessManager>());
+    // log::info!("mmu_man size={:?}", size_of::<MemoryManager>());
+    // log::info!("page_alloc size={:?}", size_of::<PageAllocator>());
 
+    log::trace!("testing kernel obj size");
     log::info!("container size={:?}", size_of::<Container>());
+    if size_of::<Container>() > 4096 {
+        panic!("Container size is over the page limit!")
+    }
     log::info!("process size={:?}", size_of::<Process>());
+    if size_of::<Process>() > 4096 {
+        panic!("Process size is over the page limit!")
+    }
     log::info!("thread size={:?}", size_of::<Thread>());
+    if size_of::<Thread>() > 4096 {
+        panic!("Thread size is over the page limit!")
+    }
     log::info!("endpoint size={:?}", size_of::<Endpoint>());
-    // log::info!("Node size={:?}", size_of::<Node>());
+    if size_of::<Endpoint>() > 4096 {
+        panic!("Thread size is over the page limit!")
+    }
+    log::trace!("Kernel objects are within page limit");
     let mut my_int = KERNEL.lock();
-    log::info!("kernel lock aquired");
     *my_int = Some(Kernel::new());
 }
-
-// pub fn kernel_test_ipc_test_call(dom0_pagetable_ptr: usize) {
-//     let dom0_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(0, vRegisters::new_empty());
-//     log::info!("pop dom0 \n {:?} \n", dom0_retstruc);
-//     let dom0_endpoint_ret =
-//         KERNEL
-//             .lock()
-//             .as_mut()
-//             .unwrap()
-//             .syscall_new_endpoint(0, vRegisters::new_empty(), 0);
-//     log::info!("new endpoint \n {:?} \n", dom0_endpoint_ret);
-//     let dom0_malloc_ret = KERNEL.lock().as_mut().unwrap().syscall_malloc(
-//         0,
-//         vRegisters::new_empty(),
-//         0xA000000000,
-//         vdefine::READ_WRITE_EXECUTE,
-//         1,
-//     );
-//     let (dom0_proc_ret, proc_ptr_op, thread_ptr_op) = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .syscall_new_proc(0, vRegisters::new_empty(), 0, vRegisters::new_empty());
-//     log::info!("new proc \n {:?} \n", dom0_proc_ret);
-//     let dom1_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(1, vRegisters::new_empty());
-//     log::info!("dom1 is running on cpu 1 \n {:?} \n", dom1_retstruc);
-//     let dom1_malloc_ret = KERNEL.lock().as_mut().unwrap().syscall_malloc(
-//         1,
-//         vRegisters::new_empty(),
-//         0xA000000000,
-//         vdefine::READ_WRITE_EXECUTE,
-//         1,
-//     );
-//     // log::info!("{:x?}",proc_ptr_op.unwrap());
-//     // log::info!("{:x?}",thread_ptr_op.unwrap());
-
-//     let mut dom0_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom0_ipc_pay_load.calling = true;
-//     dom0_ipc_pay_load.message = Some((0xA000000000, 8));
-//     let dom0_retstruc = KERNEL.lock().as_mut().unwrap().syscall_send_wait(
-//         0,
-//         vRegisters::new_empty(),
-//         0,
-//         dom0_ipc_pay_load,
-//     );
-//     let mut dom1_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom1_ipc_pay_load.calling = true;
-//     dom1_ipc_pay_load.message = Some((0xA000000000, 8));
-//     let dom1_retstruc = KERNEL.lock().as_mut().unwrap().syscall_receive_wait(
-//         1,
-//         vRegisters::new_empty(),
-//         0,
-//         dom1_ipc_pay_load,
-//     );
-//     log::info!("send ret value {:?}", dom0_retstruc);
-//     log::info!("receive ret value {:?}", dom1_retstruc);
-
-//     let mut dom1_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom1_ipc_pay_load.calling = true;
-//     dom1_ipc_pay_load.message = Some((0xA000000000, 8));
-//     let dom1_retstruc =
-//         KERNEL
-//             .lock()
-//             .as_mut()
-//             .unwrap()
-//             .syscall_reply(1, vRegisters::new_empty(), dom1_ipc_pay_load);
-//     log::info!("reply ret value {:?}", dom1_retstruc);
-
-//     log::info!("end of new ipc test");
-// }
-
-// pub fn kernel_test_ipc_send_endpoint(dom0_pagetable_ptr: usize) {
-//     let dom0_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(0, vRegisters::new_empty());
-//     log::info!("pop dom0 \n {:?} \n", dom0_retstruc);
-//     let dom0_endpoint_ret =
-//         KERNEL
-//             .lock()
-//             .as_mut()
-//             .unwrap()
-//             .syscall_new_endpoint(0, vRegisters::new_empty(), 0);
-//     log::info!("new endpoint \n {:?} \n", dom0_endpoint_ret);
-//     let dom0_endpoint_ret =
-//         KERNEL
-//             .lock()
-//             .as_mut()
-//             .unwrap()
-//             .syscall_new_endpoint(0, vRegisters::new_empty(), 1);
-//     log::info!("new endpoint \n {:?} \n", dom0_endpoint_ret);
-//     let (dom0_proc_ret, proc_ptr_op, thread_ptr_op) = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .syscall_new_proc(0, vRegisters::new_empty(), 0, vRegisters::new_empty());
-//     log::info!("new proc \n {:?} \n", dom0_proc_ret);
-//     let dom1_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(1, vRegisters::new_empty());
-//     log::info!("dom1 is running on cpu 1 \n {:?} \n", dom1_retstruc);
-//     // log::info!("{:x?}",proc_ptr_op.unwrap());
-//     // log::info!("{:x?}",thread_ptr_op.unwrap());
-
-//     let mut dom1_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom1_ipc_pay_load.endpoint_payload = Some(1);
-//     let dom1_retstruc = KERNEL.lock().as_mut().unwrap().syscall_receive_wait(
-//         1,
-//         vRegisters::new_empty(),
-//         0,
-//         dom1_ipc_pay_load,
-//     );
-//     log::info!("receive ret value {:?}", dom1_retstruc);
-//     let mut dom0_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom0_ipc_pay_load.endpoint_payload = Some(1);
-//     let dom0_retstruc = KERNEL.lock().as_mut().unwrap().syscall_send_wait(
-//         0,
-//         vRegisters::new_empty(),
-//         0,
-//         dom0_ipc_pay_load,
-//     );
-//     log::info!("send ret value {:?}", dom0_retstruc);
-
-//     log::info!("end of new ipc test");
-// }
-
-// pub fn kernel_test_ipc_send_message(dom0_pagetable_ptr: usize) {
-//     let dom0_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(0, vRegisters::new_empty());
-//     log::info!("pop dom0 \n {:?} \n", dom0_retstruc);
-//     let dom0_endpoint_ret =
-//         KERNEL
-//             .lock()
-//             .as_mut()
-//             .unwrap()
-//             .syscall_new_endpoint(0, vRegisters::new_empty(), 0);
-//     log::info!("new endpoint \n {:?} \n", dom0_endpoint_ret);
-//     let (dom0_proc_ret, proc_ptr_op, thread_ptr_op) = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .syscall_new_proc(0, vRegisters::new_empty(), 0, vRegisters::new_empty());
-//     log::info!("new proc \n {:?} \n", dom0_proc_ret);
-//     let dom1_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(1, vRegisters::new_empty());
-//     log::info!("dom1 is running on cpu 1 \n {:?} \n", dom1_retstruc);
-//     // log::info!("{:x?}",proc_ptr_op.unwrap());
-//     // log::info!("{:x?}",thread_ptr_op.unwrap());
-//     let dom0_malloc_ret = KERNEL.lock().as_mut().unwrap().syscall_malloc(
-//         0,
-//         vRegisters::new_empty(),
-//         0xA000000000,
-//         vdefine::READ_WRITE_EXECUTE,
-//         1,
-//     );
-
-//     let mut user_value: usize = 0;
-//     unsafe {
-//         log::info!("write 0xA000000000");
-//         *(0xA000000000 as *mut usize) = 0x233;
-//         log::info!("read 0xA000000000");
-//         user_value = *(0xA000000000 as *const usize);
-//     }
-//     log::info!("*0xA000000000 = {:x?}", user_value);
-
-//     let dom1_malloc_ret = KERNEL.lock().as_mut().unwrap().syscall_malloc(
-//         1,
-//         vRegisters::new_empty(),
-//         0xA000000000,
-//         vdefine::READ_WRITE_EXECUTE,
-//         1,
-//     );
-
-//     let mut dom0_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom0_ipc_pay_load.message = Some((0xA000000000, 8));
-//     let dom0_retstruc = KERNEL.lock().as_mut().unwrap().syscall_send_wait(
-//         0,
-//         vRegisters::new_empty(),
-//         0,
-//         dom0_ipc_pay_load,
-//     );
-//     log::info!("send ret value {:?}", dom0_retstruc);
-//     let mut dom1_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom1_ipc_pay_load.message = Some((0xA000000000, 8));
-//     let dom1_retstruc = KERNEL.lock().as_mut().unwrap().syscall_receive_wait(
-//         1,
-//         vRegisters::new_empty(),
-//         0,
-//         dom1_ipc_pay_load,
-//     );
-//     log::info!("receive ret value {:?}", dom1_retstruc);
-
-//     let pop_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(0, vRegisters::new_empty());
-//     log::info!("pop scheduler ret value {:?}", pop_retstruc);
-
-//     let new_pcid = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .proc_man
-//         .get_pcid_by_thread_ptr(thread_ptr_op.unwrap());
-//     log::info!("new_pcid {:x?}", new_pcid);
-//     let new_cr3 = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .mmu_man
-//         .get_cr3_by_pcid(new_pcid);
-//     log::info!("new_cr3 {:x?}", new_cr3,new_thread_ptr);
-
-//     log::info!("switching to new cr3");
-//     unsafe {
-//         asm!(
-//             "mov cr3, {pml4}",
-//             pml4 = inout(reg) new_cr3 => _,
-//         );
-//     }
-//     log::info!("hello from new cr3");
-
-//     let mut user_value: usize = 0;
-//     unsafe {
-//         // log::info!("read 0xA000000000");
-//         user_value = *(0xA000000000 as *const usize);
-//     }
-//     log::info!("*0xA000000000 = {:x?}", user_value);
-
-//     log::info!("switching to old cr3");
-//     unsafe {
-//         asm!(
-//             "mov cr3, {pml4}",
-//             pml4 = inout(reg) dom0_pagetable_ptr => _,
-//         );
-//     }
-//     log::info!("hello from old cr3");
-
-//     log::info!("end of new ipc test");
-// }
-
-// pub fn kernel_test_ipc_send_pages(dom0_pagetable_ptr: usize) {
-//     let dom0_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(0, vRegisters::new_empty());
-//     log::info!("pop dom0 \n {:?} \n", dom0_retstruc);
-//     let dom0_endpoint_ret =
-//         KERNEL
-//             .lock()
-//             .as_mut()
-//             .unwrap()
-//             .syscall_new_endpoint(0, vRegisters::new_empty(), 0);
-//     log::info!("new endpoint \n {:?} \n", dom0_endpoint_ret);
-//     let (dom0_proc_ret, proc_ptr_op, thread_ptr_op) = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .syscall_new_proc(0, vRegisters::new_empty(), 0, vRegisters::new_empty());
-//     log::info!("new proc \n {:?} \n", dom0_proc_ret);
-
-//     // log::info!("{:x?}",proc_ptr_op.unwrap());
-//     // log::info!("{:x?}",thread_ptr_op.unwrap());
-//     let dom0_malloc_ret = KERNEL.lock().as_mut().unwrap().syscall_malloc(
-//         0,
-//         vRegisters::new_empty(),
-//         0xA000000000,
-//         vdefine::READ_WRITE_EXECUTE,
-//         1,
-//     );
-//     log::info!(
-//         "dom0 malloc 1 page at 0xA000000000 \n {:?} \n",
-//         dom0_malloc_ret
-//     );
-//     let mut user_value: usize = 0;
-//     unsafe {
-//         log::info!("write 0xA000000000");
-//         *(0xA000000000 as *mut usize) = 0x233;
-//         log::info!("read 0xA000000000");
-//         user_value = *(0xA000000000 as *const usize);
-//     }
-//     log::info!("*0xA000000000 = {:x?}", user_value);
-
-//     let mut user_pml4: usize = 0;
-//     unsafe {
-//         user_pml4 = *((dom0_pagetable_ptr
-//             + (((0xA000000000 >> 39) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml4 {:x?}", user_pml4);
-
-//     let mut user_pml3: usize = 0;
-//     unsafe {
-//         user_pml3 = *(((user_pml4 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 30) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml3 {:x?}", user_pml3);
-
-//     let mut user_pml2: usize = 0;
-//     unsafe {
-//         user_pml2 = *(((user_pml3 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 21) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml2 {:x?}", user_pml2);
-
-//     let mut user_pml1: usize = 0;
-//     unsafe {
-//         user_pml1 = *(((user_pml2 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 12) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml1 {:x?}", user_pml1);
-
-//     let mut user_pml0: usize = 0;
-//     unsafe {
-//         user_pml0 = *(((user_pml1 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 12) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml0 {:x?}", user_pml0);
-
-//     let mut user_pml4: usize = 0;
-//     unsafe {
-//         user_pml4 = *((dom0_pagetable_ptr
-//             + (((0x8000000000 >> 39) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml4 {:x?}", user_pml4);
-
-//     let mut user_pml3: usize = 0;
-//     unsafe {
-//         user_pml3 = *(((user_pml4 & 0xFFFFFFFFF000)
-//             + (((0x8000000000 >> 30) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml3 {:x?}", user_pml3);
-
-//     let mut user_pml2: usize = 0;
-//     unsafe {
-//         user_pml2 = *(((user_pml3 & 0xFFFFFFFFF000)
-//             + (((0x8000000000 >> 21) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml2 {:x?}", user_pml2);
-
-//     let mut user_pml1: usize = 0;
-//     unsafe {
-//         user_pml1 = *(((user_pml2 & 0xFFFFFFFFF000)
-//             + (((0x8000000000 >> 12) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml1 {:x?}", user_pml1);
-
-//     let mut user_pml0: usize = 0;
-//     unsafe {
-//         user_pml0 = *(((user_pml1 & 0xFFFFFFFFF000)
-//             + (((0x8000000000 >> 12) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml0 {:x?}", user_pml0);
-
-//     let dom1_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(1, vRegisters::new_empty());
-//     log::info!("dom1 is running on cpu 1 \n {:?} \n", dom1_retstruc);
-
-//     let mut dom1_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom1_ipc_pay_load.page_payload = Some((0xA000000000, 1));
-//     let dom1_retstruc = KERNEL.lock().as_mut().unwrap().syscall_receive_wait(
-//         1,
-//         vRegisters::new_empty(),
-//         0,
-//         dom1_ipc_pay_load,
-//     );
-//     log::info!("receive ret value {:?}", dom1_retstruc);
-//     let mut dom0_ipc_pay_load = vIPCPayLoad::new_to_none();
-//     dom0_ipc_pay_load.page_payload = Some((0xA000000000, 1));
-//     let dom0_retstruc = KERNEL.lock().as_mut().unwrap().syscall_send_wait(
-//         0,
-//         vRegisters::new_empty(),
-//         0,
-//         dom0_ipc_pay_load,
-//     );
-//     log::info!("send ret value {:?}", dom0_retstruc);
-
-//     let pop_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(1, vRegisters::new_empty());
-//     log::info!("pop scheduler ret value {:?}", pop_retstruc);
-
-//     let new_pcid = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .proc_man
-//         .get_pcid_by_thread_ptr(thread_ptr_op.unwrap());
-//     log::info!("new_pcid {:x?}", new_pcid);
-//     let new_cr3 = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .mmu_man
-//         .get_cr3_by_pcid(new_pcid);
-//     log::info!("new_cr3 {:x?}", new_cr3,new_thread_ptr);
-
-//     let mut user_pml4: usize = 0;
-//     unsafe {
-//         user_pml4 =
-//             *((new_cr3 + (((0xA000000000 >> 39) & 0b1_1111_1111u64) as usize) * 8) as *const usize);
-//     }
-//     log::info!("user_pml4 {:x?}", user_pml4);
-
-//     let mut user_pml3: usize = 0;
-//     unsafe {
-//         user_pml3 = *(((user_pml4 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 30) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml3 {:x?}", user_pml3);
-
-//     let mut user_pml2: usize = 0;
-//     unsafe {
-//         user_pml2 = *(((user_pml3 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 21) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml2 {:x?}", user_pml2);
-
-//     let mut user_pml1: usize = 0;
-//     unsafe {
-//         user_pml1 = *(((user_pml2 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 12) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml1 {:x?}", user_pml1);
-
-//     let mut user_pml0: usize = 0;
-//     unsafe {
-//         user_pml0 = *(((user_pml1 & 0xFFFFFFFFF000)
-//             + (((0xA000000000 >> 12) & 0b1_1111_1111u64) as usize) * 8)
-//             as *const usize);
-//     }
-//     log::info!("user_pml0 {:x?}", user_pml0);
-
-//     log::info!("switching to new cr3");
-//     unsafe {
-//         asm!(
-//             "mov cr3, {pml4}",
-//             pml4 = inout(reg) new_cr3 => _,
-//         );
-//     }
-//     log::info!("hello from new cr3");
-
-//     let mut user_value: usize = 0;
-//     unsafe {
-//         // log::info!("read 0xA000000000");
-//         user_value = *(0xA000000000 as *const usize);
-//     }
-//     log::info!("*0xA000000000 = {:x?}", user_value);
-
-//     log::info!("switching to old cr3");
-//     unsafe {
-//         asm!(
-//             "mov cr3, {pml4}",
-//             pml4 = inout(reg) dom0_pagetable_ptr => _,
-//         );
-//     }
-//     log::info!("hello from old cr3");
-
-//     log::info!("end of new ipc test");
-// }
-
-// pub fn kernel_test_new_proc() {
-//     let dom0_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(0, vRegisters::new_empty());
-//     log::info!("pop dom0 \n {:?} \n", dom0_retstruc);
-//     let dom0_endpoint_ret =
-//         KERNEL
-//             .lock()
-//             .as_mut()
-//             .unwrap()
-//             .syscall_new_endpoint(0, vRegisters::new_empty(), 0);
-//     log::info!("new endpoint \n {:?} \n", dom0_endpoint_ret);
-//     let (dom0_proc_ret, proc_ptr_op, thread_ptr_op) = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .syscall_new_proc(0, vRegisters::new_empty(), 0, vRegisters::new_empty());
-//     log::info!("new proc \n {:?} \n", dom0_proc_ret);
-//     // log::info!("{:x?}",proc_ptr_op.unwrap());
-//     // log::info!("{:x?}",thread_ptr_op.unwrap());
-//     log::info!("end of new proc test");
-// }
-
-// pub fn kernel_test_malloc() {
-//     let dom0_retstruc = KERNEL
-//         .lock()
-//         .as_mut()
-//         .unwrap()
-//         .kernel_idle_pop_sched(0, vRegisters::new_empty());
-//     log::info!("pop dom0 \n {:?} \n", dom0_retstruc);
-//     let dom0_malloc_ret = KERNEL.lock().as_mut().unwrap().syscall_malloc(
-//         0,
-//         vRegisters::new_empty(),
-//         0xA000000000,
-//         vdefine::READ_WRITE_EXECUTE,
-//         1,
-//     );
-//     log::info!(
-//         "dom0 malloc 1 page at 0xA000000000 \n {:?} \n",
-//         dom0_malloc_ret
-//     );
-//     let mut user_value: usize = 0;
-//     unsafe {
-//         log::info!("write 0xA000000000");
-//         *(0xA000000000 as *mut usize) = 0x233;
-//         log::info!("read 0xA000000000");
-//         user_value = *(0xA000000000 as *const usize);
-//     }
-//     log::info!("*0xA000000000 = {:x?}", user_value);
-//     log::info!("end of malloc test");
-// }
 
 pub fn kernel_init(
     boot_page_ptrs: &ArrayVec<(u64, PhysicalMemoryType), { 4 * 1024 * 1024 }>,
@@ -621,7 +83,6 @@ pub fn kernel_init(
     kernel_pml4_entry_ptr: usize,
 ) {
 
-    // log::info!("cpu_list addr {:p}",&(KERNEL.lock().as_ref().unwrap().cpu_list.ar));
     let mut boot_pages = vArrayVec::<(vdefine::PageState, usize), { vdefine::NUM_PAGES }>::new();
     let mut i = 0;
 
@@ -629,6 +90,7 @@ pub fn kernel_init(
     let mut dom_0_proc_ptr = 0;
     let mut dom_0_thread_ptr = 0;
 
+    //convert memeory info from the bootloader to something verified kernel can understand
     while i !=  vdefine::NUM_PAGES {
         boot_pages.push((
             boot_page_ptrs[i].1.to_verified_page_state(),
@@ -637,6 +99,7 @@ pub fn kernel_init(
         i = i + 1;
     }
 
+    //get a free page and convert it to the first container.
     for i in 0.. vdefine::NUM_PAGES{
         if boot_pages.get(i).0 == vdefine::PageState::Free4k{
             boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
@@ -645,6 +108,7 @@ pub fn kernel_init(
         }
     }
 
+    //get a free page and convert it to the first process.
     for i in 0.. vdefine::NUM_PAGES{
         if boot_pages.get(i).0 == vdefine::PageState::Free4k{
             boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
@@ -653,6 +117,7 @@ pub fn kernel_init(
         }
     }
 
+    //get a free page and convert it to the first thread.
     for i in 0.. vdefine::NUM_PAGES{
         if boot_pages.get(i).0 == vdefine::PageState::Free4k{
             boot_pages.set(i, (vdefine::PageState::Allocated4k, boot_pages.get(i).1));
@@ -661,19 +126,12 @@ pub fn kernel_init(
         }
     }
 
-    log::info!("dom_0_container_ptr {:x?}",dom_0_container_ptr);
-    log::info!("dom_0_proc_ptr {:x?}",dom_0_proc_ptr);
-    log::info!("dom_0_thread_ptr {:x?}",dom_0_thread_ptr);
+    // log::info!("dom_0_container_ptr {:x?}",dom_0_container_ptr);
+    // log::info!("dom_0_proc_ptr {:x?}",dom_0_proc_ptr);
+    // log::info!("dom_0_thread_ptr {:x?}",dom_0_thread_ptr);
 
-    // let dom0_pagetable = vPageTable::new(dom0_pagetable_ptr);
-    // let kernel_page_entry = vPageEntry {
-    //     addr: kernel_pml4_entry_ptr,
-    //     perm: 0x1 as usize,
-    // };
     let mut dom0_pt_regs = vRegisters::new_empty();
     dom0_pt_regs.r15 = 233;
-    // let page_perms: Tracked<Map<PagePtr, PagePerm>> = Tracked::assume_new();
-    // let init_pci_map = vPCIBitMap::new();
 
     let page_perm_0: Tracked<PagePerm4k> = Tracked::assume_new();
     let page_perm_1: Tracked<PagePerm4k> = Tracked::assume_new();
@@ -693,73 +151,18 @@ pub fn kernel_init(
         dom0_page_map_perm
     );
 
-    log::info!("dom_0 thread info {:x?}", KERNEL.lock().as_ref().unwrap().get_current_cpu_info(0));
-    
-    // // log::info!("cpu 0 thread ptr {:?}",KERNEL.lock().as_ref().unwrap().cpu_list.ar[0].current_t);
-    // log::info!("kernel init ret_code {:?}", ret_code);
     let dom0_retstruc = KERNEL
     .lock()
     .as_mut()
     .unwrap()
     .schedule_idle_cpu(0, &mut dom0_pt_regs);
-    // log::info!("scheduler_return_value {:?}", dom0_retstruc);
+
     log::info!("dom0 is running on CPU 0");
-    // // // kernel_test_ipc_test_call(dom0_pagetable_ptr);
     let pcid_dom0 = 0;
-    log::info!("setting dom0's pcid: {:x?}", pcid_dom0);
     let cr3 = dom0_pagetable_ptr | vdefine::PCID_ENABLE_MASK | pcid_dom0;
-    // Bridge::set_cr3(cr3 as u64);
+    Bridge::set_cr3(cr3 as u64);
 
-    let new_endpoint_retstruc = KERNEL
-    .lock()
-    .as_mut()
-    .unwrap()
-    .syscall_new_endpoint(
-        dom_0_thread_ptr,
-        0,
-    );
-
-    match new_endpoint_retstruc.error_code{
-        vdefine::RetValueType::SuccessUsize{value:value} => { log::info!{"new endpoint ptr at {:x?}", value}; },
-        _ => { log::info!{"new endpoint failed"}; },
-    }
-
-    // dom0_test_mmap();
-
-    log::trace!("End of kernel init");
-}
-
-pub fn dom0_test_mmap(){
-    unsafe{
-    let mut kernel = KERNEL.lock();
-    let start = _rdtsc();
-    let va:usize = 0xC000000000;
-    let iter = 5000000;
-    log::info!("num of free pages: {:?}",kernel.as_ref().unwrap().page_alloc.free_pages_4k.len());
-    for i in 0..iter{
-
-        let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(0);
-    
-        let ret_struc =  kernel.as_mut().unwrap().syscall_mmap(
-            thread_info.0.unwrap(),
-            vVaRange4K::new(va + 4096 * i, 1)
-        );
-        match ret_struc.error_code{
-            vdefine::RetValueType::SuccessSeqUsize{..} => { 
-            },
-            vdefine::RetValueType::VaInUse => { 
-                log::info!{"mmap failed at {:?} error: va in use va:{:x?}", i, va + 4096 * i}; 
-                break; 
-            },
-            vdefine::RetValueType::NoQuota => { log::info!{"mmap failed at {:?} error: no quota", i}; break; },
-            _ => {},
-        }
-    }
-    
-    let end = _rdtsc();
-    log::info!("mmap cycle per syscall {:?}",(end-start) as usize /iter);
-    log::info!{"mmap test done"};
-    }
+    log::trace!("Kernel init success!! XD");
 }
 
 pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
@@ -781,20 +184,44 @@ pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vR
     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
 }
 
-// pub extern "C" fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vRegisters){
-//     let cpu_id = cpu::get_cpu_id();
-//     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_resolve_va(
-//         cpu_id,
-//         va,
-//     );
-//     if ret_struc.0.error_code != 0{
-//         regs.rax = ret_struc.0.error_code as u64;
-//     }
-//     else{
-//         regs.rax = ret_struc.1 as u64;
-//     }
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-// }
+/// This syscall does a send and runs the blocked thread if it belongs to the same container. 
+pub extern "C" fn sys_send_empty_try_schedule(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters) {
+    // log::info!("sys_send_empty_try_schedule regs at entrace: {:x?}", regs);
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
+    let sender_thread_ptr = thread_info.0.unwrap();
+    let sender_proc_ptr = thread_info.0.unwrap();
+    let sender_cr3: usize = thread_info.3.unwrap();
+    let sender_pcid = thread_info.4.unwrap();
+    let syscall_ret = kernel.as_mut().unwrap().syscall_send_empty_try_schedule(cpu_id, sender_thread_ptr, endpoint_index, regs);
+    if syscall_ret.pcid.unwrap() != sender_pcid{
+        Bridge::set_cr3((syscall_ret.cr3.unwrap() | syscall_ret.pcid.unwrap() | vdefine::PCID_ENABLE_MASK) as u64);
+    }
+
+    Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
+}
+
+/// Resolve VA to PA.
+pub extern "C" fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vRegisters){
+    let cpu_id = cpu::get_cpu_id();    
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_ref().unwrap().get_current_cpu_info(cpu_id);
+    let thread_ptr = thread_info.0.unwrap();
+    let ret_struc = kernel.as_ref().unwrap().syscall_resolve_va(
+        thread_ptr,
+        vVaRange4K::new(va, 1),
+    );
+    match ret_struc.error_code{
+        vdefine::RetValueType::SuccessPairUsize { value1, value2 } => {
+            regs.rax = value1 as u64;
+        },
+        _ => {
+            regs.rax = 1;
+        },
+    }
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+}
 
 // pub extern "C" fn sys_resolve_io(va:usize,_:usize, _:usize, regs: &mut vRegisters){
 //     let cpu_id = cpu::get_cpu_id();
@@ -820,22 +247,40 @@ pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs:
         thread_info.0.unwrap(),
         endpoint_index,
     );
-    // regs.rax = ret_struc.error_code as u64;
+    regs.rax = 
+        if ret_struc.is_error(){
+            log::info!{"sys_new_endpoint failed"};
+            1
+        }else{
+            0
+        };
     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
 }
 
-// pub fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegisters) -> usize{
-//     let cpu_id = cpu::get_cpu_id();
-//     let new_proc_pt_regs = vRegisters::new_empty();
-//     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_proc(
-//         cpu_id,
-//         endpoint_index,
-//         new_proc_pt_regs,
-//     );
-    
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-//     ret_struc.0.error_code
-// }
+/// create a new process, pass an endpoint, and pass some physical pages
+pub fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegisters, va:usize, range:usize) {
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
+    let mut new_proc_pt_regs = *regs;
+    new_proc_pt_regs.rip = ip as u64;
+    new_proc_pt_regs.rsp = sp as u64;
+    log::info!{"range {:#?}", range};
+    let ret_struc = kernel.as_mut().unwrap().syscall_new_proc_with_endpoint(
+        thread_info.0.unwrap(),
+        endpoint_index,
+        &new_proc_pt_regs,
+        vVaRange4K::new(va, range)
+    );
+    regs.rax = 
+        if ret_struc.is_error(){
+            log::info!{"sys_new_proc failed"};
+            1
+        }else{
+            0
+        };
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+}
 
 // pub fn sys_new_proc_with_iommu(endpoint_index:usize, ip:usize, sp:usize,regs: &mut vRegisters) -> usize{
 //     let cpu_id = cpu::get_cpu_id();
@@ -849,19 +294,28 @@ pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs:
 //     ret_struc.0.error_code
 // }
 
-// pub extern "C" fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegisters){
-//     let cpu_id = cpu::get_cpu_id();
-//     let mut new_thread_pt_regs = *regs;
-//     new_thread_pt_regs.rip = ip as u64;
-//     new_thread_pt_regs.rsp = sp as u64;
-//     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_new_thread(
-//         cpu_id,
-//         endpoint_index,
-//         new_thread_pt_regs,
-//     );
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-//     regs.rax = ret_struc.0.error_code as u64;
-// }
+/// create a new thread and pass an endpoint
+pub extern "C" fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegisters){
+    let cpu_id = cpu::get_cpu_id();
+    let mut new_thread_pt_regs = regs.clone();
+    new_thread_pt_regs.rip = ip as u64;
+    new_thread_pt_regs.rsp = sp as u64;
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_ref().unwrap().get_current_cpu_info(cpu_id);
+    let ret_struc =  kernel.as_mut().unwrap().syscall_new_thread_with_endpoint(
+        thread_info.0.unwrap(),
+        endpoint_index,
+        &new_thread_pt_regs,
+    );
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+        regs.rax = 
+        if ret_struc.is_error(){
+            log::info!{"sys_new_thread failed"};
+            1
+        }else{
+            0
+        };
+}
 
 // pub fn sys_send_empty_no_wait(endpoint_index:usize,_:usize, _:usize, regs: &mut vRegisters){
 //     let cpu_id = cpu::get_cpu_id();
@@ -913,44 +367,50 @@ pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs:
 //     }
 // }
 
-// pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
-//     let cpu_id = cpu::get_cpu_id();
-//     let mut kernel = KERNEL.lock();
-//     let thread_info_op = kernel.as_mut().unwrap().until_get_current_thread_info(cpu_id);
-//     let ret_struc =  kernel.as_mut().unwrap().syscall_receive_empty_wait(
-//         cpu_id,
-//         regs,
-//         endpoint_index,
-//     );
-//     drop(kernel);
-//     if ret_struc.0.error_code == vdefine::NO_NEXT_THREAD {
-//         loop{
-//             log::info!("no next thread, spin the CPU. TODO: enter the scheduling routine");
-//         }
-//     }else{
-//         if ret_struc.1.is_none(){
-//             log::info!("fatal: syscall coming from null cpu");
-//         }else{
-//             if ret_struc.1.unwrap().1 != ret_struc.0.cr3 {
-
-//                 Bridge::set_cr3((ret_struc.0.cr3 | ret_struc.0.pcid | vdefine::PCID_ENABLE_MASK) as u64);
-//             }
-
-//             if ret_struc.0.error_code == vdefine::NO_ERROR_CODE{
-//                 Bridge::set_switch_decision(SwitchDecision::SwitchToPreempted);
-//             }else{
-                
-//                 regs.rax = ret_struc.0.error_code as u64;
-                
-//                 if ret_struc.1.unwrap().2 != ret_struc.0.thread_ptr{
-//                     Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
-//                 }else{
-//                     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-//                 }
-//             }
-//         }
-//     }
-// }
+/// This syscall does a receive and block caller thread is possible.
+/// Once the cpu becomes idel, try to schedule a new thread.
+/// This syscall currently assumes there's always threads to run. 
+/// @Xiangdong fix this ^
+pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
+    // log::info!{
+    //     "hello from sys_receive_empty"
+    // };
+    // log::info!("sys_receive_empty regs at entrance: \n{:x?}", regs);
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let thread_info_op = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
+    let pcid = thread_info_op.4.unwrap();
+    //     log::info!{
+    //     "thread_info_op {:#?}",
+    //     thread_info_op
+    // };
+    let thread_ptr = thread_info_op.0.unwrap();
+    let ret_struc =  kernel.as_mut().unwrap().syscall_receive_empty_block(
+        thread_ptr,
+        endpoint_index,
+        &regs,
+    );
+    // log::info!{"ret_struc:
+    // is_error: {:#?},
+    // pcid: {:#?}
+    // cr3: {:#?}
+    // switchdecision: {:#?}", ret_struc.is_error(), ret_struc.pcid, ret_struc.cr3, ret_struc.switch_decision};
+    if matches!(ret_struc.switch_decision, verified::define::SwitchDecision::NoThread){
+        let sche_ret = kernel.as_mut().unwrap().schedule_idle_cpu(cpu_id, regs);
+    //     log::info!{"sche_ret:
+    // is_error: {:#?},
+    // pcid: {:#?}
+    // cr3: {:#?}
+    // switchdecision: {:x?}", sche_ret.is_error(), sche_ret.pcid, sche_ret.cr3, sche_ret.switch_decision};
+        if pcid != sche_ret.pcid.unwrap(){
+            Bridge::set_cr3((sche_ret.cr3.unwrap() | sche_ret.pcid.unwrap() | vdefine::PCID_ENABLE_MASK) as u64);
+        }
+    }
+    
+    // log::info!("sys_receive_empty regs before return: {:x?}", regs);
+    
+    Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
+}
 
 // pub extern "C" fn sys_new_proc_with_iommu_pass_mem(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegisters, va:usize, range:usize){
 //     let cpu_id = cpu::get_cpu_id();

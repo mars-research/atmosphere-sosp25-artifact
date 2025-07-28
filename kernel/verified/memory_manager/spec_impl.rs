@@ -1398,10 +1398,25 @@ impl MemoryManager {
 
         for i in 1..PCID_MAX {
             let (new_page_ptr, new_page_perm) = page_alloc.alloc_page_4k();
-            let (page_map_ptr, page_map_perm) = page_perm_to_page_map(new_page_ptr, new_page_perm);
+            let (page_map_ptr, Tracked(page_map_perm)) = page_perm_to_page_map(
+                new_page_ptr,
+                new_page_perm,
+            );
+            page_map_set_kernel_entry_range(
+                &self.kernel_entries,
+                page_map_ptr,
+                Tracked(&mut page_map_perm),
+            );
             self.page_tables.set(
                 i,
-                Some(PageTable::new(i, self.kernel_entries_ghost, page_map_ptr, page_map_perm)),
+                Some(
+                    PageTable::new(
+                        i,
+                        self.kernel_entries_ghost,
+                        page_map_ptr,
+                        Tracked(page_map_perm),
+                    ),
+                ),
             );
         }
 

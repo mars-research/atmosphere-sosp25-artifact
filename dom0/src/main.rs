@@ -22,11 +22,11 @@ use core::arch::x86_64::_rdtsc;
 use core::panic::PanicInfo;
 use core::slice;
 // mod benchmark_null_driver;
-// mod syscall_benchmark;
+mod syscall_benchmark;
 // use crate::benchmark_null_driver::*;
 // use crate::nvme_client::*;
 // use crate::ring_buffer::*;
-// use crate::syscall_benchmark::*;
+use crate::syscall_benchmark::*;
 // use alloc::vec::Vec;
 // use ixgbe_client::*;
 use libtime::sys_ns_loopsleep;
@@ -58,8 +58,11 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
+    // test_mmap();
+    // test_pingpong();
+    // test_proc_pingpong();
     // unsafe {
-    //     dom0_test_mmap();
+        // dom0_test_mmap();
     // }
     //     let io_cr3 = asys::sys_rd_io_cr3();
     //     log::info!("Dom0 IOMMU table @ {:x}", io_cr3);
@@ -104,56 +107,36 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 
     loop {}
 }
-// fn thread_1_main() {
-//     log::info!("hello from thread_1_main");
-//     loop {
-//         unsafe {
-//             // log::info!("ping");
-//             let error_code = asys::sys_receive_empty(0);
-//             if error_code != 0 {
-//                 log::info!("sys_new_thread failed {:?}", error_code);
-//                 return;
-//             }
-//         }
-//     }
-// }
+fn thread_1_main() {
+    log::info!("hello from thread_1_main");
+    loop {
+        unsafe {
+            // log::info!("ping");
+            let error_code = asys::sys_send_empty_try_schedule(0);
+            if error_code != 0 {
+                log::info!("sys_new_thread failed {:?}", error_code);
+                return;
+            }
+        }
+    }
+}
 
 // fn thread_1_hello_ap() {
 //     log::info!("hello from thread_1_main");
 // }
 
-// fn dom_1_main() {
-//     // log::info!("hello from dom_1_main");
-//     loop {
-//         unsafe {
-//             // log::info!("ping");
-//             let error_code = asys::sys_receive_empty(0);
-//             if error_code != 0 {
-//                 log::info!("sys_receive_empty failed {:?}", error_code);
-//                 return;
-//             }
-//         }
-//     }
-// }
-
-unsafe fn dom0_test_mmap(){
-    let va:usize = 0xC000000000;
-    let iter = 5000000;
-    let start = _rdtsc();
-    for i in 0..iter{
-        let error_code = asys::sys_mmap(va + 4095 * i as usize, 0x0000_0000_0000_0002u64 as usize, 1);
-        match error_code {
-            1 =>{
-
-            }
-            _ =>{
-
+fn dom_1_main() {
+    log::info!("hello from dom_1_main");
+    loop {
+        unsafe {
+            // log::info!("ping");
+            let error_code = asys::sys_send_empty_try_schedule(0);
+            if error_code != 0 {
+                log::info!("sys_send_empty_try_schedule failed {:?}", error_code);
+                return;
             }
         }
     }
-    let end: u64 = _rdtsc();
-    log::info!("mmap cycle per syscall {:?}",(end-start) as usize /iter);
-    log::info!{"mmap test done"};
 }
 
 /// The kernel panic handler.

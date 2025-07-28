@@ -7,16 +7,6 @@ use crate::process_manager::thread::IPCPayLoad;
 use crate::trap::Registers;
 
 impl Kernel {
-    ///
-    /// endpoint state
-    /// | queue state | queue len | action  |
-    /// | send        | > 0       | success |
-    /// | send        | == 0      | block + changed queue state |
-    /// | receive     | >= 0      | block |
-    ///
-    /// suceed only if
-    ///     queue state == send && queue len > 0
-    ///
     pub fn syscall_receive_empty_no_block(
         &mut self,
         receiver_thread_ptr: ThreadPtr,
@@ -102,6 +92,7 @@ impl Kernel {
         if self.proc_man.get_endpoint(blocking_endpoint_ptr).queue_state.is_receive()
             && self.proc_man.get_endpoint(blocking_endpoint_ptr).queue.len()
             < MAX_NUM_THREADS_PER_ENDPOINT {
+
             self.proc_man.block_running_thread_and_set_trap_frame(
                 receiver_thread_ptr,
                 blocking_endpoint_index,

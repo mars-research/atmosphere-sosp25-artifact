@@ -27,6 +27,7 @@ pub const __NR_IO_MMAP: usize = 16;
 pub const __NR_MRESOLVE_IO: usize = 17;
 pub const __NR_SET_DEVICE_IOMMU: usize = 18;
 pub const __NR_INVALIDATE_IOTLB: usize = 19;
+pub const __NR_SEND_EMPTY_TRY_SCH: usize = 20;
 
 macro_rules! syscall {
     ($nr:expr, $a:expr, $b:expr, $c:expr) => {{
@@ -91,12 +92,13 @@ pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
     return syscall!(__NR_MMAP,va,perm_bits,range) as usize;
 }
 
-// pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
-//     let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
-//     let low_bits = va & 0xFFFu64 as usize;
-//     let ret = syscall!(__NR_MRESOLVE,va_masked,0,0) as usize;
-//     return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
-// }
+pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
+    let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
+    let low_bits = va & 0xFFFu64 as usize;
+    let ret = syscall!(__NR_MRESOLVE,va_masked,0,0) as usize;
+    // return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
+    return (ret, ret);
+}
 
 // pub unsafe fn sys_mresolve_io(va:usize) -> (usize,usize) {
 //     let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
@@ -105,21 +107,21 @@ pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
 //     return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
 // }
 
-// pub unsafe fn sys_new_endpoint(endpoint_index:usize) -> usize {
-//     return syscall!(__NR_NEW_END,endpoint_index,0,0) as usize;
-// }
+pub unsafe fn sys_new_endpoint(endpoint_index:usize) -> usize {
+    return syscall!(__NR_NEW_END,endpoint_index,0,0) as usize;
+}
 
-// pub unsafe fn sys_new_proc(endpoint_index:usize, ip:usize) -> usize{
-//     return syscall!(__NR_NEW_PROC,endpoint_index,ip,0) as usize;
-// }
+pub unsafe fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize, va: usize, range:usize) -> usize{
+    return syscall!(__NR_NEW_PROC,endpoint_index,ip, sp, va, range) as usize;
+}
 
 // pub unsafe fn sys_new_proc_with_iommu(endpoint_index:usize, ip:usize) -> usize{
 //     return syscall!(__NR_NEW_PROC_W_IO,endpoint_index,ip,0) as usize;
 // }
 
-// pub unsafe fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize) -> usize{
-//     return syscall!(__NR_NEW_THREAD,endpoint_index,ip,sp) as usize;
-// }
+pub unsafe fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize) -> usize{
+    return syscall!(__NR_NEW_THREAD,endpoint_index,ip,sp) as usize;
+}
 
 // pub unsafe fn sys_send_empty_no_wait(endpoint_index:usize) -> usize{
 //     return syscall!(__NR_SEND_EMPTY_NW,endpoint_index,0,0) as usize;
@@ -129,9 +131,9 @@ pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
 //     return syscall!(__NR_SEND_EMPTY,endpoint_index,0,0) as usize;
 // }
 
-// pub unsafe fn sys_receive_empty(endpoint_index:usize) -> usize{
-//     return syscall!(__NR_RECEIVE_EMPTY,endpoint_index,0,0) as usize;
-// }
+pub unsafe fn sys_receive_empty(endpoint_index:usize) -> usize{
+    return syscall!(__NR_RECEIVE_EMPTY,endpoint_index,0,0) as usize;
+}
 
 // pub unsafe fn sys_new_proc_with_iommu_pass_mem(endpoint_index:usize, ip: usize, sp: usize, va: usize, range:usize) -> usize{
 //     return syscall!(__NR_NEW_PROC_W_IO_MEM,endpoint_index,ip,sp,va,range) as usize;
@@ -164,3 +166,6 @@ pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
 // pub unsafe fn sys_invalidate_iotlb(bus: usize, device: usize, function: usize, page: u64) -> isize {
 //     syscall!(__NR_INVALIDATE_IOTLB, bus, device, function, page)
 // }
+pub unsafe fn sys_send_empty_try_schedule(endpoint_index:usize) -> usize{
+    return syscall!(__NR_SEND_EMPTY_TRY_SCH, endpoint_index, 0, 0) as usize;
+}

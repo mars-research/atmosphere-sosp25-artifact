@@ -261,6 +261,42 @@ pub fn thread_set_current_cpu(
 }
 
 #[verifier(external_body)]
+pub fn thread_set_error_code(
+    thread_ptr: ThreadPtr,
+    thread_perm: &mut Tracked<PointsTo<Thread>>,
+    error_code: Option<RetValueType>,
+)
+    requires
+        old(thread_perm)@.is_init(),
+        old(thread_perm)@.addr() == thread_ptr,
+    ensures
+        thread_perm@.is_init(),
+        thread_perm@.addr() == thread_ptr,
+        thread_perm@.value().owning_container == old(thread_perm)@.value().owning_container,
+        thread_perm@.value().owning_proc == old(thread_perm)@.value().owning_proc,
+        thread_perm@.value().state == old(thread_perm)@.value().state,
+        thread_perm@.value().proc_rev_ptr == old(thread_perm)@.value().proc_rev_ptr,
+        thread_perm@.value().scheduler_rev_ptr == old(thread_perm)@.value().scheduler_rev_ptr,
+        thread_perm@.value().blocking_endpoint_ptr == old(
+            thread_perm,
+        )@.value().blocking_endpoint_ptr,
+        thread_perm@.value().blocking_endpoint_index == old(
+            thread_perm,
+        )@.value().blocking_endpoint_index,
+        thread_perm@.value().endpoint_rev_ptr == old(thread_perm)@.value().endpoint_rev_ptr,
+        thread_perm@.value().running_cpu == old(thread_perm)@.value().running_cpu,
+        thread_perm@.value().endpoint_descriptors == old(thread_perm)@.value().endpoint_descriptors,
+        thread_perm@.value().ipc_payload == old(thread_perm)@.value().ipc_payload,
+        thread_perm@.value().error_code == error_code,
+        thread_perm@.value().trap_frame == old(thread_perm)@.value().trap_frame,
+{
+    unsafe {
+        let uptr = thread_ptr as *mut MaybeUninit<Thread>;
+        (*uptr).assume_init_mut().error_code = error_code;
+    }
+}
+
+#[verifier(external_body)]
 pub fn thread_set_trap_frame_fast(
     thread_ptr: ThreadPtr,
     thread_perm: &mut Tracked<PointsTo<Thread>>,
@@ -288,6 +324,7 @@ pub fn thread_set_trap_frame_fast(
         thread_perm@.value().blocking_endpoint_index == old(
             thread_perm,
         )@.value().blocking_endpoint_index,
+        thread_perm@.value().trap_frame.is_Some(),
         thread_perm@.value().trap_frame.unwrap() == *pt_regs,
 {
     unsafe {

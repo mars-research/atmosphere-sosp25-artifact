@@ -28,10 +28,10 @@ impl Kernel {
         let container_ptr = self.proc_man.cpu_list.get(cpu_id).owning_container;
 
         if self.proc_man.cpu_list.get(cpu_id).active == false {
-            return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
         if self.proc_man.cpu_list.get(cpu_id).current_thread.is_some() {
-            return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
         if self.proc_man.get_container(container_ptr).scheduler.len() == 0 {
             return SyscallReturnStruct::NoNextThreadNew(RetValueType::Error);
@@ -40,7 +40,7 @@ impl Kernel {
         let proc_ptr = self.proc_man.get_thread(ret_thread_ptr).owning_proc;
         let pcid = self.proc_man.get_proc(proc_ptr).pcid;
         let cr3 = self.mem_man.get_cr3_by_pcid(pcid);
-        return SyscallReturnStruct::SwitchNew(RetValueType::Error, cr3, pcid);
+        return SyscallReturnStruct::SwitchNew(RetValueType::Else, cr3, pcid);
     }
 }
 

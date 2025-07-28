@@ -3,7 +3,7 @@ verus! {
 
 use crate::define::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Cpu {
     pub owning_container: ContainerPtr,
     pub active: bool,

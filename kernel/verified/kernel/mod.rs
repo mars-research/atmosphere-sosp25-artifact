@@ -17,6 +17,8 @@ pub mod syscall_receive_pages;
 pub mod syscall_send_empty;
 pub mod syscall_send_endpoint;
 pub mod syscall_send_pages;
+pub mod syscall_send_empty_try_schedule;
+pub mod syscall_resolve_va;
 pub mod util_syscalls;
 
 pub use spec::*;

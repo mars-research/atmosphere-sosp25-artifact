@@ -1256,15 +1256,6 @@ impl ProcessManager {
                     },
                 );
             }
-
-            self.cpu_list.set(
-                0,
-                Cpu {
-                    owning_container: dom_0_container_ptr,
-                    active: true,
-                    current_thread: Some(dom_0_thread_ptr),
-                },
-            );
         }
     }
 
@@ -1397,6 +1388,404 @@ impl ProcessManager {
         assert(self.threads_cpu_wf());
         assert(self.threads_container_wf());
 
+    }
+
+
+
+    pub fn schedule_running_thread(&mut self, cpu_id: CpuId, pt_regs: &Registers)
+        requires
+            old(self).wf(),
+            0 <= cpu_id < NUM_CPUS,
+            old(self).get_cpu(cpu_id).current_thread.is_some(),
+            old(self).get_container(
+                old(self).get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container
+            ).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
+        ensures
+            self.wf(),
+            self.page_closure() =~= old(self).page_closure(),
+            self.proc_dom() =~= old(self).proc_dom(),
+            self.endpoint_dom() == old(self).endpoint_dom(),
+            self.container_dom() == old(self).container_dom(),
+            self.thread_dom() == old(self).thread_dom(),
+            forall|p_ptr: ProcPtr|
+                #![trigger self.get_proc(p_ptr)]
+                old(self).proc_dom().contains(p_ptr) ==> self.get_proc(p_ptr) =~= old(
+                    self,
+                ).get_proc(p_ptr),
+            forall|container_ptr: ContainerPtr|
+                #![trigger self.get_container(container_ptr)]
+                old(self).container_dom().contains(container_ptr) && container_ptr != old(
+                    self,
+                ).get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container
+                    ==> self.get_container(container_ptr) =~= old(self).get_container(
+                    container_ptr,
+                ),
+            forall|t_ptr: ThreadPtr|
+                #![trigger old(self).get_thread(t_ptr)]
+                old(self).thread_dom().contains(t_ptr) && t_ptr != old(self).get_cpu(
+                    cpu_id,
+                ).current_thread.unwrap() ==> old(self).get_thread(t_ptr) =~= self.get_thread(
+                    t_ptr,
+                ),
+            forall|e_ptr: EndpointPtr|
+                #![trigger self.get_endpoint(e_ptr)]
+                self.endpoint_dom().contains(e_ptr) ==> old(self).get_endpoint(e_ptr)
+                    =~= self.get_endpoint(e_ptr),
+            forall|cpu_i: CpuId|
+                #![trigger self.get_cpu(cpu_i)]
+                0 <= cpu_i < NUM_CPUS && cpu_i != cpu_id ==> old(self).get_cpu(cpu_i)
+                    == self.get_cpu(cpu_i),
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container
+                == old(self).get_thread(
+                old(self).get_cpu(cpu_id).current_thread.unwrap(),
+            ).owning_container,
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_proc == old(
+                self,
+            ).get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_proc,
+            self.get_thread(
+                old(self).get_cpu(cpu_id).current_thread.unwrap(),
+            ).blocking_endpoint_ptr.is_None(),
+            self.get_thread(
+                old(self).get_cpu(cpu_id).current_thread.unwrap(),
+            ).blocking_endpoint_index.is_None(),
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).endpoint_descriptors
+                == old(self).get_thread(
+                old(self).get_cpu(cpu_id).current_thread.unwrap(),
+            ).endpoint_descriptors,
+            self.get_thread(
+                old(self).get_cpu(cpu_id).current_thread.unwrap(),
+            ).running_cpu.is_None(),
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).state
+                == ThreadState::SCHEDULED,
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).ipc_payload
+                == IPCPayLoad::Empty,
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).error_code.is_None(),
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).trap_frame.is_Some(),
+            self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).trap_frame.unwrap()
+                == *pt_regs,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).parent == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).parent,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).children == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).children,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).depth == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).depth,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).uppertree_seq == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).uppertree_seq,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).subtree_set == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).subtree_set,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).root_process == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).root_process,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_procs == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_procs,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_endpoints == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_endpoints,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_threads == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_threads,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).quota == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).quota,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_cpus == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).owned_cpus,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).can_have_children == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).can_have_children,
+            self.get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).scheduler@ == old(self).get_container(
+                self.get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container,
+            ).scheduler@.push(old(self).get_cpu(cpu_id).current_thread.unwrap()),
+            self.get_cpu(cpu_id).owning_container == old(self).get_cpu(cpu_id).owning_container,
+            self.get_cpu(cpu_id).active == old(self).get_cpu(cpu_id).active,
+            self.get_cpu(cpu_id).current_thread.is_None(),
+    {
+        assert(self.get_cpu(cpu_id).active);
+        let old_cpu = *self.cpu_list.get(cpu_id);
+        let t_ptr = old_cpu.current_thread.unwrap();
+        let c_ptr = self.get_thread(t_ptr).owning_container;
+        let mut c_perm = Tracked(self.container_perms.borrow_mut().tracked_remove(c_ptr));
+
+        let scheduler_node_ref = scheduler_push_thread(c_ptr, &mut c_perm, &t_ptr);
+        proof {
+            self.container_perms.borrow_mut().tracked_insert(c_ptr, c_perm.get());
+        }
+        let mut t_perm = Tracked(self.thread_perms.borrow_mut().tracked_remove(t_ptr));
+        thread_set_blocking_endpoint_endpoint_ref_scheduler_ref_state_and_ipc_payload(
+            t_ptr,
+            &mut t_perm,
+            None,
+            None,
+            Some(scheduler_node_ref),
+            ThreadState::SCHEDULED,
+            IPCPayLoad::Empty,
+            None,
+        );
+        thread_set_trap_frame_fast(t_ptr, &mut t_perm, pt_regs);
+        thread_set_error_code(t_ptr, &mut t_perm, None);
+        proof {
+            self.thread_perms.borrow_mut().tracked_insert(t_ptr, t_perm.get());
+        }
+        self.cpu_list.set(
+            cpu_id,
+            Cpu {
+                owning_container: old_cpu.owning_container,
+                active: old_cpu.active,
+                current_thread: None,
+            },
+        );
+
+        assert(self.container_perms_wf());
+        assert(self.container_tree_wf()) by {
+            container_no_change_to_tree_fields_imply_wf(
+                self.root_container,
+                old(self).container_perms@,
+                self.container_perms@,
+            );
+        };
+        assert(self.container_fields_wf());
+        assert(self.proc_perms_wf());
+        assert(self.process_trees_wf()) by {
+            assert forall|c_ptr: ContainerPtr|
+                #![trigger self.container_dom().contains(c_ptr)]
+                #![trigger self.process_tree_wf(c_ptr)]
+                self.container_dom().contains(c_ptr) && self.get_container(
+                    c_ptr,
+                ).root_process.is_Some() implies self.process_tree_wf(c_ptr) by {
+                process_no_change_to_trees_fields_imply_wf(
+                    self.get_container(c_ptr).root_process.unwrap(),
+                    self.get_container(c_ptr).owned_procs@.to_set(),
+                    old(self).process_perms@,
+                    self.process_perms@,
+                );
+            };
+        };
+        assert(self.process_fields_wf()) by {
+            assert(forall|p_ptr: ProcPtr|
+                #![trigger self.get_proc(p_ptr)]
+                self.proc_dom().contains(p_ptr) ==> self.get_proc(p_ptr) =~= old(self).get_proc(
+                    p_ptr,
+                ));
+        };
+        assert(self.cpus_wf());
+        assert(self.container_cpu_wf());
+        assert(self.memory_disjoint());
+        assert(self.container_perms_wf());
+        assert(self.processes_container_wf());
+        assert(self.threads_process_wf());
+        assert(self.threads_perms_wf());
+        assert(self.endpoint_perms_wf());
+        assert(self.threads_endpoint_descriptors_wf());
+        assert(self.endpoints_queue_wf());
+        assert(self.endpoints_container_wf());
+        assert(self.schedulers_wf()) by {
+            seq_push_lemma::<ThreadPtr>();
+            assert(old(self).get_container(c_ptr).scheduler@.no_duplicates()) by {
+                old(self).get_container(c_ptr).scheduler.unique_implys_no_duplicates()
+            };
+        };
+        assert(self.pcid_ioid_wf());
+        assert(self.threads_cpu_wf());
+        assert(self.threads_container_wf());
+
+    }
+
+    pub fn run_blocked_thread(
+        &mut self,
+        cpu_id: CpuId,
+        endpoint_ptr: EndpointPtr,
+        pt_regs: &mut Registers,
+    ) -> (ret: Option<RetValueType>)
+        requires
+            old(self).wf(),
+            old(self).endpoint_dom().contains(endpoint_ptr),
+            old(self).get_endpoint(endpoint_ptr).queue.len() > 0,
+            0 <= cpu_id < NUM_CPUS,
+            old(self).get_cpu(cpu_id).current_thread.is_none(),
+            old(self).get_cpu(cpu_id).active,
+            old(self).get_cpu(cpu_id).owning_container == old(self).get_thread(
+                old(self).get_endpoint(endpoint_ptr).queue@[0],
+            ).owning_container,
+        ensures
+            self.wf(),self.page_closure() =~= old(self).page_closure(),
+            self.proc_dom() =~= old(self).proc_dom(),
+            self.endpoint_dom() == old(self).endpoint_dom(),
+            self.container_dom() == old(self).container_dom(),
+            self.thread_dom() == old(self).thread_dom(),
+            forall|p_ptr: ProcPtr|
+                #![trigger self.get_proc(p_ptr)]
+                old(self).proc_dom().contains(p_ptr) ==> self.get_proc(p_ptr) =~= old(
+                    self,
+                ).get_proc(p_ptr),
+            forall|container_ptr: ContainerPtr|
+                #![trigger self.get_container(container_ptr)]
+                old(self).container_dom().contains(container_ptr) ==> self.get_container(container_ptr) =~= old(self).get_container(
+                    container_ptr,
+                ),
+            forall|t_ptr: ThreadPtr|
+                #![trigger old(self).get_thread(t_ptr)]
+                old(self).thread_dom().contains(t_ptr) && t_ptr != old(self).get_endpoint(
+                    endpoint_ptr,
+                ).queue@[0] ==> old(self).get_thread(t_ptr) =~= self.get_thread(t_ptr),
+            forall|e_ptr: EndpointPtr|
+                #![trigger self.get_endpoint(e_ptr)]
+                self.endpoint_dom().contains(e_ptr) && e_ptr != endpoint_ptr ==> old(
+                    self,
+                ).get_endpoint(e_ptr) =~= self.get_endpoint(e_ptr),
+            self.get_thread(old(self).get_endpoint(endpoint_ptr).queue@[0]).endpoint_descriptors
+                =~= old(self).get_thread(
+                old(self).get_endpoint(endpoint_ptr).queue@[0],
+            ).endpoint_descriptors,
+            self.get_container(
+                old(self).get_thread(
+                    old(self).get_endpoint(endpoint_ptr).queue@[0],
+                ).owning_container,
+            ).owned_procs =~= old(self).get_container(
+                old(self).get_thread(
+                    old(self).get_endpoint(endpoint_ptr).queue@[0],
+                ).owning_container,
+            ).owned_procs,
+            self.get_endpoint(endpoint_ptr).queue@ == old(self).get_endpoint(
+                endpoint_ptr,
+            ).queue@.skip(1),
+            self.get_endpoint(endpoint_ptr).owning_threads == old(self).get_endpoint(
+                endpoint_ptr,
+            ).owning_threads,
+            self.get_endpoint(endpoint_ptr).rf_counter == old(self).get_endpoint(
+                endpoint_ptr,
+            ).rf_counter,
+            self.get_endpoint(endpoint_ptr).queue_state == old(self).get_endpoint(
+                endpoint_ptr,
+            ).queue_state,
+            self.get_thread(old(self).get_endpoint(endpoint_ptr).queue@[0]).state == ThreadState::RUNNING,
+            self.get_cpu(cpu_id).current_thread.is_Some(),
+            self.get_cpu(cpu_id).current_thread.unwrap() == old(self).get_endpoint(endpoint_ptr).queue@[0],
+
+    {
+        let thread_ptr = self.get_endpoint(endpoint_ptr).queue.get_head();
+        let thread_ref = self.get_thread(thread_ptr);
+        let proc_ref = self.get_proc(thread_ref.owning_proc);
+        let new_pcid = proc_ref.pcid;
+        let old_cpu = *self.cpu_list.get(cpu_id);
+        pt_regs.set_self_fast(thread_ref.trap_frame.unwrap());
+        let ret_value = thread_ref.error_code;
+        let mut endpoint_perm = Tracked(
+            self.endpoint_perms.borrow_mut().tracked_remove(endpoint_ptr),
+        );
+        let (ret_thread_ptr, sll) = endpoint_pop_head(endpoint_ptr, &mut endpoint_perm);
+        assert(thread_ptr == ret_thread_ptr);
+        proof {
+            self.endpoint_perms.borrow_mut().tracked_insert(endpoint_ptr, endpoint_perm.get());
+        }
+
+        let mut thread_perm = Tracked(self.thread_perms.borrow_mut().tracked_remove(thread_ptr));
+        thread_set_blocking_endpoint_endpoint_ref_scheduler_ref_state_and_ipc_payload(
+            thread_ptr,
+            &mut thread_perm,
+            None,
+            None,
+            None,
+            ThreadState::RUNNING,
+            IPCPayLoad::Empty,
+            None,
+        );
+        thread_set_current_cpu(thread_ptr, &mut thread_perm, Some(cpu_id));
+        proof {
+            self.thread_perms.borrow_mut().tracked_insert(thread_ptr, thread_perm.get());
+        }
+        self.cpu_list.set(
+            cpu_id,
+            Cpu {
+                owning_container: old_cpu.owning_container,
+                active: old_cpu.active,
+                current_thread: Some(thread_ptr),
+            },
+        );
+
+        assert(self.container_perms_wf());
+        assert(self.container_tree_wf()) by {
+            container_no_change_to_tree_fields_imply_wf(
+                self.root_container,
+                old(self).container_perms@,
+                self.container_perms@,
+            );
+        };
+        assert(self.container_fields_wf());
+        assert(self.proc_perms_wf());
+        assert(self.process_trees_wf()) by {
+            assert forall|c_ptr: ContainerPtr|
+                #![trigger self.container_dom().contains(c_ptr)]
+                #![trigger self.process_tree_wf(c_ptr)]
+                self.container_dom().contains(c_ptr) && self.get_container(
+                    c_ptr,
+                ).root_process.is_Some() implies self.process_tree_wf(c_ptr) by {
+                process_no_change_to_trees_fields_imply_wf(
+                    self.get_container(c_ptr).root_process.unwrap(),
+                    self.get_container(c_ptr).owned_procs@.to_set(),
+                    old(self).process_perms@,
+                    self.process_perms@,
+                );
+            };
+        };
+        assert(self.process_fields_wf()) by {
+            assert(forall|p_ptr: ProcPtr|
+                #![trigger self.get_proc(p_ptr)]
+                self.proc_dom().contains(p_ptr) ==> self.get_proc(p_ptr) =~= old(self).get_proc(
+                    p_ptr,
+                ));
+        };
+        assert(self.cpus_wf());
+        assert(self.container_cpu_wf());
+        assert(self.memory_disjoint());
+        assert(self.container_perms_wf());
+        assert(self.processes_container_wf());
+        assert(self.threads_process_wf());
+        assert(self.threads_perms_wf());
+        assert(self.endpoint_perms_wf());
+        assert(self.threads_endpoint_descriptors_wf());
+        assert(self.endpoints_queue_wf()) by {
+            seq_skip_lemma::<ThreadPtr>();
+            old(self).get_endpoint(endpoint_ptr).queue.unique_implys_no_duplicates();
+        };
+        assert(self.endpoints_container_wf());
+        assert(self.schedulers_wf());
+        assert(self.pcid_ioid_wf());
+        assert(self.threads_cpu_wf());
+        assert(self.threads_container_wf());
+
+        return ret_value;
     }
 
     pub fn schedule_blocked_thread(&mut self, endpoint_ptr: EndpointPtr)

@@ -107,7 +107,6 @@ fn main(boot_info: *const BootInfo) -> isize {
     // }
 
 
-    kernel::kernel_test();
     kernel::kernel_new();
 
     log::info!("Command line: {}", boot::get_raw_command_line());
@@ -129,21 +128,21 @@ fn main(boot_info: *const BootInfo) -> isize {
     unsafe {
         kernel_pml4 = *(pml4 as *const usize);
     }
-    log::info!("dom0: {:?}", dom0);
-    log::info!("pml4: {:?}", pml4);
-    log::info!("kernel_pml4: {:x}", kernel_pml4);
-    log::info!("page_array_len: {:x}", boot_info.pages.len());
+    // log::info!("dom0: {:?}", dom0);
+    // log::info!("pml4: {:?}", pml4);
+    // log::info!("kernel_pml4: {:x}", kernel_pml4);
+    // log::info!("page_array_len: {:x}", boot_info.pages.len());
 
     kernel::kernel_init(&boot_info.pages, pml4 as usize, kernel_pml4 as usize);
 
-    // unsafe {
-    //     let ap_rsp = (&AP_STACK as *const _ as u64 + AP_STACK.len() as u64) & !(4096 - 1);
-    //     interrupt::boot_ap(
-    //         1,
-    //         ap_rsp,
-    //         ap_main as u64,
-    //     );
-    // }
+    unsafe {
+        let ap_rsp = (&AP_STACK as *const _ as u64 + AP_STACK.len() as u64) & !(4096 - 1);
+        interrupt::boot_ap(
+            1,
+            ap_rsp,
+            ap_main as u64,
+        );
+    }
 
     let initial_sp = unsafe { dom0.virt_start.add(dom0.reserved_size - 0x1000) };
     log::info!("initial_sp: {:?}", initial_sp);
@@ -172,7 +171,7 @@ fn ap_main(cpu_id: u64, rsp: u64) {
         syscalls::init_cpu();
     }
 
-    // log::info!("Hello from CPU {}", cpu::get_cpu_id());
+    log::info!("Hello from CPU {}", cpu::get_cpu_id());
 
     unsafe {
         thread::start_thread(
@@ -225,7 +224,7 @@ fn print_logo() {
 /// The kernel panic handler.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    log::error!("panic! {:#?}", info);
+    log::error!("panic! {:x?}", info);
 
     debugger::breakpoint(1);
 

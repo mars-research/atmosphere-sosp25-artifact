@@ -180,7 +180,6 @@ pub enum RetValueType {
     NoQuota,
     VaInUse,
 }
-
 // -------------------- End of Types --------------------
 // -------------------- Begin of Const --------------------
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS: usize = 128;
@@ -197,12 +196,12 @@ pub const IPC_MESSAGE_LEN: usize = 1024;
 
 pub const IPC_PAGEPAYLOAD_LEN: usize = 128;
 
+//1 for now
 pub const KERNEL_MEM_END_L4INDEX: usize = 1;
 
-//1 for now
-pub const NUM_PAGES: usize = 1 * 1024 * 1024;
+//8GiB
+pub const NUM_PAGES: usize = 2 * 1024 * 1024;
 
-//4GiB
 pub const PAGE_SZ_4k: usize = 1usize << 12;
 
 pub const PAGE_SZ_2m: usize = 1usize << 21;
