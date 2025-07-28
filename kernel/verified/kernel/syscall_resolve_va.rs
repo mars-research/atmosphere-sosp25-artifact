@@ -21,8 +21,8 @@ impl Kernel {
     pub fn syscall_resolve_va(&self, thread_ptr: ThreadPtr, va_range: VaRange4K) -> (ret:
         SyscallReturnStruct)
         requires
-            old(self).total_wf(),
-            old(self).thread_dom().contains(thread_ptr),
+            self.total_wf(),
+            self.thread_dom().contains(thread_ptr),
             va_range.wf(),
             va_range.len == 1,
     {
