@@ -100,12 +100,13 @@ pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
     return (ret, ret);
 }
 
-// pub unsafe fn sys_mresolve_io(va:usize) -> (usize,usize) {
-//     let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
-//     let low_bits = va & 0xFFFu64 as usize;
-//     let ret = syscall!(__NR_MRESOLVE_IO,va_masked,0,0) as usize;
-//     return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
-// }
+pub unsafe fn sys_mresolve_io(va:usize) -> (usize,usize) {
+    let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
+    let low_bits = va & 0xFFFu64 as usize;
+    let ret = syscall!(__NR_MRESOLVE_IO,va_masked,0,0) as usize;
+    // return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
+    return (ret, ret);
+}
 
 pub unsafe fn sys_new_endpoint(endpoint_index:usize) -> usize {
     return syscall!(__NR_NEW_END,endpoint_index,0,0) as usize;
@@ -151,13 +152,13 @@ pub unsafe fn sys_receive_empty(endpoint_index:usize) -> usize{
 //     return syscall!(__NR_RECEIVE_PAGE,endpoint_index,va,range) as usize;
 // }
 
-// pub unsafe fn sys_io_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
-//     return syscall!(__NR_IO_MMAP,va,perm_bits,range) as usize;
-// }
+pub unsafe fn sys_io_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
+    return syscall!(__NR_IO_MMAP,va,perm_bits,range) as usize;
+}
 
-// pub unsafe fn sys_rd_io_cr3() -> usize {
-//     return syscall!(__NR_RD_IO_CR3,0,0,0) as usize;
-// }
+pub unsafe fn sys_rd_io_cr3() -> usize {
+    return syscall!(__NR_RD_IO_CR3,0,0,0) as usize;
+}
 
 // pub unsafe fn sys_set_device_iommu(bus: usize, device: usize, function: usize, pml4: u64) -> isize {
 //     syscall!(__NR_SET_DEVICE_IOMMU, bus, device, function, pml4)

@@ -76,6 +76,23 @@ impl Kernel {
         self.mem_man.get_pagetable_mapping_by_pcid(self.get_proc(p_ptr).pcid)
     }
 
+    pub open spec fn get_proc_has_iommu_table(&self, p_ptr: ProcPtr) -> bool
+        recommends
+            self.wf(),
+            self.proc_dom().contains(p_ptr),
+    {
+        self.get_proc(p_ptr).ioid.is_Some()
+    }
+
+    pub open spec fn get_io_space(&self, p_ptr: ProcPtr) -> Map<VAddr, MapEntry>
+        recommends
+            self.wf(),
+            self.proc_dom().contains(p_ptr),
+            self.get_proc_has_iommu_table(p_ptr),
+    {
+        self.mem_man.get_iommu_table_mapping_by_ioid(self.get_proc(p_ptr).ioid.unwrap())
+    }
+
     pub open spec fn get_container_owned_pages(&self, c_ptr: ContainerPtr) -> Set<PagePtr>
         recommends
             self.wf(),

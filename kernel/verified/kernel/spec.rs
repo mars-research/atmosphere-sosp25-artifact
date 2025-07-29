@@ -16,6 +16,8 @@ pub struct Kernel {
     pub mem_man: MemoryManager,
     pub proc_man: ProcessManager,
     pub page_mapping: Ghost<Map<PagePtr, Set<(ProcPtr, VAddr)>>>,
+    /// @Xiangdong fix
+    pub page_io_mapping: Ghost<Map<PagePtr, Set<(ProcPtr, VAddr)>>>,
 }
 
 //spec
@@ -38,7 +40,8 @@ impl Kernel {
     }
 
     pub open spec fn page_mapping_wf(&self) -> bool {
-        &&& self.page_mapping@.dom() == self.page_alloc.mapped_pages_4k()
+        &&& self.page_mapping@.dom().subset_of(self.page_alloc.mapped_pages_4k())
+        &&& self.page_io_mapping@.dom().subset_of(self.page_alloc.mapped_pages_4k())
         &&& forall|page_ptr: PagePtr, p_ptr: ProcPtr, va: VAddr|
             #![trigger self.page_mapping@[page_ptr].contains((p_ptr, va))]
             #![trigger self.page_alloc.page_mappings(page_ptr).contains((self.proc_man.get_proc(p_ptr).pcid, va))]
@@ -114,7 +117,14 @@ impl Kernel {
                 proc_ptr,
             ).ioid.is_Some() ==> self.mem_man.ioid_active(
                 self.proc_man.get_proc(proc_ptr).ioid.unwrap(),
-            )
+            ) && self.mem_man.ioid_to_proc_ptr(self.proc_man.get_proc(proc_ptr).ioid.unwrap())
+                == proc_ptr
+        &&& forall|ioid: Pcid|
+            #![trigger self.mem_man.ioid_to_proc_ptr(ioid)]
+            self.mem_man.ioid_active(ioid) ==> self.proc_man.proc_dom().contains(
+                self.mem_man.ioid_to_proc_ptr(ioid),
+            ) && self.proc_man.get_proc(self.mem_man.ioid_to_proc_ptr(ioid)).ioid.is_Some()
+                && self.proc_man.get_proc(self.mem_man.ioid_to_proc_ptr(ioid)).ioid.unwrap() == ioid
     }
 
     pub open spec fn wf(&self) -> bool {
@@ -443,6 +453,7 @@ impl Kernel {
             mem_man: MemoryManager::new(),
             proc_man: ProcessManager::new(),
             page_mapping: Ghost(Map::<PagePtr, Set<(ProcPtr, VAddr)>>::empty()),
+            page_io_mapping: Ghost(Map::<PagePtr, Set<(ProcPtr, VAddr)>>::empty()),
         }
     }
 

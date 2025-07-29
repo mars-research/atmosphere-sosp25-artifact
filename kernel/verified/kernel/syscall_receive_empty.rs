@@ -92,7 +92,6 @@ impl Kernel {
         if self.proc_man.get_endpoint(blocking_endpoint_ptr).queue_state.is_receive()
             && self.proc_man.get_endpoint(blocking_endpoint_ptr).queue.len()
             < MAX_NUM_THREADS_PER_ENDPOINT {
-
             self.proc_man.block_running_thread_and_set_trap_frame(
                 receiver_thread_ptr,
                 blocking_endpoint_index,

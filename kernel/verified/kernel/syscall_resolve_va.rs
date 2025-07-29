@@ -16,7 +16,6 @@ use crate::define::*;
 use crate::kernel::Kernel;
 use crate::va_range::VaRange4K;
 
-
 impl Kernel {
     pub fn syscall_resolve_va(&self, thread_ptr: ThreadPtr, va_range: VaRange4K) -> (ret:
         SyscallReturnStruct)
@@ -37,11 +36,43 @@ impl Kernel {
 
         let pa_op = self.mem_man.resolve_pagetable_mapping(pcid, va_range.index(0));
 
-        if pa_op.is_none(){
+        if pa_op.is_none() {
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
+        return SyscallReturnStruct::NoSwitchNew(
+            RetValueType::SuccessPairUsize { value1: pa_op.unwrap().addr, value2: 0 },
+        );
+    }
 
-        return SyscallReturnStruct::NoSwitchNew(RetValueType::SuccessPairUsize { value1:pa_op.unwrap().addr, value2:0 });
+    pub fn syscall_io_resolve_va(&self, thread_ptr: ThreadPtr, va_range: VaRange4K) -> (ret:
+        SyscallReturnStruct)
+        requires
+            self.total_wf(),
+            self.thread_dom().contains(thread_ptr),
+            va_range.wf(),
+            va_range.len == 1,
+    {
+        let proc_ptr = self.proc_man.get_thread(thread_ptr).owning_proc;
+        let ioid_op = self.proc_man.get_proc(proc_ptr).ioid;
+        if ioid_op.is_none() {
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }
+        let ioid = ioid_op.unwrap();
+        let container_ptr = self.proc_man.get_proc(proc_ptr).owning_container;
+
+        proof {
+            self.proc_man.thread_inv();
+            self.proc_man.process_inv();
+        }
+
+        let pa_op = self.mem_man.resolve_iommu_table_mapping(ioid, va_range.index(0));
+
+        if pa_op.is_none() {
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }
+        return SyscallReturnStruct::NoSwitchNew(
+            RetValueType::SuccessPairUsize { value1: pa_op.unwrap().addr, value2: 0 },
+        );
     }
 }
 

@@ -50,30 +50,34 @@ pub struct PageTable {
 
 impl PageTable {
     pub fn new(
-        pcid: Pcid,
+        pcid: Option<Pcid>,
+        ioid: Option<IOid>,
         kernel_entries_ghost: Ghost<Seq<PageEntry>>,
         page_map_ptr: PageMapPtr,
         Tracked(page_map_perm): Tracked<PointsTo<PageMap>>,
+        mem_end_l4_index: usize,
     ) -> (ret: Self)
         requires
+            pcid.is_Some() != ioid.is_Some(),
             page_ptr_valid(page_map_ptr),
             page_map_perm.addr() == page_map_ptr,
             page_map_perm.is_init(),
             page_map_perm.value().wf(),
-            kernel_entries_ghost@.len() == KERNEL_MEM_END_L4INDEX,
+            kernel_entries_ghost@.len() == mem_end_l4_index,
             forall|i: usize|
                 #![trigger page_map_perm.value()[i].is_empty()]
-                KERNEL_MEM_END_L4INDEX <= i < 512 ==> page_map_perm.value()[i].is_empty(),
+                mem_end_l4_index <= i < 512 ==> page_map_perm.value()[i].is_empty(),
             forall|i: usize|
                 #![trigger kernel_entries_ghost@[i as int]]
                 #![trigger page_map_perm.value()[i]]
-                0 <= i < KERNEL_MEM_END_L4INDEX ==> kernel_entries_ghost@[i as int]
+                0 <= i < mem_end_l4_index ==> kernel_entries_ghost@[i as int]
                     == page_map_perm.value()[i],
+            0 <= mem_end_l4_index < 512,
         ensures
             ret.wf(),
-            ret.pcid == Some(pcid),
-            ret.ioid.is_None(),
-            ret.kernel_l4_end == KERNEL_MEM_END_L4INDEX,
+            ret.pcid == pcid,
+            ret.ioid == ioid,
+            ret.kernel_l4_end == mem_end_l4_index,
             ret.page_closure() == Set::empty().insert(page_map_ptr),
             ret.mapping_4k() == Map::<VAddr, MapEntry>::empty(),
             ret.mapping_2m() == Map::<VAddr, MapEntry>::empty(),
@@ -84,15 +88,15 @@ impl PageTable {
         assert(forall|i: usize|
             #![trigger page_map_perm.value()[i].is_empty()]
             #![trigger page_map_perm.value()[i].perm.present]
-            KERNEL_MEM_END_L4INDEX <= i < 512 ==> page_map_perm.value()[i].is_empty()
+            mem_end_l4_index <= i < 512 ==> page_map_perm.value()[i].is_empty()
                 && page_map_perm.value()[i].perm.present == false
                 && page_map_perm.value()[i].perm.write == false
                 && page_map_perm.value()[i].perm.execute_disable == false);
         let mut ret = Self {
             cr3: page_map_ptr,
-            pcid: Some(pcid),
-            ioid: None,
-            kernel_l4_end: KERNEL_MEM_END_L4INDEX,
+            pcid: pcid,
+            ioid: ioid,
+            kernel_l4_end: mem_end_l4_index,
             l4_table: Tracked(Map::<PageMapPtr, PointsTo<PageMap>>::tracked_empty()),
             l3_rev_map: Ghost(Map::<PageMapPtr, (L4Index)>::empty()),
             l3_tables: Tracked(Map::<PageMapPtr, PointsTo<PageMap>>::tracked_empty()),

@@ -223,20 +223,25 @@ pub extern "C" fn sys_resolve(va:usize,_:usize, _:usize, regs: &mut vRegisters){
     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
 }
 
-// pub extern "C" fn sys_resolve_io(va:usize,_:usize, _:usize, regs: &mut vRegisters){
-//     let cpu_id = cpu::get_cpu_id();
-//     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_resolve_io_va(
-//         cpu_id,
-//         va,
-//     );
-//     if ret_struc.0.error_code != 0{
-//         regs.rax = ret_struc.0.error_code as u64;
-//     }
-//     else{
-//         regs.rax = ret_struc.1 as u64;
-//     }
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-// }
+pub extern "C" fn sys_resolve_io(va:usize,_:usize, _:usize, regs: &mut vRegisters){
+    let cpu_id = cpu::get_cpu_id();    
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_ref().unwrap().get_current_cpu_info(cpu_id);
+    let thread_ptr = thread_info.0.unwrap();
+    let ret_struc = kernel.as_ref().unwrap().syscall_io_resolve_va(
+        thread_ptr,
+        vVaRange4K::new(va, 1),
+    );
+    match ret_struc.error_code{
+        vdefine::RetValueType::SuccessPairUsize { value1, value2 } => {
+            regs.rax = value1 as u64;
+        },
+        _ => {
+            regs.rax = 1;
+        },
+    }
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+}
 
 
 pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters) {
@@ -606,33 +611,38 @@ pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs
 //     }
 // }
 
-// pub extern "C" fn sys_get_iommu_cr3(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
-//     // log::info!("regs {:x?}", regs);
-//     let cpu_id = cpu::get_cpu_id();
-//     let mut kernel = KERNEL.lock();
-//     // log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?}",regs,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
-//     let thread_info_op = kernel.as_mut().unwrap().until_get_current_thread_info(0);
-//     // log::info!("sys_send_pages_no_wait frame {:x?} thead_info {:x?} thread{:x?}",regs,thread_info_op,kernel.as_mut().unwrap().cpu_list.ar[0].current_t, );
-//     let (ret_struc,cr3) =  kernel.as_mut().unwrap().syscall_get_iommu_cr3(
-//         cpu_id,
-//     );
-//     drop(kernel);
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-//     if ret_struc.error_code == verified::define::SUCCESS{
-//         regs.rax = cr3 as u64;
-//     }else{
-//         regs.rax = ret_struc.error_code as u64;
-//     }
-// }
+pub extern "C" fn sys_get_iommu_cr3(endpoint_index:usize, _:usize, _:usize, regs: &mut vRegisters){
+    // log::info!("regs {:x?}", regs);
+    
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
+    let proc_ptr = thread_info.1.unwrap();
+    let ioid_op = kernel.as_ref().unwrap().proc_man.get_proc(proc_ptr).ioid;
+    if let Some(ioid) = ioid_op{
+        let io_cr3 =  kernel.as_ref().unwrap().mem_man.get_cr3_by_ioid(ioid);
+        regs.rax = io_cr3 as u64;
+    }else{
+        regs.rax = 233 as u64;
+    }
+}
 
-// pub extern "C" fn sys_iommu_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
-//     let cpu_id = cpu::get_cpu_id();
-//     let ret_struc =  KERNEL.lock().as_mut().unwrap().syscall_map_pagetable_pages_to_iommutable(
-//         cpu_id,
-//         va,
-//         perm_bits,
-//         range,
-//     );
-//     regs.rax = ret_struc.error_code as u64;
-//     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-// }
+pub extern "C" fn sys_iommu_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vRegisters) {
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
+
+    let ret_struc =  kernel.as_mut().unwrap().syscall_io_mmap(
+        thread_info.0.unwrap(),
+        vVaRange4K::new(va, range)
+    );
+    regs.rax = 
+        if ret_struc.is_error(){
+            log::info!{"sys_iommu_mmap failed"};
+            1
+        }else{
+            0
+        };
+    Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+}

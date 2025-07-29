@@ -27,13 +27,15 @@ impl Kernel {
         cpu_id: CpuId,
         sender_thread_ptr: ThreadPtr,
         blocking_endpoint_index: EndpointIdx,
-        pt_regs: &mut Registers
+        pt_regs: &mut Registers,
     ) -> (ret: SyscallReturnStruct)
         requires
             0 <= cpu_id < NUM_CPUS,
             old(self).wf(),
             old(self).get_cpu(cpu_id).current_thread.is_some(),
-            old(self).get_cpu(cpu_id).owning_container == old(self).get_thread(sender_thread_ptr).owning_container,
+            old(self).get_cpu(cpu_id).owning_container == old(self).get_thread(
+                sender_thread_ptr,
+            ).owning_container,
             old(self).get_cpu(cpu_id).current_thread.unwrap() == sender_thread_ptr,
             old(self).get_cpu(cpu_id).active,
             old(self).thread_dom().contains(sender_thread_ptr),
@@ -76,16 +78,14 @@ impl Kernel {
         ).queue.get_head();
         let receiver_container_ptr = self.proc_man.get_thread(receiver_thread_ptr).owning_container;
 
-        if sender_container_ptr != receiver_container_ptr{
+        if sender_container_ptr != receiver_container_ptr {
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
-
         if self.proc_man.get_container(sender_container_ptr).scheduler.len()
             >= MAX_CONTAINER_SCHEDULER_LEN {
             // cannot schedule the receiver
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
         }
-
         let blocked_thread_ptr = self.proc_man.get_endpoint(blocking_endpoint_ptr).queue.get_head();
         self.proc_man.schedule_running_thread(cpu_id, pt_regs);
         self.proc_man.run_blocked_thread(cpu_id, blocking_endpoint_ptr, pt_regs);
@@ -94,10 +94,15 @@ impl Kernel {
         let sender_proc_ptr = self.proc_man.get_thread(sender_thread_ptr).owning_proc;
         let blocked_pcid = self.proc_man.get_proc(blocked_proc_ptr).pcid;
         let blocked_cr3 = self.mem_man.get_cr3_by_pcid(blocked_pcid);
-        if sender_proc_ptr == blocked_proc_ptr{
+        if sender_proc_ptr == blocked_proc_ptr {
             return SyscallReturnStruct::NoSwitchNew(RetValueType::Else);
-        }else{
-            return SyscallReturnStruct{ error_code: RetValueType::Else, pcid: Some(blocked_pcid), cr3:  Some(blocked_cr3), switch_decision:SwitchDecision::Switch };
+        } else {
+            return SyscallReturnStruct {
+                error_code: RetValueType::Else,
+                pcid: Some(blocked_pcid),
+                cr3: Some(blocked_cr3),
+                switch_decision: SwitchDecision::Switch,
+            };
         }
     }
 }

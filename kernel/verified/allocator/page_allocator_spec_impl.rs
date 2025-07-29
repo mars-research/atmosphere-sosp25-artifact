@@ -1491,6 +1491,116 @@ impl PageAllocator {
         return ret;
     }
 
+    pub fn alloc_and_map_io_4k(&mut self, ioid: IOid, va: VAddr, c_ptr: ContainerPtr) -> (ret:
+        PagePtr)
+        requires
+            old(self).wf(),
+            old(self).free_pages_4k.len() > 0,
+            old(self).container_map_4k@.dom().contains(c_ptr),
+        ensures
+            self.wf(),
+            // self.free_pages_4k() =~= old(self).free_pages_4k(),
+            self.free_pages_2m() =~= old(self).free_pages_2m(),
+            self.free_pages_4k() =~= old(self).free_pages_4k().remove(ret),
+            self.free_pages_1g() =~= old(self).free_pages_1g(),
+            self.allocated_pages_4k() =~= old(self).allocated_pages_4k(),
+            self.allocated_pages_2m() =~= old(self).allocated_pages_2m(),
+            self.allocated_pages_1g() =~= old(self).allocated_pages_1g(),
+            self.mapped_pages_4k() =~= old(self).mapped_pages_4k().insert(ret),
+            self.mapped_pages_2m() =~= old(self).mapped_pages_2m(),
+            self.mapped_pages_1g() =~= old(self).mapped_pages_1g(),
+            forall|p: PagePtr|
+                #![trigger self.page_is_mapped(p)]
+                #![trigger self.page_mappings(p)]
+                self.page_is_mapped(p) && p != ret ==> self.page_io_mappings(p) =~= old(
+                    self,
+                ).page_io_mappings(p),
+            forall|p: PagePtr|
+                #![trigger self.page_is_mapped(p)]
+                #![trigger self.page_mappings(p)]
+                self.page_is_mapped(p) ==> self.page_mappings(p) =~= old(self).page_mappings(p),
+            self.page_mappings(ret) =~= Set::<(Pcid, VAddr)>::empty(),
+            self.page_io_mappings(ret) =~= Set::<(IOid, VAddr)>::empty().insert((ioid, va)),
+            self.page_io_mappings(ret).contains((ioid, va)),
+            old(self).allocated_pages_4k().contains(ret) == false,
+            page_ptr_valid(ret),
+            self.container_map_4k@.dom() =~= old(self).container_map_4k@.dom(),
+            forall|p: PagePtr| #![auto] self.page_is_mapped(p) <== old(self).page_is_mapped(p),
+            !old(self).page_is_mapped(ret),
+            self.page_is_mapped(ret),
+            self.free_pages_4k.len() == old(self).free_pages_4k.len() - 1,
+            forall|c: ContainerPtr|
+                #![auto]
+                self.container_map_4k@.dom().contains(c) && c_ptr != c
+                    ==> self.get_container_owned_pages(c) =~= old(self).get_container_owned_pages(
+                    c,
+                ),
+            self.get_container_owned_pages(c_ptr) =~= old(self).get_container_owned_pages(
+                c_ptr,
+            ).insert(ret),
+    {
+        proof {
+            page_ptr_lemma();
+            seq_skip_lemma::<PagePtr>();
+            self.free_pages_1g.wf_to_no_duplicates();
+            self.free_pages_2m.wf_to_no_duplicates();
+            self.free_pages_4k.wf_to_no_duplicates();
+        }
+        let ret = self.free_pages_4k.pop().0;
+        assert(page_ptr_valid(ret));
+        self.set_state(page_ptr2page_index(ret), PageState::Mapped4k);
+        self.set_ref_count(page_ptr2page_index(ret), 1);
+        self.set_mapping(page_ptr2page_index(ret), Ghost(Set::<(Pcid, VAddr)>::empty()));
+        self.set_io_mapping(
+            page_ptr2page_index(ret),
+            Ghost(Set::<(IOid, VAddr)>::empty().insert((ioid, va))),
+        );
+        self.set_owning_container(page_ptr2page_index(ret), Some(c_ptr));
+        proof {
+            self.container_map_4k@ = self.container_map_4k@.insert(
+                c_ptr,
+                self.container_map_4k@[c_ptr].insert(ret),
+            );
+        }
+        assert(self.page_array@[page_ptr2page_index(ret) as int].is_io_page == false);
+        proof {
+            self.mapped_pages_4k@ = self.mapped_pages_4k@.insert(ret);
+        }
+
+        assert(self.page_array_wf());
+        assert(self.free_pages_4k_wf());
+        assert(self.free_pages_2m_wf()) by {
+            page_ptr_2m_lemma();
+        };
+        assert(self.free_pages_1g_wf()) by {
+            page_ptr_1g_lemma();
+        };
+        assert(self.allocated_pages_4k_wf());
+        assert(self.allocated_pages_2m_wf()) by {
+            page_ptr_2m_lemma();
+        };
+        assert(self.allocated_pages_1g_wf()) by {
+            page_ptr_1g_lemma();
+        };
+        assert(self.mapped_pages_4k_wf());
+        assert(self.mapped_pages_2m_wf()) by {
+            page_ptr_2m_lemma();
+        };
+        assert(self.mapped_pages_1g_wf()) by {
+            page_ptr_1g_lemma();
+        };
+        assert(self.merged_pages_wf()) by {
+            page_ptr_page_index_truncate_lemma();
+        };
+        assert(self.hugepages_wf()) by {
+            page_index_lemma();
+            page_ptr_2m_lemma();
+            page_ptr_1g_lemma();
+
+        };
+        return ret;
+    }
+
     pub fn alloc_and_map_2m(&mut self, pcid: Pcid, va: VAddr, c_ptr: ContainerPtr) -> (ret: PagePtr)
         requires
             old(self).wf(),

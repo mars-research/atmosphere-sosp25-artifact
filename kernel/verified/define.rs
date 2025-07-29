@@ -180,6 +180,7 @@ pub enum RetValueType {
     NoQuota,
     VaInUse,
 }
+
 // -------------------- End of Types --------------------
 // -------------------- Begin of Const --------------------
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS: usize = 128;

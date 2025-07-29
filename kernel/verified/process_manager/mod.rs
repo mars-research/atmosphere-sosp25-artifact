@@ -10,6 +10,7 @@ pub mod endpoint;
 pub mod endpoint_util_t;
 pub mod impl_new_container;
 pub mod impl_new_proc;
+pub mod impl_new_proc_with_iommu;
 pub mod impl_new_thread;
 pub mod proc_util_t;
 pub mod spec_proof;

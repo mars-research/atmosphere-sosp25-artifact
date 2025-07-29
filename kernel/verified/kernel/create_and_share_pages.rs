@@ -17,6 +17,31 @@ use crate::kernel::Kernel;
 use crate::va_range::VaRange4K;
 
 impl Kernel {
+    pub open spec fn insert_page_mapping(
+        old: Map<PagePtr, Set<(ProcPtr, VAddr)>>,
+        new: Map<PagePtr, Set<(ProcPtr, VAddr)>>,
+        target_page_ptr: PagePtr,
+        new_mapping: (ProcPtr, VAddr),
+    ) -> bool {
+        &&& old.dom() == new.dom()
+        &&& forall|p_ptr|
+            #![auto]
+            old.dom().contains(p_ptr) && p_ptr != target_page_ptr ==> old[p_ptr] == new[p_ptr]
+        &&& old[target_page_ptr].insert(new_mapping) == new[target_page_ptr]
+    }
+
+    #[verifier(external_body)]
+    pub proof fn insert_page_mapping_t(
+        map: Map<PagePtr, Set<(ProcPtr, VAddr)>>,
+        target_page_ptr: PagePtr,
+        new_mapping: (ProcPtr, VAddr),
+    ) -> (ret: Map<PagePtr, Set<(ProcPtr, VAddr)>>)
+        ensures
+            Self::insert_page_mapping(map, ret, target_page_ptr, new_mapping),
+    {
+        Map::empty()
+    }
+
     pub open spec fn address_space_range_exists(
         &self,
         target_proc_ptr: ProcPtr,
@@ -95,6 +120,8 @@ impl Kernel {
 
     pub fn share_mapping(
         &mut self,
+        src_proc_ptr: ProcPtr,
+        src_va: VAddr,
         target_proc_ptr: ProcPtr,
         target_va: VAddr,
         tagret_l1_p: PageMapPtr,
@@ -102,10 +129,13 @@ impl Kernel {
     )
         requires
             old(self).wf(),
+            old(self).proc_dom().contains(src_proc_ptr),
             old(self).proc_dom().contains(target_proc_ptr),
             va_4k_valid(target_va),
             old(self).page_alloc.page_is_mapped(entry.addr),
             page_ptr_valid(entry.addr),
+            old(self).get_address_space(src_proc_ptr).dom().contains(src_va),
+            old(self).get_address_space(src_proc_ptr)[src_va].addr == entry.addr,
             old(self).get_address_space(target_proc_ptr).dom().contains(target_va) == false,
             old(self).mem_man.get_pagetable_by_pcid(
                 old(self).get_proc(target_proc_ptr).pcid,
@@ -232,12 +262,14 @@ impl Kernel {
             self.page_alloc.mapped_page_are_not_allocated(entry.addr);
         }
         let (l4i, l3i, l2i, l1i) = va2index(target_va);
+        assert(self.page_mapping@.dom().contains(entry.addr));
         self.page_alloc.add_mapping_4k(entry.addr, target_pcid, target_va);
         self.mem_man.pagetable_map_4k_page(target_pcid, l4i, l3i, l2i, l1i, tagret_l1_p, &entry);
         proof {
-            self.page_mapping@ = self.page_mapping@.insert(
+            self.page_mapping@ = Self::insert_page_mapping_t(
+                self.page_mapping@,
                 entry.addr,
-                self.page_mapping@[entry.addr].insert((target_proc_ptr, target_va)),
+                (target_proc_ptr, target_va),
             );
         }
         assert(self.wf()) by {
@@ -247,28 +279,7 @@ impl Kernel {
             assert(self.memory_wf());
             assert(self.mapping_wf()) by {};
             assert(self.pcid_ioid_wf());
-            assert(self.page_mapping_wf()) by {
-                assert(self.page_mapping@.dom() == self.page_alloc.mapped_pages_4k());
-                assert(forall|page_ptr: PagePtr, p_ptr: ProcPtr, va: VAddr|
-                    #![trigger self.page_mapping@[page_ptr].contains((p_ptr, va))]
-                    #![trigger self.page_alloc.page_mappings(page_ptr).contains((self.proc_man.get_proc(p_ptr).pcid, va))]
-                    self.page_mapping@.dom().contains(page_ptr)
-                        && self.page_mapping@[page_ptr].contains((p_ptr, va))
-                        ==> self.page_alloc.page_is_mapped(page_ptr)
-                        && self.proc_man.proc_dom().contains(p_ptr)
-                        && self.page_alloc.page_mappings(page_ptr).contains(
-                        (self.proc_man.get_proc(p_ptr).pcid, va),
-                    ));
-                assert(forall|page_ptr: PagePtr, pcid: Pcid, va: VAddr|
-                    #![trigger self.page_alloc.page_mappings(page_ptr).contains((pcid, va))]
-                    #![trigger self.page_mapping@[page_ptr].contains((self.mem_man.pcid_to_proc_ptr(pcid), va))]
-                    self.page_alloc.page_is_mapped(page_ptr) && self.page_alloc.page_mappings(
-                        page_ptr,
-                    ).contains((pcid, va)) ==> self.page_mapping@.dom().contains(page_ptr)
-                        && self.page_mapping@[page_ptr].contains(
-                        (self.mem_man.pcid_to_proc_ptr(pcid), va),
-                    ));
-            };
+            assert(self.page_mapping_wf()) by {};
         };
     }
 
@@ -419,7 +430,7 @@ impl Kernel {
             self.page_alloc.mapped_page_imply_page_ptr_valid(src_entry.addr);
         }
         let (ret, new_entry) = self.create_entry(target_proc_ptr, target_va);
-        self.share_mapping(target_proc_ptr, target_va, new_entry, src_entry);
+        self.share_mapping(src_proc_ptr, src_va, target_proc_ptr, target_va, new_entry, src_entry);
         ret
     }
 

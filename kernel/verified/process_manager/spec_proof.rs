@@ -1117,6 +1117,22 @@ impl ProcessManager {
     {
     }
 
+    pub proof fn ioid_unique(&self, proc_ptr: ProcPtr)
+        requires
+            self.wf(),
+            self.proc_dom().contains(proc_ptr),
+            self.get_proc(proc_ptr).ioid.is_Some(),
+        ensures
+            forall|p_ptr: ProcPtr|
+                #![auto]
+                self.proc_dom().contains(p_ptr) && proc_ptr != p_ptr && self.get_proc(
+                    p_ptr,
+                ).ioid.is_Some() ==> self.get_proc(p_ptr).ioid.unwrap() != self.get_proc(
+                    proc_ptr,
+                ).ioid.unwrap(),
+    {
+    }
+
     pub proof fn wf_imply_proc_to_unique_pcid(&self)
         requires
             self.wf(),
@@ -1212,7 +1228,7 @@ impl ProcessManager {
             (*root_proc_ptr).assume_init_mut().owning_container = dom_0_container_ptr;
             (*root_proc_ptr).assume_init_mut().rev_ptr = sll2;
             (*root_proc_ptr).assume_init_mut().pcid = 0;
-            (*root_proc_ptr).assume_init_mut().ioid = None;
+            (*root_proc_ptr).assume_init_mut().ioid = Some(0);
             (*root_proc_ptr).assume_init_mut().owned_threads.init();
             (*root_proc_ptr).assume_init_mut().parent = None;
             (*root_proc_ptr).assume_init_mut().parent_rev_ptr = None;
@@ -1390,15 +1406,15 @@ impl ProcessManager {
 
     }
 
-
-
     pub fn schedule_running_thread(&mut self, cpu_id: CpuId, pt_regs: &Registers)
         requires
             old(self).wf(),
             0 <= cpu_id < NUM_CPUS,
             old(self).get_cpu(cpu_id).current_thread.is_some(),
             old(self).get_container(
-                old(self).get_thread(old(self).get_cpu(cpu_id).current_thread.unwrap()).owning_container
+                old(self).get_thread(
+                    old(self).get_cpu(cpu_id).current_thread.unwrap(),
+                ).owning_container,
             ).scheduler.len() < MAX_CONTAINER_SCHEDULER_LEN,
         ensures
             self.wf(),
@@ -1639,7 +1655,8 @@ impl ProcessManager {
                 old(self).get_endpoint(endpoint_ptr).queue@[0],
             ).owning_container,
         ensures
-            self.wf(),self.page_closure() =~= old(self).page_closure(),
+            self.wf(),
+            self.page_closure() =~= old(self).page_closure(),
             self.proc_dom() =~= old(self).proc_dom(),
             self.endpoint_dom() == old(self).endpoint_dom(),
             self.container_dom() == old(self).container_dom(),
@@ -1651,9 +1668,9 @@ impl ProcessManager {
                 ).get_proc(p_ptr),
             forall|container_ptr: ContainerPtr|
                 #![trigger self.get_container(container_ptr)]
-                old(self).container_dom().contains(container_ptr) ==> self.get_container(container_ptr) =~= old(self).get_container(
+                old(self).container_dom().contains(container_ptr) ==> self.get_container(
                     container_ptr,
-                ),
+                ) =~= old(self).get_container(container_ptr),
             forall|t_ptr: ThreadPtr|
                 #![trigger old(self).get_thread(t_ptr)]
                 old(self).thread_dom().contains(t_ptr) && t_ptr != old(self).get_endpoint(
@@ -1689,10 +1706,12 @@ impl ProcessManager {
             self.get_endpoint(endpoint_ptr).queue_state == old(self).get_endpoint(
                 endpoint_ptr,
             ).queue_state,
-            self.get_thread(old(self).get_endpoint(endpoint_ptr).queue@[0]).state == ThreadState::RUNNING,
+            self.get_thread(old(self).get_endpoint(endpoint_ptr).queue@[0]).state
+                == ThreadState::RUNNING,
             self.get_cpu(cpu_id).current_thread.is_Some(),
-            self.get_cpu(cpu_id).current_thread.unwrap() == old(self).get_endpoint(endpoint_ptr).queue@[0],
-
+            self.get_cpu(cpu_id).current_thread.unwrap() == old(self).get_endpoint(
+                endpoint_ptr,
+            ).queue@[0],
     {
         let thread_ptr = self.get_endpoint(endpoint_ptr).queue.get_head();
         let thread_ref = self.get_thread(thread_ptr);

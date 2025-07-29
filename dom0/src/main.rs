@@ -61,10 +61,16 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
     // test_mmap();
     // test_pingpong();
     // test_proc_pingpong();
+
     // unsafe {
-        // dom0_test_mmap();
-    // }
     //     let io_cr3 = asys::sys_rd_io_cr3();
+    //     log::info!("Dom0 IOMMU table @ {:x}", io_cr3);
+    //     let error_code = asys::sys_io_mmap(IOMMU_TEST_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, 1);
+    //     if error_code != 0 {
+    //         log::debug!("sys_io_mmap for IOMMU_TEST_ADDR failed {:?}", error_code);
+    //     }
+    //     log::info!("IOMMU table reslove {:x}",asys::sys_mresolve_io(IOMMU_TEST_ADDR as usize).0 as u64);
+    // }
     //     log::info!("Dom0 IOMMU table @ {:x}", io_cr3);
     //     let error_code = asys::sys_mmap(IOMMU_TEST_ADDR as usize, 0x0000_0000_0000_0002u64 as usize, 1);
     //     if error_code != 0 {
