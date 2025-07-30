@@ -97,6 +97,48 @@ impl Kernel {
 
         return SyscallReturnStruct::NoSwitchNew(RetValueType::SuccessSeqUsize { value: seq_pages });
     }
+
+     pub fn syscall_mmap_to_iommu_table(&mut self, thread_ptr: ThreadPtr, va_range: VaRange4K) -> (ret:
+        SyscallReturnStruct)
+        requires
+            old(self).total_wf(),
+            old(self).thread_dom().contains(thread_ptr),
+            va_range.wf(),
+            va_range.len * 4 < usize::MAX,
+    {
+        assume(false);
+        let proc_ptr = self.proc_man.get_thread(thread_ptr).owning_proc;
+        let pcid = self.proc_man.get_proc(proc_ptr).pcid;
+        let ioid_op = self.proc_man.get_proc(proc_ptr).ioid;
+        let container_ptr = self.proc_man.get_proc(proc_ptr).owning_container;
+
+        proof {
+            self.proc_man.thread_inv();
+            self.proc_man.process_inv();
+        }
+
+        if ioid_op.is_none() {
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }
+        let ioid = ioid_op.unwrap();
+
+        if self.proc_man.get_container(container_ptr).quota.mem_4k < va_range.len * 4 {
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }
+        assert(self.page_alloc.free_pages_4k.len() >= va_range.len * 4) by {
+            old(self).fold_mem_4k_lemma();
+        }
+        if !self.check_address_space_va_range_shareable(proc_ptr, &va_range){
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }
+        if self.check_io_space_va_range_free(proc_ptr, &va_range) == false {
+            return SyscallReturnStruct::NoSwitchNew(RetValueType::Error);
+        }
+        let num_page = self.range_create_and_share_mapping_to_iommu_table(proc_ptr, &va_range);
+
+
+        return SyscallReturnStruct::NoSwitchNew(RetValueType::SuccessUsize { value: num_page });
+    }
 }
 
 } // verus!

@@ -2450,13 +2450,13 @@ impl MemoryManager {
                     None,
                     Some(0),
                     Ghost(Seq::<PageEntry>::empty()),
-                    page_map_ptr,
+                    dom0_io_cr3,
                     page_map_perm,
                     0,
                 ),
             ),
         );
-        self.ioid_to_proc_ptr.set(0, Some(dom0_io_cr3));
+        self.ioid_to_proc_ptr.set(0, Some(new_proc_ptr));
 
         self.pcid_to_proc_ptr.set(0, Some(new_proc_ptr));
         self.page_tables.set(

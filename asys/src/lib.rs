@@ -94,7 +94,7 @@ pub unsafe fn sys_mmap(va:usize, perm_bits:usize, range:usize) -> usize {
 
 pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
     let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
-    let low_bits = va & 0xFFFu64 as usize;
+    let _low_bits = va & 0xFFFu64 as usize;
     let ret = syscall!(__NR_MRESOLVE,va_masked,0,0) as usize;
     // return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
     return (ret, ret);
@@ -102,7 +102,7 @@ pub unsafe fn sys_mresolve(va:usize) -> (usize,usize) {
 
 pub unsafe fn sys_mresolve_io(va:usize) -> (usize,usize) {
     let va_masked = va & 0xFFFFFFFFFFFFF000u64 as usize;
-    let low_bits = va & 0xFFFu64 as usize;
+    let _low_bits = va & 0xFFFu64 as usize;
     let ret = syscall!(__NR_MRESOLVE_IO,va_masked,0,0) as usize;
     // return ((ret &0xFFFFFFFFFFFFF000u64 as usize) | low_bits, ret & 0xFFFusize);
     return (ret, ret);
@@ -160,13 +160,13 @@ pub unsafe fn sys_rd_io_cr3() -> usize {
     return syscall!(__NR_RD_IO_CR3,0,0,0) as usize;
 }
 
-// pub unsafe fn sys_set_device_iommu(bus: usize, device: usize, function: usize, pml4: u64) -> isize {
-//     syscall!(__NR_SET_DEVICE_IOMMU, bus, device, function, pml4)
-// }
+pub unsafe fn sys_set_device_iommu(bus: usize, device: usize, function: usize, pml4: u64) -> isize {
+    syscall!(__NR_SET_DEVICE_IOMMU, bus, device, function, pml4)
+}
 
-// pub unsafe fn sys_invalidate_iotlb(bus: usize, device: usize, function: usize, page: u64) -> isize {
-//     syscall!(__NR_INVALIDATE_IOTLB, bus, device, function, page)
-// }
+pub unsafe fn sys_invalidate_iotlb(bus: usize, device: usize, function: usize, page: u64) -> isize {
+    syscall!(__NR_INVALIDATE_IOTLB, bus, device, function, page)
+}
 pub unsafe fn sys_send_empty_try_schedule(endpoint_index:usize) -> usize{
     return syscall!(__NR_SEND_EMPTY_TRY_SCH, endpoint_index, 0, 0) as usize;
 }

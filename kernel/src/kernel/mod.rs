@@ -624,6 +624,7 @@ pub extern "C" fn sys_get_iommu_cr3(endpoint_index:usize, _:usize, _:usize, regs
         let io_cr3 =  kernel.as_ref().unwrap().mem_man.get_cr3_by_ioid(ioid);
         regs.rax = io_cr3 as u64;
     }else{
+        log::debug!("sys_get_iommu_cr3 has no IOMMU");
         regs.rax = 233 as u64;
     }
 }
@@ -633,13 +634,20 @@ pub extern "C" fn sys_iommu_mmap(va:usize, perm_bits:usize, range:usize, regs: &
     let mut kernel = KERNEL.lock();
     let thread_info = kernel.as_mut().unwrap().get_current_cpu_info(cpu_id);
 
-    let ret_struc =  kernel.as_mut().unwrap().syscall_io_mmap(
+    let address_shareable = kernel.as_ref().unwrap().check_address_space_va_range_shareable(        thread_info.1.unwrap(),
+        &vVaRange4K::new(va, range));
+     log::trace!{"address_shareable {:#?}", address_shareable};
+    let io_address_shareable = kernel.as_ref().unwrap().check_io_space_va_range_free(
+    thread_info.1.unwrap(),
+        &vVaRange4K::new(va, range));
+     log::trace!{"io_address_shareable {:#?}", io_address_shareable};
+    let ret_struc =  kernel.as_mut().unwrap().syscall_mmap_to_iommu_table(
         thread_info.0.unwrap(),
         vVaRange4K::new(va, range)
     );
     regs.rax = 
         if ret_struc.is_error(){
-            log::info!{"sys_iommu_mmap failed"};
+            log::trace!{"sys_iommu_mmap failed"};
             1
         }else{
             0

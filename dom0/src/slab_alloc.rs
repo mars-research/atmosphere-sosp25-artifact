@@ -38,7 +38,6 @@ impl Pager {
                 0 => {
                     let _mmap_addr = *mmap_base;
                     *mmap_base += page_size;
-
                     let error_code = asys::sys_io_mmap(_mmap_addr, 0x0000_0000_0000_0002u64 as usize, num_pages);
                     if error_code != 0 {
                         log::error!("sys_io_mmap failed {:?}", error_code);
@@ -46,7 +45,7 @@ impl Pager {
                     } else {
                         log::info!("Invalidate_iotlb for {:>02x}:{:>02x}.{:01x}", NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2);
                         if page_size == Self::LARGE_PAGE_SIZE {
-                            let mut base_addr = _mmap_addr as usize;
+                            let base_addr = _mmap_addr as usize;
                             let num_4k_pages = Self::LARGE_PAGE_SIZE / Self::BASE_PAGE_SIZE;
                             for i in 0..num_4k_pages {
                                 asys::sys_invalidate_iotlb(NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2, (base_addr + i * Self::BASE_PAGE_SIZE) as u64);
@@ -73,8 +72,8 @@ impl Pager {
     }
 
     /// De-allocates a given `page_size`.
-    fn dealloc_page(&mut self, ptr: *mut u8, page_size: usize) {
-        let layout = match page_size {
+    fn dealloc_page(&mut self, _ptr: *mut u8, page_size: usize) {
+        let _layout = match page_size {
             Pager::BASE_PAGE_SIZE => {
                 Layout::from_size_align(Pager::BASE_PAGE_SIZE, Pager::BASE_PAGE_SIZE).unwrap()
             }

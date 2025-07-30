@@ -1,5 +1,4 @@
 use core::arch::x86_64::_rdtsc;
-use core::arch::asm;
 use crate::*;
 
 
@@ -48,9 +47,9 @@ pub fn test_pingpong(){
             return;
         }
         let iter = 1000000;
-        unsafe{
+        {
             let start = _rdtsc();
-            for i in 0..iter{
+            for _i in 0..iter{
                 let error_code = asys::sys_receive_empty(0);
                 if error_code != 0 {
                     log::info!("sys_new_thread failed {:?}", error_code);
@@ -97,9 +96,9 @@ pub fn test_proc_pingpong(){
 
         log::info!("sys_new_proc success");
         let iter = 10000000;
-        unsafe{
+        {
             let start = _rdtsc();
-            for i in 0..iter{
+            for _i in 0..iter{
                 let error_code = asys::sys_receive_empty(0);
                 if error_code != 0 {
                     log::info!("sys_receive_empty failed {:?}", error_code);

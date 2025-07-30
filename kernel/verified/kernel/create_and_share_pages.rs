@@ -283,6 +283,38 @@ impl Kernel {
         };
     }
 
+    pub fn share_mapping_to_iommu_table(
+        &mut self,
+        target_proc_ptr: ProcPtr,
+        target_va: VAddr,
+        tagret_l1_p: PageMapPtr,
+        entry: MapEntry,
+    )
+    {
+        assume(false);
+        let target_container_ptr = self.proc_man.get_proc(target_proc_ptr).owning_container;
+        let target_ioid = self.proc_man.get_proc(target_proc_ptr).ioid.unwrap();
+        let (l4i, l3i, l2i, l1i) = va2index(target_va);
+        self.page_alloc.add_io_mapping_4k(entry.addr, target_ioid, target_va);
+        self.mem_man.iommu_table_map_4k_page(target_ioid, l4i, l3i, l2i, l1i, tagret_l1_p, &entry);
+    }
+
+     pub fn create_entry_and_share_to_iommu_table(
+        &mut self,
+        target_proc_ptr: ProcPtr,
+        target_va: VAddr,
+    ) -> (ret: usize)
+    {
+        assume(false);
+        let pcid = self.proc_man.get_proc(target_proc_ptr).pcid;
+        let src_entry = page_entry_to_map_entry(
+            &self.mem_man.resolve_pagetable_mapping(pcid, target_va).unwrap(),
+        );
+        let (ret, new_entry) = self.create_iommu_table_entry(target_proc_ptr, target_va);
+        self.share_mapping_to_iommu_table(target_proc_ptr, target_va, new_entry, src_entry);
+        ret
+    }
+
     //we forbid share with the same vaddr
     pub fn create_entry_and_share(
         &mut self,
@@ -750,6 +782,26 @@ impl Kernel {
             ret + self.create_entry_and_share(
                 src_proc_ptr,
                 src_va_range.index(index),
+                target_proc_ptr,
+                target_va_range.index(index),
+            );
+            assert(self.wf());
+        }
+        ret
+    }
+    pub fn range_create_and_share_mapping_to_iommu_table(
+        &mut self,
+        target_proc_ptr: ProcPtr,
+        target_va_range: &VaRange4K,
+    ) -> (ret: usize)
+    {
+        assume(false);
+        let mut ret = 0;
+        for index in 0..target_va_range.len
+        {
+            assume(false);
+            ret =
+            ret + self.create_entry_and_share_to_iommu_table(
                 target_proc_ptr,
                 target_va_range.index(index),
             );

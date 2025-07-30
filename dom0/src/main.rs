@@ -1,38 +1,31 @@
 #![no_std]
 #![no_main]
-#![feature(start, asm_const)]
+#![feature(start)]
 
-// extern crate alloc;
+extern crate alloc;
 // extern crate ixgbe_driver;
-// extern crate nvme_driver;
-// extern crate pcid;
-// extern crate ring_buffer;
+extern crate nvme_driver;
+extern crate pcid;
+extern crate ring_buffer;
 
 // mod ixgbe_client;
-// mod nvme_client;
-// mod pci;
-// mod slab_alloc;
+mod nvme_client;
+mod pci;
+mod slab_alloc;
 // mod elf;
 // mod dom1;
 // mod maglev;
 // mod smoltcp_device;
 
-use core::arch::asm;
-use core::arch::x86_64::_rdtsc;
 use core::panic::PanicInfo;
-use core::slice;
 // mod benchmark_null_driver;
 mod syscall_benchmark;
-// use crate::benchmark_null_driver::*;
-// use crate::nvme_client::*;
-// use crate::ring_buffer::*;
-use crate::syscall_benchmark::*;
-// use alloc::vec::Vec;
+use alloc::vec::Vec;
 // use ixgbe_client::*;
 use libtime::sys_ns_loopsleep;
 pub use log::info as println;
-// use nvme_client::test_nvme_driver;
-// use pci::scan_pci_devs;
+use nvme_client::test_nvme_driver;
+use pci::scan_pci_devs;
 use constants::*;
 
 fn test_sleep() {
@@ -41,12 +34,14 @@ fn test_sleep() {
     log::trace!("Waking up from sleep");
 }
 
-// fn test_alloc() {
-//     let mut v: Vec<u64> = Vec::with_capacity(32);
-//     for i in 0..64 {
-//         v.push(i);
-//     }
-// }
+fn test_alloc() {
+    log::info!("testing alloc");
+    let mut v: Vec<u64> = Vec::with_capacity(32);
+    for i in 0..64 {
+        v.push(i);
+    }
+    log::info!("Allocator works");
+}
 
 #[start]
 #[no_mangle]
@@ -100,16 +95,16 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 
     // test_alloc();
 
-    // log::info!("Enumerating PCI");
+    log::info!("Enumerating PCI");
 
-    // scan_pci_devs();
+    scan_pci_devs();
 
     // start_ixgbe_driver_fwd_test();
 
     // // test_ixgbe_with_ring_buffer_tx();
 
     // // test_ixgbe_driver();
-    // test_nvme_driver();
+    test_nvme_driver();
 
     loop {}
 }

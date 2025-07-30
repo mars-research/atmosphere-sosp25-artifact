@@ -78,6 +78,9 @@ fn wrap_ring(index: usize, ring_size: usize) -> usize {
 impl NvmeDevice {
     /// Resets and initializes an Nvme device.
     pub fn init(&mut self) {
+        unsafe {
+            println!("Bar region base {:X}", self.bar.get_base());
+        }
         println!("Capabilities 0x{:X}", self.read_reg64(NvmeRegs64::CAP));
         println!("Version 0x{:X}", self.read_reg32(NvmeRegs32::VS));
         println!(
