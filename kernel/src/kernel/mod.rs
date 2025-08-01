@@ -27,7 +27,7 @@ use verified::array_vec::ArrayVec as vArrayVec;
 use verified::pagetable::pagemap::PageMap;
 use verified::define::PagePerm4k;
 use verified::va_range::VaRange4K as vVaRange4K;
-
+use verified::define::RetValueType as vRetValueType;
 use vstd::simple_pptr::PointsTo;
 
 trait PhysicalMemoryTypeExt {
@@ -157,6 +157,12 @@ pub fn kernel_init(
     .unwrap()
     .schedule_idle_cpu(0, &mut dom0_pt_regs);
 
+    let num_of_free_pages = KERNEL
+    .lock()
+    .as_ref().unwrap().page_alloc.free_pages_4k.len();
+    
+    log::debug!("Number of Free pages in the system {}", num_of_free_pages);
+
     log::info!("dom0 is running on CPU 0");
     let pcid_dom0 = 0;
     let cr3 = dom0_pagetable_ptr | vdefine::PCID_ENABLE_MASK | pcid_dom0;
@@ -175,8 +181,8 @@ pub extern "C" fn sys_mmap(va:usize, perm_bits:usize, range:usize, regs: &mut vR
         vVaRange4K::new(va, range)
     );
     regs.rax = 
-        if ret_struc.is_error(){
-            log::info!{"sys_mmap failed"};
+        if !matches!(ret_struc.error_code, vRetValueType::SuccessSeqUsize{..}){
+            // log::info!{"sys_mmap failed"};
             1
         }else{
             0
@@ -254,7 +260,7 @@ pub extern "C" fn sys_new_endpoint(endpoint_index:usize, _:usize, _:usize, regs:
     );
     regs.rax = 
         if ret_struc.is_error(){
-            log::info!{"sys_new_endpoint failed"};
+            // log::info!{"sys_new_endpoint failed"};
             1
         }else{
             0
@@ -270,7 +276,7 @@ pub fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegist
     let mut new_proc_pt_regs = *regs;
     new_proc_pt_regs.rip = ip as u64;
     new_proc_pt_regs.rsp = sp as u64;
-    log::info!{"range {:#?}", range};
+    // log::info!{"range {:#?}", range};
     let ret_struc = kernel.as_mut().unwrap().syscall_new_proc_with_endpoint(
         thread_info.0.unwrap(),
         endpoint_index,
@@ -279,7 +285,7 @@ pub fn sys_new_proc(endpoint_index:usize, ip:usize, sp:usize, regs: &mut vRegist
     );
     regs.rax = 
         if ret_struc.is_error(){
-            log::info!{"sys_new_proc failed"};
+            // log::info!{"sys_new_proc failed"};
             1
         }else{
             0
@@ -315,7 +321,7 @@ pub extern "C" fn sys_new_thread(endpoint_index:usize, ip:usize, sp:usize, regs:
     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
         regs.rax = 
         if ret_struc.is_error(){
-            log::info!{"sys_new_thread failed"};
+            // log::info!{"sys_new_thread failed"};
             1
         }else{
             0

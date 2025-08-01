@@ -27,6 +27,7 @@ pub use log::info as println;
 use nvme_client::test_nvme_driver;
 use pci::scan_pci_devs;
 use constants::*;
+use crate::syscall_benchmark::*;
 
 fn test_sleep() {
     log::trace!("Sleeping for 100 ns");
@@ -53,9 +54,11 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
     unsafe {
         asys::sys_print("meow".as_ptr(), 4);
     }
-    // test_mmap();
+    test_proc_pingpong();
+    test_new_thread();
+    test_new_proc();
+    test_mmap();
     // test_pingpong();
-    // test_proc_pingpong();
 
     // unsafe {
     //     let io_cr3 = asys::sys_rd_io_cr3();
@@ -95,16 +98,16 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 
     // test_alloc();
 
-    log::info!("Enumerating PCI");
+    // log::info!("Enumerating PCI");
 
-    scan_pci_devs();
+    // scan_pci_devs();
 
     // start_ixgbe_driver_fwd_test();
 
     // // test_ixgbe_with_ring_buffer_tx();
 
     // // test_ixgbe_driver();
-    test_nvme_driver();
+    // test_nvme_driver();
 
     loop {}
 }

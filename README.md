@@ -12,15 +12,42 @@ Install Nix with the following command:
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 ```
 
-You can now build and run Atmosphere with `cd kernel && cargo run`.
+After installing nix, enter nix shell. The environment will be set up automatically.
 
-## Atmo
+```bash
+nix develop
+```
 
-Atmosphere builds with `atmo`, a build system that extends Cargo.
-Run `atmo help` for more information.
+## Build and Run on QEMU (with KVM)
+Build and run on QEMU
 
+```
+atmo run --release
+```
+Build and run on QEMU with KVM
 
+```
+atmo run --release --kvm
+```
+
+## Verification
+
+Verify the OS kernel. On a powerful machine, this should take only 15 seconds
+```
+atmo verify
+```
+
+Obtain line counts for verification
+```
+./get_line_count.sh
+```
+
+Obtain verification time for each function
+```
+./get_verification_time.sh
+```
 ## Boot on real hardware
+* Build the kernel with `atmo run` 
 
 * Copy the bootable binaries. If you have built with `debug` mode, look for the
   below binaries under the `debug` directory instead of `release`.
@@ -34,7 +61,7 @@ cat target/x86_64-unknown-aloader/release/{kernel,dom0} | sudo tee /boot/atmo >/
 
 ```
 menuentry "Atmosphere" {
-  set root=(hd0,msdos1)
+  set root=(hd0,gpt3)
   echo "Loading Atmosphere..."
   multiboot2 /boot/aloader
   module2 /boot/atmo atmo
@@ -42,20 +69,10 @@ menuentry "Atmosphere" {
 }
 ```
 
-* Update grub and reboot to select Atmo from the grub menu
+* Reboot and selet Atmo from the grub menu
 
 ```bash
-sudo update-grub && sudo reboot
+sudo reboot
 ```
 
-## TODO
-
-Wait for enum to add spec for syscall return value @Xiangdong.
-
-Move per CPU cache to MMU Manager @Xiangdong.
-
-Add PtRegs spec @Xiangdong.
-
-Finish proving pagetable of smallest step. @Xiangdong.
-
-Optimize for triggers? (from Verus floks) @Xiangdong. 
+* System calls microbenchmark results should show up in the end

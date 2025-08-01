@@ -185,7 +185,7 @@ pub enum RetValueType {
 // -------------------- Begin of Const --------------------
 pub const MAX_NUM_ENDPOINT_DESCRIPTORS: usize = 128;
 
-pub const MAX_NUM_THREADS_PER_PROC: usize = 128;
+pub const MAX_NUM_THREADS_PER_PROC: usize = 64;
 
 pub const MAX_NUM_THREADS_PER_ENDPOINT: usize = 128;
 
@@ -201,7 +201,7 @@ pub const IPC_PAGEPAYLOAD_LEN: usize = 128;
 pub const KERNEL_MEM_END_L4INDEX: usize = 1;
 
 //8GiB
-pub const NUM_PAGES: usize = 2 * 1024 * 1024;
+pub const NUM_PAGES: usize = 4 * 1024 * 1024;
 
 pub const PAGE_SZ_4k: usize = 1usize << 12;
 
@@ -257,15 +257,15 @@ pub const PAGE_ENTRY_PS_MASK: u64 = 0x1u64 << PAGE_ENTRY_PS_SHIFT;
 
 pub const PAGE_ENTRY_EXECUTE_MASK: u64 = 0x1u64 << PAGE_ENTRY_EXECUTE_SHIFT;
 
-pub const CONTAINER_PROC_LIST_LEN: usize = 10;
+pub const CONTAINER_PROC_LIST_LEN: usize = 30;
 
-pub const CONTAINER_CHILD_LIST_LEN: usize = 10;
+pub const CONTAINER_CHILD_LIST_LEN: usize = 2;
 
-pub const PROC_CHILD_LIST_LEN: usize = 10;
+pub const PROC_CHILD_LIST_LEN: usize = 64;
 
 pub const CONTAINER_ENDPOINT_LIST_LEN: usize = 10;
 
-pub const MAX_CONTAINER_SCHEDULER_LEN: usize = 10;
+pub const MAX_CONTAINER_SCHEDULER_LEN: usize = 90;
 
 // -------------------- End of Const --------------------
 // -------------------- Begin of Structs --------------------

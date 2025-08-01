@@ -488,7 +488,7 @@ impl Kernel {
                 mem_2m: 0,
                 mem_1g: 0,
                 pcid: 4095,
-                ioid: 4096,
+                ioid: 4095,
             },
             page_perm_0,
             page_perm_1,

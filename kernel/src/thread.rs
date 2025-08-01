@@ -12,7 +12,7 @@ use crate::cpu;
 use crate::kernel;
 pub use verified::bridge::SwitchDecision;
 
-const TIME_SLICE: Cycles = Cycles(1_000_000);
+const TIME_SLICE: Cycles = Cycles(1_000);
 
 /// Starts a thread.
 pub unsafe fn start_thread(code: u64, stack: u64, ring: Ring) {
@@ -46,7 +46,7 @@ pub fn schedule(regs: &mut Registers) -> Option<Cycles> {
     // Some(TIME_SLICE)
 
     log::debug!("hello from cpu {:?} scheduler",cpu::get_cpu_id());
-    loop{
+    // loop{
         // unsafe{
         //     let has_next_thread = kernel::sched_get_next_thread(regs);
         //     if has_next_thread == false{
@@ -57,6 +57,6 @@ pub fn schedule(regs: &mut Registers) -> Option<Cycles> {
         //         break;
         //     }
         // }
-    }
+    // }
     None
 }

@@ -128,10 +128,10 @@ fn main(boot_info: *const BootInfo) -> isize {
     unsafe {
         kernel_pml4 = *(pml4 as *const usize);
     }
-    // log::info!("dom0: {:?}", dom0);
-    // log::info!("pml4: {:?}", pml4);
-    // log::info!("kernel_pml4: {:x}", kernel_pml4);
-    // log::info!("page_array_len: {:x}", boot_info.pages.len());
+    log::info!("dom0: {:?}", dom0);
+    log::info!("pml4: {:?}", pml4);
+    log::info!("kernel_pml4: {:x}", kernel_pml4);
+    log::info!("page_array_len: {:x}", boot_info.pages.len());
 
     kernel::kernel_init(&boot_info.pages, pml4 as usize, kernel_pml4 as usize);
 

@@ -89,7 +89,7 @@ fn main(_argc: isize, _argv: *const *const u8) -> ! {
 
     log::info!("Mapping all physical memory");
     let mut cur = 0;
-    while cur < 0x240000000 {
+    while cur < 0x480000000 {
         // FIXME
         unsafe {
             address_space.map(bootstrap_allocator, cur, cur, false, false, false);

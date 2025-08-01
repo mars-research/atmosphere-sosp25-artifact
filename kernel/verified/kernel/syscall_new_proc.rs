@@ -301,8 +301,10 @@ impl Kernel {
         assert(self.mapping_wf());
         assert(self.pcid_ioid_wf());
         assert(self.page_mapping_wf());
-
-        self.range_create_and_share_mapping(proc_ptr, &va_range, page_ptr_2, &va_range);
+        
+        if va_range.len != 0{
+            self.range_create_and_share_mapping(proc_ptr, &va_range, page_ptr_2, &va_range);
+        } 
 
         return SyscallReturnStruct::NoSwitchNew(
             RetValueType::SuccessPairUsize { value1: page_ptr_2, value2: page_ptr_3 },
