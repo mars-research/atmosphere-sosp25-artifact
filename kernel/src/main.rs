@@ -129,7 +129,7 @@ fn main(boot_info: *const BootInfo) -> isize {
         kernel_pml4 = *(pml4 as *const usize);
     }
     // log::info!("dom0: {:?}", dom0);
-    // log::info!("pml4: {:?}", pml4);
+    log::info!("pml4: {:?}", pml4);
     // log::info!("kernel_pml4: {:x}", kernel_pml4);
     // log::info!("page_array_len: {:x}", boot_info.pages.len());
 
@@ -224,7 +224,7 @@ fn print_logo() {
 /// The kernel panic handler.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    log::error!("panic! {:x?}", info);
+    log::error!("panic! {:#?}", info);
 
     debugger::breakpoint(1);
 

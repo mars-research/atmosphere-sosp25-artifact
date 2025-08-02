@@ -195,9 +195,11 @@ pub extern "C" fn sys_send_empty_try_schedule(endpoint_index:usize, _:usize, _:u
     let sender_cr3: usize = thread_info.3.unwrap();
     let sender_pcid = thread_info.4.unwrap();
     let syscall_ret = kernel.as_mut().unwrap().syscall_send_empty_try_schedule(cpu_id, sender_thread_ptr, endpoint_index, regs);
-    if syscall_ret.pcid.unwrap() != sender_pcid{
-        Bridge::set_cr3((syscall_ret.cr3.unwrap() | syscall_ret.pcid.unwrap() | vdefine::PCID_ENABLE_MASK) as u64);
-    }
+    if syscall_ret.pcid.is_some() {
+        if syscall_ret.pcid.unwrap() != sender_pcid{
+                Bridge::set_cr3((syscall_ret.cr3.unwrap() | syscall_ret.pcid.unwrap() | vdefine::PCID_ENABLE_MASK) as u64);
+            }
+    } 
 
     Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
 }
@@ -432,65 +434,80 @@ pub extern "C" fn sys_receive_empty(endpoint_index:usize, _:usize, _:usize, regs
 //     regs.rax = ret_struc.0.error_code as u64;
 // }
 
-// pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
-//     let cpu_id = cpu::get_cpu_id();
-//     let mut kernel = KERNEL.lock();
-//     let thread_info_op = kernel.as_mut().unwrap().until_get_current_thread_info(cpu_id);
-//     let ret_struc =  kernel.as_mut().unwrap().kernel_idle_pop_sched(
-//         cpu_id,
-//         regs,
+pub extern "C" fn sched_get_next_thread(regs: &mut vRegisters) -> bool{
+    // log::info!("regs before {:#?}", regs);
+    let cpu_id = cpu::get_cpu_id();
+    let mut kernel = KERNEL.lock();
+    let sche_ret = kernel.as_mut().unwrap().schedule_idle_cpu(cpu_id, regs);
+    drop(kernel);
+    if sche_ret.is_error(){
+        // log::info!("no thread");
+        return false;
+    }else{
+        Bridge::set_switch_decision(SwitchDecision::SwitchToPreempted);
+        // log::info!("regs after {:#?}", regs);
+        // log::info!("cr3 {:x?}", sche_ret.cr3.unwrap());
+        // log::info!("pcid {:#?}", sche_ret.pcid.unwrap());
+        Bridge::set_cr3((sche_ret.cr3.unwrap() | sche_ret.pcid.unwrap() ) as u64);
+        // log::info!("cr3 set");
+        return  true;
+    }
+    // let thread_info_op = kernel.as_mut().unwrap().until_get_current_thread_info(cpu_id);
+    // let ret_struc =  kernel.as_mut().unwrap().kernel_idle_pop_sched(
+    //     cpu_id,
+    //     regs,
 
-//     );
-//     drop(kernel);
-//     if ret_struc.error_code == vdefine::CPU_ID_INVALID{
-//         false
-//     }else if ret_struc.error_code == vdefine::CPU_NO_IDLE{
-//         false
-//     }else if ret_struc.error_code == vdefine::SCHEDULER_EMPTY{
-//         false
-//     }else{
-//         if thread_info_op.is_none(){
-//             log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
+    // );
+    // drop(kernel);
+    // if ret_struc.error_code == vdefine::CPU_ID_INVALID{
+    //     false
+    // }else if ret_struc.error_code == vdefine::CPU_NO_IDLE{
+    //     false
+    // }else if ret_struc.error_code == vdefine::SCHEDULER_EMPTY{
+    //     false
+    // }else{
+    //     if thread_info_op.is_none(){
+    //         log::info!("cpu {:?} switching to a new thread/process {:x?} trap frame {:x?} cr3 {:x?}", cpu::get_cpu_id(),ret_struc,regs,ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK);
 
-//             // Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
+    //         // Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
 
-//             // let cr3: u64;
-//             // unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
-//             Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64 as u64);
-//             // log::info!("cr3 {:x?}", cr3);
+    //         // let cr3: u64;
+    //         // unsafe { asm!("mov {cr3}, cr3", cr3 = out(reg) cr3); }
+    //         Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64 as u64);
+    //         // log::info!("cr3 {:x?}", cr3);
 
-//             if ret_struc.error_code == vdefine::NO_ERROR_CODE{
-//                 Bridge::set_switch_decision(SwitchDecision::SwitchToPreempted);
-//             }else{
+    //         if ret_struc.error_code == vdefine::NO_ERROR_CODE{
+    //             Bridge::set_switch_decision(SwitchDecision::SwitchToPreempted);
+    //         }else{
 
-//                 regs.rax = ret_struc.error_code as u64;
+    //             regs.rax = ret_struc.error_code as u64;
 
-//                 Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
+    //             Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
 
-//             }
+    //         }
 
-//         }else{
-//             if thread_info_op.unwrap().1 != ret_struc.cr3 {
+    //     }else{
+    //         if thread_info_op.unwrap().1 != ret_struc.cr3 {
 
-//                 Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
-//             }
+    //             Bridge::set_cr3((ret_struc.cr3 | ret_struc.pcid | vdefine::PCID_ENABLE_MASK) as u64);
+    //         }
 
-//             if ret_struc.error_code == vdefine::NO_ERROR_CODE{
-//                 Bridge::set_switch_decision(SwitchDecision::SwitchToPreempted);
-//             }else{
+    //         if ret_struc.error_code == vdefine::NO_ERROR_CODE{
+    //             Bridge::set_switch_decision(SwitchDecision::SwitchToPreempted);
+    //         }else{
 
-//                 regs.rax = ret_struc.error_code as u64;
+    //             regs.rax = ret_struc.error_code as u64;
                 
-//                 if thread_info_op.unwrap().2 != ret_struc.thread_ptr{
-//                     Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
-//                 }else{
-//                     Bridge::set_switch_decision(SwitchDecision::NoSwitching);
-//                 }
-//             }
-//         }
-//         true
-//     }
-// }
+    //             if thread_info_op.unwrap().2 != ret_struc.thread_ptr{
+    //                 Bridge::set_switch_decision(SwitchDecision::SwitchToClean);
+    //             }else{
+    //                 Bridge::set_switch_decision(SwitchDecision::NoSwitching);
+    //             }
+    //         }
+    //     }
+    //     true
+    // }
+}
 
 // pub extern "C" fn sys_receive_pages(endpoint_index:usize, va:usize, range:usize, regs: &mut vRegisters){
 //     let cpu_id = cpu::get_cpu_id();
@@ -636,11 +653,11 @@ pub extern "C" fn sys_iommu_mmap(va:usize, perm_bits:usize, range:usize, regs: &
 
     let address_shareable = kernel.as_ref().unwrap().check_address_space_va_range_shareable(        thread_info.1.unwrap(),
         &vVaRange4K::new(va, range));
-     log::trace!{"address_shareable {:#?}", address_shareable};
+    //  log::trace!{"address_shareable {:#?}", address_shareable};
     let io_address_shareable = kernel.as_ref().unwrap().check_io_space_va_range_free(
     thread_info.1.unwrap(),
         &vVaRange4K::new(va, range));
-     log::trace!{"io_address_shareable {:#?}", io_address_shareable};
+    //  log::trace!{"io_address_shareable {:#?}", io_address_shareable};
     let ret_struc =  kernel.as_mut().unwrap().syscall_mmap_to_iommu_table(
         thread_info.0.unwrap(),
         vVaRange4K::new(va, range)

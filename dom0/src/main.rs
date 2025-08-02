@@ -24,9 +24,10 @@ use alloc::vec::Vec;
 // use ixgbe_client::*;
 use libtime::sys_ns_loopsleep;
 pub use log::info as println;
-use nvme_client::test_nvme_driver;
+use nvme_client::*;
 use pci::scan_pci_devs;
 use constants::*;
+use syscall_benchmark::*;
 
 fn test_sleep() {
     log::trace!("Sleeping for 100 ns");
@@ -104,15 +105,34 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
     // // test_ixgbe_with_ring_buffer_tx();
 
     // // test_ixgbe_driver();
-    test_nvme_driver();
+    // test_nvme_driver();
+    // test_nvme_with_ring_buffer();
+    test_nvme_pingpong();
+    // unsafe {
+    //     let error_code = asys::sys_new_endpoint(0);
+    //     if error_code != 0 {
+    //             log::info!("sys_new_endpoint failed {:?}", error_code);
+    //         }
+    //     let new_stack = 0xA000000000;
+    //     let size = 16 * 1024 * 1024;
+    //     let error_code = asys::sys_mmap(new_stack, 0x0000_0000_0000_0002u64 as usize, size / 4096);
+    //     if error_code != 0 {
+    //         log::info!("sys_mmap failed {:?}", error_code);
+    //     }
 
+    //     let rsp: usize = (new_stack + size) & !(4096 - 1);
+    //     let error_code = asys::sys_new_thread(0,thread_1_main as *const () as usize, rsp);
+    //     if error_code != 0 {
+    //         log::info!("sys_new_thread failed {:?}", error_code);
+    //     }
+    // }
     loop {}
 }
 fn thread_1_main() {
     log::info!("hello from thread_1_main");
     loop {
         unsafe {
-            // log::info!("ping");
+            log::info!("ping");
             let error_code = asys::sys_send_empty_try_schedule(0);
             if error_code != 0 {
                 log::info!("sys_new_thread failed {:?}", error_code);

@@ -361,6 +361,7 @@ impl NvmeDevice {
         println!("reloading iommu");
         unsafe {
             let pml4 = asys::sys_rd_io_cr3() as u64;
+        println!("sys_rd_io_cr3 {:X?}", pml4);
             asys::sys_set_device_iommu(NVME_PCI_DEV.0, NVME_PCI_DEV.1, NVME_PCI_DEV.2, pml4);
         }
 
@@ -526,7 +527,9 @@ impl NvmeDevice {
 
         while let Some(breq) = submit.pop_front() {
             let buf_addr = breq.data as usize;
-            let (ptr0, ptr1) = unsafe { (sys_mresolve(buf_addr).0 as u64, 0) };
+            // let (ptr0, ptr1) = unsafe { (sys_mresolve(buf_addr).0 as u64, 0) };
+            
+            let (ptr0, ptr1) = unsafe { (buf_addr as u64, 0) };
             let queue = &mut self.submission_queues[qid];
             //println!("breq 0x{:08x} ptr0 0x{:08x}", buf_addr, ptr0);
 
@@ -930,7 +933,8 @@ impl NvmeDevice {
 
         while let Some(breq) = submit.try_read() {
             let buf_addr = breq.data as usize;
-            let (ptr0, ptr1) = unsafe { (sys_mresolve(buf_addr).0 as u64, 0) };
+            // let (ptr0, ptr1) = unsafe { (sys_mresolve(buf_addr).0 as u64, 0) };
+            let (ptr0, ptr1) = (buf_addr as u64, 0);
             let queue = &mut self.submission_queues[qid];
             //println!("breq 0x{:08x} ptr0 0x{:08x}", buf_addr, ptr0);
 
@@ -972,9 +976,12 @@ impl NvmeDevice {
                     //     let sq = &mut self.submission_queues[qid];
                     //     if sq.req_slot[cq_idx] == true {
                     //         if let Some(req) = sq.breq_requests[cq_idx].take() {
-                    //             collect.push_front(req);
+                    //             while collect.try_push(&req) == false {
+                    //                 log::info!("try push");
+                    //             }
                     //         }
                     //         sq.req_slot[cq_idx] = false;
+                    //         // sq.breq_requests[cq_idx] = None;
                     //         reap_count += 1;
                     //     }
                     //     cur_head = head;
@@ -1000,29 +1007,37 @@ impl NvmeDevice {
         }
 
         {
-            loop {
+            // log::info!("poll");
+            for i in 0..batch_sz {
                 let queue = &mut self.completion_queues[qid];
 
                 if collect.is_full() || reap_count >= batch_sz {
                     break;
                 }
 
-                if let Some((head, entry, cq_idx)) = if reap_all {
-                    Some(queue.complete_spin())
-                } else {
-                    queue.complete()
-                } {
+                if let Some((head, entry, cq_idx)) = queue.complete()
+                
+                // if reap_all {
+                //     Some(queue.complete_spin())
+                // } else {
+                //     queue.complete()
+                // } 
+                
+                {
                     log::trace!("Got head {} cq_idx {}", head, cq_idx);
                     let sq = &mut self.submission_queues[qid];
                     if sq.req_slot[cq_idx] == true {
                         if let Some(req) = sq.breq_requests[cq_idx].take() {
-                            while collect.try_push(&req) == false {}
+                            while collect.try_push(&req) == false {
+                                log::info!("try push");
+                            }
                         }
                         sq.req_slot[cq_idx] = false;
                         sq.breq_requests[cq_idx] = None;
                         reap_count += 1;
+                        self.completion_queue_head(qid as u16, cur_head as u16);
                     } else {
-                        println!(
+                        log::info!(
                             "Anomaly: req_slot[{}] blkreq_rrefs[{}] can't collect",
                             cq_idx, cq_idx
                         );
@@ -1035,7 +1050,7 @@ impl NvmeDevice {
                 }
             }
             if reap_count > 0 {
-                //println!("updating cur_head {}", cur_head);
+                // println!("updating cur_head {}", cur_head);
                 self.completion_queue_head(qid as u16, cur_head as u16);
             }
         }
