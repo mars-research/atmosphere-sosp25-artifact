@@ -106,8 +106,8 @@ extern "C" fn main(payload_base: *mut u8, payload_size: usize) -> isize {
 
     // // test_ixgbe_driver();
     // test_nvme_driver();
-    // test_nvme_with_ring_buffer();
-    test_nvme_pingpong();
+    test_nvme_with_ring_buffer();
+    // test_nvme_pingpong();
     // unsafe {
     //     let error_code = asys::sys_new_endpoint(0);
     //     if error_code != 0 {
