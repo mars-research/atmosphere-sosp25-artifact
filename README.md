@@ -32,7 +32,7 @@ atmo run --release --kvm
 
 ## Verification
 
-Verify the OS kernel. On a powerful machine, this should take only 15 seconds
+Verify the OS kernel. On a powerful machine, this should take only 15 seconds on a powerful machine. 
 ```
 atmo verify
 ```
